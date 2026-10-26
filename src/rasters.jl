@@ -110,7 +110,8 @@ source that fetches its own files does so here (a catalogued dataset's download)
 naming its files reads them: each opened by the backend its source's catalogue row names, stacked
 along time with the coordinates the files carry, or `times` where given, or monthly ordinals where
 they have none; a file in the 0 to 360 longitude convention is rolled onto -180 to 180. What the
-files say about themselves is checked against the row on the way.
+files say about themselves is checked against the row on the way. A tracked spec's files come from
+its data pipeline run's store, put in place before they are opened and never fetched.
 
 Building a layer reads a spec through this, windowed and coarsened to suit the study grid, so
 calling it directly is for inspection - a whole global layer at its own resolution can be large.
@@ -126,6 +127,7 @@ calling it directly is for inspection - a whole global layer at its own resoluti
 """
 function Base.read(spec::RasterSpec; cut = spec.cut, scale = spec.scale,
                    fn = spec.fn)
+    _providespec!(spec)
     return _readspec(spec, spec.files, cut = cut, scale = something(scale, 1),
                      fn = fn)
 end
@@ -136,7 +138,8 @@ end
 
 Fetch every file a spec reads that is not there yet, reading nothing, and return their local paths
 in the spec's order - the step to run on a node with a network before a run on nodes without one.
-A vector of specs is fetched spec by spec.
+A vector of specs is fetched spec by spec. A tracked spec is fetched by its data pipeline run, which
+registers what it fetches (see [`EcoSISTEM.Track`](@ref)).
 
 # Arguments
 
@@ -144,14 +147,12 @@ A vector of specs is fetched spec by spec.
   - `dryrun`: `true` fetches nothing and instead returns, per file, a named tuple of the `entry`,
     whether it is `present`, and its `bytes` where the server states them (a plain download's
     `Content-Length`; a Climate Data Store request cannot say), so a user on a slow link can decide.
-    A source that resolves its own files through RasterDataSources is reported as one entry with
-    no size.
+    A source that resolves its own files through RasterDataSources is reported file by file, each
+    entry the path the file has or would have, with no size.
 """
 function fetchfiles(spec::RasterSpec; dryrun::Bool = false)
-    dryrun || return _fetchedpaths(spec, spec.files)
-    isnothing(spec.files) &&
-        return [(entry = spec.source, present = nothing, bytes = nothing)]
-    return [_dryrunentry(entry) for entry in spec.files]
+    dryrun && return _dryrun(spec, spec.files)
+    return _fetched(spec.track, spec)
 end
 
 function fetchfiles(specs::AbstractVector; dryrun::Bool = false)
@@ -1620,6 +1621,7 @@ end
 # keeps a built shape agreeing with the box `boundingbox` reports for it.
 
 function _shapecomponents(spec::NaturalEarthSpec)
+    _providespec!(spec)
     return _coverageof(_dissolve(_selectfeatures(_findlevel(spec.level),
                                                  spec.name)),
                        spec.coverage)
@@ -1965,8 +1967,7 @@ function _fetchedpaths(spec::RasterSpec, files::AbstractVector)
 end
 
 function _fetchedpaths(spec::RasterSpec, ::Nothing)
-    readkw = (; _getrasterkw(spec.source)..., spec.readkw...)
-    return _allfiles(_fetchfiles(spec.source, spec.code; readkw...))
+    return _allfiles(_fetchfiles(spec.source, spec.code; _readkw(spec)...))
 end
 
 # Every path in whatever shape a fetch hook returned: one, a vector, or named layers per time.
@@ -1975,6 +1976,65 @@ function _allfiles(raw::Vector{<:NamedTuple})
 end
 
 _allfiles(raw) = _filelist(raw)
+
+# A spec's files fetched: by the spec's own route, or by the pipeline run tracking it, which registers
+# them.
+_fetched(::Nothing, spec::RasterSpec) = _fetchedpaths(spec, spec.files)
+
+_fetched(track::Track, spec::RasterSpec) = _trackedfetch(track, spec)
+
+# A spec's dry-run report, a file each: its named entries, or the files its source would fetch, or
+# one entry for the source where it cannot say which.
+function _dryrun(spec::RasterSpec, files::AbstractVector)
+    return [_dryrunentry(e) for e in files]
+end
+
+function _dryrun(spec::RasterSpec, ::Nothing)
+    paths = _sourcepaths(spec.source, spec.code; _readkw(spec)...)
+    isnothing(paths) &&
+        return [(entry = spec.source, present = nothing, bytes = nothing)]
+    return [(entry = p, present = isfile(p), bytes = nothing) for p in paths]
+end
+
+# The keywords a source's own fetch takes for a spec: the source's defaults, then the spec's.
+_readkw(spec::RasterSpec) = (; _getrasterkw(spec.source)..., spec.readkw...)
+
+# A tracked spec's files, put in place from its pipeline run's store before anything opens them, so
+# that what follows reads them as it would any present file and fetches nothing. An untracked spec
+# goes on as it is.
+_providespec!(spec) = _provide!(_spectrack(spec), spec)
+
+_provide!(::Nothing, spec) = nothing
+
+function _provide!(track::Track, spec)
+    paths = _specpaths(spec)
+    _trackedprovide!(track, paths)
+    absent = filter(!isfile, paths)
+    isempty(absent) ||
+        error("The pipeline run tracking $spec did not provide " *
+              "$(join(basename.(absent), ", ")), which a tracked spec reads only from that run's " *
+              "store.")
+    return nothing
+end
+
+# Every file a spec reads, where it is or would be, fetching nothing.
+_specpaths(spec::RasterSpec) = _specpaths(spec, spec.files)
+
+function _specpaths(::RasterSpec, files::AbstractVector)
+    return String[_localpath(f) for f in files]
+end
+
+function _specpaths(spec::RasterSpec, ::Nothing)
+    paths = _sourcepaths(spec.source, spec.code; _readkw(spec)...)
+    isnothing(paths) &&
+        error("`$(spec.source)` cannot say where its files are without fetching them, so a spec of " *
+              "it cannot be tracked.")
+    return paths
+end
+
+function _specpaths(spec::NaturalEarthSpec)
+    return [_localpath(_nesource(_checklevel(spec.level)))]
+end
 
 # One file's dry-run report: where it would land, whether it is there, and what the server says
 # it weighs.

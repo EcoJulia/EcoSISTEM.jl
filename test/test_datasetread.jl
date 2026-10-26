@@ -705,10 +705,15 @@ end
     # through an asset, when it is recorded as present.
     @test provenance(spec) == [nothing]
     @test E.verifyassets(spec) == 0
-    # A source that resolves its own files reports as one entry, fetching nothing.
-    @test only(E.fetchfiles(SourceSpec(WorldClim{BioClim}, :bio1),
-                            dryrun = true)).entry ===
-          WorldClim{BioClim}
+    # A source that resolves its own files reports them file by file, where each is or would be,
+    # fetching nothing: twelve for a monthly layer's twelve months.
+    dry = only(E.fetchfiles(SourceSpec(WorldClim{BioClim}, :bio1),
+                            dryrun = true))
+    @test endswith(dry.entry, "wc2.1_10m_bio_1.tif") &&
+          dry.present == isfile(dry.entry) && isnothing(dry.bytes)
+    months = E.fetchfiles(SourceSpec(WorldClim{Climate}, :wind, month = 1:12),
+                          dryrun = true)
+    @test length(months) == 12 && endswith(last(months).entry, "_wind_12.tif")
     # A directory holding several archives' files keeps only those with the code's variable.
     dir = mktempdir()
     era = _erafixture(dir)

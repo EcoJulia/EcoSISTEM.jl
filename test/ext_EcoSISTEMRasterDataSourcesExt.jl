@@ -76,7 +76,7 @@ include("rasterfixtures.jl")
     end
 
     # The four `rsds` files RasterDataSources cannot fetch, named as CHELSA's server does not name
-    # them, which `_checkfetchable` refuses before trying. When the names fail here,
+    # them, which `_refusemisnamed` refuses before trying. When the names fail here,
     # RasterDataSources names them as the server does: delete that method, this testset and the
     # rows' notes in `BioClimPlus.csv`.
     @testset "CHELSA-BIOCLIM+'s rsds files are refused while their names are wrong" begin
@@ -92,8 +92,8 @@ include("rasterfixtures.jl")
         end
         # A dataset with no such file is passed on to `getraster` as before.
         ext = Base.get_extension(EcoSISTEM, :EcoSISTEMRasterDataSourcesExt)
-        @test isnothing(ext._checkfetchable(T, (:gdd0, :swb)))
-        @test isnothing(ext._checkfetchable(CHELSA{BioClim}, (1, 12)))
+        @test isnothing(ext._refusemisnamed(T, (:gdd0, :swb)))
+        @test isnothing(ext._refusemisnamed(CHELSA{BioClim}, (1, 12)))
     end
 
     @testset "moving the asset cache moves only a download path the extension chose" begin
@@ -211,6 +211,20 @@ include("rasterfixtures.jl")
                 @test E._localfiles(CHELSA{BioClim}, [:bio1, :bio3]) ==
                       [RasterDataSources.rasterpath(CHELSA{BioClim}, 1)]
                 @test isempty(E._localfiles(CHELSA{BioClim}, :bio3))
+                # A range names one file a value, as `getraster` maps over it, where `rasterpath`
+                # given the range would name one file that cannot exist.
+                for m in 1:12
+                    path = RasterDataSources.rasterpath(WorldClim{Climate},
+                                                        :wind,
+                                                        res = "10m", month = m)
+                    mkpath(dirname(path))
+                    touch(path)
+                end
+                @test length(E._localfiles(WorldClim{Climate}, :wind,
+                                           res = "10m",
+                                           month = 1:12)) == 12
+                @test length(E._sourcepaths(WorldClim{Climate}, :wind,
+                                            res = "10m", month = 2:4)) == 3
             end
         end
     end

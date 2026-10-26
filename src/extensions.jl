@@ -431,12 +431,18 @@ function _lazysource end
 # fetches.
 function _fetchfiles end
 
-# Where a source's files for `code` would be on disk, fetching nothing: the paths that exist, for
-# `provenance` and `verifyassets`, which must never cost a download. The extension answers from
-# RasterDataSources' own path rule; a source with no method has no files to report.
-function _localfiles end
+# Where a source's files for `code` would be on disk, fetching nothing: every one, present or not, a
+# range-valued keyword such as `month = 1:12` taken a value at a time, or `nothing` for a source that
+# cannot say. The extension answers from RasterDataSources' own path rule.
+function _sourcepaths end
 
-_localfiles(::Type, code; kw...) = String[]
+_sourcepaths(::Type, code; kw...) = nothing
+
+# Those of a source's files for `code` that exist, for `provenance` and `verifyassets`, which must
+# never cost a download; none for a source that cannot say where its files are.
+function _localfiles(T::Type, code; kw...)
+    return filter(isfile, something(_sourcepaths(T, code; kw...), String[]))
+end
 
 # Point `RasterDataSources` at the asset cache again once `set_assetdir!` has moved it, where the
 # extension's `__init__` pointed it there and nothing has changed it since. The extension supplies
@@ -455,3 +461,21 @@ Helper function for the FAIR Data Pipeline to unzip files that are stored as
 zips to a temporary folder.
 """
 function unziptemp end
+
+# Put each of `paths` in place from the store of the pipeline run `track` names, as the data product
+# `<root>/<file name>`, before anything opens it: what a tracked spec's read, grid probe or shape does
+# in place of fetching. Asked again for a file in place already, it must do no harm, since a build
+# asks once a probe and once a read. The extension supplies the method for its handle; any other
+# handle is refused.
+_trackedprovide!(track::Track, paths) = error(_nopipeline(track))
+
+# Fetch a tracked spec's files and register each with the pipeline run `track` names, returning their
+# local paths: what `fetchfiles` does for a tracked spec. The extension supplies the method for its
+# handle; any other handle is refused.
+_trackedfetch(track::Track, spec) = error(_nopipeline(track))
+
+# Why a track cannot be followed: its handle is not a pipeline run this package can use.
+function _nopipeline(track::Track)
+    return "A `Track` follows a FAIR data pipeline run, the handle `DataPipeline.initialise()` " *
+           "returns with DataPipeline loaded; a `$(typeof(track.handle))` is not one."
+end

@@ -29,8 +29,10 @@ public NicheAxis, AbstractLayer, Role, Condition, Resource, AbstractRegime,
 # where an input came from, which every fetch writes.
 include("Asset.jl")
 include("Provenance.jl")
+# A data pipeline run as the route a spec's files take, before the specs that hold one.
+include("Track.jl")
 
-public CachedAsset, CDSRequest, InputRecord, Provenance
+public CachedAsset, CDSRequest, InputRecord, Provenance, Track
 
 public assetdir, set_assetdir!
 

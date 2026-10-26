@@ -467,8 +467,9 @@ _probecrs(raster::ClimateRaster) = _rastercrs(raster)
 # the read can be windowed before it happens; a URL is downloaded here if it has not been already,
 # since nothing can be known about it otherwise. A source that can be asked answers through
 # `sourcecrs`, in the representation its files carry; one that cannot answers from its
-# `datasets.csv` row, or declines.
+# `datasets.csv` row, or declines. A tracked spec's files come from its pipeline run first.
 function _probecrs(spec::RasterSpec)
+    _providespec!(spec)
     if !isnothing(spec.files)
         crs = Rasters.crs(_lazyopen(_resolvepath(first(spec.files));
                                     _openkw(spec)...))
@@ -496,8 +497,10 @@ _probecrs(::Any) = nothing
 
 # A file-backed spec's grid from its header alone - the CRS and the two coordinate vectors, in the
 # CRS's unit - or `nothing` where it cannot be had without reading. What `_autoscale` measures a
-# layer's cell against a target with, before deciding how coarsely to read it.
+# layer's cell against a target with, before deciding how coarsely to read it. A tracked spec's files
+# come from its pipeline run first.
 function _lazygrid(spec::RasterSpec)
+    _providespec!(spec)
     isnothing(spec.files) ||
         return _gridof(_lazyopen(_resolvepath(first(spec.files));
                                  _openkw(spec)...))

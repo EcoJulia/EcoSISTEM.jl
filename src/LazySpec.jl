@@ -117,6 +117,8 @@ its last slice, and `calendar` what its coordinates mean.
   - `readkw`: keywords the source needs to resolve its files, kept for the eventual read -
     `month = 1:12` for a monthly climatology, say. A spec nested inside a
     [`ConstructedRasterSpec`](@ref) can therefore carry its own read options.
+  - `track`: the data pipeline run its files go through, a [`Track`](@ref), or `nothing` for
+    none.
 
 # Type parameters
 
@@ -141,6 +143,7 @@ struct RasterSpec{A <: NicheAxis, U} <: EcoSISTEM.AbstractLazySpec
     atend::AbstractSeriesEnd
     calendar::Union{Nothing, AbstractSeriesCalendar}
     readkw::NamedTuple
+    track::Union{Nothing, Track}
 
     # The one route to `new`. The two spellings, `SourceSpec` and `RasterFileSpec`, decide the
     # fields and come here; the checks that hold whichever spelling was used live here with it.
@@ -148,7 +151,9 @@ struct RasterSpec{A <: NicheAxis, U} <: EcoSISTEM.AbstractLazySpec
                               scale::Union{Nothing, Integer}, fn, times,
                               atend::AbstractSeriesEnd,
                               calendar::Union{Nothing, AbstractSeriesCalendar},
-                              readkw::NamedTuple) where {A <: NicheAxis, U}
+                              readkw::NamedTuple,
+                              track::Union{Nothing, Track}) where {A <:
+                                                                   NicheAxis, U}
         (isnothing(scale) || scale >= 1) ||
             error("`scale` coarsens by a whole number of cells per side, so it must be at " *
                   "least 1; got $scale.")
@@ -158,7 +163,7 @@ struct RasterSpec{A <: NicheAxis, U} <: EcoSISTEM.AbstractLazySpec
             error("`times` names no time; give one per slice, or leave it out.")
         return new{A, U}(source, code, files, unit, cut,
                          isnothing(scale) ? nothing : Int(scale), fn, times,
-                         atend, calendar, readkw)
+                         atend, calendar, readkw, _storedtrack(track))
     end
 end
 
@@ -166,7 +171,7 @@ end
     SourceSpec(source, code = nothing, unit = nothing; axis, files = nothing, file = nothing,
                directory = nothing, years = nothing, months = nothing, area = nothing,
                cut = nothing, scale = nothing, fn = nothing, times = nothing,
-               atend = RepeatAtEnd(), calendar = nothing, readkw...)
+               atend = RepeatAtEnd(), calendar = nothing, track = nothing, readkw...)
 
 Name a layer of a catalogued data source, without reading it, as a [`RasterSpec`](@ref) - one whose
 `files` the source resolves for itself, or one reading files you name, which the catalogue still
@@ -198,12 +203,16 @@ land-cover class bands for `compress_landcover`.
     wanted, a file a decade as [`EcoSISTEM.era5requests`](@ref) names them; the months of each year,
     all twelve by default; and the area to cut to, the globe by default, a box or a region as for
     [`EcoSISTEM.CDSRequest`](@ref). `years` is required, since a decade of the globe is gigabytes.
+    A `NaturalEarthSpec` given as the `area` is a box from the shipped regions table, and any
+    `track` it holds is ignored, since no file of it is read.
   - `cut`, `scale`, `fn`: the read options, as the [`RasterSpec`](@ref) fields of those names. Give
     a `scale` a `cut` as well where the whole world is not needed: on its own a `scale` coarsens the
     *whole* source file however small a result is wanted, because the aggregated form is memoised
     per file, and for a global dataset that first read can need many gigabytes.
   - `times`, `atend`, `calendar`: how the files become one series, as the [`RasterSpec`](@ref)
     fields of those names. A netCDF file's own dates are kept unless `times` replaces them.
+  - `track`: a [`EcoSISTEM.Track`](@ref) naming the data pipeline run the files go through and the
+    root of their data product names, or `nothing`, the default, for none.
   - any other keyword: kept as a pass-through argument for the eventual read, so
     `SourceSpec(WorldClim{Climate}, :wind, month = 1:12)` reads the twelve monthly layers and
     `month = 1` just the one.
@@ -244,6 +253,7 @@ const SourceSpec = RasterSpec
                              times = nothing,
                              atend::AbstractSeriesEnd = RepeatAtEnd(),
                              calendar::Union{Nothing, AbstractSeriesCalendar} = nothing,
+                             track::Union{Nothing, Track} = nothing,
                              readkw...) where {S; IsRasterData{S}}
     c = isnothing(code) ? EcoSISTEM._alllayercodes(S) :
         code isa AbstractVector ? collect(CODE_TYPE, code) : code
@@ -252,8 +262,20 @@ const SourceSpec = RasterSpec
     fs = _specfiles(S, c, files, file, directory, years = years,
                     months = months, area = area)
     _checkfetchable(S, fs)
+    _refusetrackinreadkw(readkw)
     return RasterSpec{a, typeof(u)}(S, c, fs, u, cut, scale, fn, times, atend,
-                                    calendar, NamedTuple(readkw))
+                                    calendar, NamedTuple(readkw), track)
+end
+
+# A `Track` among the pass-through read keywords is a misspelt `track`, which would otherwise surface
+# only at the read, as an option the source does not know.
+function _refusetrackinreadkw(readkw)
+    for (k, v) in pairs(readkw)
+        v isa Track &&
+            error("`$k = $v` holds a `Track`, which tracks a spec only as its `track` keyword: " *
+                  "`track = Track(handle, root)`.")
+    end
+    return nothing
 end
 
 # Worth the extra method, exactly as on `ClimateRaster`: without it an unmarked source fails with a
@@ -338,7 +360,8 @@ function Base.show(io::IO, spec::ShapeSpec)
 end
 
 """
-    NaturalEarthSpec(name::AbstractString; level = nothing, coverage = AllTerritories())
+    NaturalEarthSpec(name::AbstractString; level = nothing, coverage = AllTerritories(),
+                     track = nothing)
 
 Name an active-area mask as a **named region** - a country, a continent, an island - without
 reading anything. The polygons are fetched and cut to the grid when the spec is materialised, as for
@@ -358,14 +381,18 @@ spec's shape actually has.
   - `coverage`: how much of what the name covers to take - [`AllTerritories`](@ref), the default and
     what the source itself means by the name, or [`LargestLandmass`](@ref) for the principal landmass
     alone.
+  - `track`: a [`EcoSISTEM.Track`](@ref) naming the data pipeline run the polygons' file goes
+    through, or `nothing`, the default, for none.
 """
 struct NaturalEarthSpec{C <: EcoSISTEM.AbstractCoverage} <: AbstractShapeSpec
     level::String
     name::String
     coverage::C
+    track::Union{Nothing, Track}
 
     function NaturalEarthSpec(name::AbstractString; level = nothing,
-                              coverage::EcoSISTEM.AbstractCoverage = AllTerritories())
+                              coverage::EcoSISTEM.AbstractCoverage = AllTerritories(),
+                              track::Union{Nothing, Track} = nothing)
         lvl = isnothing(level) ? EcoSISTEM._resolvelevel(name, coverage) :
               EcoSISTEM._checklevel(level).name
         row = EcoSISTEM._regionrow(lvl, name)
@@ -374,12 +401,13 @@ struct NaturalEarthSpec{C <: EcoSISTEM.AbstractCoverage} <: AbstractShapeSpec
                   "`EcoSISTEM.naturalearth_levels()` lists the levels.")
         # The source's own spelling is stored, not the caller's: the lookup is case-insensitive, and
         # what is kept should be what the data says so that `show` and any later report agree with it.
-        return new{typeof(coverage)}(lvl, row.Name, coverage)
+        return new{typeof(coverage)}(lvl, row.Name, coverage,
+                                     _storedtrack(track))
     end
 end
 
 """
-    NaturalEarthSpec(match::EcoSISTEM.RegionMatch; coverage = AllTerritories())
+    NaturalEarthSpec(match::EcoSISTEM.RegionMatch; coverage = AllTerritories(), track = nothing)
 
 Turn one match from [`investigate_regions`](@ref) into a spec, without naming it again.
 
@@ -391,9 +419,10 @@ asserts there was exactly one, `first(report)` takes the best by the report's ow
 `report[i]` takes a chosen one.
 """
 function NaturalEarthSpec(match::EcoSISTEM.RegionMatch;
-                          coverage::EcoSISTEM.AbstractCoverage = AllTerritories())
+                          coverage::EcoSISTEM.AbstractCoverage = AllTerritories(),
+                          track::Union{Nothing, Track} = nothing)
     return NaturalEarthSpec(match.name, level = match.level.name,
-                            coverage = coverage)
+                            coverage = coverage, track = track)
 end
 
 # A report is ambiguous by construction, so converting one would have to pick silently. `first` is
@@ -409,10 +438,17 @@ function NaturalEarthSpec(report::EcoSISTEM.RegionReport; kw...)
 end
 
 function Base.show(io::IO, s::NaturalEarthSpec)
+    _showregion(io, s)
+    isnothing(s.track) || print(io, ", track = ", s.track)
+    return print(io, ")")
+end
+
+# A region spec as it is written, less its closing bracket and any `track`: what names the ground.
+function _showregion(io::IO, s::NaturalEarthSpec)
     print(io, "NaturalEarthSpec(\"", s.name, "\", level = \"", s.level, "\"")
     EcoSISTEM._isdefaultcoverage(s.coverage) ||
         print(io, ", coverage = ", s.coverage)
-    return print(io, ")")
+    return nothing
 end
 
 """
@@ -801,7 +837,7 @@ function RasterFileSpec(path::AbstractString; axis::Type{A}, unit = NoUnits,
                                                                                            NicheAxis}
     return RasterSpec{A, typeof(unit)}(source, nothing, [_fileentry(path)],
                                        unit, cut, scale, fn, times, atend,
-                                       calendar, NamedTuple())
+                                       calendar, NamedTuple(), nothing)
 end
 
 # == Functions ======================================================================================
@@ -863,8 +899,7 @@ end
 
 # The files a source has on disk for a spec that resolves its own, fetching nothing.
 function _presentfiles(spec::RasterSpec)
-    readkw = (; _getrasterkw(spec.source)..., spec.readkw...)
-    return _localfiles(spec.source, spec.code; readkw...)
+    return _localfiles(spec.source, spec.code; _readkw(spec)...)
 end
 
 # The record of every file a read of `spec` came from, once the read has made them present: the
@@ -983,7 +1018,9 @@ function _cdsarea(region::NaturalEarthSpec)
                                           round = 1°))
 end
 
-_cdsregion(region::NaturalEarthSpec) = string(region)
+# Written without its `track`, which says how the region's own file travels, not what ground the
+# request covers.
+_cdsregion(region::NaturalEarthSpec) = sprint(_showregion, region) * ")"
 
 # The layer's download as a one-entry `files` list, for a source whose row says `https` and a
 # layer whose row names a `File`; `nothing` for any other source, or a layer naming none.
@@ -1136,7 +1173,7 @@ end
 function _showspec(io::IO, spec::RasterSpec{A}, ::Nothing) where {A}
     kw = ["$(k) = $(v)" for (k, v) in pairs(spec.readkw)]
     return print(io, "SourceSpec($(spec.source), $(repr(spec.code))",
-                 join(", " .* vcat(kw, _readoptions(spec))),
+                 join(", " .* vcat(kw, _readoptions(spec), _trackoption(spec))),
                  ", axis = $(nameof(A)))")
 end
 
@@ -1156,8 +1193,13 @@ function _showspec(io::IO, spec::RasterSpec{A},
     end
     kw = ["$(k) = $(v)" for (k, v) in pairs(spec.readkw)]
     return print(io, "SourceSpec($(spec.source), $(repr(spec.code)), ", where_,
-                 join(", " .* vcat(kw, _readoptions(spec))),
+                 join(", " .* vcat(kw, _readoptions(spec), _trackoption(spec))),
                  ", axis = $(nameof(A)))")
+end
+
+# A spec's `track` as it is written, where it has one.
+function _trackoption(spec)
+    return isnothing(spec.track) ? String[] : ["track = $(spec.track)"]
 end
 
 # --- Desugaring and labelling a spec -----------------------------------------
@@ -1204,7 +1246,7 @@ end
 function _desugarsupply(spec::RasterSpec)
     rec = _percellrecord(spec)
     isnothing(rec) && return spec
-    divisor = SourceSpec(spec.source, rec.period.code)
+    divisor = SourceSpec(spec.source, rec.period.code, track = spec.track)
     # `Precipitation`, not `GrowingSeasonPrecipitation` (user, 2026-08-05): a Resource-role axis
     # says *which resource*, not which layer it came from, and water is water. The provenance
     # therefore lives in the spec, not in the built layer - and this now matters, because the built

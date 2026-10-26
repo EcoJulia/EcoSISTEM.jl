@@ -25,18 +25,25 @@
       of the documentation's page quoting them. `provenance` and `write_provenance` show them with
       the access date filled in, and say what was done to the inputs.
     - A `CDSRequest` whose area was named as a region keeps the region in its record.
+    - `EcoSISTEM.Track(handle, root)`, given as the `track` keyword of `SourceSpec` and
+      `NaturalEarthSpec`, names the FAIR data pipeline run a spec's files go through, each the data
+      product `<root>/<file name>`; a handle of `nothing` tracks nothing.
   - Changed
     - CHELSA's rows name their EnviDat deposits' DOIs, CHELSA-BIOCLIM+ its deposit's own version
       (1.0), and every licence is an SPDX identifier or the provider's terms URL.
     - Fetching CHELSA-BIOCLIM+'s `rsds` layers fails naming the file CHELSA's server has, which
       RasterDataSources does not yet ask for, rather than with a bare 404.
     - A layer code a dataset's table lacks is refused naming the tables that have it.
+    - `fetchfiles(spec, dryrun = true)` reports a RasterDataSources dataset's files one by one,
+      each with the path it has or would have and whether it is there.
   - Fixed
     - `era5requests` puts every field a request varies by in its file's name - a box, and months
       other than all twelve - so two requests never share a file. A file fetched with a box or
       some months under the old name is fetched again unless renamed.
     - A Climate Data Store file already present whose provenance record holds a different request
       is refused, naming what differs, rather than served as the request asked.
+    - `provenance` and `verifyassets` find the files of a monthly RasterDataSources layer read with
+      `month = 1:12`, which they missed.
     - The `EcoSISTEMDataPipelineExt` extension works: `[compat]` now asks for `DataPipeline`
       v0.58.1, and the extension and its test hook are exercised by the test suite.
     - `examples/pipeline/AfricaRun.jl` runs under `fair run` again. It has an environment of its
