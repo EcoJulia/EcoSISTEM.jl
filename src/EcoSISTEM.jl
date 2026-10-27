@@ -36,7 +36,7 @@ public CachedAsset, CDSRequest, InputRecord, Provenance, Track
 
 public assetdir, set_assetdir!
 
-public assetpath, fetchfiles, verifyassets
+public assetpath, fetchfiles, missingfiles, verifyassets
 
 export provenance, write_provenance
 
@@ -518,6 +518,9 @@ public AbstractRecorder
 # What an assembled model was built from: `provenance` asked of anything holding a study area,
 # after every type such a question can be asked of.
 include("inputrecords.jl")
+
+# What a tracked spec's files are registered as with a data pipeline run, decided from plain data.
+include("registration.jl")
 
 # `NicheAxis` and the `XxxAxis` grouping supertypes are **not** here: every abstract type in this
 # package is `public` rather than exported, declared together at the end of this file. It is the

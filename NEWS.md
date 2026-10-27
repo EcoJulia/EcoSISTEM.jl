@@ -20,19 +20,34 @@
     - EarthEnv's full land cover, `EarthEnv{LandCover{:DISCover}}`, has a catalogue row, and the
       examples read it, as EarthEnv recommends for most applications; each version's title names
       it. `EarthEnv{LandCover}` is still the reduced version, without DISCover.
-    - A fetched file's record, and `InputRecord`, gain its title, whether it is the provider's own
-      file (`primary`), the release date, the provider's references and notices, and the address
-      of the documentation's page quoting them. `provenance` and `write_provenance` show them with
-      the access date filled in, and say what was done to the inputs.
+    - A fetched file's record, and `InputRecord`, gain its title, whether it is the cited item or
+      one of its files (`primary`), the release date, when its provider last changed it
+      (`modified`), and the provider's references and notices with the page quoting them.
+      `provenance` and `write_provenance` show them, the access date filled in, and what was done
+      to the inputs.
     - A `CDSRequest` whose area was named as a region keeps the region in its record.
     - `EcoSISTEM.Track(handle, root)`, given as the `track` keyword of `SourceSpec` and
       `NaturalEarthSpec`, names the FAIR data pipeline run a spec's files go through, each the data
-      product `<root>/<file name>`; a handle of `nothing` tracks nothing.
+      product `<root>/data/<stem>` with its record `<root>/provenance/<stem>`; a handle of
+      `nothing` tracks nothing. `release_version` and `release_date` give your own files' release.
+    - `fetchfiles` on a tracked spec registers its source's file-less deposit as the run's input,
+      and each file and its record as outputs derived from it alone, in the source's namespace; a
+      run registers one source. Any other read takes the files from the run's store. A file whose
+      bytes changed with no new release is versioned `<version>+YYYYMMDD`, its provider's date.
+    - `EcoSISTEM.missingfiles(x)` lists, fetching nothing, the files still to do before `x` can be
+      built and why, for an untracked spec or a tracked one in a fetch or a model run.
+    - `fetchfiles` takes anything a habitat is built from - combinations, `Varying`, shapes, masks,
+      tuples - and a dry run says whether a tracked spec's run `covers` each file.
+    - `datasets.csv` and `DatasetRecord` gain whether each identifier names the data or a paper
+      (`identifies`), and the namespace its files are registered in, with its name and website.
   - Changed
     - CHELSA's rows name their EnviDat deposits' DOIs, CHELSA-BIOCLIM+ its deposit's own version
       (1.0), and every licence is an SPDX identifier or the provider's terms URL.
     - Fetching CHELSA-BIOCLIM+'s `rsds` layers fails naming the file CHELSA's server has, which
       RasterDataSources does not yet ask for, rather than with a bare 404.
+    - A netCDF file fetched from the Climate Data Store has its `history` attribute, which records
+      when and where the CDS converted it, replaced by a note of the same length, so fetches of the
+      same data are identical; the original is kept in its record.
     - A layer code a dataset's table lacks is refused naming the tables that have it.
     - `fetchfiles(spec, dryrun = true)` reports a RasterDataSources dataset's files one by one,
       each with the path it has or would have and whether it is there.
@@ -46,10 +61,9 @@
       `month = 1:12`, which they missed.
     - The `EcoSISTEMDataPipelineExt` extension works: `[compat]` now asks for `DataPipeline`
       v0.58.1, and the extension and its test hook are exercised by the test suite.
-    - `examples/pipeline/AfricaRun.jl` runs under `fair run` again. It has an environment of its
-      own, it names the claimed files on its layer specs so the run reads the pipeline's copy of
-      WorldClim rather than downloading another, and `AfricaRun.yaml` points at WorldClim's
-      current host.
+    - `examples/pipeline/` runs under `fair run` again, as a fetch run for each of WorldClim,
+      Natural Earth and ERA5 and a model run over Scotland, each with its config, in an environment
+      of their own; it replaces `AfricaRun.jl`.
   - Removed
     - Everything deprecated in v0.8.0 and earlier: `read` on dataset types and on `ERA`, `CERA`
       and `CRUTS`, `readfile`, `retrieve_era5`, `simulate_action!`, `simulate_record!`,
@@ -57,6 +71,8 @@
       keyword, `ConstructedSpec` and `emptyMPIgridlandscape`. Earlier notes give each replacement.
     - `CHELSA{BioClimPlus}`'s `bio1` to `bio19`: RasterDataSources gives them CHELSA V2.1's own
       files, so read them as `CHELSA{BioClim}`, whose facts they carry.
+    - `EcoSISTEM.unziptemp` and the `p7zip_jll` dependency it alone needed: a tracked spec takes
+      its files from the pipeline's store as they are.
   - Internal
     - The test suite passes on Julia 1.13.2: the GeoTIFF fixtures keep their geotransform vector
       alive across ArchGDAL's `setgeotransform!`, which does not, and the docstring checks import

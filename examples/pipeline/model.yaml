@@ -1,0 +1,23 @@
+run_metadata:
+  description: One species over Scotland, built from the registered inputs
+  script: |
+    julia --project=examples/pipeline examples/pipeline/model.jl
+
+# Each source's files and their records, in its namespace: a `*` matches one segment of a name, so
+# `<root>/*/*` takes `<root>/data/...` and `<root>/provenance/...` and leaves the deposit, which has
+# no file.
+read:
+- data_product: worldclim/*/*
+  use:
+    namespace: WorldClim
+- data_product: naturalearth/*/*
+  use:
+    namespace: NaturalEarth
+- data_product: era5/*/*
+  use:
+    namespace: ECMWF
+
+write:
+- data_product: Scotland-plot
+  description: Start and end abundances over Scotland, with the annual and July temperatures
+  file_type: pdf

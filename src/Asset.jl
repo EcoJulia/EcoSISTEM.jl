@@ -309,12 +309,21 @@ function _recordpresent(record::Function, path::AbstractString)
 end
 
 # Write `record` as the provenance sidecar of `path`, in TOML, keys sorted so two records of one
-# file diff cleanly.
+# file diff cleanly. Written to a sibling and renamed in, never into the file already there: a
+# sidecar a data pipeline run put in place is a hard link to the run's store, and writing into it
+# would change the store's copy. The sibling is each writer's own, since several processes may
+# record one file at once - the MPI ranks that waited on another's download among them.
 function _writesidecar(path::AbstractString, record::AbstractDict)
-    open(_sidecarpath(path), "w") do io
-        return TOML.print(io, record, sorted = true)
+    sidecar = _sidecarpath(path)
+    part, io = mktemp(dirname(abspath(sidecar)))
+    try
+        TOML.print(io, record, sorted = true)
+    finally
+        close(io)
     end
-    return _sidecarpath(path)
+    chmod(part, 0o644)
+    mv(part, sidecar, force = true)
+    return sidecar
 end
 
 # The SHA-256 digest of a file, as hex.
@@ -352,14 +361,17 @@ _utcnow() = Dates.format(Dates.now(Dates.UTC), "yyyy-mm-ddTHH:MM:SS") * "Z"
 
 # The catalogue's facts about a file of a catalogued source, the one place they are computed for
 # every record written and every registration made: the source, the layer where the file is one,
-# the file's title, and the row's DOI, licence, version, release date and citation, with what its
-# provider asks - the references, the notices and the documentation's section quoting them - left
-# out where blank. Empty where the owner is no source.
-function _cataloguerecord(owner::Type, layer, path::AbstractString)
+# the file's title, whether it is its source's own for the `route` it came by (`:published`,
+# `:extract` or `:given`, as `_isprimary` reads them), and the row's DOI, licence, version, release
+# date and citation, with what its provider asks - the references, the notices and the
+# documentation's section quoting them - left out where blank. Empty where the owner is no source.
+function _cataloguerecord(owner::Type, layer, path::AbstractString;
+                          route::Symbol)
     rec = _datasetrecord(owner)
     isnothing(rec) && return Dict{String, Any}()
     record = Dict{String, Any}("source" => rec.dataset,
-                               "title" => _filetitle(rec, layer, path))
+                               "title" => _filetitle(rec, layer, path),
+                               "primary" => _isprimary(rec, route))
     for (key, value) in (("doi", rec.doi), ("licence", rec.licence),
         ("version", rec.version), ("release_date", rec.releasedate),
         ("citation", rec.citation), ("request_page", _requestpage(rec)))
@@ -387,18 +399,62 @@ function _assetrecord(asset::CachedAsset, path::AbstractString, response)
     if !isnothing(response)
         response.url == asset.url || (record["final_url"] = response.url)
         for (name, key) in (("etag", "etag"), ("last-modified", "last_modified"))
-            i = findfirst(h -> lowercase(first(h)) == name, response.headers)
-            isnothing(i) || (record[key] = String(last(response.headers[i])))
+            value = _headervalue(response.headers, name)
+            isnothing(value) || (record[key] = value)
         end
+        modified = _providertime(response.headers)
+        isnothing(modified) || (record["modified"] = modified)
     end
     isnothing(rec) && return record
-    record["primary"] = true
     layer = rec.format === :Shapefile ? nothing :
             _layerbyfile(asset.owner, asset.url)
-    merge!(record, _cataloguerecord(asset.owner, layer, path))
+    merge!(record,
+           _cataloguerecord(asset.owner, layer, path, route = :published))
     version = _fileversion(rec, path)
     isnothing(version) || (record["version"] = version)
     return record
+end
+
+# A response header's value by its name in any case, or `nothing` where it was not sent.
+function _headervalue(headers, name::AbstractString)
+    i = findfirst(h -> lowercase(first(h)) == name, headers)
+    return isnothing(i) ? nothing : String(last(headers[i]))
+end
+
+# When the provider last changed the file a response describes, as ISO 8601 text in UTC with its
+# `Z`: the file's own time where the server keeps it as metadata (CHELSA's object store sends it
+# as `x-amz-meta-mtime`, its `Last-Modified` being when it was uploaded there), else the
+# `Last-Modified` it sent; `nothing` where it sent neither in a form that reads.
+function _providertime(headers)
+    mtime = _headervalue(headers, "x-amz-meta-mtime")
+    seconds = isnothing(mtime) ? nothing : tryparse(Float64, mtime)
+    isnothing(seconds) ||
+        return Dates.format(Dates.unix2datetime(floor(seconds)),
+                            "yyyy-mm-ddTHH:MM:SS") * "Z"
+    modified = _headervalue(headers, "last-modified")
+    isnothing(modified) && return nothing
+    t = tryparse(Dates.DateTime, replace(modified, r"\s+GMT$" => ""),
+                 Dates.dateformat"e, d u y H:M:S")
+    return isnothing(t) ? nothing :
+           Dates.format(t, "yyyy-mm-ddTHH:MM:SS") * "Z"
+end
+
+# The provider's time for the file at `url`, asked by a `HEAD` and read as `_providertime` reads
+# a response, where the answer can be tied to the bytes held at `held`: the size the server states
+# must be that file's, since a record may be written long after the file was fetched and the
+# server's file changed since. `nothing` where the server cannot be asked, states no time or no
+# size, or describes another file.
+function _headprovidertime(url::AbstractString, held::AbstractString)
+    response = try
+        Downloads.request(url, method = "HEAD", timeout = 30,
+                          downloader = _http11downloader(), throw = false)
+    catch
+        return nothing
+    end
+    response.status == 200 || return nothing
+    size = _headervalue(response.headers, "content-length")
+    (isnothing(size) || tryparse(Int, size) != filesize(held)) && return nothing
+    return _providertime(response.headers)
 end
 
 # The part of the system a download owned by `owner` enters by: an outline for a shape spec or a
@@ -426,23 +482,49 @@ function _zipversion(path::AbstractString)
 end
 
 # The provenance record of a file fetched from the Climate Data Store: the dataset asked, the
-# request body as sent, the job the CDS ran, and the catalogue's facts where the dataset is one
-# the catalogue knows (ERA5 monthly means are `ERA`'s) and the variable one of its layers.
+# request body as sent, the job the CDS ran, the file's own `history` attribute where the fetch
+# replaced it, and the catalogue's facts where the dataset is one the catalogue knows (ERA5 monthly
+# means are `ERA`'s) and the variable one of its layers. An extract a service made to a request is
+# never its source's own.
 function _requestrecord(request::CDSRequest, path::AbstractString, status)
     record = _baserecord(path, :habitat)
     record["dataset"] = request.dataset
     record["request"] = request.request
     record["primary"] = false
     isnothing(request.region) || (record["region"] = request.region)
-    job = status isa AbstractDict ? get(status, "jobID", nothing) : nothing
-    isnothing(job) || (record["job"] = string(job))
+    for (key, field) in (("jobID", "job"), ("history", "history"))
+        value = status isa AbstractDict ? get(status, key, nothing) : nothing
+        isnothing(value) || (record[field] = string(value))
+    end
     if request.dataset == _ERA5_MONTHLY
         variables = get(request.request, "variable", String[])
         layer = length(variables) == 1 ?
                 _layerbyrequest(ERA, string(only(variables))) : nothing
-        merge!(record, _cataloguerecord(ERA, layer, path))
+        merge!(record, _cataloguerecord(ERA, layer, path, route = :extract))
     end
     return record
+end
+
+# What a fetched netCDF file's global `history` attribute is replaced by: the attribute records when
+# and in which temporary directory the provider converted the file, so two fetches of the same data
+# differ in those bytes alone, and with this in its place they are identical.
+const _HISTORYNOTE = "Rewritten by EcoSISTEM so that fetches of the same data are identical; " *
+                     "the original is in the provenance record."
+
+# Replace the global `history` attribute of the netCDF file at `path` with `_HISTORYNOTE`, padded or
+# cut to the original's length so the file keeps its size and layout, and return the original text;
+# `nothing`, touching nothing, for a file with no `history` text or one holding the note already.
+# Done to a Climate Data Store file before it is renamed into place and its checksum taken.
+function _normalisehistory!(path::AbstractString)
+    return NCDatasets.Dataset(path, "a") do ds
+        history = get(ds.attrib, "history", nothing)
+        history isa AbstractString || return nothing
+        n = ncodeunits(history)
+        note = rpad(first(_HISTORYNOTE, n), n)
+        history == note && return nothing
+        ds.attrib["history"] = note
+        return String(history)
+    end
 end
 
 # Refuse a present file whose record of ours says it was fetched for another request - a box or

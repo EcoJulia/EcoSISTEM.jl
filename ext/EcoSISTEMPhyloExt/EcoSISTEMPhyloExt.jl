@@ -19,7 +19,7 @@ module EcoSISTEMPhyloExt
 # block over `Modules = [EcoSISTEM, EcoSISTEM.Units]`; an extension module is
 # not among them and cannot easily be, so a docstring written here would never reach the manual. Every
 # function below is declared - and documented - method-less in the parent, and this file supplies the
-# sole method. That is the same pattern `_fetchcds` and `unziptemp` already use.
+# sole method. That is the same pattern `_fetchcds` already uses.
 #
 # An extension **adds** methods, never overwrites one: the parent declares `function foo end` and
 # nothing more, so there is no method here to collide with and no precompilation warning.

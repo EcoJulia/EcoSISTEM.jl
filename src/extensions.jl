@@ -438,6 +438,14 @@ function _sourcepaths end
 
 _sourcepaths(::Type, code; kw...) = nothing
 
+# Each of a source's files for `code` as `_sourcepaths` finds them, a named tuple of the `path`, the
+# layer `code` it holds and the `url` it is fetched from (`nothing` where the source cannot say),
+# fetching nothing: what a tracked fetch run records of each file it registers. `nothing` for a
+# source that cannot say where its files are. The extension answers from RasterDataSources' rules.
+function _sourcefiles end
+
+_sourcefiles(::Type, code; kw...) = nothing
+
 # Those of a source's files for `code` that exist, for `provenance` and `verifyassets`, which must
 # never cost a download; none for a source that cannot say where its files are.
 function _localfiles(T::Type, code; kw...)
@@ -453,26 +461,27 @@ function _repointrasterdatasources end
 # EcoSISTEMDataPipelineExt - requires DataPipeline
 # ---------------------------------------------------------------------------
 
-# DataPipeline extension
-"""
-    EcoSISTEM.unziptemp(path::String)
-
-Helper function for the FAIR Data Pipeline to unzip files that are stored as
-zips to a temporary folder.
-"""
-function unziptemp end
-
-# Put each of `paths` in place from the store of the pipeline run `track` names, as the data product
-# `<root>/<file name>`, before anything opens it: what a tracked spec's read, grid probe or shape does
-# in place of fetching. Asked again for a file in place already, it must do no harm, since a build
-# asks once a probe and once a read. The extension supplies the method for its handle; any other
-# handle is refused.
-_trackedprovide!(track::Track, paths) = error(_nopipeline(track))
+# Put each of `spec`'s `paths` in place from the store of the pipeline run `track` names, as the
+# data product `<root>/data/<stem>`, with its provenance record, before anything opens it: what a
+# tracked spec's read, grid probe or shape does in place of fetching. Asked again for a file in place
+# already, it must do no harm, since a build asks once a probe and once a read. The extension
+# supplies the method for its handle; any other handle is refused.
+_trackedprovide!(track::Track, spec, paths) = error(_nopipeline(track))
 
 # Fetch a tracked spec's files and register each with the pipeline run `track` names, returning their
 # local paths: what `fetchfiles` does for a tracked spec. The extension supplies the method for its
 # handle; any other handle is refused.
 _trackedfetch(track::Track, spec) = error(_nopipeline(track))
+
+# What `missingfiles` reports of a tracked spec: its files still to do in the pipeline run `track`
+# names, each a named tuple of the `file` and the `reason`. The extension supplies the method for its
+# handle; any other handle is refused.
+_trackedmissing(track::Track, spec) = error(_nopipeline(track))
+
+# Whether the working config of the pipeline run `track` names covers what a fetch run writes for
+# each of a tracked spec's files, a `Bool` per file in order, for a dry run. The extension supplies
+# the method for its handle; any other handle is refused.
+_trackedcovers(track::Track, spec) = error(_nopipeline(track))
 
 # Why a track cannot be followed: its handle is not a pipeline run this package can use.
 function _nopipeline(track::Track)

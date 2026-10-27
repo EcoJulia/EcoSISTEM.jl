@@ -83,8 +83,9 @@ end
     path = joinpath(dir, "era5_t2m_1990s.nc")
     write(path, "x")
     record = E._baserecord(path, :habitat)
-    merge!(record, E._cataloguerecord(E.ERA, E.layerinfo(E.ERA, "t2m"), path))
-    record["primary"] = false
+    merge!(record,
+           E._cataloguerecord(E.ERA, E.layerinfo(E.ERA, "t2m"), path,
+                              route = :extract))
     record["region"] = r.region
     E._writesidecar(path, record)
     back = provenance(path)
@@ -94,6 +95,17 @@ end
     @test back.references == rec.references && back.notices == rec.notices
     @test back.releasedate == rec.releasedate &&
           back.requestpage == E._requestpage(rec)
+    # So do when the provider last changed the file, and the history a fetch replaced.
+    @test isnothing(back.modified) && isnothing(back.history)
+    record["modified"] = "2023-01-04T00:00:00Z"
+    record["history"] = "2026-10-27T13:37 GRIB to CDM+CF via cfgrib-0.9.15.1"
+    E._writesidecar(path, record)
+    changed = provenance(path)
+    @test changed.modified == Dates.DateTime(2023, 1, 4)
+    @test changed.history == record["history"]
+    @test occursin("modified 2023-01-04",
+                   sprint(show, MIME("text/plain"), changed))
+    E._writesidecar(path, delete!(delete!(record, "modified"), "history"))
     # Two records of one file are equal, and hash alike, though their lists are separate objects.
     again = provenance(path)
     @test again == back && isequal(again, back) && hash(again) == hash(back)

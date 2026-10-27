@@ -5,6 +5,7 @@ module TestAsset
 using EcoSISTEM
 using EcoSISTEM: CachedAsset, assetpath, provenance
 using Sockets
+using TOML: TOML
 using Test
 
 include("tomlstrings.jl")
@@ -198,15 +199,17 @@ end
 @testset "a record carries its file's catalogue facts and how it was fetched" begin
     E = EcoSISTEM
     dir = mktempdir()
-    # A layer downloaded as its provider publishes it: primary, titled by the release, the layer
-    # and its own file's name, with what the provider asks.
+    # A layer downloaded as its provider publishes it, from a source cited by its paper: titled by
+    # the release, the layer and its own file's name, with what the provider asks, and not its
+    # source's own, the identifier naming a paper rather than the data.
     url = E.layerinfo(TwentyCR, "air").file
     path = joinpath(dir, basename(url))
     write(path, "x")
     rec = E._assetrecord(CachedAsset(TwentyCR, url, path = path), path, nothing)
     row = E.datasetinfo(TwentyCR)
     stem = first(splitext(basename(url)))
-    @test rec["primary"] === true && rec["code"] == "air"
+    @test row.identifies === :paper
+    @test rec["primary"] === false && rec["code"] == "air"
     @test rec["title"] ==
           "$(row.title), $(E.layerinfo(TwentyCR, "air").name) ($stem)"
     @test rec["licence"] == "CC0-1.0" &&
@@ -227,6 +230,88 @@ end
     boxed = only(E.era5requests("t2m", 1990:1999, dir = dir,
                                 area = (60, -8, 54, 0)))
     @test isnothing(boxed.region)
+    # A download from a source whose identifier names the data is its source's own, and its
+    # record keeps when the provider last changed it, as the server said.
+    zip = E._nesource(E._checklevel("ADMIN"))
+    zippath = joinpath(dir, basename(zip.url))
+    write(zippath, "x")
+    response = (url = zip.url,
+                headers = ["Last-Modified" => "Fri, 13 May 2022 05:20:49 GMT"])
+    ne = E._assetrecord(CachedAsset(E.NaturalEarthLevel, zip.url,
+                                    path = zippath), zippath, response)
+    @test E.datasetinfo(E.NaturalEarthLevel).identifies === :data
+    @test ne["primary"] === true && ne["modified"] == "2022-05-13T05:20:49Z"
+    @test ne["last_modified"] == "Fri, 13 May 2022 05:20:49 GMT"
+end
+
+@testset "a provider's time for a file is the server's own record of it" begin
+    E = EcoSISTEM
+    # An object store that keeps a file's own time says so apart from when it was uploaded.
+    @test E._providertime(["x-amz-meta-mtime" => "1672790400.5",
+                              "Last-Modified" => "Fri, 13 Sep 2024 01:13:32 GMT"
+                          ]) ==
+          "2023-01-04T00:00:00Z"
+    @test E._providertime(["last-modified" => "Wed, 15 Nov 2023 21:17:54 GMT"]) ==
+          "2023-11-15T21:17:54Z"
+    @test isnothing(E._providertime(["ETag" => "\"abc\""]))
+    @test isnothing(E._providertime(["Last-Modified" => "yesterday"]))
+end
+
+@testset "a netCDF file's history is replaced in place, the original returned" begin
+    E = EcoSISTEM
+    NC = E.NCDatasets
+    dir = mktempdir()
+    # Two files of the same data, converted at different times in different directories.
+    paths = map(enumerate(("13:37", "13:40"))) do (i, minute)
+        path = joinpath(dir, "fetch$i.nc")
+        NC.Dataset(path, "c") do ds
+            ds.attrib["history"] = "2026-10-27T$minute GRIB to CDM+CF via cfgrib-0.9.15.1 " *
+                                   "with {\"source\": \"tmp$(i)abcdefg/data.grib\"}"
+            NC.defDim(ds, "x", 3)
+            v = NC.defVar(ds, "t2m", Float32, ("x",))
+            return v[:] = Float32[280, 281, 282]
+        end
+        return path
+    end
+    before = filesize.(paths)
+    originals = E._normalisehistory!.(paths)
+    @test all(startswith("2026-10-27T13:"), originals)
+    @test read(paths[1]) == read(paths[2])
+    @test filesize.(paths) == before
+    NC.Dataset(paths[1]) do ds
+        @test startswith(ds.attrib["history"], "Rewritten by EcoSISTEM")
+        @test length(ds.attrib["history"]) == length(originals[1])
+        return @test ds["t2m"][:] == Float32[280, 281, 282]
+    end
+    # Done again it changes nothing, and a file with no history is left alone.
+    @test isnothing(E._normalisehistory!(paths[1]))
+    plain = joinpath(dir, "plain.nc")
+    NC.Dataset(ds -> NC.defDim(ds, "x", 1), plain, "c")
+    @test isnothing(E._normalisehistory!(plain))
+end
+
+@testset "a sidecar is written beside its file, never into the one there" begin
+    E = EcoSISTEM
+    dir = mktempdir()
+    path = joinpath(dir, "data.nc")
+    write(path, "x")
+    sidecar = E._writesidecar(path, Dict("writer" => "EcoSISTEM test"))
+    # A second name for the sidecar, as a data pipeline run's hard link into its store is.
+    linked = joinpath(dir, "store.toml")
+    hardlink(sidecar, linked)
+    E._writesidecar(path, Dict("writer" => "EcoSISTEM test", "x" => 1))
+    @test occursin("x = 1", read(sidecar, String))
+    @test !occursin("x = 1", read(linked, String))
+    # Nothing is left beside it, and it reads as any file written in the directory does.
+    @test sort(readdir(dir)) ==
+          sort(["data.nc", basename(sidecar), "store.toml"])
+    @test filemode(sidecar) & 0o777 == 0o644
+    # Writers recording one file at once each rename their own copy in.
+    tasks = [Threads.@spawn(E._writesidecar(path,
+                                            Dict("writer" => "EcoSISTEM test",
+                                                 "n" => n))) for n in 1:8]
+    @test all(==(sidecar), fetch.(tasks))
+    @test haskey(TOML.parsefile(sidecar), "n")
 end
 
 @testset "a present file fetched for another request is refused, never served" begin

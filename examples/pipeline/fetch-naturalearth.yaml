@@ -1,0 +1,21 @@
+run_metadata:
+  description: Natural Earth's files for the data pipeline example, fetched and registered
+  default_input_namespace: NaturalEarth
+  default_output_namespace: NaturalEarth
+  script: |
+    julia --project=examples/pipeline examples/pipeline/fetch.jl naturalearth
+
+# The source's namespace, as the catalogue names it (`data/catalogue/datasets.csv`), which is the
+# run's own: its one input is the source's deposit, and its outputs the files and their records.
+register:
+- namespace: NaturalEarth
+  full_name: Natural Earth
+  website: https://www.naturalearthdata.com/
+
+write:
+- data_product: naturalearth/data/*
+  description: A Natural Earth zip of outlines
+  file_type: zip
+- data_product: naturalearth/provenance/*
+  description: EcoSISTEM's provenance record of a file under naturalearth
+  file_type: toml

@@ -45,7 +45,6 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
-p7zip_jll = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 
 [weakdeps]
 CDSAPI = "8a7b9de3-9c00-473e-88b4-7eccd7ef2fea"
@@ -122,7 +121,6 @@ Tables = "1"
 Test = "1.9"
 Unitful = "1.12.4"
 julia = "1.11"
-p7zip_jll = "17"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"

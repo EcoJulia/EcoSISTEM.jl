@@ -161,6 +161,7 @@ struct RasterSpec{A <: NicheAxis, U} <: EcoSISTEM.AbstractLazySpec
             error("`files` names no file; give at least one path or URL.")
         isnothing(times) || !isempty(times) ||
             error("`times` names no time; give one per slice, or leave it out.")
+        _refusefetchedrelease(track, files)
         return new{A, U}(source, code, files, unit, cut,
                          isnothing(scale) ? nothing : Int(scale), fn, times,
                          atend, calendar, readkw, _storedtrack(track))
@@ -399,6 +400,7 @@ struct NaturalEarthSpec{C <: EcoSISTEM.AbstractCoverage} <: AbstractShapeSpec
         isnothing(row) &&
             error("No region named \"$name\" at level \"$lvl\". " *
                   "`EcoSISTEM.naturalearth_levels()` lists the levels.")
+        _refusefetchedrelease(track, nothing)
         # The source's own spelling is stored, not the caller's: the lookup is case-insensitive, and
         # what is kept should be what the data says so that `show` and any later report agree with it.
         return new{typeof(coverage)}(lvl, row.Name, coverage,
@@ -972,7 +974,8 @@ function _withcatalogue(record::InputRecord, rec::DatasetRecord,
                        notices = isempty(record.notices) ? rec.notices :
                                  record.notices,
                        requestpage = orrow(record.requestpage,
-                                           _requestpage(rec)))
+                                           _requestpage(rec)),
+                       modified = record.modified, history = record.history)
 end
 
 # The `files` field from whichever of the three location keywords was given: `files` as they are,

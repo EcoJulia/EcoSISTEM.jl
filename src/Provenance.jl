@@ -9,7 +9,7 @@ using Unitful
                 region = nothing, job = nothing, fetched = nothing, bytes = nothing,
                 sha256 = nothing, doi = "", licence = "", version = "", citation = "",
                 title = "", primary = nothing, releasedate = "", references = [],
-                notices = [], requestpage = "")
+                notices = [], requestpage = "", modified = nothing, history = nothing)
 
 The provenance of one published input to an experiment: a file this package fetched, or a dataset
 you handed it that it never fetched - an occurrence download, a trait table, a phylogeny. One shape
@@ -41,9 +41,17 @@ write one for anything it could not have known about.
     the text a paper prints.
   - `title`: the file's own title, the release's with the layer and whatever else tells the file
     apart from its siblings, blank where unknown.
-  - `primary`: whether the file is the provider's own as published (`true`), or derived from it, as
-    an extract a service cut to a request is (`false`); `nothing` where unknown.
+  - `primary`: whether the file is the cited item or one of its files, so that the same bytes can
+    be fetched again (`true`) - a file fetched as published from a source whose identifier names
+    the data - or not (`false`): a file of a source cited by its paper, an extract a service cut to
+    a request, a file you gave; `nothing` where unknown.
   - `releasedate`: when the release was published, as ISO 8601 text, blank where unknown.
+  - `modified`: when the provider last changed the file, as its server said, in UTC; `nothing`
+    where unknown.
+  - `history`: the file's own global `history` attribute where the fetch replaced it - a netCDF
+    file the Climate Data Store converts says there when and in which temporary directory it did
+    so, which would make two fetches of the same data differ; `nothing` where nothing was
+    replaced.
   - `references`: the works the dataset's provider asks to be cited, each its `doi` and `text`,
     and `notices`: the statements it asks to accompany the data, each its `strength` (`:required`,
     `:requested` or `:optional`) and `text`. `DD-MMM-YYYY` in a text stands for the date the file
@@ -72,6 +80,8 @@ struct InputRecord
     references::Vector{@NamedTuple{doi::String, text::String}}
     notices::Vector{@NamedTuple{strength::Symbol, text::String}}
     requestpage::String
+    modified::Union{Nothing, Dates.DateTime}
+    history::Union{Nothing, String}
 
     function InputRecord(; role::Symbol, dataset::AbstractString,
                          code = nothing, path = nothing, url = nothing,
@@ -80,7 +90,8 @@ struct InputRecord
                          doi = "", licence = "", version = "", citation = "",
                          title = "", primary::Union{Nothing, Bool} = nothing,
                          releasedate = "", references = [], notices = [],
-                         requestpage = "")
+                         requestpage = "", modified = nothing,
+                         history = nothing)
         role in _INPUT_ROLES ||
             throw(ArgumentError("`role` must be one of $(join(_INPUT_ROLES, ", ")); got `$role`."))
         isnothing(path) || !isabspath(path) ||
@@ -96,7 +107,8 @@ struct InputRecord
                    String(doi), String(licence), String(version),
                    String(citation), _optstring(region), String(title), primary,
                    String(releasedate), _references(references),
-                   _notices(notices), String(requestpage))
+                   _notices(notices), String(requestpage), _optdate(modified),
+                   _optstring(history))
     end
 end
 
@@ -133,7 +145,7 @@ function Base.show(io::IO, ::MIME"text/plain", r::InputRecord)
         ("region", r.region), ("job", r.job), ("fetched", r.fetched),
         ("bytes", r.bytes), ("sha256", r.sha256), ("primary", r.primary),
         ("doi", r.doi), ("licence", r.licence), ("version", r.version),
-        ("released", r.releasedate),
+        ("released", r.releasedate), ("modified", r.modified),
         ("citation", isempty(r.references) ? r.citation : ""))
         (isnothing(value) || (value isa AbstractString && isempty(value))) &&
             continue
@@ -326,7 +338,9 @@ function _recordfromtoml(t::AbstractDict)
                        releasedate = something(field("release_date"), ""),
                        references = something(field("references"), []),
                        notices = something(field("notices"), []),
-                       requestpage = something(field("request_page"), ""))
+                       requestpage = something(field("request_page"), ""),
+                       modified = field("modified"),
+                       history = field("history"))
 end
 
 # References in the one shape a record holds them, from named tuples or a sidecar's tables.

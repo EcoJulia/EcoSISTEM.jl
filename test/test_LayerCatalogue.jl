@@ -646,6 +646,14 @@ end
     @test ne.dataset == "NaturalEarth" && ne.format === :Shapefile &&
           ne.fetch === :https
     @test isempty(ne.doi) && isempty(ne.version) && ne.licence == "CC-PDM-1.0"
+    # What each identifier names, and the namespace each source's files are registered in: a
+    # deposit or a web page names the data, a paper's DOI the paper.
+    @test ne.identifies === :data && tcr.identifies === :paper &&
+          era.identifies === :data && wc.identifies === :paper
+    @test ne.namespace == "NaturalEarth" && era.namespace == "ECMWF" &&
+          tcr.namespace == "NOAA-PSL"
+    @test_throws "`Identifies` = `dataset`" E._parseidentifies("dataset", "X")
+    @test_throws "`Namespace` = `two words`" E._parsenamespace("two words", "X")
     # It asks for no citation, and offers a line for those who wish to credit it.
     @test isempty(ne.references) && isempty(ne.citation)
     @test only(ne.notices).strength === :optional &&
@@ -695,6 +703,7 @@ end
                                                                                             :none,
                                                                                             "",
                                                                                             "",
+                                                                                            :data,
                                                                                             "",
                                                                                             "",
                                                                                             "",
@@ -704,6 +713,9 @@ end
                                                                                                         text::String}[],
                                                                                             @NamedTuple{strength::Symbol,
                                                                                                         text::String}[],
+                                                                                            "",
+                                                                                            "Fixture",
+                                                                                            "",
                                                                                             "",
                                                                                             "")
     @test isnothing(E._checkcatalogue(row(), ras))

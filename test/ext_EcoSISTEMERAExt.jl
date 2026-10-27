@@ -200,6 +200,15 @@ end
         @test rec.request["variable"] == ["2m_temperature"] &&
               !isnothing(rec.job)
         @test rec.doi == "10.24381/cds.f17050d7" && !isnothing(rec.sha256)
+        # The CDS's record of converting the file, which differs between fetches of the same data,
+        # is replaced in the file and kept in the record.
+        EcoSISTEM.NCDatasets.Dataset(path) do ds
+            return @test ds.attrib["history"] ==
+                         rpad(first(EcoSISTEM._HISTORYNOTE,
+                                    length(rec.history)),
+                              length(rec.history))
+        end
+        @test occursin("GRIB to CDM", rec.history) && rec.primary === false
         @test !any(s -> occursin(homedir(), s),
                    tomlstrings(EcoSISTEM._sidecarpath(path)))
         # The file reads through the same row as any other ERA5 file - no extension on its name.

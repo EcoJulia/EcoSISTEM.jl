@@ -80,6 +80,35 @@ end
         @test allunique(keys_)
     end
 
+    @testset "what each row's identifier names agrees with its citation" begin
+        # A row's citation: the entry with its DOI, or the one keyed by its request's name.
+        bydoi = Dict(lowercase(e.canonical.access.doi) => e
+                     for e in entries if !isempty(e.canonical.access.doi))
+        bykey = Dict(e.raw.key => e for e in entries)
+        for r in rows
+            entry = isempty(r.doi) ? bykey[r.request] : bydoi[lowercase(r.doi)]
+            # doi.org writes a paper as an article and a DataCite deposit as `misc`, which the
+            # hand-written entry of a row identified by its web page is too.
+            @test r.identifies ===
+                  (lowercase(entry.type) == "article" ? :paper :
+                   :data)
+        end
+        @test Set(r.identifies for r in rows) == Set((:data, :paper))
+    end
+
+    @testset "each row names the namespace its files are registered in" begin
+        for r in rows
+            @test occursin(r"^[A-Za-z0-9_-]+$", r.namespace)
+            @test !isempty(r.namespacename)
+            @test occursin(r"^https://\S+/$", r.namespacewebsite)
+        end
+        # A namespace's full name and web page are the same wherever it is named.
+        for ns in unique(r.namespace for r in rows)
+            named = filter(r -> r.namespace == ns, rows)
+            @test allequal((r.namespacename, r.namespacewebsite) for r in named)
+        end
+    end
+
     @testset "only the known placeholders are left in the providers' texts" begin
         for r in rows
             for text in vcat([x.text for x in r.references],

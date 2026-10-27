@@ -1,73 +1,74 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Tests `ext/EcoSISTEMDataPipelineExt/`, the FAIR data pipeline's unzip helper. Run with
+# Tests `ext/EcoSISTEMDataPipelineExt/`, a tracked spec's files through a FAIR data pipeline run.
+# Run with
 #     julia --project -e 'using Pkg; Pkg.test(test_args = ["ext_EcoSISTEMDataPipelineExt.jl"])'
 # or as part of `core_ext.jl`.
 #
-# The pipeline calls themselves - `initialise`, `link_read!`, `link_write!`, `finalise` - need a
-# local registry and a `fair run` around the process, so they are exercised by
-# `examples/pipeline/AfricaRun.jl` rather than here. What this extension supplies is `unziptemp`,
-# which needs neither, and is tested in full.
+# A run's handle exists only inside a `fair run` with a registry behind it, so the calls themselves
+# - `link_register!`, `link_write!`, `link_read!`, `identify`, `isregistered` - are exercised by hand,
+# by `examples/pipeline/`. What each file is registered as is decided by the plain functions of
+# `src/registration.jl`, which `test_registration.jl` tests; this file checks the extension supplies
+# the routes and the parts of them that need no registry.
 
 module TestEcoSISTEMDataPipelineExt
 
 using Test
 using EcoSISTEM
+using EcoSISTEM: Track, ERA
 using DataPipeline
-using p7zip_jll
+using DataPipeline: DataRegistryHandle, ConfigDataProduct
+using RasterDataSources
 
-# Build a zip holding a file at the top level and one in a subdirectory, and return its path. The
-# subdirectory is what says the extraction preserves an archive's shape rather than flattening it,
-# which is what a claimed dataset's layout depends on.
-function _samplezip()
-    src = mktempdir()
-    mkpath(joinpath(src, "sub"))
-    write(joinpath(src, "top.txt"), "top")
-    write(joinpath(src, "sub", "nested.txt"), "nested")
-    zipfile = joinpath(mktempdir(), "bundle.zip")
-    cd(src) do
-        return run(pipeline(`$(p7zip_jll.p7zip()) a -tzip $(zipfile) .`,
-                            stdout = devnull))
+const EXT = Base.get_extension(EcoSISTEM, :EcoSISTEMDataPipelineExt)
+
+@testset "the extension loads on DataPipeline and supplies each route for a run's handle" begin
+    @test !isnothing(EXT)
+    tracked = Track{<:DataRegistryHandle}
+    for (hook, args) in ((EcoSISTEM._trackedfetch, (tracked, Any)),
+        (EcoSISTEM._trackedprovide!, (tracked, Any, Any)),
+        (EcoSISTEM._trackedmissing, (tracked, Any)),
+        (EcoSISTEM._trackedcovers, (tracked, Any)))
+        # The parent's method refuses any other handle; the extension adds the one for a run's.
+        @test length(methods(hook)) == 2
+        @test which(hook, Tuple{args...}).module === EXT
     end
-    return zipfile
+    # The archive helper it once supplied is gone with its dependency.
+    @test !isdefined(EcoSISTEM, :unziptemp)
 end
 
-@testset "the extension loads on DataPipeline and supplies the unzip hook" begin
-    @test !isnothing(Base.get_extension(EcoSISTEM,
-                                        :EcoSISTEMDataPipelineExt))
-    # The parent declares the hook method-less, so the extension supplies the sole method - the
-    # pattern that lets an extension add rather than overwrite.
-    @test length(methods(EcoSISTEM.unziptemp)) == 1
-    @test hasmethod(EcoSISTEM.unziptemp, Tuple{String})
+@testset "every file is an output of its source's deposit, one source a run" begin
+    track = Track(nothing, "era5")
+    rec = EcoSISTEM.datasetinfo(ERA)
+    # Each file is named as an output, which the run's `write:` entry resolves.
+    name = EXT._registrationname(track, "/x/era5_t2m_1990s.nc")
+    @test name isa ConfigDataProduct &&
+          name.data_product == "era5/data/era5_t2m_1990s"
+    # The deposit is named in its source's namespace, and a run takes one.
+    run = Track(Ref(0), "era5")
+    @test EXT._claimdeposit!(run, rec) == "ECMWF:era5/deposit"
+    @test EXT._claimdeposit!(run, rec) == "ECMWF:era5/deposit"
+    other = Track(run.handle, "worldclim")
+    @test_throws "derives every output of a run from all of its inputs" EXT._claimdeposit!(other,
+                                                                                           EcoSISTEM.datasetinfo(WorldClim{BioClim}))
+    @test EXT._claimdeposit!(Track(Ref(0), "worldclim"),
+                             EcoSISTEM.datasetinfo(WorldClim{BioClim})) ==
+          "WorldClim:worldclim/deposit"
 end
 
-@testset "an archive is unpacked whole, under the pipeline's own asset directory" begin
-    out = EcoSISTEM.unziptemp(_samplezip())
-    @test isdir(out)
-    @test read(joinpath(out, "top.txt"), String) == "top"
-    @test read(joinpath(out, "sub", "nested.txt"), String) == "nested"
-    # Under `assetdir(DataPipeline)` rather than the system temporary directory, so a claimed
-    # archive unpacks beside the rest of this package's cached data.
-    @test startswith(out, EcoSISTEM.assetdir(DataPipeline))
-
-    # A second claim gets its own directory: two data products unpacked in one run must not
-    # overwrite each other's files, which a shared destination would let them do silently.
-    @test EcoSISTEM.unziptemp(_samplezip()) != out
+@testset "a tracked spec must read a catalogued source" begin
+    @test EXT._sourcerow(SourceSpec(WorldClim{BioClim}, :bio1)).namespace ==
+          "WorldClim"
+    @test EXT._sourcerow(NaturalEarthSpec("Scotland")).dataset == "NaturalEarth"
+    file = RasterFileSpec(tempname() * ".tif", axis = EcoSISTEM.NicheAxis)
+    @test_throws "no catalogued source" EXT._sourcerow(file)
 end
 
-@testset "an archive that cannot be read fails loudly" begin
-    notazip = joinpath(mktempdir(), "notazip.zip")
-    write(notazip, "plain text, whatever the extension says")
-    # p7zip reports a refusal on its own streams, which is twenty lines of alarming output in a
-    # passing run, so the two calls that are meant to fail are silenced here rather than in
-    # `unziptemp`, where the same text is what tells a user what went wrong.
-    redirect_stdio(stdout = devnull, stderr = devnull) do
-        # A non-zero exit must surface: returning an empty directory would leave the caller
-        # reading nothing where it asked for a dataset.
-        @test_throws ProcessFailedException EcoSISTEM.unziptemp(joinpath(mktempdir(),
-                                                                         "absent.zip"))
-        return @test_throws ProcessFailedException EcoSISTEM.unziptemp(notazip)
-    end
+@testset "what is done once a run is remembered by its handle" begin
+    run = Ref(1)
+    @test !EXT._isdone(run, "citations")
+    EXT._markdone!(run, "citations")
+    @test EXT._isdone(run, "citations") && !EXT._isdone(Ref(1), "citations")
 end
 
 end

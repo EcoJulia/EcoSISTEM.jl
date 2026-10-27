@@ -1,0 +1,21 @@
+run_metadata:
+  description: WorldClim's files for the data pipeline example, fetched and registered
+  default_input_namespace: WorldClim
+  default_output_namespace: WorldClim
+  script: |
+    julia --project=examples/pipeline examples/pipeline/fetch.jl worldclim
+
+# The source's namespace, as the catalogue names it (`data/catalogue/datasets.csv`), which is the
+# run's own: its one input is the source's deposit, and its outputs the files and their records.
+register:
+- namespace: WorldClim
+  full_name: WorldClim
+  website: https://www.worldclim.org/
+
+write:
+- data_product: worldclim/data/*
+  description: A WorldClim file
+  file_type: tif
+- data_product: worldclim/provenance/*
+  description: EcoSISTEM's provenance record of a file under worldclim
+  file_type: toml

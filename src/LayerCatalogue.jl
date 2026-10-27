@@ -192,6 +192,8 @@ layer row carries, returned by [`datasetinfo`](@ref).
   - `url`, `doi`, `licence`, `version`, `notes`: provenance, blank where unknown. `doi` is the
     dataset's own where its provider mints one, else the describing paper's; `licence` an SPDX
     identifier or the URL of the provider's terms.
+  - `identifies`: what the row's identifier names, `:data` - the dataset itself, a DOI of its
+    deposit or, with no DOI, its own web page - or `:paper`, a paper describing it.
   - `releasedate`: when the release read was published, as ISO 8601 text to the precision the
     provider states (`2020-01`), blank where it states none.
   - `title`: a short name for the release, `WorldClim 2.1`.
@@ -202,6 +204,8 @@ layer row carries, returned by [`datasetinfo`](@ref).
   - `notices`: the statements the provider asks to accompany the data, each its `strength` -
     `:required`, `:requested` or `:optional` - and its `text`, with the same placeholders.
   - `citation`: the references' texts, one after another.
+  - `namespace`: the data pipeline namespace the source's files are registered in, ASCII letters,
+    digits, `_` and `-`, with `namespacename` its full name and `namespacewebsite` its web page.
 
 **A blank cell means ask the file**, so every field but `dataset`, `format` and `fetch` may be
 `nothing`. **A recorded fact the file can contradict is checked on the first read** of that
@@ -219,6 +223,7 @@ struct DatasetRecord
     fetch::Symbol
     url::String
     doi::String
+    identifies::Symbol
     licence::String
     version::String
     releasedate::String
@@ -227,6 +232,9 @@ struct DatasetRecord
     references::Vector{@NamedTuple{doi::String, text::String}}
     notices::Vector{@NamedTuple{strength::Symbol, text::String}}
     citation::String
+    namespace::String
+    namespacename::String
+    namespacewebsite::String
     notes::String
 end
 
@@ -365,8 +373,12 @@ const _GENERIC_OPTIONAL_COLUMNS = (:VerticalExtent, :DocumentedCeiling, :File,
 
 # The exact column set of `datasets.csv`, refused on a mismatch as the layer tables are.
 const _DATASET_COLUMNS = (:Dataset, :Format, :LongitudeRange, :CRS, :Resolution,
-                          :Extent, :Fetch, :URL, :DOI, :Licence, :Version,
-                          :ReleaseDate, :Title, :Request, :Notes)
+                          :Extent, :Fetch, :URL, :DOI, :Identifies, :Licence,
+                          :Version, :ReleaseDate, :Title, :Request, :Namespace,
+                          :NamespaceName, :NamespaceWebsite, :Notes)
+
+# What a row's identifier can name: the data, or a paper describing it.
+const _IDENTIFIES = (:data, :paper)
 
 # How strongly a provider asks for a notice: it, or the data's licence, says the notice must
 # accompany the data; it asks for it; or it offers it for those who wish.
@@ -618,6 +630,23 @@ function _datasetrecord(T::Type)
     return nothing
 end
 
+# The `datasets.csv` row a record's `dataset` names, by the key the row is written under, or
+# `nothing` for a name no row has.
+function _datasetrecord(key::AbstractString)
+    for r in _datasets()
+        r.dataset == key && return r
+    end
+    return nothing
+end
+
+# Whether a file is its source's own, as the data pipeline means it - the cited item or one of its
+# files, so that the same bytes can be fetched again: a file fetched as its provider publishes it
+# (`route` `:published`), from a source whose identifier names the data. A paper's file, an extract
+# a service made to a request (`:extract`) and a file the user gave (`:given`) are not.
+function _isprimary(rec::DatasetRecord, route::Symbol)
+    return route === :published && rec.identifies === :data
+end
+
 # A file's title: its release's, the layer's name where the file is one layer, and the file's own
 # name, which carries whatever else tells it from its siblings - a resolution, a month, a span of
 # years, a box. Unique wherever file names are, which is what a registration needs of it.
@@ -682,12 +711,15 @@ function _datasets()
                             _parseextent(cell(row, :Extent), name),
                             _parsefetch(cell(row, :Fetch), name),
                             cell(row, :URL), cell(row, :DOI),
+                            _parseidentifies(cell(row, :Identifies), name),
                             cell(row, :Licence), cell(row, :Version),
                             _parsereleasedate(cell(row, :ReleaseDate), name),
                             cell(row, :Title), cell(row, :Request),
                             request.references, request.notices,
                             join((r.text for r in request.references), " "),
-                            cell(row, :Notes)))
+                            _parsenamespace(cell(row, :Namespace), name),
+                            cell(row, :NamespaceName),
+                            cell(row, :NamespaceWebsite), cell(row, :Notes)))
     end
     allunique(r.dataset for r in _DATASETS) ||
         error("$_DATASETS_FILE names a dataset twice.")
@@ -712,6 +744,25 @@ function _parseformat(s::AbstractString, name)
     v in _FORMATS ||
         return error("dataset `$name` has `Format` = `$s`; expected one of $(join(_FORMATS, ", ")).")
     return v
+end
+
+# An `Identifies` cell as one of `_IDENTIFIES`; required, since it decides whether a file is its
+# source's own.
+function _parseidentifies(s::AbstractString, name)
+    v = Symbol(s)
+    v in _IDENTIFIES ||
+        return error("dataset `$name` has `Identifies` = `$s`; expected one of " *
+                     "$(join(_IDENTIFIES, ", ")).")
+    return v
+end
+
+# A `Namespace` cell, a name the data pipeline takes for a namespace; required, since every file
+# of a source is registered in one.
+function _parsenamespace(s::AbstractString, name)
+    occursin(r"^[A-Za-z0-9_-]+$", s) ||
+        return error("dataset `$name` has `Namespace` = `$s`; expected ASCII letters, digits, " *
+                     "`_` and `-`.")
+    return String(s)
 end
 
 # A `ReleaseDate` cell as ISO 8601 text, `2020`, `2020-01` or `2020-01-31`, or blank.

@@ -90,7 +90,7 @@ include("rasterfixtures.jl")
             @test_throws "CHELSA_rsds_1981-2010_$(stat)_V.2.1.tif" EcoSISTEM._fetchfiles(T,
                                                                                          code)
         end
-        # A dataset with no such file is passed on to `getraster` as before.
+        # A dataset with no such file is left for `getraster` to fetch.
         ext = Base.get_extension(EcoSISTEM, :EcoSISTEMRasterDataSourcesExt)
         @test isnothing(ext._refusemisnamed(T, (:gdd0, :swb)))
         @test isnothing(ext._refusemisnamed(CHELSA{BioClim}, (1, 12)))

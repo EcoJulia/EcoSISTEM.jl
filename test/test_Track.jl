@@ -4,6 +4,7 @@ module TestTrack
 
 using EcoSISTEM
 using EcoSISTEM: Track, ReadKey, LayerCache, ERA, fetchfiles
+using Dates: Dates
 using Extents
 using RasterDataSources
 using Test
@@ -16,7 +17,7 @@ end
 
 struct Stopped <: Exception end
 
-function EcoSISTEM._trackedprovide!(track::Track{Recording}, paths)
+function EcoSISTEM._trackedprovide!(track::Track{Recording}, spec, paths)
     push!(track.handle.calls, (:provide, track.root, copy(paths)))
     return throw(Stopped())
 end
@@ -29,7 +30,7 @@ end
 # A run that answers and puts nothing in place, which a read must notice rather than then fetch.
 struct Empty end
 
-EcoSISTEM._trackedprovide!(::Track{Empty}, paths) = nothing
+EcoSISTEM._trackedprovide!(::Track{Empty}, spec, paths) = nothing
 
 @testset "a track names a run and the root its files are filed under" begin
     @test Track(nothing, "era5").root == "era5"
@@ -48,6 +49,43 @@ EcoSISTEM._trackedprovide!(::Track{Empty}, paths) = nothing
                                                             :bio1,
                                                             trak = Track(Recording([]),
                                                                          "wc"))
+end
+
+@testset "a track says which release files the user gives come from" begin
+    track = Track(nothing, "cru", release_version = "4.8",
+                  release_date = "2024-05")
+    @test track.release_version == "4.8" && track.release_date == "2024-05"
+    @test Track(nothing, "cru", release_version = v"4.8").release_version ==
+          "4.8.0"
+    @test Track(nothing, "cru",
+                release_date = Dates.Date(2024, 5, 30)).release_date ==
+          "2024-05-30"
+    @test string(Track(Recording([]), "cru", release_version = "4.8")) ==
+          "Track(..., \"cru\", release_version = \"4.8\")"
+    # A version a registry would not keep as it is written is refused where it is written.
+    for bad in ("four", "4.08", "061")
+        @test_throws "is not a version a registry keeps" Track(nothing, "cru",
+                                                               release_version = bad)
+    end
+    @test Track(nothing, "cru", release_version = "2.1+20230104").release_version ==
+          "2.1+20230104"
+    @test_throws "is not a date" Track(nothing, "cru",
+                                       release_date = "May 2024")
+    # Files the user gives may be told their release, whatever the handle.
+    file = tempname() * ".tif"
+    given = SourceSpec(CRUTS, "tavg", file = file,
+                       track = Track(Recording([]), "cru",
+                                     release_version = "4.8"))
+    @test given.track.release_version == "4.8"
+    @test isnothing(SourceSpec(CRUTS, "tavg", file = file, track = track).track)
+    # Fetched files are not: their row and their provider say which release they are.
+    for fetched in (() -> SourceSpec(WorldClim{BioClim}, :bio1, track = track),
+        () -> SourceSpec(ERA, "t2m", years = 2000:2000,
+        track = track),
+        () -> SourceSpec(TwentyCR, "air", track = track),
+        () -> NaturalEarthSpec("Scotland", track = track))
+        @test_throws "Leave them out" fetched()
+    end
 end
 
 @testset "a tracked spec's files take its run's route, an untracked spec's do not" begin

@@ -133,31 +133,130 @@ function Base.read(spec::RasterSpec; cut = spec.cut, scale = spec.scale,
 end
 
 """
-    fetchfiles(spec::RasterSpec; dryrun = false)
-    fetchfiles(specs; dryrun = false)
+    fetchfiles(x; dryrun = false)
 
-Fetch every file a spec reads that is not there yet, reading nothing, and return their local paths
-in the spec's order - the step to run on a node with a network before a run on nodes without one.
-A vector of specs is fetched spec by spec. A tracked spec is fetched by its data pipeline run, which
-registers what it fetches (see [`EcoSISTEM.Track`](@ref)).
+Fetch every file `x` reads that is not there yet, reading nothing, and return their local paths
+in `x`'s order - the step to run on a node with a network before a run on nodes without one. A
+tracked spec is fetched by its data pipeline run, which registers what it fetches (see
+[`EcoSISTEM.Track`](@ref)).
 
 # Arguments
 
-  - `spec`, `specs`: what to fetch for.
+  - `x`: anything a habitat is built from: a [`RasterSpec`](@ref), a [`NaturalEarthSpec`](@ref)
+    or a [`ShapeSpec`](@ref); a [`Varying`](@ref) of one; a [`ConstructedRasterSpec`](@ref) or
+    a [`ConstructedShapeSpec`](@ref), through its members; a [`ShapeMaskSpec`](@ref) or a
+    [`ShapeCoverage`](@ref), through its shape; or a tuple, named tuple or vector of any of
+    these. A synthetic spec, or a mask given as a matrix, reads no file and adds none.
   - `dryrun`: `true` fetches nothing and instead returns, per file, a named tuple of the `entry`,
-    whether it is `present`, and its `bytes` where the server states them (a plain download's
-    `Content-Length`; a Climate Data Store request cannot say), so a user on a slow link can decide.
-    A source that resolves its own files through RasterDataSources is reported file by file, each
-    entry the path the file has or would have, with no size.
+    whether it is `present`, its `bytes` where the server states them (a plain download's
+    `Content-Length`; a Climate Data Store request cannot say), and whether the working config of
+    a tracked spec's run `covers` what a fetch run writes for the file (`nothing` for an untracked
+    spec), so a user on a slow link can decide. A source that resolves its own files through
+    RasterDataSources is reported file by file, each entry the path the file has or would have,
+    with no size.
 """
 function fetchfiles(spec::RasterSpec; dryrun::Bool = false)
-    dryrun && return _dryrun(spec, spec.files)
+    dryrun && return _withcovers(spec.track, spec, _dryrun(spec, spec.files))
     return _fetched(spec.track, spec)
 end
 
-function fetchfiles(specs::AbstractVector; dryrun::Bool = false)
-    return reduce(vcat, (fetchfiles(s, dryrun = dryrun) for s in specs),
+function fetchfiles(spec::NaturalEarthSpec; dryrun::Bool = false)
+    dryrun &&
+        return _withcovers(spec.track, spec,
+                           [_dryrunentry(_nesource(_checklevel(spec.level)))])
+    return _fetched(spec.track, spec)
+end
+
+function fetchfiles(spec::ShapeSpec; dryrun::Bool = false)
+    dryrun && return _withcovers(nothing, spec, [_dryrunentry(spec.path)])
+    return [String(_resolvepath(spec.path))]
+end
+
+function fetchfiles(x; dryrun::Bool = false)
+    return reduce(vcat, (fetchfiles(s, dryrun = dryrun) for s in _filespecs(x)),
                   init = dryrun ? Any[] : String[])
+end
+
+"""
+    missingfiles(x)
+
+Return what is still to do before `x` can be built, fetching nothing: an entry per file still to
+do, a named tuple of the `file` - where it is or would be - and the `reason` it is not done, in
+`x`'s order; empty when there is nothing to do, which is how a fetch run started only to fetch
+tells that it need not run.
+
+For an untracked spec a file is to do while it is not there. For a spec tracked by a data pipeline
+run, it is what that run's working config makes of it: in a fetch run - one whose config writes
+the file's provenance record - a file not held, or not registered with its record and the facts
+the catalogue gives; in a model run, a file the config cannot read, saying why: not registered yet,
+registered since the job was prepared, or no `read:` entry for it, the entry to add written out. A
+source that cannot say where its files are without fetching them is one entry, its `file` the
+source's name.
+
+# Arguments
+
+  - `x`: what to ask about, anything [`fetchfiles`](@ref EcoSISTEM.fetchfiles) takes.
+"""
+function missingfiles(x)
+    return reduce(vcat, (_missing(_spectrack(s), s) for s in _filespecs(x)),
+                  init = @NamedTuple{file::String, reason::String}[])
+end
+
+# The specs among `x` that read files - a raster spec, a named region, a shape - in order, through
+# every wrapper and combination a habitat can be built from.
+_filespecs(spec::Union{RasterSpec, NaturalEarthSpec, ShapeSpec}) = Any[spec]
+
+_filespecs(spec::ConstructedRasterSpec) = _filespecs(spec.layers)
+
+_filespecs(spec::Varying) = _filespecs(spec.spec)
+
+_filespecs(spec::ConstructedShapeSpec) = _filespecs(collect(spec.members))
+
+_filespecs(spec::Union{ShapeMaskSpec, ShapeCoverage}) = _filespecs(spec.shape)
+
+function _filespecs(xs::Union{Tuple, NamedTuple, AbstractVector})
+    return reduce(vcat, (_filespecs(x) for x in values(xs)), init = Any[])
+end
+
+# A synthetic spec, a mask given as a matrix, `nothing` and anything else a habitat is built from
+# name no file. Deliberately untyped, as the fallback for all of them.
+_filespecs(::Any) = Any[]
+
+# An untracked spec's files still to do: those not there. A source that cannot say where its files
+# are is one entry naming it.
+function _missing(::Nothing, spec)
+    paths = _wouldbepaths(spec)
+    isnothing(paths) &&
+        return [(file = string(spec.source),
+                 reason = "where its files are cannot be told without fetching them")]
+    return [(file = p, reason = "not held") for p in paths if !isfile(p)]
+end
+
+_missing(track::Track, spec) = _trackedmissing(track, spec)
+
+# Where a spec's files are or would be, fetching nothing, or `nothing` for a source that cannot say.
+_wouldbepaths(spec::RasterSpec) = _wouldbepaths(spec, spec.files)
+
+function _wouldbepaths(::RasterSpec, files::AbstractVector)
+    return String[_localpath(f) for f in files]
+end
+
+function _wouldbepaths(spec::RasterSpec, ::Nothing)
+    return _sourcepaths(spec.source, spec.code; _readkw(spec)...)
+end
+
+_wouldbepaths(spec::NaturalEarthSpec) = _specpaths(spec)
+
+_wouldbepaths(spec::ShapeSpec) = [_localpath(spec.path)]
+
+# A dry run's entries with whether a tracked spec's run covers each, `nothing` untracked.
+function _withcovers(::Nothing, spec, entries)
+    return [(; e..., covers = nothing) for e in entries]
+end
+
+function _withcovers(track::Track, spec, entries)
+    covered = _trackedcovers(track, spec)
+    return [(; e..., covers = c) for (e, c) in zip(entries, covered)]
 end
 
 # ---------------------------------------------------------------------------
@@ -1979,9 +2078,9 @@ _allfiles(raw) = _filelist(raw)
 
 # A spec's files fetched: by the spec's own route, or by the pipeline run tracking it, which registers
 # them.
-_fetched(::Nothing, spec::RasterSpec) = _fetchedpaths(spec, spec.files)
+_fetched(::Nothing, spec) = _fetchspec(spec)
 
-_fetched(track::Track, spec::RasterSpec) = _trackedfetch(track, spec)
+_fetched(track::Track, spec) = _trackedfetch(track, spec)
 
 # A spec's dry-run report, a file each: its named entries, or the files its source would fetch, or
 # one entry for the source where it cannot say which.
@@ -2008,7 +2107,7 @@ _provide!(::Nothing, spec) = nothing
 
 function _provide!(track::Track, spec)
     paths = _specpaths(spec)
-    _trackedprovide!(track, paths)
+    _trackedprovide!(track, spec, paths)
     absent = filter(!isfile, paths)
     isempty(absent) ||
         error("The pipeline run tracking $spec did not provide " *

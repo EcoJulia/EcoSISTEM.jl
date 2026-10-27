@@ -46,13 +46,13 @@ function EcoSISTEM._fetchfiles(T::Type{<:RDS.RasterDataSource}, code; kw...)
         isfile(EcoSISTEM._sidecarpath(path)) && continue
         record = EcoSISTEM._baserecord(path, :habitat)
         delete!(record, "fetched")      # not known for a file already in the cache
-        record["primary"] = true
         url = _rasterurl(T, layer; kw...)
         isnothing(url) || (record["url"] = url)
         merge!(record,
                EcoSISTEM._cataloguerecord(T,
                                           isnothing(layer) ? nothing :
-                                          EcoSISTEM.layerinfo(T, layer), path))
+                                          EcoSISTEM.layerinfo(T, layer), path,
+                                          route = :published))
         EcoSISTEM._writesidecar(path, record)
     end
     return raw
@@ -124,8 +124,13 @@ end
 # resolves it; it has no default resolution, so `getraster`'s is supplied; and it names one file a
 # call, so a range such as `month = 1:12`, which `getraster` maps over, is taken a value at a time.
 function EcoSISTEM._sourcepaths(T::Type{<:RDS.RasterDataSource}, code; kw...)
+    return [f.path for f in EcoSISTEM._sourcefiles(T, code; kw...)]
+end
+
+# The same files, each with the code it holds and the URL RasterDataSources fetches it from.
+function EcoSISTEM._sourcefiles(T::Type{<:RDS.RasterDataSource}, code; kw...)
     codes = EcoSISTEM._preferredcode(T, something(code, collect(RDS.layers(T))))
-    return [path
+    return [(path = String(path), code = c, url = _rasterurl(T, c; pathkw...))
             for c in vcat(codes)
             for pathkw in _eachfilekw(_rasterpathkw(T; kw...))
             for path in EcoSISTEM._filelist(RDS.rasterpath(T, c; pathkw...))]
