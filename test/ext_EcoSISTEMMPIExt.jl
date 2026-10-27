@@ -272,43 +272,51 @@ function launchcmd(; coverage::Bool)
     return Cmd(filter(a -> !startswith(a, "--code-coverage"), cmd.exec))
 end
 
+# The ranks-by-threads shapes `SmallMPItest.jl` is launched at: one rank with several threads,
+# several ranks with one, and, given four cores, two ranks of two threads between them. None uses
+# more than four cores or more than the machine has, because a runner's cores are few (three on
+# macOS) and an oversubscribed launch is slower and allocates more in the threaded loops. Below two
+# cores the shapes are those of two, so that some launch has more than one rank.
+function launchshapes(cores = Sys.CPU_THREADS)
+    if cores >= 4
+        return [(ranks = 1, threads = 4), (ranks = 2, threads = 2),
+            (ranks = 4, threads = 1)]
+    end
+    n = max(cores, 2)
+    return [(ranks = 1, threads = n), (ranks = n, threads = 1)]
+end
+
 @testset "mpirun" begin
     # Keep the MPI outputs in a temp dir the OS cleans up (no manual `rm` needed for hygiene).
     # The child `mpiexec` processes read its path as their first command-line argument.
     datadir = mktempdir()
-    # Compare 1 thread 4 processes vs. 4 threads 1 process vs. 2 threads 2 processes
-    withenv("JULIA_NUM_THREADS" => "4") do
-        nprocs = 1
-        function cmd(n = nprocs)
-            return `$(mpiexec()) $(rankprefix()) -n $nprocs $(launchcmd(coverage = false)) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
+    shapes = launchshapes()
+    # The launch with the fewest ranks above one runs the shared-build testset, whose rank count
+    # is the script's second argument, and is the one instrumented for coverage.
+    sharedranks = minimum(s.ranks for s in shapes if s.ranks > 1)
+    script = pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")
+    for shape in shapes
+        withenv("JULIA_NUM_THREADS" => string(shape.threads)) do
+            julia = launchcmd(coverage = shape.ranks == sharedranks)
+            mpi = `$(mpiexec()) $(rankprefix()) -n $(shape.ranks)`
+            cmd = `$mpi $julia --startup-file=no $script $datadir $sharedranks`
+            logfile = joinpath(datadir,
+                               "mpiexec$(shape.ranks)x$(shape.threads).log")
+            @test runmpi(cmd, logfile)
         end
-        @test runmpi(cmd(), joinpath(datadir, "mpiexec1.log"))
-    end
-    withenv("JULIA_NUM_THREADS" => "2") do
-        nprocs = 2
-        function cmd(n = nprocs)
-            return `$(mpiexec()) $(rankprefix()) -n $nprocs $(launchcmd(coverage = true)) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
-        end
-        @test runmpi(cmd(), joinpath(datadir, "mpiexec2.log"))
-    end
-    withenv("JULIA_NUM_THREADS" => "1") do
-        nprocs = 4
-        function cmd(n = nprocs)
-            return `$(mpiexec()) $(rankprefix()) -n $nprocs $(launchcmd(coverage = false)) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
-        end
-        @test runmpi(cmd(), joinpath(datadir, "mpiexec4.log"))
     end
 
     ## All answers should be the same across process/thread splits. Load the
     ## saved values (note: `@load file var` binds `var` but returns the symbol
     ## list, so use `load(file, "abuns")` to get the data itself).
-    abuns1thread = load(joinpath(datadir, "Test_abuns1.jld2"), "abuns")
-    abuns2thread = load(joinpath(datadir, "Test_abuns2.jld2"), "abuns")
-    abuns4thread = load(joinpath(datadir, "Test_abuns4.jld2"), "abuns")
+    abuns = map(shapes) do shape
+        file = "Test_abuns$(shape.ranks)x$(shape.threads).jld2"
+        return load(joinpath(datadir, file), "abuns")
+    end
 
     # Each launch also checks its own run against the blessed values, so a launch that does not
-    # reproduce itself fails there, apart from any disagreement between the three here.
-    @test abuns1thread == abuns2thread == abuns4thread
+    # reproduce itself fails there, apart from any disagreement between the launches here.
+    @test allequal(abuns)
 end
 
 if !MPI.Finalized()

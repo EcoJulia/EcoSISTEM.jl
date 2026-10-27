@@ -5,9 +5,9 @@
 #     julia --project -e 'using Pkg; Pkg.test(test_args = ["core_ext.jl"])'
 #
 # MPI is a weak dependency but *is* installed in the test environment, so `EcoSISTEMMPIExt` loads
-# and `ext_EcoSISTEMMPIExt.jl` launches `SmallMPItest.jl` under `mpiexec` at 1, 2 and 4 ranks - the
-# slowest thing in this set by some way. On a CI runner it runs after the others and alone, so its
-# ranks do not share a few cores with other test files.
+# and `ext_EcoSISTEMMPIExt.jl` launches `SmallMPItest.jl` under `mpiexec` at one rank and at
+# several - the slowest thing in this set by some way. On a CI runner it runs after the others and
+# alone, so its ranks do not share a few cores with other test files.
 
 using Random
 using Test
