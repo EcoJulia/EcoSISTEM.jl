@@ -135,11 +135,10 @@ end
     @test dk.primary === true && dk.title == era.title && dk.doi == era.doi &&
           isnothing(dk.release_version) && dk.release_date == era.releasedate
     @test E._depositkeywords(E.datasetinfo(CERA)).primary === false
-    # A source whose files state their own releases dates its deposit by the first file's.
-    @test E._depositkeywords(ne, date = "2022-05-13").release_date ==
-          "2022-05-13"
-    @test E._depositkeywords(era, date = "2022-05-13").release_date ==
-          era.releasedate
+    # A row giving no release leaves its deposit's to its citation, whichever file comes first.
+    nk = E._depositkeywords(ne)
+    @test isnothing(nk.release_version) && isnothing(nk.release_date) &&
+          nk.bibtex == "naturalearth"
 end
 
 @testset "a file the user gives is recorded with the release its track names" begin
@@ -246,11 +245,11 @@ end
     @test fetchfiles((given, given)) == [held, held]
     @test missingfiles(inputs) == [(file = absent, reason = "not held")]
     @test isempty(missingfiles(given))
-    # A dry run reports each file, with no run to cover it.
+    # A dry run reports each file: its entry, whether it is present, and its bytes.
     dry = fetchfiles(inputs, dryrun = true)
     @test [d.entry for d in dry] == [held, absent]
     @test [d.present for d in dry] == [true, false]
-    @test all(isnothing(d.covers) for d in dry)
+    @test all(keys(d) == (:entry, :present, :bytes) for d in dry)
     # A shape's file and a named region's zip are found through the mask and coverage they sit in.
     shape = ShapeSpec(held)
     region = NaturalEarthSpec("Scotland")

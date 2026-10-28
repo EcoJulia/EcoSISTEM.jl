@@ -7,13 +7,15 @@
 #
 # `data/catalogue/requests/` quotes what each provider asks of anyone using its data, and each row of
 # `datasets.csv` names its request; `citations.bib` and `authors.toml`, made by
-# `data/src/citations.jl`, are what a registration of a catalogued file cites. Reads files only: no
-# network. It cannot see whether a quoted text is still the provider's own, nor whether doi.org
-# still says what `citations.bib` holds; running `data/src/citations.jl` answers the second.
+# `data/src/citations.jl`, are what a registration of a catalogued file cites. Reads files only, but
+# for one request to GitHub, for Natural Earth's latest release. It cannot see whether a quoted text
+# is still the provider's own, nor whether doi.org still says what `citations.bib` holds; running
+# `data/src/citations.jl` answers the second.
 
 module TestCleanCatalogueRequests
 
 using BibParser: BibParser
+using Downloads: Downloads
 using EcoSISTEM
 using Test
 using TOML
@@ -100,7 +102,7 @@ end
         for r in rows
             @test occursin(r"^[A-Za-z0-9_-]+$", r.namespace)
             @test !isempty(r.namespacename)
-            @test occursin(r"^https://\S+/$", r.namespacewebsite)
+            @test occursin(r"^https://\S+$", r.namespacewebsite)
         end
         # A namespace's full name and web page are the same wherever it is named.
         for ns in unique(r.namespace for r in rows)
@@ -120,6 +122,24 @@ end
                 @test !occursin(r"<[A-Z0-9_]+>|\[year\]"i, text)
             end
         end
+    end
+
+    @testset "Natural Earth's citation names the collection's latest release" begin
+        # Its zips each state their own version, so its deposit is registered with the version and
+        # date its citation gives, those of the collection's latest release on GitHub. A newer
+        # release fails this: give its version and date to `NATURALEARTH` in
+        # `data/src/citations.jl` and to `citations.bib`. Only the version is compared.
+        text = read(joinpath(CATALOGUE, "citations.bib"), String)
+        entry = match(r"@misc\{naturalearth,(.*?)\n\}"s, text)
+        @test !isnothing(entry)
+        version = match(r"\bversion = \{([^}]+)\}", entry[1])
+        @test !isnothing(version) &&
+              occursin(r"\bdate = \{\d{4}-\d{2}-\d{2}\}", entry[1])
+        latest = Downloads.request("https://github.com/nvkelso/natural-earth-vector/releases/latest",
+                                   method = "HEAD", timeout = 30)
+        tag = match(r"/releases/tag/v?([^/]+)$", latest.url)
+        @test !isnothing(tag) &&
+              VersionNumber(tag[1]) == VersionNumber(version[1])
     end
 
     @testset "each licence is an SPDX identifier or the provider's URL" begin

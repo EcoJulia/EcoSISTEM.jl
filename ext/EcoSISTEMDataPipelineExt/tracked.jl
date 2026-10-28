@@ -216,8 +216,7 @@ function _register!(track, spec, rec, entry)
                                    date = release.date)
     deposit = _claimdeposit!(track, rec)
     if !_isdone(handle, "deposit")
-        link_register!(handle, deposit;
-                       EcoSISTEM._depositkeywords(rec, date = release.date)...)
+        link_register!(handle, deposit; EcoSISTEM._depositkeywords(rec)...)
         _markdone!(handle, "deposit")
     end
     store = route === :published ? release.record.url : nothing
@@ -343,10 +342,4 @@ function EcoSISTEM._trackedmissing(track::Track{<:DataRegistryHandle}, spec)
         isnothing(reason) || push!(todo, (file = e.path, reason = reason))
     end
     return todo
-end
-
-# Whether the run's working config writes what a fetch run registers for each of a tracked spec's
-# files, for a dry run.
-function EcoSISTEM._trackedcovers(track::Track{<:DataRegistryHandle}, spec)
-    return [_writable(track, e.path) for e in EcoSISTEM._specroutes(spec)]
 end

@@ -252,18 +252,16 @@ function _extractdescription(r::InputRecord)
 end
 
 # The keywords the deposit a source's files are derived from is registered with: the dataset itself,
-# file-less, its own where its identifier names the data. Its release date is the row's, or, for a
-# source whose files state their own releases, `date`, that of the first file registered with it,
-# since the registry keeps a deposit's first date and a source cannot be named without one.
-function _depositkeywords(rec::DatasetRecord;
-                          date::Union{Nothing, AbstractString} = nothing)
+# file-less, its own where its identifier names the data. Its release is the row's, else its
+# citation's in `citations.bib` (Natural Earth's), never a file's: the registry keeps a deposit's
+# first release, so it must not depend on which file is registered first.
+function _depositkeywords(rec::DatasetRecord)
     return (; _sourcename(rec)..., title = rec.title,
             primary = rec.identifies === :data,
             licence = _ornothing(rec.licence),
             release_version = isempty(rec.version) ? nothing :
                               _fullversion(rec.version),
-            release_date = something(_ornothing(rec.releasedate), date,
-                                     Some(nothing)),
+            release_date = _ornothing(rec.releasedate),
             description = _ornothing(_requestpage(rec)))
 end
 

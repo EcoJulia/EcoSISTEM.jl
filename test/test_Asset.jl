@@ -305,7 +305,9 @@ end
     # Nothing is left beside it, and it reads as any file written in the directory does.
     @test sort(readdir(dir)) ==
           sort(["data.nc", basename(sidecar), "store.toml"])
-    @test filemode(sidecar) & 0o777 == 0o644
+    # `mktemp`'s owner-only mode is widened to `0o644`. Windows keeps no Unix mode: `chmod` sets
+    # only the read-only attribute, and a writable file reports `0o666`.
+    @test filemode(sidecar) & 0o777 == (Sys.iswindows() ? 0o666 : 0o644)
     # Writers recording one file at once each rename their own copy in.
     tasks = [Threads.@spawn(E._writesidecar(path,
                                             Dict("writer" => "EcoSISTEM test",

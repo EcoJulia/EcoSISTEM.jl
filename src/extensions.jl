@@ -478,11 +478,6 @@ _trackedfetch(track::Track, spec) = error(_nopipeline(track))
 # handle; any other handle is refused.
 _trackedmissing(track::Track, spec) = error(_nopipeline(track))
 
-# Whether the working config of the pipeline run `track` names covers what a fetch run writes for
-# each of a tracked spec's files, a `Bool` per file in order, for a dry run. The extension supplies
-# the method for its handle; any other handle is refused.
-_trackedcovers(track::Track, spec) = error(_nopipeline(track))
-
 # Why a track cannot be followed: its handle is not a pipeline run this package can use.
 function _nopipeline(track::Track)
     return "A `Track` follows a FAIR data pipeline run, the handle `DataPipeline.initialise()` " *

@@ -30,12 +30,16 @@ const BIBFILE = joinpath(CATALOGUE, "citations.bib")
 const AUTHORSFILE = joinpath(CATALOGUE, "authors.toml")
 
 # The citation of the catalogue's one source with no DOI, written by hand from its terms of use
-# (`requests/naturalearth.toml`), its authors those the site names as the primary ones.
+# (`requests/naturalearth.toml`), its authors those the site names as the primary ones, and its
+# version and date those of the collection's latest release on GitHub, which its deposit is
+# registered with; `clean_CatalogueRequests.jl` fails when a newer one is out.
 const NATURALEARTH = """
 @misc{naturalearth,
   author = {Patterson, Tom and Kelso, Nathaniel Vaughn},
   title = {Natural Earth},
   publisher = {Natural Earth},
+  version = {5.1.2},
+  date = {2022-05-13},
   url = {https://www.naturalearthdata.com/}
 }"""
 

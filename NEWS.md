@@ -37,7 +37,7 @@
     - `EcoSISTEM.missingfiles(x)` lists, fetching nothing, the files still to do before `x` can be
       built and why, for an untracked spec or a tracked one in a fetch or a model run.
     - `fetchfiles` takes anything a habitat is built from - combinations, `Varying`, shapes, masks,
-      tuples - and a dry run says whether a tracked spec's run `covers` each file.
+      tuples - and a dry run reports each of their files.
     - `datasets.csv` and `DatasetRecord` gain whether each identifier names the data or a paper
       (`identifies`), and the namespace its files are registered in, with its name and website.
   - Changed

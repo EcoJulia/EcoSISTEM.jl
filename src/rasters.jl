@@ -148,27 +148,23 @@ tracked spec is fetched by its data pipeline run, which registers what it fetche
     [`ShapeCoverage`](@ref), through its shape; or a tuple, named tuple or vector of any of
     these. A synthetic spec, or a mask given as a matrix, reads no file and adds none.
   - `dryrun`: `true` fetches nothing and instead returns, per file, a named tuple of the `entry`,
-    whether it is `present`, its `bytes` where the server states them (a plain download's
-    `Content-Length`; a Climate Data Store request cannot say), and whether the working config of
-    a tracked spec's run `covers` what a fetch run writes for the file (`nothing` for an untracked
-    spec), so a user on a slow link can decide. A source that resolves its own files through
-    RasterDataSources is reported file by file, each entry the path the file has or would have,
-    with no size.
+    whether it is `present`, and its `bytes` where the server states them (a plain download's
+    `Content-Length`; a Climate Data Store request cannot say), so a user on a slow link can
+    decide. A source that resolves its own files through RasterDataSources is reported file by
+    file, each entry the path the file has or would have, with no size.
 """
 function fetchfiles(spec::RasterSpec; dryrun::Bool = false)
-    dryrun && return _withcovers(spec.track, spec, _dryrun(spec, spec.files))
+    dryrun && return _dryrun(spec, spec.files)
     return _fetched(spec.track, spec)
 end
 
 function fetchfiles(spec::NaturalEarthSpec; dryrun::Bool = false)
-    dryrun &&
-        return _withcovers(spec.track, spec,
-                           [_dryrunentry(_nesource(_checklevel(spec.level)))])
+    dryrun && return [_dryrunentry(_nesource(_checklevel(spec.level)))]
     return _fetched(spec.track, spec)
 end
 
 function fetchfiles(spec::ShapeSpec; dryrun::Bool = false)
-    dryrun && return _withcovers(nothing, spec, [_dryrunentry(spec.path)])
+    dryrun && return [_dryrunentry(spec.path)]
     return [String(_resolvepath(spec.path))]
 end
 
@@ -248,16 +244,6 @@ end
 _wouldbepaths(spec::NaturalEarthSpec) = _specpaths(spec)
 
 _wouldbepaths(spec::ShapeSpec) = [_localpath(spec.path)]
-
-# A dry run's entries with whether a tracked spec's run covers each, `nothing` untracked.
-function _withcovers(::Nothing, spec, entries)
-    return [(; e..., covers = nothing) for e in entries]
-end
-
-function _withcovers(track::Track, spec, entries)
-    covered = _trackedcovers(track, spec)
-    return [(; e..., covers = c) for (e, c) in zip(entries, covered)]
-end
 
 # ---------------------------------------------------------------------------
 # Internal helpers

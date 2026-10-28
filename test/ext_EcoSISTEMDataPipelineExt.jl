@@ -27,8 +27,7 @@ const EXT = Base.get_extension(EcoSISTEM, :EcoSISTEMDataPipelineExt)
     tracked = Track{<:DataRegistryHandle}
     for (hook, args) in ((EcoSISTEM._trackedfetch, (tracked, Any)),
         (EcoSISTEM._trackedprovide!, (tracked, Any, Any)),
-        (EcoSISTEM._trackedmissing, (tracked, Any)),
-        (EcoSISTEM._trackedcovers, (tracked, Any)))
+        (EcoSISTEM._trackedmissing, (tracked, Any)))
         # The parent's method refuses any other handle; the extension adds the one for a run's.
         @test length(methods(hook)) == 2
         @test which(hook, Tuple{args...}).module === EXT
