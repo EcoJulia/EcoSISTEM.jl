@@ -71,8 +71,10 @@ using Test
         # LandCover takes an int or a descriptive symbol
         @test layerunit(EarthEnv{LandCover}, :open_water) ==
               layerunit(EarthEnv{LandCover}, 12)
-        # BioClimPlus documents bio1-19
-        @test layerunit(CHELSA{BioClimPlus}, :bio1) == °C
+        # BioClimPlus leaves CHELSA V2.1's bio1-19 to `CHELSA{BioClim}`, and says where they are
+        @test layerunit(CHELSA{BioClim}, :bio1) == °C
+        @test_throws "the `BioClim` table has it" EcoSISTEM.layerinfo(CHELSA{BioClimPlus},
+                                                                      :bio1)
         # CHELSA{Climate} monthly layers live in Climate.csv; water-mass rates canonicalise to
         # L m^-2 month^-1 (litres, not kg, per the water-density identity: 1 kg water ≈ 1 L)
         @test layerunit(CHELSA{Climate}, :cmi) == Unitful.L * m^-2
@@ -186,9 +188,9 @@ end
     # A constant period is a real, parseable unit.
     @test rec("gdd0", :BioClimPlus).period ==
           CP.ConstantAccumulationPeriod(year)
-    @test rec("bio13", :BioClimPlus).period ==
+    @test rec("13", :BioClim).period ==
           CP.ConstantAccumulationPeriod(month_mean_duration)
-    @test rec("bio16", :BioClimPlus).period ==
+    @test rec("16", :BioClim).period ==
           CP.ConstantAccumulationPeriod(quarter_mean_duration)
 
     # The four rows a single unit cannot describe: each slice accumulated over its own real month.
@@ -206,8 +208,8 @@ end
 
     # `Temporal Resolution` now means sampling only, so a single-slice layer has none at all - even
     # though `bio13` is emphatically a monthly quantity. That is the whole point of the split.
-    @test isnothing(rec("bio13", :BioClimPlus).temporal)
-    @test rec("bio13", :BioClimPlus).numslices == 1
+    @test isnothing(rec("13", :BioClim).temporal)
+    @test rec("13", :BioClim).numslices == 1
 
     # The cross-column invariant: a period is declared exactly where something accumulates. This is
     # what turns ~100 blank cells from "not filled in" into "asserted not to apply" - and it is what
@@ -303,7 +305,7 @@ end
     cat = CP._catalogue()
     ranges = [r for r in cat if endswith(axisname(r), "Range")]
     # The shipped tables really do have range rows to check; an empty sweep would pass vacuously.
-    @test length(ranges) == 11
+    @test length(ranges) == 9
 
     # One assertion over every range row, for the same reason the invariant above is one: a loop of
     # `@test`s would inflate the count with near-duplicates. Offenders are named on failure.
@@ -330,8 +332,8 @@ end
           CP.ConstantAccumulationPeriod(day)
     # The affine case, and the reason the rule says *absolute*: a difference of temperatures is an
     # interval, so `bio2` is K where the `Temperature` it ranges over is °C.
-    @test rec("bio2", :BioClimPlus).unit == u"K"
-    @test rec("bio1", :BioClimPlus).unit == u"°C"
+    @test rec("2", :BioClim).unit == u"K"
+    @test rec("1", :BioClim).unit == u"°C"
     @test Unitful.absoluteunit(u"°C") == u"K"
 
     # Periods compare by what they mean, so a `Constant` is never quietly equal to a `PerSlice`.
@@ -438,8 +440,8 @@ end
     @test CP._readdivisors(rec(:Climate, "prec"), [2]) ≈ [28.25]
 
     # A constant period is one scalar for the whole layer.
-    @test CP._readdivisors(rec(:BioClimPlus, "bio13"), 1:1) ≈ 30.4375
-    @test CP._readdivisors(rec(:BioClimPlus, "bio16"), 1:1) ≈ 91.3125
+    @test CP._readdivisors(rec(:BioClim, "bio13"), 1:1) ≈ 30.4375
+    @test CP._readdivisors(rec(:BioClim, "bio16"), 1:1) ≈ 91.3125
     @test CP._readdivisors(rec(:BioClim, "12"), 1:1) ≈ 365.25
     @test CP._readdivisors(rec(:BioClimPlus, "npp"), 1:1) ≈ 365.25
 
@@ -460,7 +462,7 @@ end
     @test layeraxis(WorldClim{Elevation}, :elev) === Altitude
     @test layeraxis(EarthEnv{HabitatHeterogeneity}, :shannon) === Heterogeneity
     # the max/min/mean collapse: quarter temps all fold into Temperature
-    @test layeraxis(CHELSA{BioClimPlus}, :bio8) === Temperature
+    @test layeraxis(CHELSA{BioClim}, :bio8) === Temperature
     # the aggregate families: level vs range; and the new axes
     @test layeraxis(CHELSA{BioClimPlus}, :cmi_max) === ClimateMoisture
     @test layeraxis(CHELSA{BioClimPlus}, :cmi_range) === ClimateMoistureRange
@@ -527,10 +529,14 @@ end
                         "Elevation" => Any[WorldClim{Elevation}],
                         "HabitatHeterogeneity" =>
                             Any[EarthEnv{HabitatHeterogeneity}],
-                        "LandCover" => Any[EarthEnv{LandCover}])
+                        "LandCover" => Any[EarthEnv{LandCover},
+                            EarthEnv{LandCover{:DISCover}}])
     # `ncdf` is listed by `layers(CHELSA{Climate})` but is a spurious RDS entry (no such CHELSA
     # variable / file), so it is deliberately absent from the table - carve it out here.
     known_spurious = Set(["ncdf"])
+    # Codes a table leaves out although RasterDataSources offers them: CHELSA{BioClimPlus}'s bio1-19
+    # are CHELSA V2.1's own files, catalogued as CHELSA{BioClim}'s (the testset below).
+    leftout = Dict("BioClimPlus" => Set("bio$i" for i in 1:19))
     datadir = pkgdir(EcoSISTEM, "data", "catalogue")
     # every code any source accepts: `layers(T)` plus its `layerkeys(T)` aliases
     accepted(T) = union(Set(string(c) for c in RDS.layers(T)),
@@ -544,15 +550,33 @@ end
         acc = setdiff(union((accepted(T) for T in Ts)...), known_spurious)
         csvcodes = Set(keys(EcoSISTEM._layertable(joinpath(datadir,
                                                            "$base.csv"))))
+        # a code left out is one still offered, so the list shrinks when RasterDataSources drops one
+        omitted = get(leftout, base, Set{String}())
+        @test omitted ⊆ acc
         # exactly reconciled: every fetchable code is documented, and no phantom rows exist
-        @test acc == csvcodes
+        @test setdiff(acc, omitted) == csvcodes
+    end
+end
+
+# Why CHELSA{BioClimPlus}'s table leaves out bio1-19: RasterDataSources gives them CHELSA V2.1's very
+# files, path and address, so one file would carry two datasets' facts. Asked of its path and URL
+# functions, which download nothing. When this fails, BIOCLIM+ has files of its own, and the 19 rows
+# can return to `BioClimPlus.csv` with its facts.
+@testset "guard: CHELSA{BioClimPlus}'s bio1-19 are CHELSA{BioClim}'s files" begin
+    RDS = RasterDataSources
+    for i in 1:19
+        code = Symbol("bio$i")
+        @test RDS.rasterpath(CHELSA{BioClimPlus}, code) ==
+              RDS.rasterpath(CHELSA{BioClim}, i)
+        @test RDS.rasterurl(CHELSA{BioClimPlus}, code) ==
+              RDS.rasterurl(CHELSA{BioClim}, i)
     end
 end
 
 @testset "guard: datasets.csv reconciles to the layer tables" begin
     E = EcoSISTEM
     rows = E._datasets()
-    @test length(rows) == 13
+    @test length(rows) == 14
     for r in rows
         # every row names a loaded source type, spelled as the loader spells it back - Natural
         # Earth's being the level type its downloads are owned by
@@ -568,11 +592,21 @@ end
     # every source with a layer table has a row, RasterDataSources' and this package's own alike
     for T in (WorldClim{BioClim}, WorldClim{Climate}, WorldClim{Elevation},
         CHELSA{BioClim}, CHELSA{BioClimPlus}, CHELSA{Climate},
-        EarthEnv{LandCover}, EarthEnv{HabitatHeterogeneity}, ERA, CERA,
-        TwentyCR)
+        EarthEnv{LandCover}, EarthEnv{LandCover{:DISCover}},
+        EarthEnv{HabitatHeterogeneity}, ERA, CERA, TwentyCR)
         @test E._haslayertable(T)
         @test E.datasetinfo(T) isa E.DatasetRecord
     end
+    # EarthEnv's two land-cover versions are one product built with and without one input: one
+    # layer table, request and citation, told apart by their titles and their files.
+    reduced = E.datasetinfo(EarthEnv{LandCover})
+    full = E.datasetinfo(EarthEnv{LandCover{:DISCover}})
+    @test full.dataset == "EarthEnv{LandCover{:DISCover}}"
+    @test E._tablename(EarthEnv{LandCover{:DISCover}}) === :LandCover
+    @test (full.request, full.doi, full.licence) ==
+          (reduced.request, reduced.doi, reduced.licence)
+    @test occursin("with DISCover", full.title) &&
+          occursin("without DISCover", reduced.title)
     # and an unknown source is refused, naming the table
     @test_throws "datasets.csv" E.datasetinfo(Int)
     @test isnothing(E._datasetrecord(Int))
@@ -611,12 +645,33 @@ end
     ne = E.datasetinfo(E.NaturalEarthLevel)
     @test ne.dataset == "NaturalEarth" && ne.format === :Shapefile &&
           ne.fetch === :https
-    @test isempty(ne.doi) && isempty(ne.version) &&
-          occursin("Natural Earth", ne.citation)
-    # Every row carries the citation a paper prints, resolved from its DOI.
+    @test isempty(ne.doi) && isempty(ne.version) && ne.licence == "CC-PDM-1.0"
+    # What each identifier names, and the namespace each source's files are registered in: a
+    # deposit or a web page names the data, a paper's DOI the paper.
+    @test ne.identifies === :data && tcr.identifies === :paper &&
+          era.identifies === :data && wc.identifies === :paper
+    @test ne.namespace == "NaturalEarth" && era.namespace == "ECMWF" &&
+          tcr.namespace == "NOAA-PSL"
+    @test_throws "`Identifies` = `dataset`" E._parseidentifies("dataset", "X")
+    @test_throws "`Namespace` = `two words`" E._parsenamespace("two words", "X")
+    # It asks for no citation, and offers a line for those who wish to credit it.
+    @test isempty(ne.references) && isempty(ne.citation)
+    @test only(ne.notices).strength === :optional &&
+          occursin("Natural Earth", only(ne.notices).text)
+    # Every row names its provider's request, whose references include the row's DOI, and the
+    # citation is those references' texts.
     for r in E._datasets()
-        @test !isempty(r.citation) && occursin(r.doi, r.citation)
+        @test !isempty(r.request) && !isempty(r.title)
+        @test isempty(r.doi) || any(ref.doi == r.doi for ref in r.references)
+        @test r.citation == join((ref.text for ref in r.references), " ")
     end
+    # A row cites the deposit holding the files where the provider mints one, and the release's
+    # own date where the provider states it.
+    @test E.datasetinfo(CHELSA{BioClim}).doi == "10.16904/envidat.228.v2.1"
+    bcp = E.datasetinfo(CHELSA{BioClimPlus})
+    @test bcp.doi == "10.16904/envidat.332" && bcp.version == "1.0"
+    @test wc.releasedate == "2020-01" && wc.title == "WorldClim 2.1"
+    @test E.datasetinfo(ERA).notices[1].strength === :required
     # ERA5's layers name the variable a Climate Data Store request asks for, and both columns
     # can be looked up backwards, which is how a fetched file is matched to its layer.
     @test E.layerinfo(ERA, "t2m").request == "2m_temperature"
@@ -648,7 +703,18 @@ end
                                                                                             :none,
                                                                                             "",
                                                                                             "",
+                                                                                            :data,
                                                                                             "",
+                                                                                            "",
+                                                                                            "",
+                                                                                            "",
+                                                                                            "",
+                                                                                            @NamedTuple{doi::String,
+                                                                                                        text::String}[],
+                                                                                            @NamedTuple{strength::Symbol,
+                                                                                                        text::String}[],
+                                                                                            "",
+                                                                                            "Fixture",
                                                                                             "",
                                                                                             "",
                                                                                             "")
@@ -761,8 +827,8 @@ end
     @test E._preferredcode(ERA, ["tp", "t2m"]) == ["tp", "t2m"]
     @test_throws ErrorException E._preferredcode(ERA, "t3m")
     @test_throws ErrorException E._preferredcode(SyntheticData, "t2m")
-    # A location is required, since ERA5 files are not fetched for the caller; the file is not
-    # touched at construction.
+    # A location, or the `years` to fetch, is required, since ERA5 is fetched only for the years
+    # asked; the file is not touched at construction.
     spec = SourceSpec(ERA, "t2m", file = "era5_t2m.nc")
     @test_throws "file = path" SourceSpec(ERA, "t2m")
     @test spec.unit == K
@@ -787,8 +853,7 @@ end
     @test_throws ErrorException CP.layerinfo(WorldClim{BioClim}, 99)
 
     # layerinfo(code): every dataset that has the code
-    @test Set(x.dataset for x in CP.layerinfo(:bio1)) ==
-          Set([:BioClim, :BioClimPlus])
+    @test Set(x.dataset for x in CP.layerinfo(:t2m)) == Set([:ERA, :CERA])
     @test only(CP.layerinfo(:tas)).sources == ["CHELSA"]   # a CHELSA-only Climate code
 
     # temporal metadata surfaced from the NumSlices / Temporal Resolution columns
@@ -823,10 +888,10 @@ end
     # No shipped layer is unclassified - pinned so that shipping one is a deliberate act that
     # shows up here, rather than a quiet gap in every axis-based sweep.
     @test isempty(CP.layersbyaxis(nothing))
-    @test length(every) == 152          # 139 RasterDataSources layers, ERA5's and CERA-20C's four each, 20CRv3's five
+    @test length(every) == 133          # 120 RasterDataSources layers, ERA5's and CERA-20C's four each, 20CRv3's five
     # A copy, not the cached vector: sorting the result in place must not corrupt later lookups.
     sort!(every, by = x -> first(x.aliases))
-    @test length(CP.layersbyaxis()) == 152
+    @test length(CP.layersbyaxis()) == 133
 
     # layeraxes: nested tree of NicheAxis subtypes down to the concrete leaves, each leaf
     # carrying the names of the shipped layers that use it
@@ -984,7 +1049,8 @@ end
 
         # ...and with the factor applied, a read now lands inside the documented range.
         vals = filter(isfinite,
-                      vec(read(EarthEnv{HabitatHeterogeneity}, :evenness).array))
+                      vec(read(SourceSpec(EarthEnv{HabitatHeterogeneity},
+                                          :evenness)).array))
         @test maximum(vals) <= 1.0
         @test maximum(vals) > 0.5          # corrected, not flattened
 
@@ -994,6 +1060,37 @@ end
                                                                       :evenness,
                                                                       vals)
     end
+end
+
+@testset "every file a source can give has a title of its own" begin
+    E = EcoSISTEM
+    # Keyed by file, since several kinds of region come from one zip, which has one title.
+    titles = Dict{String, String}()
+    # 20CRv3: one file per layer, named in its table.
+    tcr = E.datasetinfo(TwentyCR)
+    for code in E._alllayercodes(TwentyCR)
+        layer = E.layerinfo(TwentyCR, code)
+        title = E._filetitle(tcr, layer, layer.file)
+        @test startswith(title, "$(tcr.title), $(layer.name) (")
+        titles[layer.file] = title
+    end
+    # ERA5: every layer over spans, boxes and months, by the names its requests are given.
+    era = E.datasetinfo(ERA)
+    for code in E._alllayercodes(ERA),
+        area in (nothing, (40, -25, -36, 56), (41, -25, -36, 56)),
+        months in (1:12, 6:8, [12, 1, 2])
+        for q in E.era5requests(code, 1985:2004, dir = "d", area = area,
+                                months = months)
+            titles[q.path] = E._filetitle(era, E.layerinfo(ERA, code), q.path)
+        end
+    end
+    # Natural Earth: one zip per kind of region, none of them a layer.
+    ne = E.datasetinfo(E.NaturalEarthLevel)
+    for level in E.NATURALEARTH_LEVELS
+        url = E._nesource(level).url
+        titles[url] = E._filetitle(ne, nothing, url)
+    end
+    @test allunique(values(titles))
 end
 
 end

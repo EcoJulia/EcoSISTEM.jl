@@ -1,13 +1,17 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# The distributed hot loop: `update!`, `move!`, `update_resource_usage!` and `populate!`.
+# The distributed hot loop: its own `_startrun!`, `_step!` (the per-species birth and death draws),
+# `update_resource_usage!` and `populate!`, and the hooks through which the shared code - the generic
+# `update!`, the serial `move!` and the interventions - reaches a distributed ecosystem's layout
+# (`_landscaperow`, `_standingpopulation`, `getlookup`, `_ownedabundances`).
 #
-# **These DUPLICATE the serial implementations in `src/dynamics.jl` rather than calling them**, and
+# **The four DUPLICATE the serial implementations in `src/dynamics.jl` rather than calling them**, and
 # that is the file's defining hazard: a rule phrased as "the hot loop" has two places to apply, and a
-# `grep` over `src/` finds only one of them. A change to the demographics, the dispersal step or the
-# resource accounting must be made here as well, or the two diverge silently - a distributed run
-# would then disagree with a serial one on the same seed, which is the property the whole design
-# exists to guarantee.
+# `grep` over `src/` finds only one of them. A change to the start of a run, the demographics, the
+# resource accounting or the founding population must be made here as well, or the two diverge
+# silently - a distributed run would then disagree with a serial one on the same seed, which is the
+# property the whole design exists to guarantee. Dispersal is not duplicated: `move!` and `_move!`
+# are one body serving both sides, through the hooks.
 #
 # Everything here is written to keep a result independent of how the work was divided: the per-species
 # RNG streams are addressed by global species index, never by rank-local position.

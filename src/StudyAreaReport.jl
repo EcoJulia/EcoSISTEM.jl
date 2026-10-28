@@ -9,26 +9,30 @@ using Unitful
 
 # What determines the bytes a raster read produces: the source, the layer code, the files where they
 # were given rather than resolved by the source, and the read options - the window, unit, scale and
-# reducer, and the source's own keywords - each of which changes the values. Deliberately not the
-# spec object - two different specs asking for the same layer should share one read, a
-# `ConstructedRasterSpec` closes over a function that can never compare equal, and spec equality
-# would stop holding the moment a `readkw` held a range or an array. Keying on the read also
-# guarantees the cache holds nothing grid-dependent, since a read identity says nothing about any
-# target grid.
+# reducer, and the source's own keywords - each of which changes the values. And the pipeline run the
+# files come through, since a tracked read records its inputs in that run, which an untracked read of
+# the same layer must not answer for. Deliberately not the spec object - two different specs asking
+# for the same layer should share one read, a `ConstructedRasterSpec` closes over a function that can
+# never compare equal, and spec equality would stop holding the moment a `readkw` held a range or an
+# array. Keying on the read also guarantees the cache holds nothing grid-dependent, since a read
+# identity says nothing about any target grid.
 struct ReadKey
     source::Type
     code::Union{Nothing, CODE_TYPE, Vector{CODE_TYPE}}
     files::Union{Nothing, Vector{String}}    # as text, so a download's URL and a local path compare
     readkw::NamedTuple
+    track::Union{Nothing, Track}
 end
 
 # Value equality and hashing, not the `===` fallback: the `readkw` `NamedTuple` may hold heap values
 # (a month range, say), whose identity-based `objectid` hash would miss every cache hit.
 function Base.:(==)(a::ReadKey, b::ReadKey)
     return a.source == b.source && a.code == b.code && a.files == b.files &&
-           a.readkw == b.readkw
+           a.readkw == b.readkw && a.track == b.track
 end
 
+# The track is left out: equal keys still hash equally, and a key hashed on it would depend on `Track`'s
+# own hash agreeing with its equality, which a value-based `==` given to `Track` alone would break.
 function Base.hash(k::ReadKey, h::UInt)
     return hash(k.readkw, hash(k.files, hash(k.code, hash(k.source, h))))
 end

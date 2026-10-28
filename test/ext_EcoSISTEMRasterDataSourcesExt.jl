@@ -37,6 +37,105 @@ include("rasterfixtures.jl")
         @test haskey(ENV, "RASTERDATASOURCES_PATH")
     end
 
+    @testset "every file a dataset can give has a title of its own" begin
+        RDS = RasterDataSources
+        # The keywords that tell one dataset's files apart, as `getraster` takes them.
+        kwsets(T) = T <: WorldClim{Climate} ?
+                    [(res = r, month = m) for r in RDS.resolutions(T)
+                     for m in 1:12] :
+                    T <: Union{WorldClim, EarthEnv{HabitatHeterogeneity}} ?
+                    [(res = r,) for r in RDS.resolutions(T)] :
+                    T <: CHELSA{Climate} ? [(month = m,) for m in 1:12] :
+                    [NamedTuple()]
+        paths = Dict{Type, Set{String}}()
+        for T in (WorldClim{BioClim}, WorldClim{Climate}, WorldClim{Elevation},
+            CHELSA{BioClim}, CHELSA{BioClimPlus}, CHELSA{Climate},
+            EarthEnv{LandCover}, EarthEnv{LandCover{:DISCover}},
+            EarthEnv{HabitatHeterogeneity})
+            rec = EcoSISTEM.datasetinfo(T)
+            titles = Dict{String, String}()
+            # The layers both the source package and the catalogue know, which are those a spec
+            # can name; a table may serve several datasets, each with only some of its rows.
+            tabled = Set(a
+                         for r in EcoSISTEM._catalogue()
+                         if r.dataset === EcoSISTEM._tablename(T)
+                         for a in r.aliases)
+            codes = [c for c in RDS.layers(T) if string(c) in tabled]
+            @test !isempty(codes)
+            for code in codes, kw in kwsets(T)
+                path = RDS.rasterpath(T, code; kw...)
+                titles[path] = EcoSISTEM._filetitle(rec, layerinfo(T, code),
+                                                    path)
+            end
+            @test allunique(values(titles))
+            paths[T] = Set(keys(titles))
+        end
+        # No file is a layer of two rows, so none can carry two datasets' facts.
+        @test all(isempty(intersect(paths[A], paths[B]))
+                  for A in keys(paths), B in keys(paths) if A !== B)
+    end
+
+    # The four `rsds` files RasterDataSources cannot fetch, named as CHELSA's server does not name
+    # them, which `_refusemisnamed` refuses before trying. When the names fail here,
+    # RasterDataSources names them as the server does: delete that method, this testset and the
+    # rows' notes in `BioClimPlus.csv`.
+    @testset "CHELSA-BIOCLIM+'s rsds files are refused while their names are wrong" begin
+        RDS = RasterDataSources
+        T = CHELSA{BioClimPlus}
+        for stat in ("max", "min", "mean", "range")
+            code = Symbol("rsds_", stat)
+            @test RDS.rastername(T, code) ==
+                  "CHELSA_rsds_$(stat)_1981-2010_V.2.1.tif"
+            isfile(RDS.rasterpath(T, code)) && continue
+            @test_throws "CHELSA_rsds_1981-2010_$(stat)_V.2.1.tif" EcoSISTEM._fetchfiles(T,
+                                                                                         code)
+        end
+        # A dataset with no such file is left for `getraster` to fetch.
+        ext = Base.get_extension(EcoSISTEM, :EcoSISTEMRasterDataSourcesExt)
+        @test isnothing(ext._refusemisnamed(T, (:gdd0, :swb)))
+        @test isnothing(ext._refusemisnamed(CHELSA{BioClim}, (1, 12)))
+    end
+
+    @testset "moving the asset cache moves only a download path the extension chose" begin
+        ext = Base.get_extension(EcoSISTEM, :EcoSISTEMRasterDataSourcesExt)
+        saved = (ext._SETPATH[], get(ENV, "RASTERDATASOURCES_PATH", nothing))
+        # The preference goes into the first environment on the load path that has EcoSISTEM,
+        # so one made here keeps it out of every real environment.
+        env = mktempdir()
+        write(joinpath(env, "Project.toml"),
+              "[deps]\nEcoSISTEM = \"$(Base.PkgId(EcoSISTEM).uuid)\"\n")
+        pushfirst!(LOAD_PATH, env)
+        try
+            # As `__init__` leaves things where it chose the path.
+            ENV["RASTERDATASOURCES_PATH"] = ext._SETPATH[] = EcoSISTEM.assetdir(RasterDataSources)
+            cache = mktempdir()
+            EcoSISTEM.set_assetdir!(cache)
+            @test ENV["RASTERDATASOURCES_PATH"] ==
+                  joinpath(cache, "RasterDataSources")
+            @test isdir(ENV["RASTERDATASOURCES_PATH"])
+            EcoSISTEM.set_assetdir!(nothing)
+            @test ENV["RASTERDATASOURCES_PATH"] ==
+                  EcoSISTEM.assetdir(RasterDataSources)
+            # A path set since, or set before the extension loaded, stays where it was set.
+            mine = mktempdir()
+            ENV["RASTERDATASOURCES_PATH"] = mine
+            EcoSISTEM.set_assetdir!(cache)
+            @test ENV["RASTERDATASOURCES_PATH"] == mine
+            ext._SETPATH[] = nothing
+            EcoSISTEM.set_assetdir!(nothing)
+            @test ENV["RASTERDATASOURCES_PATH"] == mine
+        finally
+            EcoSISTEM.set_assetdir!(nothing)
+            filter!(!=(env), LOAD_PATH)
+            ext._SETPATH[] = saved[1]
+            if isnothing(saved[2])
+                delete!(ENV, "RASTERDATASOURCES_PATH")
+            else
+                ENV["RASTERDATASOURCES_PATH"] = saved[2]
+            end
+        end
+    end
+
     @testset "hooks gain their sole method" begin
         # The trait is what every door - `SourceSpec`, `ClimateRaster` - actually gates on, and
         # marking the abstract type is what covers the whole hierarchy in one line.
@@ -51,6 +150,12 @@ include("rasterfixtures.jl")
         @test EcoSISTEM._codetype(Int) === Nothing
 
         @test length(EcoSISTEM._alllayercodes(EarthEnv{LandCover})) == 12
+        # A layer the table leaves out is not part of the whole dataset: BIOCLIM+ less V2.1's 19.
+        plus = EcoSISTEM._alllayercodes(CHELSA{BioClimPlus})
+        @test length(plus) ==
+              length(RasterDataSources.layers(CHELSA{BioClimPlus})) - 19
+        @test !any(c -> occursin(r"^bio\d+$", string(c)), plus)
+        @test "gdd0" in string.(plus)
         # An unmarked source cannot answer, and says so rather than returning an empty list.
         @test_throws ErrorException EcoSISTEM._alllayercodes(Int)
 
@@ -106,12 +211,25 @@ include("rasterfixtures.jl")
                 @test E._localfiles(CHELSA{BioClim}, [:bio1, :bio3]) ==
                       [RasterDataSources.rasterpath(CHELSA{BioClim}, 1)]
                 @test isempty(E._localfiles(CHELSA{BioClim}, :bio3))
+                # A range names one file a value, as `getraster` maps over it, where `rasterpath`
+                # given the range would name one file that cannot exist.
+                for m in 1:12
+                    path = RasterDataSources.rasterpath(WorldClim{Climate},
+                                                        :wind,
+                                                        res = "10m", month = m)
+                    mkpath(dirname(path))
+                    touch(path)
+                end
+                @test length(E._localfiles(WorldClim{Climate}, :wind,
+                                           res = "10m",
+                                           month = 1:12)) == 12
+                @test length(E._sourcepaths(WorldClim{Climate}, :wind,
+                                            res = "10m", month = 2:4)) == 3
             end
         end
     end
 
     @testset "dataset-typed methods are supplied here" begin
-        @test hasmethod(read, Tuple{Type{WorldClim{BioClim}}})
         @test !isempty(methods(EcoSISTEM.sourcecrs))
         @test !isempty(methods(EcoSISTEM.compress_landcover))
         @test !isempty(methods(EcoSISTEM.landcoverclass))
@@ -128,7 +246,7 @@ include("rasterfixtures.jl")
     # the seam, not CRU TS's own data.
     @testset "a CRU TS directory reads as a ClimateRaster carrying the source" begin
         dir = mktempdir()
-        # Twelve monthly `.tif`s, which is the shape `_readmonthlydir` expects. Built through the
+        # Twelve monthly `.tif`s, which is the shape a directory read expects. Built through the
         # shared `_testraster` fixture rather than by hand, so they carry what a real GeoTIFF does -
         # a CRS, and `Intervals(Start)` sampling. A hand-rolled `Rasters.Raster` gets neither, and
         # the package refuses both by name: no CRS gives `LOCAL_CS[...UNIT["unknown"]]`, and `Points`

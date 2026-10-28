@@ -2,6 +2,10 @@
 *.jl.*.cov
 *.jl.mem
 Manifest.toml
+# A machine's own preferences, such as where `EcoSISTEM.set_assetdir!` keeps the asset cache, in any
+# environment here that names the package.
+LocalPreferences.toml
+JuliaLocalPreferences.toml
 /.fair
 mpiexecjl
 

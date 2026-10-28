@@ -49,9 +49,9 @@ if !Sys.iswindows()
     wind = getraster(WorldClim{Climate}, :wind, month = 1:12) # 12 monthly tif paths
     getraster(EarthEnv{LandCover})
     getraster(CHELSA{BioClim}, 1)
-    # A directory holding exactly the 12 downloaded wind tifs, to exercise the directory readers
-    # `read(CRUTS, ...)`/`read(CHELSA{Climate}, ...)` (the variable name only fixes the unit that
-    # gets attached).
+    # A directory holding exactly the 12 downloaded wind tifs, to exercise a directory read,
+    # `SourceSpec(CRUTS, var, directory = dir)` (the variable name only fixes the unit that gets
+    # attached).
     winddir = dirname(first(wind))
 
     @testset "Reading functions" begin
@@ -530,15 +530,7 @@ end
     @test joined.array == read(SourceSpec(E.ERA, "t2m",
                           files = [joinpath(two, "era5_a"),
                               joinpath(two, "era5_b")])).array
-    # The dataset-typed readers are the same reads spelled the old way.
-    @test read(E.ERA, path, "t2m").array == cr.array
-    @test collect(lookup(read(E.ERA, path, "t2m",
-                              collect((1:12) .* month_mean_duration)).array,
-                         Ti)) == (1:12) .* month_mean_duration
-    both = read(E.ERA, dirname(path), "era5_fixture", "t2m",
-                [collect((1:12) .* month_mean_duration)])
-    @test size(both.array, 3) == 12
-    # A source that does not fetch its own files must be told where they are.
+    # An ERA5 spec must be told where its files are, or which years to fetch.
     @test_throws "file = path" SourceSpec(E.ERA, "t2m")
     @test_throws "not $(2) of them" SourceSpec(E.ERA, "t2m", file = path,
                                                files = [path])
@@ -713,10 +705,15 @@ end
     # through an asset, when it is recorded as present.
     @test provenance(spec) == [nothing]
     @test E.verifyassets(spec) == 0
-    # A source that resolves its own files reports as one entry, fetching nothing.
-    @test only(E.fetchfiles(SourceSpec(WorldClim{BioClim}, :bio1),
-                            dryrun = true)).entry ===
-          WorldClim{BioClim}
+    # A source that resolves its own files reports them file by file, where each is or would be,
+    # fetching nothing: twelve for a monthly layer's twelve months.
+    dry = only(E.fetchfiles(SourceSpec(WorldClim{BioClim}, :bio1),
+                            dryrun = true))
+    @test endswith(dry.entry, "wc2.1_10m_bio_1.tif") &&
+          dry.present == isfile(dry.entry) && isnothing(dry.bytes)
+    months = E.fetchfiles(SourceSpec(WorldClim{Climate}, :wind, month = 1:12),
+                          dryrun = true)
+    @test length(months) == 12 && endswith(last(months).entry, "_wind_12.tif")
     # A directory holding several archives' files keeps only those with the code's variable.
     dir = mktempdir()
     era = _erafixture(dir)
@@ -820,7 +817,12 @@ end
                     height = 4, nbands = 1,
                     dtype = Float32) do ds
         ArchGDAL.write!(ds, fill(1.0f0, 4, 4), 1)
-        return ArchGDAL.setgeotransform!(ds, [0.0, 1.0, 0.0, 4.0, 0.0, -1.0])
+        # ArchGDAL's `setgeotransform!` takes `pointer(transform)` without keeping the array
+        # alive, so a temporary vector can be dropped before GDAL reads it, which Julia 1.13.2
+        # does: the geotransform then stays the identity. Keep it alive across the call.
+        transform = [0.0, 1.0, 0.0, 4.0, 0.0, -1.0]
+        return Base.GC.@preserve transform ArchGDAL.setgeotransform!(ds,
+                                                                     transform)
     end
     @test CP._isblankcrs(Rasters.crs(Rasters.Raster(path)))
     r = read(RasterFileSpec(path, axis = EcoSISTEM.NicheAxis))

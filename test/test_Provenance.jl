@@ -44,6 +44,74 @@ end
     @test q.request == Dict{String, Any}("variable" => ["2m_temperature"])
 end
 
+@testset "an input record carries what its provider asks, filled in when shown" begin
+    E = EcoSISTEM
+    r = InputRecord(role = :habitat, dataset = "ERA",
+                    title = "ERA5, t2m (era5_t2m_1990s)",
+                    primary = false, releasedate = "2019-04-18",
+                    references = [(doi = "10.24381/cds.f17050d7",
+                                   text = "C3S (2023), ERA5. (Accessed on DD-MMM-YYYY)")],
+                    notices = [Dict("strength" => "required",
+                                    "text" => "Contains Copernicus information YYYY.")],
+                    requestpage = "https://example.org/requests/#era5",
+                    region = "NaturalEarthSpec(\"Scotland\", level = \"ADMIN\")",
+                    fetched = "2026-10-25T11:00:00Z")
+    @test r.primary === false && r.releasedate == "2019-04-18"
+    @test only(r.notices) ==
+          (strength = :required, text = "Contains Copernicus information YYYY.")
+    # The texts are kept as the provider wrote them, and filled from the fetch time when shown.
+    @test only(r.references).text ==
+          "C3S (2023), ERA5. (Accessed on DD-MMM-YYYY)"
+    shown = sprint(show, MIME("text/plain"), r)
+    @test occursin("cite    C3S (2023), ERA5. (Accessed on 25-Oct-2026)", shown)
+    @test occursin("notice  (required) Contains Copernicus information 2026.",
+                   shown)
+    @test occursin("asks    https://example.org/requests/#era5", shown)
+    @test occursin("Scotland", shown) && occursin("primary  false", shown)
+    # With no fetch time the placeholders stay, so nothing is claimed that is not known.
+    @test E._fillplaceholders("on DD-MMM-YYYY in YYYY", nothing) ==
+          "on DD-MMM-YYYY in YYYY"
+    @test E._fillplaceholders("on DD-MMM-YYYY in YYYY",
+                              Dates.DateTime(2025, 7, 2)) ==
+          "on 02-Jul-2025 in 2025"
+    # A strength a provider cannot ask with is refused.
+    @test_throws ArgumentError InputRecord(role = :habitat, dataset = "x",
+                                           notices = [(strength = :urgent,
+                                                       text = "x")])
+    # The new fields survive a sidecar: written by the catalogue's record, read back the same.
+    dir = mktempdir()
+    path = joinpath(dir, "era5_t2m_1990s.nc")
+    write(path, "x")
+    record = E._baserecord(path, :habitat)
+    merge!(record,
+           E._cataloguerecord(E.ERA, E.layerinfo(E.ERA, "t2m"), path,
+                              route = :extract))
+    record["region"] = r.region
+    E._writesidecar(path, record)
+    back = provenance(path)
+    rec = E.datasetinfo(E.ERA)
+    @test back.title == "$(rec.title), 2 metre temperature (era5_t2m_1990s)"
+    @test back.primary === false && back.region == r.region
+    @test back.references == rec.references && back.notices == rec.notices
+    @test back.releasedate == rec.releasedate &&
+          back.requestpage == E._requestpage(rec)
+    # So do when the provider last changed the file, and the history a fetch replaced.
+    @test isnothing(back.modified) && isnothing(back.history)
+    record["modified"] = "2023-01-04T00:00:00Z"
+    record["history"] = "2026-10-27T13:37 GRIB to CDM+CF via cfgrib-0.9.15.1"
+    E._writesidecar(path, record)
+    changed = provenance(path)
+    @test changed.modified == Dates.DateTime(2023, 1, 4)
+    @test changed.history == record["history"]
+    @test occursin("modified 2023-01-04",
+                   sprint(show, MIME("text/plain"), changed))
+    E._writesidecar(path, delete!(delete!(record, "modified"), "history"))
+    # Two records of one file are equal, and hash alike, though their lists are separate objects.
+    again = provenance(path)
+    @test again == back && isequal(again, back) && hash(again) == hash(back)
+    @test again != InputRecord(role = :habitat, dataset = "ERA")
+end
+
 @testset "a file with no record answers nothing; a sidecar reads back as a record" begin
     dir = mktempdir()
     path = joinpath(dir, "plain.nc")
@@ -135,8 +203,7 @@ end
                          zip,
                          nothing)
     @test rec["role"] == "region" && rec["source"] == "NaturalEarth"
-    @test rec["version"] == "5.1.1" &&
-          occursin("Natural Earth", rec["citation"])
+    @test rec["version"] == "5.1.1" && rec["licence"] == "CC-PDM-1.0"
     # The role follows what owns the download: a raster file fetched from a URL is a layer, a
     # vector file an outline.
     tif = joinpath(dir, "a.tif")

@@ -21,56 +21,48 @@ using JLD2
 using Plots
 using Diversity
 
-# The published continent's 50,000 species, and a 20-cell version of it for the suite. Species and
-# years shrink with it; the cell size, the temperature and the supply do not. `numspecies` counts
-# the specialist. Supply is 20 MJ/m^2/day, a typical daily insolation for Africa, and a plant
-# demands 5 MJ/day, a quarter of a square metre's worth, so a cell carries 2.6e10 plants and the
-# disc 2e14 - see `continent_capacity`, which is where the generalists start. From there the
-# population settles to its equilibrium within twenty years, so a 25-year burn-in is enough.
-function continent_configuration()
-    return paper_small() ?
-           (side = 20, radius = 800.0km, numspecies = 10,
-            burnin = 1year, after = 2year,
-            widths = [0.5, 5.0, 50.0] .* K) :
-           (side = 100, radius = 4000.0km, numspecies = 50_000,
-            burnin = 25year, after = 100year,
-            widths = [0.5, 1.0, 5.0, 10.0, 25.0, 50.0] .* K)
-end
-
-const PAPER_CELLSIZE = 80.0km
-const PAPER_GENERALIST = 50.0K
-const PAPER_DEMAND = 5.0MJ / day
+# The continent's parameters, `parameters.toml`'s `continent` set: the published continent's 50,000
+# species, and a 20-cell version of it for the suite, whose species and years shrink with it while
+# the cell size, the temperature and the supply do not. `species` counts the specialist. Supply is
+# 20 MJ/m^2/day, a typical daily insolation for Africa, and a plant demands 5 MJ/day, a quarter of
+# a square metre's worth, so a cell carries 2.6e10 plants and the disc 2e14 - see
+# `continent_capacity`, which is where the generalists start. From there the population settles to
+# its equilibrium within twenty years, so a 25-year burn-in is enough.
+const CONTINENT = PAPER.continent
 # How often the continent run reports, in simulated years: every year of the suite's short run,
 # every fifth year of the real one.
 const PAPER_REPORT_YEARS = paper_small() ? 1 : 5
 # In kelvin, because it is also every species' optimum, and a tolerance's parameter vectors must
 # share one unit with its widths.
-const PAPER_TEMPERATURE = uconvert(K, 25.0°C)
+const PAPER_TEMPERATURE = uconvert(K, CONTINENT.temperature)
 
 # The circular continent: uniform temperature and supply, `Island`.
 function continent_environment(continent)
-    extent = continent.side * PAPER_CELLSIZE
-    area = StudyArea(extent = (extent, extent), cellsize = PAPER_CELLSIZE,
+    extent = continent.side * continent.cellsize
+    area = StudyArea(extent = (extent, extent), cellsize = continent.cellsize,
                      within = CircleMaskSpec(radius = continent.radius),
                      verbosity = :silent)
     return GridHabitat(regime = UniformSpec(PAPER_TEMPERATURE,
                                             axis = Temperature),
-                       supply = UniformSpec(20.0MJ / m^2 / day,
+                       supply = UniformSpec(continent.supply,
                                             axis = SolarRadiation),
                        area = area, topology = Island())
 end
 
 # `n` species of the given niche widths about the continent's own temperature, with the abundances
-# given per species, so an invader can start absent. `BirthOnlyMovement` with a 15 km kernel;
-# birth and death 0.6/year and survival 0.1 as the original.
+# given per species, so an invader can start absent: `BirthOnlyMovement`, with the continent's
+# dispersal, demand and demographic values.
 function continent_species(widths, abundances)
     n = length(widths)
     return build_species(n, tolerance = (fill(PAPER_TEMPERATURE, n), widths),
                          toleranceaxis = Temperature,
-                         demand = PAPER_DEMAND,
-                         demandaxis = SolarRadiation, dispersal = 15.0km,
-                         movement = BirthOnlyMovement, birth = 0.6 / year,
-                         death = 0.6 / year, survival = 0.1,
+                         demand = CONTINENT.demand,
+                         demandaxis = SolarRadiation,
+                         dispersal = CONTINENT.dispersal,
+                         movement = BirthOnlyMovement, birth = CONTINENT.birth,
+                         death = CONTINENT.death,
+                         longevity = CONTINENT.longevity,
+                         survival = CONTINENT.survival,
                          abundance = abundances, seed = PAPER_SEED)
 end
 
@@ -80,7 +72,7 @@ end
 # descends to the equilibrium rather than climbing to it.
 function continent_capacity(env)
     supply = EcoSISTEM.totalsupply(env).SolarRadiation
-    return round(Int, uconvert(NoUnits, supply / PAPER_DEMAND))
+    return round(Int, uconvert(NoUnits, supply / CONTINENT.demand))
 end
 
 # One active cell, drawn from the seeded stream, as a `(Y, X)` mask - the same cell for every run.
@@ -109,15 +101,16 @@ end
 # action runs every step and takes a map when the clock reaches each target, which keeps the
 # recording on the year rather than one step past it.
 function continent_run(continent, env)
-    n = continent.numspecies
-    widths = vcat(fill(PAPER_GENERALIST, n - 1), 0.5K)
+    n = continent.species
+    widths = vcat(fill(continent.generalist_width, n - 1),
+                  continent.specialist_width)
     abundances = vcat(fill(div(continent_capacity(env), n - 1), n - 1), 0)
     eco = build_ecosystem(continent_species(widths, abundances), env,
                           seed = PAPER_SEED)
     introduction = continent.burnin + PAPER_TIMESTEP
     invasion = Intervention(AtTime(introduction),
                             CellMask(origin_mask(env.active)),
-                            AddAbundance(n, 100))
+                            AddAbundance(n, continent.founders))
     targets = [continent.burnin, continent.burnin + continent.after / 2,
         continent.burnin + continent.after]
     maps = Dict{Int, Any}()
@@ -181,41 +174,42 @@ end
 # over the cells it occupies at the end, per year since its introduction.
 function invasion_speed(continent, env, width)
     mask = origin_mask(env.active)
-    eco = build_ecosystem(continent_species([PAPER_GENERALIST, width], [0, 0]),
+    eco = build_ecosystem(continent_species([continent.generalist_width, width],
+                                            [0, 0]),
                           env, seed = PAPER_SEED)
     arrivals = InterventionSet(Intervention(AtTime(0year), CellMask(mask),
-                                            AddAbundance(1, 100)),
+                                            AddAbundance(1, continent.founders)),
                                Intervention(AtTime(continent.burnin),
                                             CellMask(mask),
-                                            AddAbundance(2, 100)))
+                                            AddAbundance(2, continent.founders)))
     total = continent.burnin + continent.after
     simulate!(eco, total, PAPER_TIMESTEP, intervention = arrivals)
     final = Array(eco.abundances.matrix)
     origin = Tuple(findfirst(mask))
     occupied = findall(>(0), reshape(final[2, :], size(env.active)))
-    distances = [hypot((Tuple(c) .- origin)...) * PAPER_CELLSIZE
+    distances = [hypot((Tuple(c) .- origin)...) * continent.cellsize
                  for c in occupied]
     return mean(distances) / continent.after
 end
 
 timed("InvasionCircle") do
-    continent = continent_configuration()
+    continent = CONTINENT
     env = continent_environment(continent)
     println("    ", count(env.active), " active cells of ",
-            length(env.active), ", ", continent.numspecies, " species, ",
+            length(env.active), ", ", continent.species, " species, ",
             continent_capacity(env), " plants at capacity")
     maps = continent_run(continent, env)
     path = joinpath(PAPER_DIR, "continent.jld2")
     # A plain matrix, so the file reads back without the package and its unit types loaded.
     jldsave(path; maps = maps, active = Matrix(env.active),
-            numspecies = continent.numspecies)
+            numspecies = continent.species)
     println("    wrote ", path)
-    return savefigure(continent_figure(maps, continent.numspecies),
+    return savefigure(continent_figure(maps, continent.species),
                       "InvasionCircle")
 end
 
 timed("Invasion") do
-    continent = continent_configuration()
+    continent = CONTINENT
     env = continent_environment(continent)
     speeds = map(continent.widths) do width
         speed = invasion_speed(continent, env, width)
@@ -223,7 +217,7 @@ timed("Invasion") do
                 round(typeof(1.0km / year), speed, digits = 1))
         return speed
     end
-    advantage = ustrip.(K, PAPER_GENERALIST .- continent.widths)
+    advantage = ustrip.(K, continent.generalist_width .- continent.widths)
     plt = plot(advantage, ustrip.(km / year, speeds), marker = :circle,
                xlab = "Selective advantage (C)",
                ylab = "Average invasion speed (km/year)", label = "",

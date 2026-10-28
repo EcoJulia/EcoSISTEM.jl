@@ -521,6 +521,12 @@ series (`times`, `atend`, `calendar`) as fields, and `read(spec)` is the one rea
 cache. A file entry is a path, a URL cached on first use, or a `CDSRequest` fetched from the Climate
 Data Store on first use; the catalogue's per-dataset row says which backend opens it.
 
+A `SourceSpec` or a `NaturalEarthSpec` may hold a `Track`, naming the FAIR data pipeline run its files
+go through and the root of their data product names. Every route a file takes - a read, a grid
+probe, `fetchfiles` - asks the run first, through a hook the run's package supplies for its handle.
+A track is a field rather than a type parameter, and a spec with no run stores `nothing`, so there is
+one untracked state and no spec type changes with tracking.
+
 **`ConstructedShapeSpec` and `ConstructedRasterSpec` are mirrors**: each is the "several members
 become one" node for its medium. Three of their differences are forced by that medium and one is
 not, which is worth stating so the asymmetry is not read as an oversight. A raster combination can
@@ -557,6 +563,7 @@ classDiagram
     class NicheSpec~A~
     class CircleMaskSpec~R~
     class AbstractCombineStage
+    class Track~H~
     AbstractSpec              <|-- AbstractLazySpec
     AbstractSpec              <|-- AbstractSyntheticSpec
     AbstractLazySpec          <|-- RasterSpec
@@ -572,6 +579,8 @@ classDiagram
     AbstractCombineStage <|-- CombineOnTargetGrid
     AbstractCombineStage <|-- CombineOnSourceGrid
     ConstructedRasterSpec "1" *-- "1" AbstractCombineStage : combinestage
+    RasterSpec "1" *-- "0..1" Track : track
+    NaturalEarthSpec "1" *-- "0..1" Track : track
     AbstractLazySpec <|-- AbstractShapeSpec
     AbstractShapeSpec <|-- ConstructedShapeSpec
     AbstractShapeSpec <|-- NaturalEarthSpec

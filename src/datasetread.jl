@@ -7,7 +7,7 @@
 # extra dimension of a multi-layer or monthly read is, and how it is labelled
 # geometry  `_snaparcsec`, `_snaporigin`, `_sourcestep`, `_locus` -- putting a file's coordinates
 # onto the lattice its provider intends
-# reading   `_readraster`, `_readbytes`, `_readsource`, `_readmultilayer`, `_readraw`, `readfile`
+# reading   `_readraster`, `_readbytes`, `_readsource`, `_readmultilayer`, `_readraw`
 # caching   `_cachedlayer`, `_aggcachepath`, `_fnid`
 #
 # It sits in the main module rather than in an extension because it names no climate-data-source
@@ -697,18 +697,13 @@ end
 
 # --- per-source read traits -------------------------------------------------
 # After the Rasters migration the RasterDataSources-backed readers differ in only a few small,
-# type-keyed ways (plus `_stackaxis`, above); one generic `read` (below) drives them all by
-# dispatching these traits on the source type `T`. Each has a safe default and a per-source
+# type-keyed ways (plus `_stackaxis`, above); `read(::RasterSpec)` in `rasters.jl` drives them all
+# by dispatching these traits on the source type `T`. Each has a safe default and a per-source
 # override where it actually differs.
 
 # Physical unit attached to the data by the reader: none - `read` returns the raster's values as bare
 # magnitudes in their actual physical unit (e.g. temperature in °C), and the unit is supplied from the
-# shipped layer table (`layerunit`) when a layer is built. The directory readers below
-# (`_readmonthlydir`) take a bare directory with no `RasterDataSource` attached, but their `var_name`
-# uses the same short codes as the shipped tables (`tavg`, `wind`, `prec`, ...), so they self-attach a
-# unit by deferring to `layerunit` too - `read(CHELSA{Climate}, dir, var_name)` against
-# `CHELSA{Climate}`, `read(CRUTS, dir, var_name)` against `WorldClim{Climate}` (CRU TS has no table
-# of its own; its variable names are WorldClim's).
+# shipped layer table (`layerunit`) when a layer is built.
 _layerunit(::Type, files) = NoUnits
 
 # Default reducer. `nothing` means *decide from the layer's axis* - see `_reducer` - so no source
@@ -901,15 +896,4 @@ function _rescalepublished(T::Type, layers,
     isnothing(factor) && return cr
     _checkupstreamscale(T, only(codes), a)
     return ClimateRaster(T, a ./ float(factor), cr.code)
-end
-
-# Assemble a monthly time series from every `.tif` in `dir`, tagged with the already-resolved unit
-# `u`. Shared by the directory-based `CRUTS`/`CHELSA{Climate}` readers, which differ only in their
-# wrapper type and which shipped layer table `u` (from `layerunit`) comes from.
-function _readmonthlydir(dir::String, u; scale = 1, fn = mean, cut = nothing)
-    files = joinpath.(dir, _searchdir(dir, ".tif"))
-    aas = map(f -> _rastertodimarray(_readraster(f, scale = scale, fn = fn),
-                                     unit = u), files)
-    world = _stacklayers(aas, _mkstackaxis(Ti, length(aas)))
-    return _applycut(world, cut)
 end

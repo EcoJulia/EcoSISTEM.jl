@@ -1,0 +1,9 @@
+# What Natural Earth offers anyone using its data, quoted from its terms of use as they were read:
+# no permission is needed and no credit required, and of the two lines it offers for citing the data
+# the longer is taken. It has no DOI, so nothing is referenced.
+pages = ["https://www.naturalearthdata.com/about/terms-of-use/"]
+read = 2026-10-25
+
+[[notice]]
+strength = "optional"
+text = "Made with Natural Earth. Free vector and raster map data @ naturalearthdata.com."

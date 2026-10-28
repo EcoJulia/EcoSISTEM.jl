@@ -1,0 +1,36 @@
+run_metadata:
+  description: The EcoSISTEM paper's computational figures and tables, drawn by examples/paper.jl
+  default_input_namespace: EcoSISTEM
+  default_output_namespace: EcoSISTEM
+  # `JULIA_NUM_THREADS` where it is set, else every core: `fair` runs this with `sh`, which expands it
+  # (a Windows `batch` shell would pass it through as written).
+  script: |
+    julia --threads=${JULIA_NUM_THREADS:-auto} --project=examples/paper examples/paper/pipeline.jl
+
+# `fair pull` registers the parameters from the repository's own file (`cache`), `root` and `path`
+# recording where it is published, at a new version whenever the file changes; `fair run` then
+# reads them as an input.
+register:
+- namespace: EcoSISTEM
+  full_name: EcoSISTEM
+  website: https://github.com/EcoJulia/EcoSISTEM.jl
+- data_product: Examples/Parameters
+  description: The parameters the EcoSISTEM paper's figures and tables are built from
+  root: https://raw.githubusercontent.com/EcoJulia/EcoSISTEM.jl/main/
+  path: examples/paper/parameters.toml
+  cache: examples/paper/parameters.toml
+  file_type: toml
+  version: ${{PATCH}}
+  public: true
+
+# A `*` matches one segment of a name, so neither pattern reaches the other's names or the config.
+write:
+- data_product: Examples/Figures/*
+  description: A computational figure of the EcoSISTEM paper
+  file_type: pdf
+- data_product: Examples/Tables/*
+  description: A parameter table of the EcoSISTEM paper, a LaTeX tabular
+  file_type: tex
+- data_product: Examples/Config
+  description: What drew the figures - package version, commit, scale, seed, threads and timings
+  file_type: toml

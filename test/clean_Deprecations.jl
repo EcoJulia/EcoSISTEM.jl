@@ -41,38 +41,49 @@ function sections(path)
 end
 
 @testset "Deprecation sections are labelled by release" begin
-    known = ["Deprecated in v0.6.0", "Deprecated in v0.7.0",
-        "Deprecated in v0.8.0"]
+    # The releases whose shims the files carry, named rather than counted, so a release appearing
+    # here has to be looked at and one disappearing shrinks the list instead of passing silently.
+    # Empty, as there are no shims at present: a new deprecation adds its release here.
+    known = String[]
     version(label) = VersionNumber(label[(length("Deprecated in v") + 1):end])
-    for (path, minimum) in [
-            (pkgdir(EcoSISTEM, "src", "deprecations.jl"), 4),
-            (pkgdir(EcoSISTEM, "ext", "EcoSISTEMRasterDataSourcesExt",
-                    "deprecations.jl"), 0)
-        ]
+    labelsin(secs) = [m.match
+                      for (_, text) in secs
+                      for m in eachmatch(r"Deprecated in v\d+\.\d+\.\d+", text)]
+    main = pkgdir(EcoSISTEM, "src", "deprecations.jl")
+    for path in [main,
+            pkgdir(EcoSISTEM, "ext", "EcoSISTEMRasterDataSourcesExt",
+                   "deprecations.jl")]
         @test isfile(path)
         secs = sections(path)
-        # Not vacuous: each file has several sections, and a detector finding none would pass
-        # everything.
-        @test length(secs) > minimum
-
         unlabelled = [n
                       for (n, text) in secs
                       if !occursin(r"Deprecated in v\d+\.\d+\.\d+", text)]
         @test isempty(unlabelled)
-
-        # The labels must name releases that exist, so a typo cannot pass as a new one. Named rather
-        # than counted: a release appearing here has to be looked at, and one disappearing shrinks
-        # the list instead of passing silently. The main file carries every release; the extension's
-        # may carry a subset.
-        labels = [m.match
-                  for (_, text) in secs
-                  for m in eachmatch(r"Deprecated in v\d+\.\d+\.\d+", text)]
+        # The labels must name releases it knows, so a typo cannot pass as a new one.
+        labels = labelsin(secs)
         @test issubset(labels, known)
-        minimum > 0 && @test Set(labels) == Set(known)
-
         # Newest release first, so a release's worth of shims is deleted from the foot of the file:
         # the labels must never get newer going down.
         @test issorted(version.(labels), rev = true)
+    end
+    # The main file carries every release; the extension's may carry a subset.
+    @test Set(labelsin(sections(main))) == Set(known)
+
+    # The detector is not vacuous: of three sections, two labelled, it finds all three and the
+    # unlabelled one, and reads the labels in order.
+    mktemp() do path, io
+        rule = "# " * "-"^75
+        write(io,
+              join([rule, "# One", "#", "# Deprecated in v0.9.0.", rule,
+                       "f() = 1", "",
+                       rule, "# Two", "#", "# Deprecated in v0.8.0.", rule,
+                       "g() = 2", "",
+                       rule, "# Three, unlabelled", rule, "h() = 3", ""], "\n"))
+        close(io)
+        secs = sections(path)
+        @test length(secs) == 3
+        @test count(t -> !occursin("Deprecated in v", last(t)), secs) == 1
+        @test labelsin(secs) == ["Deprecated in v0.9.0", "Deprecated in v0.8.0"]
     end
 end
 end

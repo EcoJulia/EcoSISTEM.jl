@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Figure 5, `Abundance.pdf`: the model tested on island ecosystems - abundance against the two
+# Figure 5, `IslandTesting.pdf`: the model tested on island ecosystems - abundance against the two
 # resources together, invariance to grid resolution, scaling with area, and survival in large
 # species pools. Island topology throughout.
 #
@@ -14,19 +14,20 @@ using Plots
 # cell is a distinct (solar, water) pair and abundance shows which resource binds where. Both
 # ranges start at zero, so the first row and column are uninhabitable, deliberately. Returns the
 # axes and the per-cell totals; `_surface_panel` draws them.
-function _surface_run(island)
-    env = uniform_environment(PAPER_CELLS, PAPER_AREA, topology = Island())
-    fractions = range(0.0, 1.0, length = PAPER_CELLS)
+function _surface_run()
+    island = PAPER.island
+    env = island_environment(topology = Island())
+    fractions = range(0.0, 1.0, length = island.cells)
     fullsun = env.supply.sunlight.matrix[1, 1]
     fullwater = env.supply.water.matrix[1, 1]
     for (i, f) in enumerate(fractions)
         env.supply.sunlight.matrix[i, :] .= f * fullsun     # solar varies by row (Y)
         env.supply.water.matrix[:, i] .= f * fullwater      # water varies by column (X)
     end
-    n = island.numspecies
-    eco = community(env, fill(298.0K, n), fill(2.0K, n),
-                    individuals = island.individuals, seed = PAPER_SEED)
-    simulate!(eco, island.years, PAPER_TIMESTEP)
+    n = island.species
+    eco = island_community(env, fill(island_temperature(), n),
+                           fill(island.width, n))
+    simulate!(eco, island.duration, PAPER_TIMESTEP)
     # A supply layer holds a rate per cell in the resource's canonical unit; the axes show it as
     # the amount a cell receives a month.
     return (water = fractions .*
@@ -45,30 +46,38 @@ function _surface_panel(surface)
 end
 
 # Total abundance after the run on a uniform island of `cells` a side over `area`.
-function _island_total(island, cells, area)
-    n = island.numspecies
-    eco = community(uniform_environment(cells, area, topology = Island()),
-                    fill(298.0K, n), fill(2.0K, n),
-                    individuals = island.individuals, seed = PAPER_SEED)
-    simulate!(eco, island.years, PAPER_TIMESTEP)
+function _island_total(cells, area)
+    island = PAPER.island
+    n = island.species
+    eco = island_community(island_environment(cells, area, topology = Island()),
+                           fill(island_temperature(), n), fill(island.width, n))
+    simulate!(eco, island.duration, PAPER_TIMESTEP)
     return sum(eco.abundances.matrix)
 end
 
-# The fraction of a heterogeneous pool of `n` species still present after the run: widths uniform
-# on 1-5 K, optima spread +/- 3 widths about 298 K, dispersal uniform on 0.6-2.4 km, mortality
-# (and birth equal to it) folded normal about 0.15/year, and body size normal about 1 m^2, so
-# coexistence cannot be an artefact of every species being identical.
-function _survival(island, n, rng)
-    widths = rand(rng, Uniform(1.0, 5.0), n) .* K
-    opts = 298.0K .+ widths .* range(-3, 3, length = n)
-    death = abs.(rand(rng, Normal(0.15, 0.135), n)) ./ year
-    eco = community(uniform_environment(PAPER_CELLS, PAPER_AREA,
-                                        topology = Island()), opts, widths,
-                    dispersal = rand(rng, Uniform(0.6, 2.4), n) .* km,
-                    birth = death, death = death,
-                    sizes = abs.(rand(rng, Normal(1.0, 0.1), n)) .* m^2,
-                    individuals = island.individuals, seed = PAPER_SEED)
-    simulate!(eco, island.years, PAPER_TIMESTEP)
+# The fraction of a heterogeneous pool of `n` species still present after the run, the pool's
+# traits drawn as `parameters.toml`'s `testing` set says: widths and dispersal uniform, optima
+# spread about the island's temperature by their widths, mortality (and birth equal to it) and body
+# size folded normal - so coexistence cannot be an artefact of every species being identical.
+function _survival(n, rng)
+    pool = PAPER.testing
+    widths = rand(rng, Uniform(ustrip.(K, pool.pool_width)...), n) .* K
+    opts = island_temperature() .+
+           widths .* range(-pool.pool_spread, pool.pool_spread, length = n)
+    death = abs.(rand(rng, Normal(ustrip.(year^-1, pool.pool_death)...), n)) ./
+            year
+    eco = island_community(island_environment(topology = Island()), opts,
+                           widths,
+                           dispersal = rand(rng,
+                                            Uniform(ustrip.(km,
+                                                            pool.pool_dispersal)...),
+                                            n) .* km,
+                           birth = death, death = death,
+                           sizes = abs.(rand(rng,
+                                             Normal(ustrip.(m^2,
+                                                            pool.pool_size)...),
+                                             n)) .* m^2)
+    simulate!(eco, PAPER.island.duration, PAPER_TIMESTEP)
     return 100 * count(>(0), perspecies(eco)) / n
 end
 
@@ -78,18 +87,17 @@ end
 # the percentage surviving from pools of 100 to 5,000 species, ten replicates, mean and standard
 # deviation - the slow panel, ten runs of 5,000 species on 100 cells for ten years.
 function island_figure()
-    island = island_configuration()
-    surface = _surface_run(island)
-    sides = [1, 2, 5, 10]
-    bysides = map(s -> _island_total(island, s, PAPER_AREA), sides)
-    areas = [10.0, 20.0, 50.0, 100.0]
-    byarea = map(a -> _island_total(island, PAPER_CELLS, a * km^2),
-                 areas)
-    pools = paper_small() ? [5, 10, 20] : [100, 500, 1000, 5000]
-    replicates = paper_small() ? 1 : 10
+    island, pool = PAPER.island, PAPER.testing
+    surface = _surface_run()
+    sides = pool.sides
+    bysides = map(s -> _island_total(s, island.area), sides)
+    areas = ustrip.(km^2, pool.areas)
+    byarea = map(a -> _island_total(island.cells, a * km^2), areas)
+    pools = pool.pools
+    replicates = pool.replicates
     units = [(n, r) for n in pools for r in 1:replicates]
     survived = map(units) do (n, r)
-        s = _survival(island, n, Xoshiro(PAPER_SEED + r))
+        s = _survival(n, Xoshiro(PAPER_SEED + r))
         println("    pool of ", n, ", replicate ", r, ": ",
                 round(s, digits = 1), "% survived")
         return s
@@ -115,6 +123,6 @@ function island_figure()
                 tickfontsize = 10, titlefontsize = 16)
 end
 
-timed("Abundance") do
-    return savefigure(island_figure(), "Abundance")
+timed("IslandTesting") do
+    return savefigure(island_figure(), "IslandTesting")
 end

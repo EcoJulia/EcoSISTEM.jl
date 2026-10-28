@@ -40,7 +40,8 @@ function ReadKey(spec::RasterSpec; cut = spec.cut, scale = spec.scale)
     files = isnothing(spec.files) ? nothing : _pathtext.(spec.files)
     return ReadKey(spec.source, spec.code, files,
                    (cut = cut, unit = spec.unit, scale = something(scale, 1),
-                    fn = spec.fn, times = spec.times, spec.readkw...))
+                    fn = spec.fn, times = spec.times, spec.readkw...),
+                   spec.track)
 end
 
 # The key a shape's **inputs** are filed under. A shape is not cached as a read - its geometry is
@@ -49,8 +50,13 @@ end
 # file and one coverage agree, and a different file, layer or coverage does not.
 function ReadKey(spec::AbstractShapeSpec)
     return ReadKey(typeof(spec), nothing, nothing,
-                   (shape = sprint(show, spec),))
+                   (shape = sprint(show, spec),), _spectrack(spec))
 end
+
+# The track a spec's files go through, for a spec that can have one.
+_spectrack(spec::Union{RasterSpec, NaturalEarthSpec}) = spec.track
+
+_spectrack(::Any) = nothing
 
 # `::AbstractSpec` rather than the full [`LayerInput`](@ref): the tuple/named-tuple forms are the
 # *separate* method below, so admitting them here would make the two ambiguous.
@@ -206,8 +212,8 @@ function _cachedread!(cache::LayerCache, key::ReadKey, spec::RasterSpec, cut,
     end
 end
 
-# A cached read that can serve `key`: the same source, code and read options, whose window is the
-# whole file or contains the one asked for. A whole read serves any window, and a wider window a
+# A cached read that can serve `key`: the same source, code, track and read options, whose window is
+# the whole file or contains the one asked for. A whole read serves any window, and a wider window a
 # narrower one; a window never serves a whole read or a wider one. This is what lets a build reuse
 # the analysis's read rather than reading the file again.
 function _servedread(cache::LayerCache, key::ReadKey)
@@ -217,7 +223,8 @@ function _servedread(cache::LayerCache, key::ReadKey)
     rest = _sanscut(key.readkw)
     for (k, v) in cache.reads
         (k.source == key.source && k.code == key.code &&
-         k.files == key.files && _sanscut(k.readkw) == rest) || continue
+         k.files == key.files && k.track == key.track &&
+         _sanscut(k.readkw) == rest) || continue
         have = get(k.readkw, :cut, nothing)
         isnothing(have) && return v
         (have isa Extents.Extent && want isa Extents.Extent &&
@@ -328,7 +335,7 @@ function _stackcached(spec::RasterSpec, cache::LayerCache, cut, scale)
         one = SourceSpec(spec.source, c; files = spec.files, cut = cut,
                          scale = spec.scale, fn = spec.fn, times = spec.times,
                          atend = spec.atend, calendar = spec.calendar,
-                         spec.readkw...)
+                         track = spec.track, spec.readkw...)
         return _cachedread!(cache, ReadKey(one, cut = cut, scale = scale), one,
                             cut, scale)
     end

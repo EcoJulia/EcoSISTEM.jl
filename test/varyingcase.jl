@@ -4,7 +4,7 @@
 # blessed-result tests and the MPI cross-rank reproducibility test.
 #
 # **Why it exists.** A reproducible-results test - the canonical simulated run and the MPI
-# 1/2/4-rank comparison alike - must not run on a *spatially uniform, temporally static, square*
+# cross-rank comparison alike - must not run on a *spatially uniform, temporally static, square*
 # environment. Such a fixture is structurally incapable of detecting:
 #
 #   - anything **spatial**, including the `(y, x)` dimension-order class that only a **non-square**
@@ -32,8 +32,9 @@ using Random
 #
 #   - `NX != NY` so a **transposed index** is a shape error rather than a plausible wrong number;
 #   - **77 cells** (11 × 7) so the *cell* partition is uneven at every rank count: 4 ranks take
-#     20/19/19/19 and 2 ranks take 39/38, rather than dividing exactly;
-#   - **7 species** so the *species* partition is uneven too: 2/2/2/1 over 4 ranks, 4/3 over 2.
+#     20/19/19/19, 3 take 26/26/25 and 2 take 39/38, rather than dividing exactly;
+#   - **7 species** so the *species* partition is uneven too: 2/2/2/1 over 4 ranks, 3/2/2 over 3,
+#     4/3 over 2.
 #
 # `MPIEcosystem` partitions by species (rows) **and** grid cells (columns), so both halves need a
 # remainder to put the decomposition under any stress at all. An earlier version of this fixture
@@ -145,8 +146,8 @@ end
 # moves the numbers substantially instead of sitting near its starting state.
 #
 # **Seven species, and that is the point.** `MPIEcosystem` partitions by species *and* by grid cells,
-# so both need a remainder to exercise the uneven-split paths: 7 species go 2/2/2/1 over four ranks
-# and 4/3 over two, while the 77 cells go 20/19/19/19 and 39/38.
+# so both need a remainder to exercise the uneven-split paths: 7 species go 2/2/2/1 over four ranks,
+# 3/2/2 over three and 4/3 over two, while the 77 cells go 20/19/19/19, 26/26/25 and 39/38.
 const MPIFIXTURE_FILL = 10
 const MPIFIXTURE_BURNIN = 2year
 const MPIFIXTURE_TIMESTEP = 1month_mean_duration

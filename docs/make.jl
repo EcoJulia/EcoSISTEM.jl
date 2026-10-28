@@ -10,6 +10,10 @@ using RasterDataSources
 DocMeta.setdocmeta!(EcoSISTEM, :DocTestSetup,
                     :(using EcoSISTEM), recursive = true)
 
+# Made from the catalogue's request files, which a fetched file's record also quotes and links to.
+include("requests.jl")
+write(joinpath(@__DIR__, "src", "requests.md"), requestspage())
+
 makedocs(modules = [EcoSISTEM],
          sitename = "EcoSISTEM.jl",
          format = Documenter.HTML(canonical = "https://docs.ecojulia.org/EcoSISTEM.jl/stable",
@@ -36,7 +40,8 @@ makedocs(modules = [EcoSISTEM],
              ],
              "How the model works" => "model.md",
              "Analysing results" => ["Diversity" => "diversity.md",
-                 "Provenance" => "provenance.md"],
+                 "Provenance" => "provenance.md",
+                 "Providers' requests" => "requests.md"],
              "Going further" => [
                  "Running at scale" => "scale.md",
                  "Africa" => "africa.md",

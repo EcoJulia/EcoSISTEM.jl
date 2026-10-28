@@ -176,13 +176,14 @@ function _specinputs(spec::ShapeMaskSpec; role::Symbol = :region)
 end
 
 # A `Provenance` as the tables its TOML file holds: the software, the grid, the run where there is
-# one, and a table per input.
+# one, a table per input, and what was done to the inputs where there are any.
 function _provenancetoml(p::Provenance)
     toml = Dict{String, Any}("software" => _tomltable(p.software),
                              "grid" => _tomltable(p.grid),
                              "inputs" => Dict{String, Any}[_tomltable(r)
                                                for r in p.inputs])
     isnothing(p.run) || (toml["run"] = _tomltable(p.run))
+    isempty(p.inputs) || (toml["modification"] = _modification(p))
     return toml
 end
 
@@ -192,14 +193,24 @@ function _tomltable(nt::NamedTuple)
                              for (k, v) in pairs(nt) if !_tomlblank(v))
 end
 
+# A record's references and notices are written with their placeholders filled from its fetch time.
 function _tomltable(r::InputRecord)
-    return Dict{String, Any}(string(k) => _tomlvalue(getfield(r, k))
+    function written(k)
+        v = getfield(r, k)
+        k in (:references, :notices) || return v
+        return [merge(x, (text = _fillplaceholders(x.text, r.fetched),))
+                for x in v]
+    end
+    return Dict{String, Any}(string(k) => _tomlvalue(written(k))
                              for k in fieldnames(InputRecord)
                              if !_tomlblank(getfield(r, k)))
 end
 
-# Whether a field has nothing to say: `nothing`, or empty text.
-_tomlblank(v) = isnothing(v) || (v isa AbstractString && isempty(v))
+# Whether a field has nothing to say: `nothing`, empty text, or an empty list.
+function _tomlblank(v)
+    return isnothing(v) ||
+           (v isa Union{AbstractString, AbstractVector} && isempty(v))
+end
 
 # A value in a form TOML holds: text, booleans, floats, dates, integers that fit TOML's own, and
 # tables and arrays of those. A seed too large for a signed integer is written as text.
@@ -218,6 +229,10 @@ function _tomlvalue(v::AbstractDict)
 end
 
 _tomlvalue(v::AbstractVector) = Any[_tomlvalue(x) for x in v]
+
+function _tomlvalue(v::NamedTuple)
+    return Dict{String, Any}(string(k) => _tomlvalue(x) for (k, x) in pairs(v))
+end
 
 # An extent as each dimension's lower and upper bound, as text.
 function _tomlvalue(v::Extents.Extent)

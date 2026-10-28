@@ -809,13 +809,14 @@ function _addtolerance!(tolerance::NicheTolerance, dist = nothing)
                  isnothing(dist) ? tolerance.dists[end] : dist)
 end
 
-# Takes the new species' **set** of tolerated classes, and clones an existing species' set where
-# none is given. `push!` of a normalised set, never `append!` of a drawn element: a species'
-# tolerance is one set per species, so appending into the set of the species being cloned from would
-# alter that species as well as building the new one.
+# Takes the new species' **set** of tolerated classes, and clones the last species' set where none is
+# given. `push!` of a set of its own, never `append!` into one or `push!` of the last species' own
+# vector: a species' tolerance is one set per species, and sharing or appending into the set being
+# cloned would alter that species as well as building the new one.
 function _addtolerance!(tolerance::SimpleCategoricalTolerance, val = nothing)
     return push!(tolerance.vals,
-                 isnothing(val) ? rand(tolerance.vals) : _categoryset(val))
+                 isnothing(val) ? copy(tolerance.vals[end]) :
+                 _categoryset(val))
 end
 
 # Takes a dispersal **kernel**, not an `AbstractMovement`: the movement *type* belongs to the whole

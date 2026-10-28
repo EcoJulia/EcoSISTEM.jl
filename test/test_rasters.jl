@@ -167,8 +167,8 @@ end
     # array - so it errors rather than returning either. `read` calls the same method before
     # downloading anything (below), so reaching it here means the raster was assembled some other
     # way. This is the one method of `_iscategorical` that can throw.
-    mixed = ClimateRaster(CHELSA{BioClimPlus}, arr, codes(:kg0, :bio3))
-    @test_throws ErrorException EcoSISTEM._iscategorical(mixed)
+    mixed = ClimateRaster(CHELSA{BioClimPlus}, arr, codes(:kg0, :gdd0))
+    @test_throws "hold class codes but gdd0 hold measurements" EcoSISTEM._iscategorical(mixed)
     # No named axis and no code answers `false`: there is nothing to look up and nothing
     # claiming the values are class labels. A caller who means class codes says so with the axis.
     @test !EcoSISTEM._iscategorical(bare)
@@ -213,7 +213,7 @@ end
 @testset "the shared-stack rule is stated once" begin
     S = CHELSA{BioClimPlus}
     @test EcoSISTEM._iscategorical(S, [:kg0, :kg1])     # uniformly categorical
-    @test !EcoSISTEM._iscategorical(S, [:bio1, :bio5])  # uniformly numeric
+    @test !EcoSISTEM._iscategorical(S, [:gdd0, :gdd5])  # uniformly numeric
     @test !EcoSISTEM._iscategorical(S, [])              # nothing to disagree about
     # ...and the scalar method answers the same question of one layer, without throwing.
     @test EcoSISTEM._iscategorical(S, :kg0)

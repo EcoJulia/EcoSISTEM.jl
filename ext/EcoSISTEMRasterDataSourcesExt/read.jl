@@ -25,6 +25,7 @@ function EcoSISTEM._lazysource(T::Type{<:RDS.RasterDataSource},
                                layers = RDS.layers(T);
                                cut = nothing, scale = nothing, fn = nothing,
                                kw...)
+    _refusemisnamed(T, something(layers, RDS.layers(T)); kw...)
     raw = getraster(T, something(layers, RDS.layers(T));
                     _getrasterkw(T)..., kw...)
     return Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
@@ -39,6 +40,7 @@ end
 # where its interface can say.
 function EcoSISTEM._fetchfiles(T::Type{<:RDS.RasterDataSource}, code; kw...)
     layers = something(code, RDS.layers(T))
+    _refusemisnamed(T, layers; kw...)
     raw = getraster(T, layers; kw...)
     for (layer, path) in _layerfiles(T, layers, raw)
         isfile(EcoSISTEM._sidecarpath(path)) && continue
@@ -49,10 +51,37 @@ function EcoSISTEM._fetchfiles(T::Type{<:RDS.RasterDataSource}, code; kw...)
         merge!(record,
                EcoSISTEM._cataloguerecord(T,
                                           isnothing(layer) ? nothing :
-                                          EcoSISTEM.layerinfo(T, layer)))
+                                          EcoSISTEM.layerinfo(T, layer), path,
+                                          route = :published))
         EcoSISTEM._writesidecar(path, record)
     end
     return raw
+end
+
+# A fetch that cannot succeed, refused before it is tried: CHELSA-BIOCLIM+'s four `rsds` files, for
+# which RasterDataSources asks CHELSA's server for `CHELSA_rsds_<stat>_1981-2010_V.2.1.tif` where it
+# has `CHELSA_rsds_1981-2010_<stat>_V.2.1.tif`, so the download is a 404. A file already in place
+# reads as usual. Delete this method once RasterDataSources names them as the server does, which
+# `test/ext_EcoSISTEMRasterDataSourcesExt.jl` reports by failing.
+_refusemisnamed(T, layers; kw...) = nothing
+
+function _refusemisnamed(T::Type{RDS.CHELSA{RDS.BioClimPlus}}, layers; kw...)
+    versioning = (k => v for (k, v) in kw if k in (:version, :patch))
+    for layer in (layers isa Union{Tuple, AbstractVector} ? layers : (layers,))
+        code = Symbol(string(layer))
+        startswith(string(code), "rsds_") || continue
+        path = RDS.rasterpath(T, code; versioning...)
+        m = match(r"^CHELSA_rsds_([a-z]+)_1981-2010_(V\.2\.\d+)\.tif$",
+                  basename(path))
+        (isfile(path) || isnothing(m)) && continue
+        served = "CHELSA_rsds_1981-2010_$(m[1])_$(m[2]).tif"
+        url = dirname(string(RDS.rasterurl(T, code; versioning...))) * "/" *
+              served
+        error("CHELSA-BIOCLIM+'s `$code` cannot be fetched: RasterDataSources asks CHELSA's " *
+              "server for `$(basename(path))`, which it does not have; its file is `$served`. " *
+              "Download $url to `$path` to read it.")
+    end
+    return nothing
 end
 
 # Each path `getraster` returned with the layer it holds, or `nothing` for a file holding several
@@ -90,16 +119,30 @@ function _rasterurl(T, layer; kw...)
     return nothing
 end
 
-# A dataset's files for `code` that are already on disk, fetching nothing. `rasterpath` takes only
-# the dataset's own code, where `getraster` also takes a layer's name, so each code is resolved as a
-# read resolves it; and it has no default resolution, so `getraster`'s is supplied.
-function EcoSISTEM._localfiles(T::Type{<:RDS.RasterDataSource}, code; kw...)
+# Where a dataset's files for `code` are or would be, fetching nothing. `rasterpath` takes only the
+# dataset's own code, where `getraster` also takes a layer's name, so each code is resolved as a read
+# resolves it; it has no default resolution, so `getraster`'s is supplied; and it names one file a
+# call, so a range such as `month = 1:12`, which `getraster` maps over, is taken a value at a time.
+function EcoSISTEM._sourcepaths(T::Type{<:RDS.RasterDataSource}, code; kw...)
+    return [f.path for f in EcoSISTEM._sourcefiles(T, code; kw...)]
+end
+
+# The same files, each with the code it holds and the URL RasterDataSources fetches it from.
+function EcoSISTEM._sourcefiles(T::Type{<:RDS.RasterDataSource}, code; kw...)
     codes = EcoSISTEM._preferredcode(T, something(code, collect(RDS.layers(T))))
-    pathkw = _rasterpathkw(T; kw...)
-    paths = [path
-             for c in vcat(codes)
-             for path in EcoSISTEM._filelist(RDS.rasterpath(T, c; pathkw...))]
-    return filter(isfile, paths)
+    return [(path = String(path), code = c, url = _rasterurl(T, c; pathkw...))
+            for c in vcat(codes)
+            for pathkw in _eachfilekw(_rasterpathkw(T; kw...))
+            for path in EcoSISTEM._filelist(RDS.rasterpath(T, c; pathkw...))]
+end
+
+# Keywords naming one file each: every combination of the values of those holding several, a range
+# or a vector, the rest as they are.
+function _eachfilekw(kw)
+    ks = collect(keys(kw))
+    vs = [v isa AbstractArray ? collect(v) : [v] for v in values(kw)]
+    return vec([NamedTuple{Tuple(ks)}(combo)
+                for combo in Iterators.product(vs...)])
 end
 
 # Read options with `getraster`'s default resolution added, for a dataset that has one and where

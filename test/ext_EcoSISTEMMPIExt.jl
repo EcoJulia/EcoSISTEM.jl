@@ -124,18 +124,143 @@ end
     @test abuns == eco.abundances.rows_matrix
 end
 
+# The output of `cmd`, or a line saying why there is none. It only describes a launch that has
+# already failed, so it must neither hang nor throw: it waits at most `limit` seconds.
+function capture(cmd::Cmd; limit = 30)
+    path, io = mktemp()
+    try
+        process = run(pipeline(cmd, stdout = io, stderr = io), wait = false)
+        if timedwait(() -> process_exited(process), limit, pollint = 0.5) !==
+           :ok
+            kill(process)
+            return "($(first(cmd.exec)) gave no answer within $limit s)"
+        end
+    catch err
+        return "($(first(cmd.exec)) could not run: $(sprint(showerror, err)))"
+    finally
+        close(io)
+    end
+    return read(path, String)
+end
+
+# Every process descended from `root`, by pid, with its command line. `mpiexec` starts the ranks
+# through a proxy, so they are its grandchildren rather than its children.
+function descendants(root::Integer)
+    table = Dict{Int, Tuple{Int, String}}()
+    for line in eachline(IOBuffer(capture(`ps -ww -A -o pid= -o ppid= -o command=`)))
+        fields = split(strip(line), limit = 3)
+        length(fields) == 3 || continue
+        pid, ppid = tryparse(Int, fields[1]), tryparse(Int, fields[2])
+        (isnothing(pid) || isnothing(ppid)) && continue
+        table[pid] = (ppid, fields[3])
+    end
+    found = Dict{Int, String}()
+    frontier = [Int(root)]
+    while !isempty(frontier)
+        parent = pop!(frontier)
+        for (pid, (ppid, command)) in table
+            if ppid == parent && !haskey(found, pid)
+                found[pid] = command
+                push!(frontier, pid)
+            end
+        end
+    end
+    return found
+end
+
+# The parts of a macOS `sample` report that say where a process was: the first thread's call graph,
+# which is the main thread's, and the frames it was most often found in.
+function mainstack(report::AbstractString)
+    lines = split(report, '\n')
+    graph = findfirst(==("Call graph:"), lines)
+    isnothing(graph) && return report
+    nextthread = findnext(l -> occursin(r"^\s+\d+ Thread_", l), lines,
+                          graph + 2)
+    keep = lines[graph:min(something(nextthread, graph + 60) - 1,
+                           lastindex(lines))]
+    top = findfirst(l -> startswith(l, "Sort by top of stack"), lines)
+    if !isnothing(top)
+        images = findnext(l -> startswith(l, "Binary Images"), lines, top)
+        append!(keep,
+                lines[top:min(something(images, top + 20) - 1,
+                              lastindex(lines))])
+    end
+    return join(keep, '\n')
+end
+
+# A Linux process's kernel wait channel, and the lines of its status saying whether it is running,
+# sleeping or swapped out.
+function procstate(pid::Integer)
+    try
+        wchan = read("/proc/$pid/wchan", String)
+        status = filter(readlines("/proc/$pid/status")) do line
+            return occursin(r"^(State|VmRSS|VmSwap|voluntary_ctxt|nonvoluntary_ctxt)",
+                            line)
+        end
+        return join(["wchan: $wchan"; status], '\n')
+    catch err
+        return "(could not read /proc/$pid: $(sprint(showerror, err)))"
+    end
+end
+
+# What a launch was doing when it reached its limit: each process under `mpiexec`, listed twice five
+# seconds apart to tell a rank still using CPU from a blocked one; the machine's memory and swap; and
+# where each Julia rank was, as a native stack sample on macOS or the kernel's view on Linux, where
+# attaching a debugger needs privileges a CI job lacks. Lines are cut to 200 characters, since a
+# rank's command runs to several hundred. Nothing on Windows, which has no `ps`.
+function launchstate(root::Integer)
+    Sys.iswindows() && return "(not described on Windows)"
+    procs = descendants(root)
+    isempty(procs) && return "(nothing is running under mpiexec)"
+    report = IOBuffer()
+    listing = `ps -ww -o pid,ppid,stat,%cpu,time,rss,etime,command -p $(join(keys(procs), ","))`
+    println(report, capture(listing))
+    sleep(5)
+    println(report, capture(listing))
+    if Sys.isapple()
+        println(report, capture(`sysctl vm.swapusage`), capture(`vm_stat`))
+    else
+        println(report, capture(`free -m`))
+    end
+    for (pid, command) in procs
+        basename(first(split(command))) == "julia" || continue
+        location = Sys.isapple() ? mainstack(capture(`sample $pid 1`)) :
+                   procstate(pid)
+        println(report, "process $pid:\n", location)
+    end
+    lines = split(String(take!(report)), '\n')
+    return join((first(line, 200) for line in lines), '\n')
+end
+
 # Run one `mpiexec` launch, and fail rather than hang if its ranks never finish: a rank left waiting
 # in a collective waits forever. A launch takes a few minutes, far inside the limit. Killing
-# `mpiexec` stops its ranks too.
-function runmpi(cmd; limit = 1800)
-    process = run(cmd, wait = false)
-    timedwait(() -> process_exited(process), limit, pollint = 1.0) === :ok &&
-        return success(process)
-    kill(process)
-    wait(process)
-    @error "`mpiexec` was stopped after $limit s without finishing: $cmd"
+# `mpiexec` stops its ranks too. The ranks' output goes to `logfile`, and the end of it is reported
+# only if the launch fails, after what its processes were doing if it was stopped.
+function runmpi(cmd, logfile; limit = 1800)
+    state = nothing
+    finished = open(logfile, "w") do io
+        process = run(pipeline(cmd, stdout = io, stderr = io), wait = false)
+        waited = timedwait(() -> process_exited(process), limit, pollint = 1.0)
+        waited === :ok && return success(process)
+        state = launchstate(getpid(process))
+        kill(process)
+        wait(process)
+        return false
+    end
+    finished && return true
+    # In the message, which is printed whole: a logged value is printed with `show`, which escapes
+    # the newlines and elides all but the ends of a long string.
+    report = isnothing(state) ? "`mpiexec` failed: $cmd" :
+             "`mpiexec` was stopped after $limit s without finishing: $cmd\n\n" *
+             "What its processes were doing:\n$state"
+    output = join(last(readlines(logfile), 200), '\n')
+    @error "$report\n\nThe last of its output:\n$output"
     return false
 end
+
+# Hydra's flag labelling each line of output with the rank that wrote it, on MPICH, whose launcher
+# has it; Microsoft MPI's has no equivalent.
+rankprefix() = MPI.MPI_LIBRARY == "MPICH" ? `-prepend-rank` : ``
 
 # The Julia command a launch runs, with coverage instrumentation only where it is wanted. It roughly
 # doubles a launch - measured on a runner, this file took 861 s on the instrumented job against 402 s
@@ -147,43 +272,51 @@ function launchcmd(; coverage::Bool)
     return Cmd(filter(a -> !startswith(a, "--code-coverage"), cmd.exec))
 end
 
+# The ranks-by-threads shapes `SmallMPItest.jl` is launched at: one rank with several threads,
+# several ranks with one, and, given four cores, two ranks of two threads between them. None uses
+# more than four cores or more than the machine has, because a runner's cores are few (three on
+# macOS) and an oversubscribed launch is slower and allocates more in the threaded loops. Below two
+# cores the shapes are those of two, so that some launch has more than one rank.
+function launchshapes(cores = Sys.CPU_THREADS)
+    if cores >= 4
+        return [(ranks = 1, threads = 4), (ranks = 2, threads = 2),
+            (ranks = 4, threads = 1)]
+    end
+    n = max(cores, 2)
+    return [(ranks = 1, threads = n), (ranks = n, threads = 1)]
+end
+
 @testset "mpirun" begin
     # Keep the MPI outputs in a temp dir the OS cleans up (no manual `rm` needed for hygiene).
     # The child `mpiexec` processes read its path as their first command-line argument.
     datadir = mktempdir()
-    # Compare 1 thread 4 processes vs. 4 threads 1 process vs. 2 threads 2 processes
-    withenv("JULIA_NUM_THREADS" => "4") do
-        nprocs = 1
-        function cmd(n = nprocs)
-            return `$(mpiexec()) -n $nprocs $(launchcmd(coverage = false)) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
+    shapes = launchshapes()
+    # The launch with the fewest ranks above one runs the shared-build testset, whose rank count
+    # is the script's second argument, and is the one instrumented for coverage.
+    sharedranks = minimum(s.ranks for s in shapes if s.ranks > 1)
+    script = pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")
+    for shape in shapes
+        withenv("JULIA_NUM_THREADS" => string(shape.threads)) do
+            julia = launchcmd(coverage = shape.ranks == sharedranks)
+            mpi = `$(mpiexec()) $(rankprefix()) -n $(shape.ranks)`
+            cmd = `$mpi $julia --startup-file=no $script $datadir $sharedranks`
+            logfile = joinpath(datadir,
+                               "mpiexec$(shape.ranks)x$(shape.threads).log")
+            @test runmpi(cmd, logfile)
         end
-        @test runmpi(cmd())
-    end
-    withenv("JULIA_NUM_THREADS" => "2") do
-        nprocs = 2
-        function cmd(n = nprocs)
-            return `$(mpiexec()) -n $nprocs $(launchcmd(coverage = true)) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
-        end
-        @test runmpi(cmd())
-    end
-    withenv("JULIA_NUM_THREADS" => "1") do
-        nprocs = 4
-        function cmd(n = nprocs)
-            return `$(mpiexec()) -n $nprocs $(launchcmd(coverage = false)) --startup-file=no $(pkgdir(EcoSISTEM, "test", "SmallMPItest.jl")) $datadir`
-        end
-        @test runmpi(cmd())
     end
 
     ## All answers should be the same across process/thread splits. Load the
     ## saved values (note: `@load file var` binds `var` but returns the symbol
     ## list, so use `load(file, "abuns")` to get the data itself).
-    abuns1thread = load(joinpath(datadir, "Test_abuns1.jld2"), "abuns")
-    abuns2thread = load(joinpath(datadir, "Test_abuns2.jld2"), "abuns")
-    abuns4thread = load(joinpath(datadir, "Test_abuns4.jld2"), "abuns")
+    abuns = map(shapes) do shape
+        file = "Test_abuns$(shape.ranks)x$(shape.threads).jld2"
+        return load(joinpath(datadir, file), "abuns")
+    end
 
     # Each launch also checks its own run against the blessed values, so a launch that does not
-    # reproduce itself fails there, apart from any disagreement between the three here.
-    @test abuns1thread == abuns2thread == abuns4thread
+    # reproduce itself fails there, apart from any disagreement between the launches here.
+    @test allequal(abuns)
 end
 
 if !MPI.Finalized()

@@ -49,6 +49,12 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
     # intervention or - as here - through `applyinterventions!`, the supported imperative route.
     # `step` must be one the run has actually reached: the selection RNG is keyed on it.
     before = length(eco.spplist.names)
+    # The last species is given a set of classes no other species has, so that a copy of any other
+    # species cannot pass for a copy of the last.
+    vals = eco.spplist.tolerance.vals
+    vals[end] = sort(unique(reduce(vcat, vals)))
+    @test count(==(vals[end]), vals) == 1
+    lastset = copy(vals[end])
     @test_nowarn EcoSISTEM.applyinterventions!(eco,
                                                Intervention(EveryStep(),
                                                             AllCells(),
@@ -56,6 +62,10 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
                                                1month_mean_duration,
                                                1month_mean_duration, 1)
     @test length(eco.spplist.names) == before + 1
+    # With no tolerance given, the arrival's set of classes is the last species', as `AddSpecies`
+    # documents - a copy, so that changing either set leaves the other alone.
+    @test vals[end] == lastset
+    @test vals[end] !== vals[end - 1]
 
     @testset "get functions" begin
         # Test Simulation get functions

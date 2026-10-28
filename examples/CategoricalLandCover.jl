@@ -46,7 +46,8 @@ const YEARS = SMALL ? 2year : 10year
 
 # A bare dataset with no code hands the combine the whole multi-band raster, which is what
 # `compress_landcover` needs - it must see all twelve classes to pick a winner.
-const LANDCOVER = ConstructedRasterSpec(compress_landcover, EarthEnv{LandCover},
+const LANDCOVER = ConstructedRasterSpec(compress_landcover,
+                                        EarthEnv{LandCover{:DISCover}},
                                         axis = LandCoverTypology)
 const SUNLIGHT = UniformSpec(1.0e4kJ / (km^2 * day), axis = SolarRadiation)
 

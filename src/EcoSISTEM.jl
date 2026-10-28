@@ -3,6 +3,7 @@
 module EcoSISTEM
 
 using Scratch: get_scratch!
+using Preferences: Preferences
 using FileWatching: mkpidlock
 using TOML: TOML
 using SHA: SHA
@@ -28,12 +29,14 @@ public NicheAxis, AbstractLayer, Role, Condition, Resource, AbstractRegime,
 # where an input came from, which every fetch writes.
 include("Asset.jl")
 include("Provenance.jl")
+# A data pipeline run as the route a spec's files take, before the specs that hold one.
+include("Track.jl")
 
-public CachedAsset, CDSRequest, InputRecord, Provenance
+public CachedAsset, CDSRequest, InputRecord, Provenance, Track
 
-public assetdir
+public assetdir, set_assetdir!
 
-public assetpath, fetchfiles, verifyassets
+public assetpath, fetchfiles, missingfiles, verifyassets
 
 export provenance, write_provenance
 
@@ -516,6 +519,9 @@ public AbstractRecorder
 # after every type such a question can be asked of.
 include("inputrecords.jl")
 
+# What a tracked spec's files are registered as with a data pipeline run, decided from plain data.
+include("registration.jl")
+
 # `NicheAxis` and the `XxxAxis` grouping supertypes are **not** here: every abstract type in this
 # package is `public` rather than exported, declared together at the end of this file. It is the
 # axis *leaves* below that a user names.
@@ -541,8 +547,6 @@ public hasdata
 # Reading a catalogued dataset into a `ClimateRaster`, on top of `rasters.jl`. See that file's own
 # header for why it is not in an extension.
 include("datasetread.jl")
-
-export readfile
 
 # Sampling a climate raster at places and times - `extract_values`. Works on any `AbstractClimate`,
 # so it names no data source.

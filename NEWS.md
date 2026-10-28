@@ -1,5 +1,98 @@
 # NEWS
 
+- v0.9.0
+  - Added
+    - `SourceSpec(ERA, code; years, months, area)` fetches an ERA5 layer from the Climate Data
+      Store into the asset cache on first use, a file a decade. `area` is a box, or a region by
+      name or as a `NaturalEarthSpec`, its box from the shipped table rounded outwards to whole
+      degrees; `CDSRequest(ERA, ...)` and `era5requests` take the same `area`.
+    - `EcoSISTEM.set_assetdir!(dir)` keeps the asset cache in a directory of your choosing,
+      recorded as a preference, and `nothing` returns it to the scratch space. Preferences.jl is a
+      new dependency.
+    - The catalogue quotes what each provider asks of anyone using its data, one file per request
+      under `data/catalogue/requests/`: the works to cite and the notices to carry, with how
+      strongly each is asked. `DatasetRecord` gains `releasedate`, `title`, `request`,
+      `references` and `notices`, and `citation` is now the requested references' texts.
+    - The documentation's new page "Providers' requests" quotes every request, a section each,
+      and is where a fetched file's record links to.
+    - `data/catalogue/citations.bib` and `authors.toml` hold every catalogued DOI's citation and
+      its authors' ORCIDs as doi.org gives them, made by `data/src/citations.jl`.
+    - EarthEnv's full land cover, `EarthEnv{LandCover{:DISCover}}`, has a catalogue row, and the
+      examples read it, as EarthEnv recommends for most applications; each version's title names
+      it. `EarthEnv{LandCover}` is still the reduced version, without DISCover.
+    - A fetched file's record, and `InputRecord`, gain its title, whether it is the cited item or
+      one of its files (`primary`), the release date, when its provider last changed it
+      (`modified`), and the provider's references and notices with the page quoting them.
+      `provenance` and `write_provenance` show them, the access date filled in, and what was done
+      to the inputs.
+    - A `CDSRequest` whose area was named as a region keeps the region in its record.
+    - `EcoSISTEM.Track(handle, root)`, given as the `track` keyword of `SourceSpec` and
+      `NaturalEarthSpec`, names the FAIR data pipeline run a spec's files go through, each the data
+      product `<root>/data/<stem>` with its record `<root>/provenance/<stem>`; a handle of
+      `nothing` tracks nothing. `release_version` and `release_date` give your own files' release.
+    - `fetchfiles` on a tracked spec registers its source's file-less deposit as the run's input,
+      and each file and its record as outputs derived from it alone, in the source's namespace; a
+      run registers one source. Any other read takes the files from the run's store. A file whose
+      bytes changed with no new release is versioned `<version>+YYYYMMDD`, its provider's date.
+    - `EcoSISTEM.missingfiles(x)` lists, fetching nothing, the files still to do before `x` can be
+      built and why, for an untracked spec or a tracked one in a fetch or a model run.
+    - `fetchfiles` takes anything a habitat is built from - combinations, `Varying`, shapes, masks,
+      tuples - and a dry run reports each of their files.
+    - `datasets.csv` and `DatasetRecord` gain whether each identifier names the data or a paper
+      (`identifies`), and the namespace its files are registered in, with its name and website.
+    - Every value the paper's figures are built from is in `examples/paper/parameters.toml`, and
+      `examples/paper.jl` writes Tables S1 and S2 from it. `fair pull` then `fair run` of
+      `examples/paper/paper.yaml` draws them as a data pipeline run, in an environment of its own,
+      registering each output in namespace `EcoSISTEM` as derived from the parameters.
+  - Changed
+    - CHELSA's rows name their EnviDat deposits' DOIs, CHELSA-BIOCLIM+ its deposit's own version
+      (1.0), and every licence is an SPDX identifier or the provider's terms URL.
+    - Fetching CHELSA-BIOCLIM+'s `rsds` layers fails naming the file CHELSA's server has, which
+      RasterDataSources does not yet ask for, rather than with a bare 404.
+    - A netCDF file fetched from the Climate Data Store has its `history` attribute, which records
+      when and where the CDS converted it, replaced by a note of the same length, so fetches of the
+      same data are identical; the original is kept in its record.
+    - A layer code a dataset's table lacks is refused naming the tables that have it.
+    - `fetchfiles(spec, dryrun = true)` reports a RasterDataSources dataset's files one by one,
+      each with the path it has or would have and whether it is there.
+    - `examples/paper.jl` writes to its first argument, else `examples/paper/outputs/`, which git
+      ignores; `ECOSISTEM_PAPER_DIR` is gone. Figure 3 is `NicheWidth.pdf`, not `NicheWidth2.pdf`,
+      and the island figures are at 25 C (298.15 K) where they were at 298 K.
+  - Fixed
+    - `AddSpecies` with no `tolerance` gives a categorical arrival the last species' set of classes,
+      as documented, rather than a randomly chosen species' set drawn from the global generator,
+      which the run's seed did not fix.
+    - `era5requests` puts every field a request varies by in its file's name - a box, and months
+      other than all twelve - so two requests never share a file. A file fetched with a box or
+      some months under the old name is fetched again unless renamed.
+    - A Climate Data Store file already present whose provenance record holds a different request
+      is refused, naming what differs, rather than served as the request asked.
+    - `provenance` and `verifyassets` find the files of a monthly RasterDataSources layer read with
+      `month = 1:12`, which they missed.
+    - The `EcoSISTEMDataPipelineExt` extension works: `[compat]` now asks for `DataPipeline`
+      v0.58.1, and the extension and its test hook are exercised by the test suite.
+    - `examples/pipeline/` runs under `fair run` again, as a fetch run for each of WorldClim,
+      Natural Earth and ERA5 and a model run over Scotland, each with its config, in an environment
+      of their own; it replaces `AfricaRun.jl`. The model run needs no Climate Data Store key, and
+      the Data Pipeline page runs it, tracing its figure back to the providers' data.
+  - Removed
+    - Everything deprecated in v0.8.0 and earlier: `read` on dataset types and on `ERA`, `CERA`
+      and `CRUTS`, `readfile`, `retrieve_era5`, `simulate_action!`, `simulate_record!`,
+      `simulate_record_diversity!`, the six-argument `simulate!`, the `boost` argument and
+      keyword, `ConstructedSpec` and `emptyMPIgridlandscape`. Earlier notes give each replacement.
+    - `CHELSA{BioClimPlus}`'s `bio1` to `bio19`: RasterDataSources gives them CHELSA V2.1's own
+      files, so read them as `CHELSA{BioClim}`, whose facts they carry.
+    - `EcoSISTEM.unziptemp` and the `p7zip_jll` dependency it alone needed: a tracked spec takes
+      its files from the pipeline's store as they are.
+  - Internal
+    - The test suite passes on Julia 1.13.2: the GeoTIFF fixtures keep their geotransform vector
+      alive across ArchGDAL's `setgeotransform!`, which does not, and the docstring checks import
+      REPL rather than relying on another package having loaded it.
+    - Printf is no longer a dependency.
+    - A new extra test set, `extras_pipeline`, runs `examples/pipeline/` and the paper's small
+      figures as `fair` runs against a registry of its own and checks what it records; CI requires
+      it on the job measuring coverage to reach the pipeline extension.
+
 - v0.8.0
   - Added
     - `RasterSpec`, one lazy spec for raster data, written `SourceSpec(source, code)` for a
@@ -173,6 +266,9 @@
     - `ShapeSpec` documents that a URL must name a self-contained file.
     - `gatherdiversity` refuses a metacommunity or individual measure, which it assembled into
       values that meant nothing; it takes subcommunity measures, as documented.
+    - A metacommunity diversity measure asked directly of a distributed ecosystem
+      (`meta_gamma(eco, q)` and the rest) is refused, where it answered for one rank's cells alone
+      and said nothing; use `gatherdiversity` for a subcommunity measure, or run serially.
     - `AddAbundance` and `RemoveAbundance` accept a species named by a `Symbol`, as the
       `Intervention` docstring's example does.
   - Deprecated

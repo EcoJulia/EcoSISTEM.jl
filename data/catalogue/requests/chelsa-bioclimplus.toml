@@ -1,0 +1,16 @@
+# What CHELSA asks of anyone using CHELSA-BIOCLIM+. Its technical specification asks for the ESSD
+# discussion paper and the data; the website's bioclim page gives the paper as published, which
+# replaces the preprint here, and the data citation the specification gives.
+pages = [
+    "https://www.envidat.ch/dataset/21d662b7-9c59-41da-aa82-7d8a879b8db7/resource/aa676d1f-5f7f-479b-af20-26066b0537d1/download/chelsa_file_specification_bioclim_plus.pdf",
+    "https://www.chelsa-climate.org/datasets/chelsa_bioclim",
+]
+read = 2026-10-25
+
+[[reference]]
+doi = "10.5194/essd-14-5573-2022"
+text = "Brun, P., Zimmermann, N. E., Hari, C., Pellissier, L., & Karger, D. N. Global climate-related predictors at kilometer resolution for the past and future. ESSD 2022 14(12), 5573-5603. https://doi.org/10.5194/essd-14-5573-2022"
+
+[[reference]]
+doi = "10.16904/envidat.332"
+text = "Brun, Philipp; Zimmermann, Niklaus E.; Hari, Chantal; Pellissier, Loïc; Karger, Dirk Nikolaus (2022). CHELSA-BIOCLIM+ A novel set of global climate-related predictors at kilometre-resolution. EnviDat. https://doi.org/10.16904/envidat.332"

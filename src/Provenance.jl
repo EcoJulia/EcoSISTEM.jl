@@ -6,8 +6,10 @@ using Unitful
 
 """
     InputRecord(; role, dataset, code = nothing, path = nothing, url = nothing, request = nothing,
-                job = nothing, fetched = nothing, bytes = nothing, sha256 = nothing, doi = "",
-                licence = "", version = "", citation = "")
+                region = nothing, job = nothing, fetched = nothing, bytes = nothing,
+                sha256 = nothing, doi = "", licence = "", version = "", citation = "",
+                title = "", primary = nothing, releasedate = "", references = [],
+                notices = [], requestpage = "", modified = nothing, history = nothing)
 
 The provenance of one published input to an experiment: a file this package fetched, or a dataset
 you handed it that it never fetched - an occurrence download, a trait table, a phylogeny. One shape
@@ -29,12 +31,32 @@ write one for anything it could not have known about.
     one, since a record is meant to be committed and shared.
   - `url`: where it was fetched from, where it was.
   - `request`: the request body sent to a service, as it was sent.
+  - `region`: the named region a request's area was taken from, as the
+    [`NaturalEarthSpec`](@ref) naming it, where it was given as one.
   - `job`: the identifier a service gave the request.
   - `fetched`: when it was fetched, in UTC.
   - `bytes`, `sha256`: the file's size and checksum at fetch, which is what tells a truncated or
     replaced copy from the original.
   - `doi`, `licence`, `version`, `citation`: the dataset's own, blank where unknown; `citation` is
     the text a paper prints.
+  - `title`: the file's own title, the release's with the layer and whatever else tells the file
+    apart from its siblings, blank where unknown.
+  - `primary`: whether the file is the cited item or one of its files, so that the same bytes can
+    be fetched again (`true`) - a file fetched as published from a source whose identifier names
+    the data - or not (`false`): a file of a source cited by its paper, an extract a service cut to
+    a request, a file you gave; `nothing` where unknown.
+  - `releasedate`: when the release was published, as ISO 8601 text, blank where unknown.
+  - `modified`: when the provider last changed the file, as its server said, in UTC; `nothing`
+    where unknown.
+  - `history`: the file's own global `history` attribute where the fetch replaced it - a netCDF
+    file the Climate Data Store converts says there when and in which temporary directory it did
+    so, which would make two fetches of the same data differ; `nothing` where nothing was
+    replaced.
+  - `references`: the works the dataset's provider asks to be cited, each its `doi` and `text`,
+    and `notices`: the statements it asks to accompany the data, each its `strength` (`:required`,
+    `:requested` or `:optional`) and `text`. `DD-MMM-YYYY` in a text stands for the date the file
+    was fetched and `YYYY` for its year, filled in wherever the record is shown or written.
+  - `requestpage`: the address of the documentation's section quoting what the provider asks.
 """
 struct InputRecord
     role::Symbol
@@ -51,12 +73,25 @@ struct InputRecord
     licence::String
     version::String
     citation::String
+    region::Union{Nothing, String}
+    title::String
+    primary::Union{Nothing, Bool}
+    releasedate::String
+    references::Vector{@NamedTuple{doi::String, text::String}}
+    notices::Vector{@NamedTuple{strength::Symbol, text::String}}
+    requestpage::String
+    modified::Union{Nothing, Dates.DateTime}
+    history::Union{Nothing, String}
 
     function InputRecord(; role::Symbol, dataset::AbstractString,
                          code = nothing, path = nothing, url = nothing,
-                         request = nothing, job = nothing, fetched = nothing,
-                         bytes = nothing, sha256 = nothing, doi = "",
-                         licence = "", version = "", citation = "")
+                         request = nothing, region = nothing, job = nothing,
+                         fetched = nothing, bytes = nothing, sha256 = nothing,
+                         doi = "", licence = "", version = "", citation = "",
+                         title = "", primary::Union{Nothing, Bool} = nothing,
+                         releasedate = "", references = [], notices = [],
+                         requestpage = "", modified = nothing,
+                         history = nothing)
         role in _INPUT_ROLES ||
             throw(ArgumentError("`role` must be one of $(join(_INPUT_ROLES, ", ")); got `$role`."))
         isnothing(path) || !isabspath(path) ||
@@ -70,8 +105,29 @@ struct InputRecord
                    _optstring(job), _optdate(fetched),
                    isnothing(bytes) ? nothing : Int(bytes), _optstring(sha256),
                    String(doi), String(licence), String(version),
-                   String(citation))
+                   String(citation), _optstring(region), String(title), primary,
+                   String(releasedate), _references(references),
+                   _notices(notices), String(requestpage), _optdate(modified),
+                   _optstring(history))
     end
+end
+
+# Value equality and hashing, not the `===` fallback: a record's references, notices and request
+# body are containers, which the fallback compares by identity, so two records of one file read on
+# two ranks or twice would differ.
+function Base.:(==)(a::InputRecord, b::InputRecord)
+    return all(getfield(a, f) == getfield(b, f)
+               for f in fieldnames(InputRecord))
+end
+
+function Base.isequal(a::InputRecord, b::InputRecord)
+    return all(isequal(getfield(a, f), getfield(b, f))
+               for f in fieldnames(InputRecord))
+end
+
+function Base.hash(r::InputRecord, h::UInt)
+    return hash(Tuple(getfield(r, f) for f in fieldnames(InputRecord)),
+                hash(InputRecord, h))
 end
 
 function Base.show(io::IO, r::InputRecord)
@@ -84,15 +140,19 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", r::InputRecord)
     println(io, "InputRecord (", r.role, ")")
-    for (label, value) in (("dataset", r.dataset), ("code", r.code),
-        ("file", r.path), ("url", r.url), ("job", r.job),
-        ("fetched", r.fetched), ("bytes", r.bytes),
-        ("sha256", r.sha256), ("doi", r.doi),
-        ("licence", r.licence), ("version", r.version),
-        ("citation", r.citation))
+    for (label, value) in (("dataset", r.dataset), ("title", r.title),
+        ("code", r.code), ("file", r.path), ("url", r.url),
+        ("region", r.region), ("job", r.job), ("fetched", r.fetched),
+        ("bytes", r.bytes), ("sha256", r.sha256), ("primary", r.primary),
+        ("doi", r.doi), ("licence", r.licence), ("version", r.version),
+        ("released", r.releasedate), ("modified", r.modified),
+        ("citation", isempty(r.references) ? r.citation : ""))
         (isnothing(value) || (value isa AbstractString && isempty(value))) &&
             continue
         println(io, "  ", rpad(label, 9), value)
+    end
+    for line in _requestlines(r)
+        println(io, "  ", line)
     end
     return nothing
 end
@@ -155,13 +215,12 @@ function Base.show(io::IO, ::MIME"text/plain", p::Provenance)
         dois = unique(r.doi for r in group if !isempty(r.doi))
         println(io, "    ", dataset,
                 isempty(dois) ? "" : " (doi $(join(dois, ", ")))")
-        for citation in unique(r.citation
-                               for r in group
-                               if !isempty(r.citation))
-            println(io, "      cite  ", citation)
+        for line in unique(Iterators.flatten(_requestlines(r) for r in group))
+            println(io, "      ", line)
         end
         foreach(r -> println(io, "      ", _recordline(r)), group)
     end
+    print(io, "  modified  ", _modification(p))
     return nothing
 end
 
@@ -272,7 +331,79 @@ function _recordfromtoml(t::AbstractDict)
                        doi = something(field("doi"), ""),
                        licence = something(field("licence"), ""),
                        version = something(field("version"), ""),
-                       citation = something(field("citation"), ""))
+                       citation = something(field("citation"), ""),
+                       region = field("region"),
+                       title = something(field("title"), ""),
+                       primary = field("primary"),
+                       releasedate = something(field("release_date"), ""),
+                       references = something(field("references"), []),
+                       notices = something(field("notices"), []),
+                       requestpage = something(field("request_page"), ""),
+                       modified = field("modified"),
+                       history = field("history"))
+end
+
+# References in the one shape a record holds them, from named tuples or a sidecar's tables.
+function _references(refs::AbstractVector)
+    return @NamedTuple{doi::String, text::String}[(doi = String(_entry(r, :doi)),
+                                                   text = String(_entry(r,
+                                                                        :text)))
+                                                  for r in refs]
+end
+
+# Notices likewise.
+function _notices(notices::AbstractVector)
+    return @NamedTuple{strength::Symbol, text::String}[(strength = _strength(_entry(n,
+                                                                                    :strength)),
+                                                        text = String(_entry(n,
+                                                                             :text)))
+                                                       for n in notices]
+end
+
+# A notice's strength, one a provider can ask with.
+function _strength(s)
+    strength = Symbol(s)
+    strength in _NOTICE_STRENGTHS ||
+        throw(ArgumentError("a notice's `strength` must be one of " *
+                            "$(join(_NOTICE_STRENGTHS, ", ")); got `$strength`."))
+    return strength
+end
+
+# One entry of a reference or a notice, from a named tuple or from a sidecar's table.
+_entry(x::NamedTuple, key::Symbol) = x[key]
+
+_entry(x::AbstractDict, key::Symbol) = x[string(key)]
+
+# A provider's text with its placeholders filled from when the file was fetched: `DD-MMM-YYYY` with
+# the date, then `YYYY` with the year. Left as it is where the fetch time is not known.
+_fillplaceholders(text::AbstractString, ::Nothing) = String(text)
+
+function _fillplaceholders(text::AbstractString, fetched::Dates.DateTime)
+    dated = replace(text, "DD-MMM-YYYY" => Dates.format(fetched, "dd-u-yyyy"))
+    return replace(dated, "YYYY" => string(Dates.year(fetched)))
+end
+
+# What a record says its provider asks, a line each: the references to cite and the notices to
+# carry, placeholders filled from its fetch time, and where the documentation quotes the request. A
+# record with no references but a citation of its own cites that.
+function _requestlines(r::InputRecord)
+    cites = isempty(r.references) ?
+            (isempty(r.citation) ? String[] : [r.citation]) :
+            [_fillplaceholders(ref.text, r.fetched) for ref in r.references]
+    lines = ["cite    " * c for c in cites]
+    append!(lines,
+            ["notice  ($(n.strength)) " * _fillplaceholders(n.text, r.fetched)
+             for n in r.notices])
+    isempty(r.requestpage) || push!(lines, "asks    " * r.requestpage)
+    return lines
+end
+
+# What was done to the inputs to build on them, for the statement a modified dataset's licence or
+# provider asks for: each was read for this grid and resampled or rasterised onto its cells.
+function _modification(p::Provenance)
+    crs = isnothing(p.grid.crs) ? "" : " in $(_crsname(p.grid.crs))"
+    return "contains modified data: each input was read for this grid's extent and resampled " *
+           "or rasterised onto its cells of $(p.grid.cellsize)$(crs)."
 end
 
 # One input's line under its dataset in a provenance listing: its role, its layer where it has one,

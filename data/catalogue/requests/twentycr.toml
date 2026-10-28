@@ -1,0 +1,20 @@
+# What NOAA PSL asks of anyone using the Twentieth Century Reanalysis version 3, quoted from the
+# dataset page and from the usage text PSL's metadata service serves to it. PSL asks for no
+# citation: the reference is the catalogue's choice, the paper describing version 3.
+pages = [
+    "https://psl.noaa.gov/data/gridded/data.20thC_ReanV3.html",
+    "https://psl.noaa.gov/cgi-bin/mddb2/mddb2.py?action=getDataset&datasetID=59",
+]
+read = 2026-10-25
+
+[[reference]]
+doi = "10.1002/qj.3598"
+text = "Slivinski, L. C., Compo, G. P., Whitaker, J. S., Sardeshmukh, P. D., Giese, B. S., McColl, C., Allan, R., Yin, X., Vose, R., Titchner, H., Kennedy, J., Spencer, L. J., Ashcroft, L., Brönnimann, S., Brunet, M., Camuffo, D., Cornes, R., Cram, T. A., Crouthamel, R., et al. (2019). Towards a more reliable historical reanalysis: Improvements for version 3 of the Twentieth Century Reanalysis system. Quarterly Journal of the Royal Meteorological Society, 145(724), 2876-2908. https://doi.org/10.1002/qj.3598"
+
+[[notice]]
+strength = "requested"
+text = "Support for the Twentieth Century Reanalysis Project version 3 dataset is provided by the U.S. Department of Energy, Office of Science Biological and Environmental Research (BER), by the National Oceanic and Atmospheric Administration Climate Program Office, and by the NOAA Earth System Research Laboratory Physical Sciences Laboratory."
+
+[[notice]]
+strength = "requested"
+text = "data provided by the NOAA PSL, Boulder, Colorado, USA, from their website at https://psl.noaa.gov"

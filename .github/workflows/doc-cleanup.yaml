@@ -3,24 +3,41 @@ name: Doc Preview Cleanup
 on:
   pull_request:
     types: [closed]
+  workflow_dispatch:
+
+# Each cleanup rewrites gh-pages' history and force-pushes it, so only one runs at a time.
+concurrency:
+  group: doc-preview-cleanup
+  cancel-in-progress: false
 
 jobs:
   doc-preview-cleanup:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
     steps:
       - name: Checkout gh-pages branch
         uses: actions/checkout@v7
         with:
           ref: gh-pages
-      - name: Delete preview and history + push changes
+      # Every closed pull request's preview, not only this one's: a pull request's last docs build
+      # can finish after its cleanup and deploy the preview again, and a close does not always start
+      # a cleanup. Only a state the lookup actually returned deletes anything.
+      - name: Delete closed pull requests' previews and history + push changes
         run: |
-            if [ -d "previews/PR$PRNUM" ]; then
-              git config user.name "richardreeve"
-              git config user.email "git@richardreeve.net"
-              git rm -rf "previews/PR$PRNUM"
-              git commit -m "delete preview"
-              git branch gh-pages-new $(echo "delete history" | git commit-tree HEAD^{tree})
-              git push --force origin gh-pages-new:gh-pages
-            fi
+          for dir in previews/PR*; do
+            [ -d "$dir" ] || continue
+            case "$(gh pr view "${dir#previews/PR}" --repo "$GITHUB_REPOSITORY" --json state --jq .state)" in
+              CLOSED|MERGED) git rm -rf --quiet "$dir" ;;
+            esac
+          done
+          if ! git diff --cached --quiet; then
+            git config user.name "richardreeve"
+            git config user.email "git@richardreeve.net"
+            git commit -m "delete previews"
+            git branch gh-pages-new "$(echo "delete history" | git commit-tree "HEAD^{tree}")"
+            git push --force origin gh-pages-new:gh-pages
+          fi
         env:
-            PRNUM: ${{ github.event.number }}
+          GH_TOKEN: ${{ github.token }}

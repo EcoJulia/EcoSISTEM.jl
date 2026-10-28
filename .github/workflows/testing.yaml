@@ -56,7 +56,7 @@ jobs:
       uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v4-${{ hashFiles('src/datasetread.jl') }}
+        key: rasterdata-${{ runner.os }}-v5-${{ hashFiles('src/datasetread.jl') }}
         lookup-only: true
     # A miss is usually the aggregation code having changed, which stales the cached aggregates
     # but not the ~850 MB of downloads. An older entry supplies the downloads, so only the
@@ -66,7 +66,7 @@ jobs:
       uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v4-${{ hashFiles('src/datasetread.jl') }}
+        key: rasterdata-${{ runner.os }}-v5-${{ hashFiles('src/datasetread.jl') }}
         restore-keys: |
           rasterdata-${{ runner.os }}-
     - name: Set up julia
@@ -105,7 +105,7 @@ jobs:
       uses: actions/cache/save@v6
       with:
         path: ~/.julia/scratchspaces
-        key: ${{ steps.prime.outputs.gaps == 'true' && format('rasterdata-{0}-v4-partial-{1}', runner.os, github.run_id) || format('rasterdata-{0}-v4-{1}', runner.os, hashFiles('src/datasetread.jl')) }}
+        key: ${{ steps.prime.outputs.gaps == 'true' && format('rasterdata-{0}-v5-partial-{1}', runner.os, github.run_id) || format('rasterdata-{0}-v5-{1}', runner.os, hashFiles('src/datasetread.jl')) }}
 
   EcoSISTEM-tests:
     name: ${{ matrix.suite }} - Julia ${{ matrix.julia-version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
@@ -131,9 +131,9 @@ jobs:
           - core_rasters
           - core_ext
           - extras
+        # The oldest supported Julia and the current release.
         julia-version:
           - '1.11'
-          - '1.12'
           - '1'
         os:
           - ubuntu-latest
@@ -148,12 +148,10 @@ jobs:
           - false
         exclude:
           # The extras check the package against things outside it, and run on the current release
-          # (Ubuntu and macOS, where the coverage job is) and on the oldest supported version
+          # (Ubuntu, where the coverage job is, and macOS) and on the oldest supported version
           # (Ubuntu). `runtests.jl` skips them on a Windows runner anyway.
           - suite: extras
             os: windows-latest
-          - suite: extras
-            julia-version: '1.12'
           - suite: extras
             julia-version: '1.11'
             os: macOS-latest
@@ -163,6 +161,16 @@ jobs:
             arch: arm64
           - os: windows-latest
             arch: arm64
+        include:
+          # Julia 1.12 on macOS, for the one workaround that acts only there, GDAL's CA bundle
+          # (`_brokencurl` in `src/EcoSISTEM.jl`, and `test_EcoSISTEM.jl`'s check that it is still
+          # needed). Remove this with it, when the `julia` compat floor passes 1.12.
+          - suite: core_test
+            julia-version: '1.12'
+            os: macOS-latest
+            R-version: 'release'
+            arch: arm64
+            experimental: false
       fail-fast: false
     steps:
     - name: Checkout code
@@ -174,10 +182,17 @@ jobs:
         arch: ${{ matrix.arch }}
     - name: Cache
       # **The depot cache must NOT be keyed on the test set.** By default this action appends every
-      # matrix value to its key, which after the split gave each of the thirty jobs its own ~1.2 GB
-      # entry - about 36 GB competing for the repository's 10 GB cache limit, so entries are evicted,
-      # jobs precompile from cold, and the raster caches can go the same way. One depot serves all
-      # four sets on a given OS, Julia and architecture, which is what this key says.
+      # matrix value to its key, which gives every job an entry of its own, far past the
+      # repository's 10 GB cache limit, so entries are evicted, jobs precompile from cold, and the
+      # raster caches go the same way. One depot serves all four sets on a given OS,
+      # Julia and architecture, which is what this key says.
+      #
+      # **And only the current release's depot is cached, on Linux and macOS.** An entry is 1.7-2.1
+      # GB, and replacing one briefly holds two, since the key carries the run id; with the three
+      # raster caches (1.2 GB each) that leaves room for two depots under the repository's 10 GB.
+      # More evicts the raster caches between the prime job's probe and the tests. The other jobs
+      # precompile from cold.
+      if: matrix.julia-version == '1' && matrix.os != 'windows-latest'
       uses: julia-actions/cache@v3
       with:
         cache-name: julia-cache;workflow=${{ github.workflow }};job=${{ github.job }};julia=${{ matrix.julia-version }};arch=${{ matrix.arch }}
@@ -219,20 +234,41 @@ jobs:
       # A restored cache can never be wrong, only incomplete: `getraster`/`download` each test the
       # target file's own existence before fetching, so a partial restore costs a few per-file
       # downloads rather than giving incorrect data. That is what makes the static part safe - and
-      # it is also the repair route if a save ever lands incomplete. BUMP THE `-v4` SUFFIX to mint
+      # it is also the repair route if a save ever lands incomplete. BUMP THE `-v5` SUFFIX to mint
       # a new entry; there is no need to work out which file changed.
       uses: actions/cache/restore@v6
       with:
         path: ~/.julia/scratchspaces
-        key: rasterdata-${{ runner.os }}-v4-${{ hashFiles('src/datasetread.jl') }}
+        key: rasterdata-${{ runner.os }}-v5-${{ hashFiles('src/datasetread.jl') }}
         restore-keys: |
           rasterdata-${{ runner.os }}-
     - name: Build package
       uses: julia-actions/julia-buildpkg@v1
+    - name: Fetch what the raster cache lacked
+      # The prime job's probe can find an entry that is evicted before this job restores it, and a
+      # partial restore lacks some files. Without this every raster read would download in the
+      # suite, where one dropped connection fails a test; `primecache.jl` fetches with retries,
+      # before the suite, so its memory is not added to the suite's.
+      if: steps.rasters.outputs.cache-hit != 'true'
+      shell: bash
+      run: julia --project -e 'using Pkg; Pkg.test(test_args = ["primecache.jl"])'
+    # The instrumented extras job also runs `test/extras_pipeline.jl`, which drives `fair` and
+    # installs a registry of its own; `ECOSISTEM_TEST_PIPELINE` below requires the set there, so a
+    # broken install fails it rather than skipping it. The CLI is pinned to go with that registry.
+    - name: Set up Python for the pipeline runs
+      if: matrix.suite == 'extras' && matrix.os == 'ubuntu-latest' && matrix.julia-version == '1'
+      uses: actions/setup-python@v7
+      with:
+        python-version: '3.12'
+    - name: Install the FAIR CLI for the pipeline runs
+      if: matrix.suite == 'extras' && matrix.os == 'ubuntu-latest' && matrix.julia-version == '1'
+      run: python -m pip install fair-cli==0.11.0
     - name: Running
-      # Coverage instrumentation is a large slowdown, so it runs on one Julia and OS - macOS, on the
+      # Coverage instrumentation is a large slowdown, so it runs on one Julia and OS - Ubuntu, on the
       # release Julia - for every test set; Codecov merges the uploads. Every other entry runs the
-      # same tests uninstrumented.
+      # same tests uninstrumented. Not macOS, whose runner is the smallest (3 cores and 7 GB, against
+      # Ubuntu's 4 and 16): there the instrumented job's four-rank MPI launch does not finish within
+      # its limit.
       #
       # `ECOSISTEM_TEST_JOBS` asks for two workers on macOS: the runner reports too little free memory
       # for ParallelTestRunner to choose a second, which runs every file in sequence. The raster
@@ -252,15 +288,16 @@ jobs:
       uses: julia-actions/julia-runtest@v1
       env:
         ECOSISTEM_TEST_JOBS: ${{ matrix.os == 'macOS-latest' && '2' || '' }}
+        ECOSISTEM_TEST_PIPELINE: ${{ matrix.suite == 'extras' && matrix.os == 'ubuntu-latest' && matrix.julia-version == '1' && 'true' || '' }}
       with:
         test_args: ${{ matrix.suite }}
-        coverage: ${{ matrix.os == 'macOS-latest' && matrix.julia-version == '1' }}
+        coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.julia-version == '1' }}
         prefix: ${{ runner.os != 'Windows' && format('{0}/.github/sample-resources.sh', github.workspace) || '' }}
     - name: Process coverage
-      if: matrix.os == 'macOS-latest' && matrix.julia-version == '1'
+      if: matrix.os == 'ubuntu-latest' && matrix.julia-version == '1'
       uses: julia-actions/julia-processcoverage@v1
     - name: Codecov
-      if: matrix.os == 'macOS-latest' && matrix.julia-version == '1'
+      if: matrix.os == 'ubuntu-latest' && matrix.julia-version == '1'
       uses: codecov/codecov-action@v7
       with:
         token: ${{ secrets.CODECOV_TOKEN }}

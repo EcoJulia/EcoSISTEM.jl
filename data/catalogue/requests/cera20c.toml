@@ -1,0 +1,30 @@
+# What ECMWF required of anyone using CERA-20C, quoted from its licence page as the Wayback Machine
+# captured it on 2022-08-19 (the public service closed on 2023-06-01). ECMWF asks for no citation:
+# the reference is the catalogue's choice, the paper describing the reanalysis. `YYYY` is the
+# licence's `[year]`, the year a file was fetched.
+pages = ["https://web.archive.org/web/20220819082815/https://apps.ecmwf.int/datasets/data/cera20c/licence/"]
+read = 2026-10-25
+
+[[reference]]
+doi = "10.1029/2018MS001273"
+text = "Laloyaux, P., de Boisseson, E., Balmaseda, M., Bidlot, J.-R., Broennimann, S., Buizza, R., Dalhgren, P., Dee, D., Haimberger, L., Hersbach, H., Kosaka, Y., Martin, M., Poli, P., Rayner, N., Rustemeier, E., & Schepers, D. (2018). CERA-20C: A Coupled Reanalysis of the Twentieth Century. Journal of Advances in Modeling Earth Systems, 10(5), 1172-1195. https://doi.org/10.1029/2018MS001273"
+
+[[notice]]
+strength = "required"
+text = "Copyright statement: Copyright \"© YYYY European Centre for Medium-Range Weather Forecasts (ECMWF)\"."
+
+[[notice]]
+strength = "required"
+text = "Source www.ecmwf.int"
+
+[[notice]]
+strength = "required"
+text = "Licence Statement: This data is published under a Creative Commons Attribution 4.0 International (CC BY 4.0). https://creativecommons.org/licenses/by/4.0/"
+
+[[notice]]
+strength = "required"
+text = "Disclaimer: ECMWF does not accept any liability whatsoever for any error or omission in the data, their availability, or for any loss or damage arising from their use."
+
+[[notice]]
+strength = "required"
+text = "Where applicable, an indication if the material has been modified and an indication of previous modifications."

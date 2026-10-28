@@ -1,0 +1,12 @@
+# What EarthEnv asks of anyone using its habitat heterogeneity metrics, quoted from the page as it
+# was read: the dataset citation, and the attribution its CC BY-NC licence requires.
+pages = ["https://www.earthenv.org/texture"]
+read = 2026-10-25
+
+[[reference]]
+doi = "10.1111/geb.12365"
+text = "Tuanmu, M.-N. and W. Jetz. (2015) A global, remote sensing-based characterization of terrestrial habitat heterogeneity for biodiversity and ecosystem modeling. Global Ecology and Biogeography. DOI: 10.1111/geb.12365."
+
+[[notice]]
+strength = "required"
+text = "Global Habitat Heterogeneity Metrics Version 1 by Tuanmu & Jetz is licensed under a Creative Commons Attribution-NonCommercial 4.0 International License. Permissions beyond the scope of this license may be available at http://www.earthenv.org/texture.html."

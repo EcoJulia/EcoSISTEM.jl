@@ -13,15 +13,11 @@
 
 using Plots
 
-# The community of the island configuration run for its years, returning each species' total
-# abundance at the end.
-function _optima_run(opts, widths; temperature = 298.0K)
-    island = island_configuration()
-    eco = community(uniform_environment(PAPER_CELLS, PAPER_AREA,
-                                        temperature = temperature),
-                    opts, widths, individuals = island.individuals,
-                    seed = PAPER_SEED)
-    simulate!(eco, island.years, PAPER_TIMESTEP)
+# The island's community run for its duration, returning each species' total abundance at the end.
+function _optima_run(opts, widths; temperature = island_temperature())
+    eco = island_community(island_environment(temperature = temperature), opts,
+                           widths)
+    simulate!(eco, PAPER.island.duration, PAPER_TIMESTEP)
     return perspecies(eco)
 end
 
@@ -32,38 +28,48 @@ function _traitgrid(low, high, n)
 end
 
 function optima_figure()
-    n = island_configuration().numspecies
+    n = PAPER.island.species
+    optima = PAPER.optima
+    temperature = island_temperature()
+    width = PAPER.island.width
 
-    # A: preferences spread +/- 3 widths about the landscape's 298 K, all 2 K wide, in 1.2 K bins
-    # of ten species. B and C: every optimum at 298 K, widths from 0.1 K to 5.1 K in 0.5 K bins of
-    # ten species. The original started at 0.0001 K; the floor of 0.1 K is a realism preference,
-    # since a niche a ten-thousandth of a kelvin wide is not a plant. B has the landscape at 298 K,
-    # C at 299 K.
-    spread = _traitgrid(292.0K, 304.0K, n)
-    graded = _traitgrid(0.1K, 5.1K, n)
-    runs = [(opts = spread, widths = fill(2.0K, n), temperature = 298.0K),
-        (opts = fill(298.0K, n), widths = graded, temperature = 298.0K),
-        (opts = fill(298.0K, n), widths = graded, temperature = 299.0K)]
+    # A: preferences spread evenly either side of the landscape's temperature, every species of the
+    # island's width, in `bins` bins. B and C: every optimum at that temperature, widths spread evenly
+    # over `optima.widths`, in `bins` bins; a niche of no width is not a plant, hence the floor. B
+    # has the landscape at that temperature, C `offset` warmer.
+    low, high = temperature - optima.spread, temperature + optima.spread
+    spread = _traitgrid(low, high, n)
+    graded = _traitgrid(optima.widths..., n)
+    runs = [(opts = spread, widths = fill(width, n), temperature = temperature),
+        (opts = fill(temperature, n), widths = graded,
+         temperature = temperature),
+        (opts = fill(temperature, n), widths = graded,
+         temperature = temperature + optima.offset)]
     totals = map(r -> _optima_run(r.opts, r.widths,
                                   temperature = r.temperature), runs)
 
-    edges = collect(292.0:1.2:304.0) .* K
+    step = (high - low) / optima.bins
+    edges = collect(ustrip(K, low):ustrip(K, step):ustrip(K, high)) .* K
     counts = weighted_histogram(spread, totals[1], edges)
     centres = ustrip.(°C, (edges[1:(end - 1)] .+ edges[2:end]) ./ 2)
-    panela = bar(centres, counts, bar_width = 1.2,
+    panela = bar(centres, counts, bar_width = ustrip(K, step),
                  xlab = "Temperature preference (C)", ylab = "Abundance",
                  label = "", title = "A", titleloc = :left)
 
-    edges = collect(0.1:0.5:5.1) .* K
+    lowest, widest = optima.widths
+    step = (widest - lowest) / optima.bins
+    edges = collect(ustrip(K, lowest):ustrip(K, step):ustrip(K, widest)) .* K
     matched = weighted_histogram(graded, totals[2], edges)
     shifted = weighted_histogram(graded, totals[3], edges)
     centres = ustrip.(K, (edges[1:(end - 1)] .+ edges[2:end]) ./ 2)
     # The same y range on both, so the specialist-versus-generalist contrast reads across them.
     top = 1.05 * max(maximum(matched), maximum(shifted))
-    panelb = bar(centres, matched, bar_width = 0.5, xlab = "Niche width (C)",
+    panelb = bar(centres, matched, bar_width = ustrip(K, step),
+                 xlab = "Niche width (C)",
                  ylab = "Abundance", ylim = (0, top), label = "", title = "B",
                  titleloc = :left)
-    panelc = bar(centres, shifted, bar_width = 0.5, xlab = "Niche width (C)",
+    panelc = bar(centres, shifted, bar_width = ustrip(K, step),
+                 xlab = "Niche width (C)",
                  ylab = "", ylim = (0, top), label = "", title = "C",
                  titleloc = :left)
 

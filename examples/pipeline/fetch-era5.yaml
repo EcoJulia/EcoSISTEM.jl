@@ -1,0 +1,21 @@
+run_metadata:
+  description: ERA5's files for the data pipeline example, fetched and registered
+  default_input_namespace: ECMWF
+  default_output_namespace: ECMWF
+  script: |
+    julia --project=examples/pipeline examples/pipeline/fetch.jl era5
+
+# The source's namespace, as the catalogue names it (`data/catalogue/datasets.csv`), which is the
+# run's own: its one input is the source's deposit, and its outputs the files and their records.
+register:
+- namespace: ECMWF
+  full_name: European Centre for Medium-Range Weather Forecasts
+  website: https://www.ecmwf.int/
+
+write:
+- data_product: era5/data/*
+  description: An ERA5 extract from the Climate Data Store
+  file_type: nc
+- data_product: era5/provenance/*
+  description: EcoSISTEM's provenance record of a file under era5
+  file_type: toml

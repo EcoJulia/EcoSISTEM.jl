@@ -47,7 +47,14 @@ const REGIONS = [
 ]
 
 # Read one layer once, globally, mean-aggregated (downloads via getraster on first call, then cached).
-readlayer(T, layer) = read(T, layer, scale = SCALE, fn = mean).array
+# A layer read raw - its magnitudes as published, with no unit attached and no total turned into a
+# rate - since the comparisons below are of magnitudes.
+function readlayer(T, layer)
+    raw = EcoSISTEM._readraw(T, getraster(T, layer), cut = nothing,
+                             scale = SCALE,
+                             fn = mean, axis = EcoSISTEM._readaxis(T, layer))
+    return EcoSISTEM._rescalepublished(T, layer, raw).array
+end
 
 # Plain finite Float values (strip any unit / Missing / NaN).
 function finitevals(a)

@@ -51,6 +51,9 @@ const WANTED = [
                         month = 1:12),
     "WorldClim Elevation" => () -> getraster(WorldClim{Elevation}),
     "EarthEnv LandCover (all classes)" => () -> getraster(EarthEnv{LandCover}),
+    # The full version, read only by the examples, through windows, so it has no aggregate to prime.
+    "EarthEnv LandCover with DISCover (all classes)" =>
+        () -> getraster(EarthEnv{LandCover{:DISCover}}),
     "EarthEnv HabitatHeterogeneity" =>
         () -> getraster(EarthEnv{HabitatHeterogeneity}),
     "CHELSA BioClim layer 1" => () -> getraster(CHELSA{BioClim}, 1),

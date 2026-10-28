@@ -32,7 +32,8 @@ struct CachedAsset
 end
 
 """
-    CDSRequest(dataset::AbstractString, request::AbstractDict, path::AbstractString)
+    CDSRequest(dataset::AbstractString, request::AbstractDict, path::AbstractString;
+               region = nothing)
 
 A file fetched from the Copernicus Climate Data Store on first use and kept at `path`: the CDS
 `dataset` to ask (`"reanalysis-era5-single-levels-monthly-means"`), the `request` as the CDS
@@ -49,29 +50,34 @@ layer instead of the CDS's own names.
   - `request`: the request body, keys as the CDS documents them, values strings or vectors of
     strings.
   - `path`: where the file lives once fetched.
+  - `region`: the named region the request's area was taken from, as the
+    [`NaturalEarthSpec`](@ref) naming it, which the file's provenance record keeps beside the
+    box; `nothing` where the area was given as a box, or there is none.
 """
 struct CDSRequest
     dataset::String
     request::Dict{String, Any}
     path::String
+    region::Union{Nothing, String}
     function CDSRequest(dataset::AbstractString, request::AbstractDict,
-                        path::AbstractString)
+                        path::AbstractString; region = nothing)
         return new(String(dataset),
                    Dict{String, Any}(string(k) => v for (k, v) in request),
-                   String(path))
+                   String(path), isnothing(region) ? nothing : String(region))
     end
 end
 
 """
     EcoSISTEM.assetdir(mod::Module = EcoSISTEM; owner::Union{Type, Nothing} = nothing)
 
-Path to a subdirectory of EcoSISTEM's Scratch.jl space, for storing downloaded data outside the
+Path to a subdirectory of EcoSISTEM's asset cache, for storing downloaded data outside the
 repository. Creating the directory is part of answering.
 
-One EcoSISTEM-owned space with a subdirectory per package, rather than a space each, keeps the whole
-cache under one lifecycle: created on first use, and reclaimed by `Pkg.gc()` when EcoSISTEM is
-removed. `RasterDataSources` is put under it the same way, by the extension's `__init__` setting
-`RASTERDATASOURCES_PATH`.
+The cache is EcoSISTEM's Scratch.jl space, or the directory [`EcoSISTEM.set_assetdir!`](@ref)
+recorded, which is read on every call. One cache with a subdirectory per package, rather than a
+space each, keeps every download under one lifecycle: a scratch space is created on first use, and
+reclaimed by `Pkg.gc()` when EcoSISTEM is removed. `RasterDataSources` is put under it the same way,
+by the extension's `__init__` setting `RASTERDATASOURCES_PATH`.
 
 # Arguments
 
@@ -81,9 +87,48 @@ removed. `RasterDataSources` is put under it the same way, by the extension's `_
 """
 function assetdir(mod::Module = EcoSISTEM;
                   owner::Union{Type, Nothing} = nothing)
-    dir = joinpath(get_scratch!(EcoSISTEM, "assets"), string(nameof(mod)))
+    dir = joinpath(_assetroot(), string(nameof(mod)))
     isnothing(owner) || (dir = joinpath(dir, string(nameof(owner))))
     return mkpath(dir)
+end
+
+"""
+    EcoSISTEM.set_assetdir!(dir::AbstractString)
+    EcoSISTEM.set_assetdir!(nothing)
+
+Keep EcoSISTEM's asset cache - every download, and the memoised aggregates - in `dir` from now on,
+rather than in EcoSISTEM's Scratch.jl space, which lives in the first Julia depot and may be on a
+disk too small for climate data. `nothing` returns the cache to the scratch space. Return the
+directory the cache is now in, made if need be.
+
+The choice is a preference in the `LocalPreferences.toml` of the first environment on the load path
+that has EcoSISTEM, so it holds for every later session taking EcoSISTEM from that environment, and
+[`EcoSISTEM.assetdir`](@ref) reads it on every call. Files already downloaded stay where they are,
+and are fetched again unless moved across. `RasterDataSources`' downloads move with the cache where
+the extension put them in it, and stay where `RASTERDATASOURCES_PATH` was set otherwise. `Pkg.gc()`
+never reclaims a directory chosen here.
+
+# Arguments
+
+  - `dir`: the directory to keep the cache in, `~` and a relative path expanded.
+"""
+function set_assetdir!(dir::AbstractString)
+    path = mkpath(abspath(expanduser(dir)))
+    # Into the environment that has EcoSISTEM rather than the active one, which may not name it and
+    # would then be given it in `[extras]`, its Project.toml rewritten
+    Preferences.set_preferences!(EcoSISTEM, "assetdir" => path,
+                                 active_project_only = false, force = true)
+    _repointextensions()
+    return _assetroot()
+end
+
+function set_assetdir!(::Nothing)
+    Preferences.has_preference(EcoSISTEM, "assetdir") &&
+        Preferences.delete_preferences!(EcoSISTEM, "assetdir",
+                                        active_project_only = false,
+                                        force = true)
+    _repointextensions()
+    return _assetroot()
 end
 
 """
@@ -102,7 +147,9 @@ provenance record beside it when it does - see [`provenance`](@ref).
     the same file waits for the first rather than fetching it again.
   - `request`: a [`CDSRequest`](@ref), fetched from the Climate Data Store into its own `path` if
     that file does not already exist. The fetch needs `CDSAPI` loaded and a CDS key in
-    `~/.cdsapirc`; a file already present needs neither.
+    `~/.cdsapirc`; a file already present needs neither. A present file whose provenance record
+    says it was fetched for a different request - another box, or other months - is refused,
+    naming what differs, and left as it is.
   - `verify`: `true` checks a file that is already present against the checksum its provenance
     record holds, erroring on a mismatch - a truncated or replaced file. Off by default, since
     hashing a large file on every read would cost more than the read.
@@ -139,6 +186,7 @@ end
 
 function assetpath(request::CDSRequest; verify::Bool = false)
     if isfile(request.path)
+        _checkrequest(request)
         _recordpresent(request.path) do
             return _requestrecord(request, request.path, nothing)
         end
@@ -160,6 +208,19 @@ function assetpath(request::CDSRequest; verify::Bool = false)
 end
 
 assetpath(relative_path::AbstractString) = joinpath(assetdir(), relative_path)
+
+# The asset cache's root: the directory `set_assetdir!` recorded, else EcoSISTEM's scratch space.
+function _assetroot()
+    dir = Preferences.load_preference(EcoSISTEM, "assetdir", nothing)
+    return isnothing(dir) ? get_scratch!(EcoSISTEM, "assets") : String(dir)
+end
+
+# Tell each loaded extension that keeps files under the asset cache that the cache has moved.
+function _repointextensions()
+    isnothing(Base.get_extension(EcoSISTEM, :EcoSISTEMRasterDataSourcesExt)) ||
+        _repointrasterdatasources()
+    return nothing
+end
 
 # Run `fetch` under the lock for `path`, unless the file has appeared by the time the lock is held,
 # which is what a process that waited on another's download finds. The lock is a pid file beside
@@ -248,12 +309,21 @@ function _recordpresent(record::Function, path::AbstractString)
 end
 
 # Write `record` as the provenance sidecar of `path`, in TOML, keys sorted so two records of one
-# file diff cleanly.
+# file diff cleanly. Written to a sibling and renamed in, never into the file already there: a
+# sidecar a data pipeline run put in place is a hard link to the run's store, and writing into it
+# would change the store's copy. The sibling is each writer's own, since several processes may
+# record one file at once - the MPI ranks that waited on another's download among them.
 function _writesidecar(path::AbstractString, record::AbstractDict)
-    open(_sidecarpath(path), "w") do io
-        return TOML.print(io, record, sorted = true)
+    sidecar = _sidecarpath(path)
+    part, io = mktemp(dirname(abspath(sidecar)))
+    try
+        TOML.print(io, record, sorted = true)
+    finally
+        close(io)
     end
-    return _sidecarpath(path)
+    chmod(part, 0o644)
+    mv(part, sidecar, force = true)
+    return sidecar
 end
 
 # The SHA-256 digest of a file, as hex.
@@ -289,16 +359,31 @@ end
 # Now, in UTC, written as ISO 8601 with its `Z`.
 _utcnow() = Dates.format(Dates.now(Dates.UTC), "yyyy-mm-ddTHH:MM:SS") * "Z"
 
-# The catalogue's facts about a fetched file, where the file is a layer of a catalogued source:
-# the source, the layer, and the row's DOI, licence, version and citation. Empty where the owner
-# is no source, or the file is no layer of it.
-function _cataloguerecord(owner::Type, layer)
+# The catalogue's facts about a file of a catalogued source, the one place they are computed for
+# every record written and every registration made: the source, the layer where the file is one,
+# the file's title, whether it is its source's own for the `route` it came by (`:published`,
+# `:extract` or `:given`, as `_isprimary` reads them), and the row's DOI, licence, version, release
+# date and citation, with what its provider asks - the references, the notices and the
+# documentation's section quoting them - left out where blank. Empty where the owner is no source.
+function _cataloguerecord(owner::Type, layer, path::AbstractString;
+                          route::Symbol)
     rec = _datasetrecord(owner)
     isnothing(rec) && return Dict{String, Any}()
-    record = Dict{String, Any}("source" => rec.dataset, "doi" => rec.doi,
-                               "licence" => rec.licence,
-                               "version" => rec.version,
-                               "citation" => rec.citation)
+    record = Dict{String, Any}("source" => rec.dataset,
+                               "title" => _filetitle(rec, layer, path),
+                               "primary" => _isprimary(rec, route))
+    for (key, value) in (("doi", rec.doi), ("licence", rec.licence),
+        ("version", rec.version), ("release_date", rec.releasedate),
+        ("citation", rec.citation), ("request_page", _requestpage(rec)))
+        isempty(value) || (record[key] = value)
+    end
+    isempty(rec.references) ||
+        (record["references"] = [Dict("doi" => r.doi, "text" => r.text)
+                                 for r in rec.references])
+    isempty(rec.notices) ||
+        (record["notices"] = [Dict("strength" => string(n.strength),
+                                   "text" => n.text)
+                              for n in rec.notices])
     isnothing(layer) || (record["code"] = first(layer.aliases))
     return record
 end
@@ -314,17 +399,62 @@ function _assetrecord(asset::CachedAsset, path::AbstractString, response)
     if !isnothing(response)
         response.url == asset.url || (record["final_url"] = response.url)
         for (name, key) in (("etag", "etag"), ("last-modified", "last_modified"))
-            i = findfirst(h -> lowercase(first(h)) == name, response.headers)
-            isnothing(i) || (record[key] = String(last(response.headers[i])))
+            value = _headervalue(response.headers, name)
+            isnothing(value) || (record[key] = value)
         end
+        modified = _providertime(response.headers)
+        isnothing(modified) || (record["modified"] = modified)
     end
     isnothing(rec) && return record
     layer = rec.format === :Shapefile ? nothing :
             _layerbyfile(asset.owner, asset.url)
-    merge!(record, _cataloguerecord(asset.owner, layer))
+    merge!(record,
+           _cataloguerecord(asset.owner, layer, path, route = :published))
     version = _fileversion(rec, path)
     isnothing(version) || (record["version"] = version)
     return record
+end
+
+# A response header's value by its name in any case, or `nothing` where it was not sent.
+function _headervalue(headers, name::AbstractString)
+    i = findfirst(h -> lowercase(first(h)) == name, headers)
+    return isnothing(i) ? nothing : String(last(headers[i]))
+end
+
+# When the provider last changed the file a response describes, as ISO 8601 text in UTC with its
+# `Z`: the file's own time where the server keeps it as metadata (CHELSA's object store sends it
+# as `x-amz-meta-mtime`, its `Last-Modified` being when it was uploaded there), else the
+# `Last-Modified` it sent; `nothing` where it sent neither in a form that reads.
+function _providertime(headers)
+    mtime = _headervalue(headers, "x-amz-meta-mtime")
+    seconds = isnothing(mtime) ? nothing : tryparse(Float64, mtime)
+    isnothing(seconds) ||
+        return Dates.format(Dates.unix2datetime(floor(seconds)),
+                            "yyyy-mm-ddTHH:MM:SS") * "Z"
+    modified = _headervalue(headers, "last-modified")
+    isnothing(modified) && return nothing
+    t = tryparse(Dates.DateTime, replace(modified, r"\s+GMT$" => ""),
+                 Dates.dateformat"e, d u y H:M:S")
+    return isnothing(t) ? nothing :
+           Dates.format(t, "yyyy-mm-ddTHH:MM:SS") * "Z"
+end
+
+# The provider's time for the file at `url`, asked by a `HEAD` and read as `_providertime` reads
+# a response, where the answer can be tied to the bytes held at `held`: the size the server states
+# must be that file's, since a record may be written long after the file was fetched and the
+# server's file changed since. `nothing` where the server cannot be asked, states no time or no
+# size, or describes another file.
+function _headprovidertime(url::AbstractString, held::AbstractString)
+    response = try
+        Downloads.request(url, method = "HEAD", timeout = 30,
+                          downloader = _http11downloader(), throw = false)
+    catch
+        return nothing
+    end
+    response.status == 200 || return nothing
+    size = _headervalue(response.headers, "content-length")
+    (isnothing(size) || tryparse(Int, size) != filesize(held)) && return nothing
+    return _providertime(response.headers)
 end
 
 # The part of the system a download owned by `owner` enters by: an outline for a shape spec or a
@@ -352,35 +482,108 @@ function _zipversion(path::AbstractString)
 end
 
 # The provenance record of a file fetched from the Climate Data Store: the dataset asked, the
-# request body as sent, the job the CDS ran, and the catalogue's facts where the dataset is one
-# the catalogue knows (ERA5 monthly means are `ERA`'s) and the variable one of its layers.
+# request body as sent, the job the CDS ran, the file's own `history` attribute where the fetch
+# replaced it, and the catalogue's facts where the dataset is one the catalogue knows (ERA5 monthly
+# means are `ERA`'s) and the variable one of its layers. An extract a service made to a request is
+# never its source's own.
 function _requestrecord(request::CDSRequest, path::AbstractString, status)
     record = _baserecord(path, :habitat)
     record["dataset"] = request.dataset
     record["request"] = request.request
-    job = status isa AbstractDict ? get(status, "jobID", nothing) : nothing
-    isnothing(job) || (record["job"] = string(job))
+    record["primary"] = false
+    isnothing(request.region) || (record["region"] = request.region)
+    for (key, field) in (("jobID", "job"), ("history", "history"))
+        value = status isa AbstractDict ? get(status, key, nothing) : nothing
+        isnothing(value) || (record[field] = string(value))
+    end
     if request.dataset == _ERA5_MONTHLY
         variables = get(request.request, "variable", String[])
         layer = length(variables) == 1 ?
                 _layerbyrequest(ERA, string(only(variables))) : nothing
-        merge!(record, _cataloguerecord(ERA, layer))
+        merge!(record, _cataloguerecord(ERA, layer, path, route = :extract))
     end
     return record
 end
 
+# What a fetched netCDF file's global `history` attribute is replaced by: the attribute records when
+# and in which temporary directory the provider converted the file, so two fetches of the same data
+# differ in those bytes alone, and with this in its place they are identical.
+const _HISTORYNOTE = "Rewritten by EcoSISTEM so that fetches of the same data are identical; " *
+                     "the original is in the provenance record."
+
+# Replace the global `history` attribute of the netCDF file at `path` with `_HISTORYNOTE`, padded or
+# cut to the original's length so the file keeps its size and layout, and return the original text;
+# `nothing`, touching nothing, for a file with no `history` text or one holding the note already.
+# Done to a Climate Data Store file before it is renamed into place and its checksum taken.
+function _normalisehistory!(path::AbstractString)
+    return NCDatasets.Dataset(path, "a") do ds
+        history = get(ds.attrib, "history", nothing)
+        history isa AbstractString || return nothing
+        n = ncodeunits(history)
+        note = rpad(first(_HISTORYNOTE, n), n)
+        history == note && return nothing
+        ds.attrib["history"] = note
+        return String(history)
+    end
+end
+
+# Refuse a present file whose record of ours says it was fetched for another request - a box or
+# months changed under one path - rather than serve it as this one. A file with no record, or with
+# another program's, passes, presence being all there is to go on.
+function _checkrequest(request::CDSRequest)
+    sidecar = _sidecarpath(request.path)
+    isfile(sidecar) || return nothing
+    record = TOML.tryparsefile(sidecar)
+    (record isa AbstractDict && _ourrecord(record) &&
+     haskey(record, "request")) || return nothing
+    differ = _requestdifferences(record["request"], request.request)
+    recorded = get(record, "dataset", request.dataset)
+    recorded == request.dataset ||
+        pushfirst!(differ,
+                   "dataset: recorded $(repr(recorded)), asked $(repr(request.dataset))")
+    isempty(differ) && return nothing
+    lines = join(differ, "\n  ")
+    return error("`$(request.path)` was fetched for a different request, so it is not served as " *
+                 "this one:\n  $lines\nGive this request a path of its own, or delete the file " *
+                 "and its `.provenance.toml` to fetch it again.")
+end
+
+# What two Climate Data Store request bodies differ in, a line per key, empty where they ask for
+# the same data: years and months compare as sets, and a single value as a list of one.
+function _requestdifferences(recorded::AbstractDict, asked::AbstractDict)
+    lines = String[]
+    for key in sort!(collect(union(keys(recorded), keys(asked))))
+        r = get(recorded, key, nothing)
+        a = get(asked, key, nothing)
+        _requestvalue(key, r) == _requestvalue(key, a) ||
+            push!(lines, "$key: recorded $(repr(r)), asked $(repr(a))")
+    end
+    return lines
+end
+
+# A request value in the form two requests are compared in.
+_requestvalue(::Any, ::Nothing) = nothing
+
+function _requestvalue(key, value)
+    list = value isa AbstractVector ? collect(value) : [value]
+    return key in ("year", "month") ? sort!(unique!(string.(list))) : list
+end
+
 # The body of a Climate Data Store request for ERA5 monthly means on single levels: one
-# `variable` by its CDS name, the `years` and `months` as two-digit strings, an `area` as
-# `[north, west, south, east]` in degrees where given, netCDF unarchived. The shape the CDS takes
-# and `CDSAPI.retrieve` sends.
+# `variable` by its CDS name, the `years` and `months` in order as strings, each month of two
+# digits, an `area` as `[north, west, south, east]` in degrees where given, netCDF unarchived. The
+# shape the CDS takes and `CDSAPI.retrieve` sends.
 function _era5request(variable::AbstractString, years; months = 1:12,
                       area = nothing)
+    ms = sort!(unique(collect(months)))
+    !isempty(ms) && all(in(1:12), ms) ||
+        error("`months` are months of the year, 1 to 12; got $(repr(months)).")
     request = Dict{String, Any}("product_type" =>
                                     ["monthly_averaged_reanalysis"],
                                 "variable" => [String(variable)],
-                                "year" => string.(collect(years)),
-                                "month" => lpad.(string.(collect(months)), 2,
-                                      '0'),
+                                "year" =>
+                                    string.(sort!(unique(collect(years)))),
+                                "month" => lpad.(string.(ms), 2, '0'),
                                 "time" => ["00:00"],
                                 "data_format" => "netcdf",
                                 "download_format" => "unarchived")

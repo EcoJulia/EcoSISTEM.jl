@@ -32,6 +32,7 @@ here combined.
 |---|---|---|
 | `architecture.jl` | `data/architecture.md` | audits by default; `--fix` repairs inheritance edges. Also run by `test/clean_Architecture.jl` |
 | `naturalearth_regions.jl` | `data/NaturalEarth/regions.csv` | 2444 rows from the Natural Earth 1:10m shapefiles; needs a download |
+| `citations.jl` | `data/catalogue/citations.bib`, `data/catalogue/authors.toml` | the BibTeX of every DOI the catalogue names, and the ORCID or ROR id of each author doi.org's metadata identifies; compares by default, `--write` to write; needs the network. Checked by `test/clean_CatalogueRequests.jl` |
 | `rate_table.jl` | `data/rate_table.csv` | birth and death rates against the demographic parameters |
 | `bioclimplus_units.jl` | a measurement, not a file | the evidence establishing the units of two CHELSA-BIOCLIM+ layers |
 | `benchmarks/` | timings, CSVs and plots | `run_benchmarks.jl` drives worker processes, each launched with this directory as its project |

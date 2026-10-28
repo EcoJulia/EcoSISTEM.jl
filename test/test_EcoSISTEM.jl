@@ -8,6 +8,8 @@ using Downloads: Downloads
 using Hwloc
 using Test
 import ArchGDAL
+# `Base.Docs.doc(::Binding)`, which the docstring checks below call, is a method REPL defines.
+import REPL
 
 struct _CacheTestOwner end
 
@@ -162,8 +164,8 @@ end
 @testset "no public function hands out a naked array" begin
     # `Union{} <: AbstractDimArray` is **true** - the empty union is a subtype of everything - so
     # excluding it is what separates a real leak from an inference failure, and without the guard
-    # this reports five. Measured: `GridHabitat`, `build_species`, `update!`,
-    # `investigate_study_area` and `emptyMPIgridlandscape` all infer `Union{}` on an error path.
+    # this reports four. Measured: `GridHabitat`, `build_species`, `update!` and
+    # `investigate_study_area` all infer `Union{}` on an error path.
     isdim(T) = T !== Union{} &&
                (T <: DimensionalData.AbstractDimArray ||
                 (T isa Union && (isdim(T.a) || isdim(T.b))))
@@ -234,7 +236,9 @@ _documented_control_() = nothing
     end
 
     # A *named* list, not a count: a new gap has to be looked at. A `@deprecate`d shim belongs here,
-    # its redirect being its documentation.
+    # its redirect being its documentation - every one by name, since `Base.isdeprecated` is false
+    # for them all: `@deprecate` creates an ordinary function carrying a redirect method, and only
+    # `@deprecate_binding` marks the binding, so no filter can find them.
     known = [
         # `EcoSISTEM.Units` constants - `Unitful.@unit` and the `Dates` month-number re-exports
         # generate the binding, so there is nowhere to hang a docstring of our own.
@@ -246,15 +250,7 @@ _documented_control_() = nothing
         :july_duration, :august_duration, :september_duration,
         :october_duration, :november_duration, :december_duration,
         :month_mean_duration, :quarter_mean_duration,
-        :arcminute, :arcsecond, :day, :week, :year, :percent,
-        # A shim that errors with a migration message, because its old signature cannot reach what
-        # the replacement needs.
-        #
-        # Every `@deprecate`d FUNCTION has to be named here, and that is not laziness:
-        # `Base.isdeprecated` is **false** for all of them, because `@deprecate` creates an ordinary
-        # function carrying a redirect method where only `@deprecate_binding` marks the binding. So
-        # the check cannot find them and the list cannot be replaced by a filter.
-        :emptyMPIgridlandscape]
+        :arcminute, :arcsecond, :day, :week, :year, :percent]
     # Every name on the list is a generated constant or a deprecation shim, so the package has
     # **no undocumented public name at all**. A
     # genuine gap appearing here would have to be added deliberately, which is the point.
@@ -363,10 +359,10 @@ end
     docof(n) = string(Base.Docs.doc(Base.Docs.Binding(EcoSISTEM, n)))
     @test !_documents(docof(:getcellareas), :kw_that_is_never_documented)
     for (n, k) in ((:getcellareas, :force), (:build_habitat, :verbosity),
-        (:StudyArea, :cellsize), (:readfile, :cut))
+        (:StudyArea, :cellsize), (:RasterSpec, :cut))
         @test _documents(docof(n), k)
     end
-    # And it is not a bare substring search: `readfile`'s own prose says "cutting a global layer",
+    # And it is not a bare substring search: `RasterSpec`'s own prose says "cutting a global layer",
     # which `occursin` would accept as documentation of a keyword called `cutting`.
     #
     # What it does NOT catch, measured: a keyword mentioned only in passing - `` `force = true` ``
@@ -374,7 +370,8 @@ end
     # failure this exists for is a keyword written down **nowhere**, which is how `force` stayed
     # invisible on five functions at once; demanding a bullet would mean parsing the block, and
     # would fail on the shared form `` `units`, `x`, `force` ``.
-    @test !_documents(docof(:readfile), :cutting)
+    @test occursin("cutting", docof(:RasterSpec))
+    @test !_documents(docof(:RasterSpec), :cutting)
 end
 
 # Both directions of `_needscabundle` are asserted: that GDAL fetches over HTTPS with whatever

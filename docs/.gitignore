@@ -1,2 +1,4 @@
 build/
 site/
+# Made by `requests.jl` from the request files on every build, so never committed.
+src/requests.md

@@ -566,9 +566,6 @@ end
         @test occursin("ConstructedShapeSpec", err)
         @test occursin("within", err)
     end
-
-    # The released name still resolves, since renaming it was for the mirror rather than a change.
-    @test ConstructedSpec === ConstructedRasterSpec
 end
 
 @testset "regions combine as geometry, before any grid exists" begin

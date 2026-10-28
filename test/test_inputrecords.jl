@@ -16,12 +16,18 @@ using ArchGDAL
 using Dates: Dates
 using TOML
 
+include("tomlstrings.jl")
+
 # A 5 x 7 WGS84 GeoTIFF of one degree cells whose top-left corner is at 10 degrees east, 55 north.
 function _geotiff(path)
     ArchGDAL.create(path, driver = ArchGDAL.getdriver("GTiff"), width = 7,
                     height = 5, nbands = 1, dtype = Float32) do ds
         ArchGDAL.write!(ds, Float32[280 + i + 10j for i in 1:7, j in 1:5], 1)
-        ArchGDAL.setgeotransform!(ds, [10.0, 1.0, 0.0, 55.0, 0.0, -1.0])
+        # ArchGDAL's `setgeotransform!` takes `pointer(transform)` without keeping the array
+        # alive, so a temporary vector can be dropped before GDAL reads it, which Julia 1.13.2
+        # does: the geotransform then stays the identity. Keep it alive across the call.
+        transform = [10.0, 1.0, 0.0, 55.0, 0.0, -1.0]
+        Base.GC.@preserve transform ArchGDAL.setgeotransform!(ds, transform)
         return ArchGDAL.setproj!(ds,
                                  ArchGDAL.toWKT(ArchGDAL.importEPSG(4326)))
     end
@@ -130,10 +136,12 @@ end
     input = only(toml["inputs"])
     @test input["path"] == "field.tif" && input["role"] == "habitat"
     @test !haskey(input, "url") && !haskey(input, "doi")
+    # What was done to the inputs, which a modified dataset's licence or provider asks to be said.
+    @test occursin("contains modified data", toml["modification"]) &&
+          occursin(string(1.0°), toml["modification"])
     # Nothing in the file belongs to the machine that wrote it.
-    text = read(path, String)
-    @test !occursin(homedir(), text) && !occursin(gethostname(), text) &&
-          !occursin(dir, text)
+    @test !any(s -> occursin(homedir(), s) || occursin(gethostname(), s) ||
+                    occursin(dir, s), tomlstrings(path))
     # An ecosystem adds its run, and writing it gives the same file as writing its provenance.
     seeding = EcoSISTEM.InputRecord(role = :abundance,
                                     dataset = "GBIF occurrence download",
@@ -147,6 +155,25 @@ end
     @test run["run"]["seed"] == 7
     @test only(run["inputs"])["fetched"] ==
           Dates.DateTime(2026, 9, 13, 7, 21, 7)
+    # A provider's references and notices are written with their placeholders filled from the
+    # fetch time, and an empty list is left out like any other field with nothing to say.
+    asked = EcoSISTEM.InputRecord(role = :abundance,
+                                  dataset = "GBIF occurrence download",
+                                  fetched = "2026-09-13T07:21:07Z",
+                                  references = [(doi = "10.15468/dl.abc123",
+                                                 text = "GBIF (YYYY). Accessed DD-MMM-YYYY.")],
+                                  notices = [(strength = :requested,
+                                              text = "Thanks, YYYY.")])
+    written = TOML.parsefile(write_provenance(joinpath(dir, "asked.toml"),
+                                              build_ecosystem(DefaultEcosystem(),
+                                                              seed = 7,
+                                                              provenance = asked)))
+    entry = only(written["inputs"])
+    @test only(entry["references"])["text"] ==
+          "GBIF (2026). Accessed 13-Sep-2026."
+    @test only(entry["notices"]) ==
+          Dict("strength" => "requested", "text" => "Thanks, 2026.")
+    @test !haskey(only(run["inputs"]), "references")
     # A CRS is written as its name, not as the type's own display.
     @test EcoSISTEM._tomlvalue(EcoSISTEM.Rasters.EPSG(27700)) == "EPSG:27700"
 end
@@ -169,10 +196,12 @@ end
     @test length(findall(cite, before)) == 1
     # The dataset heads its group, its citation next, then its files.
     at(text) = first(findfirst(text, before))
-    @test at("    trait table") < at("cite  " * cite) < at("more.csv")
-    @test at("cite  " * cite) < at("traits.csv")
+    @test at("    trait table") < at("cite    " * cite) < at("more.csv")
+    @test at("cite    " * cite) < at("traits.csv")
     @test occursin("    GBIF occurrence download (doi 10.15468/dl.abc123)",
                    before)
+    # The listing ends by saying what was done to the inputs.
+    @test occursin("  modified  contains modified data", before)
     @test occursin("0.0 s elapsed", before)
     # Elapsed time reads in days once the run has gone on for some.
     simulate!(eco, 1month_mean_duration, 1month_mean_duration)

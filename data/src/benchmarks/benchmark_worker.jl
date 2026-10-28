@@ -98,7 +98,7 @@ function build_model(mode::AbstractString)
                             dispersal = 1.0km, pthresh = 10e-10,
                             movement = BirthOnlyMovement,
                             birth = 0.6 / year, death = 0.6 / year,
-                            longevity = 1.0, survival = 0.2, boost = 1.0,
+                            longevity = 1.0, survival = 0.2,
                             abundance = fill(div(INDIVIDUALS, NUM_SPECIES),
                                              NUM_SPECIES),
                             native = true)

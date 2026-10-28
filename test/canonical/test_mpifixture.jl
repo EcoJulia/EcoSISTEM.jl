@@ -2,9 +2,10 @@
 #
 # Canonical results for the fixture the **distributed** test runs - blessed from a **serial** run.
 #
-# **Why this file exists.** `test/ext_EcoSISTEMMPIExt.jl` compares MPI at 1, 2 and 4 ranks against
-# each other, and every one of those takes the duplicated hot loop in `ext/EcoSISTEMMPIExt/`. A
-# change made there and not in `src/` therefore agrees with itself at every rank count and passes.
+# **Why this file exists.** `test/ext_EcoSISTEMMPIExt.jl` compares MPI launches at several rank and
+# thread counts against each other, and every one of those takes the duplicated hot loop in
+# `ext/EcoSISTEMMPIExt/`. A change made there and not in `src/` therefore agrees with itself at every
+# rank count and passes.
 # Comparing a duplicate against itself cannot detect that it has diverged from the original.
 #
 # So both paths are pinned to **one** blessed number instead. This file records what the serial run
@@ -15,7 +16,7 @@
 #
 #   - serial *and* distributed both move off the blessed value: a **model change**. Explain it, then
 #     re-bless deliberately.
-#   - **only the distributed** result moves: an **MPI bug**, exactly A22, now caught at 2 and 4 ranks
+#   - **only the distributed** result moves: an **MPI bug**, caught at every rank count above one
 #     rather than only where a serial run happens to sit alongside it.
 #   - **only the serial** result moves: a serial bug, or an intended change whose distributed half
 #     was forgotten.

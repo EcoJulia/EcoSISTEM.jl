@@ -1,0 +1,143 @@
+# The parameters the paper's figures are built from, one set for each scale: `large` the published
+# experiments, `small` what the test suite runs (`ECOSISTEM_SCALE=small`). `examples/paper.jl` reads
+# the set for its scale, every figure takes its values from it, and Tables S1 and S2 are written from
+# it. A string is a quantity, parsed by Unitful with EcoSISTEM's units (`month_mean_duration`).
+
+# --- the published experiments ---
+
+# The island the figures 5, 6 and 7 share: its grid, its environment, and the species on it.
+[large.island]
+cells = 10
+area = "100.0km^2"
+species = 100
+individuals = 100_000_000
+duration = "10yr"
+temperature = "25.0°C"
+width = "2.0K"
+dispersal = "2.4km"
+size = "1.0m^2"
+birth = "0.15/yr"
+death = "0.15/yr"
+longevity = 1.0
+survival = 0.1
+# Demand per square metre of plant, so a plant of `size` demands this times its size.
+sunlight_demand = "450000.0kJ/(m^2*month_mean_duration)"
+water_demand = "192.0L/(m^2*month_mean_duration)"
+sunlight_supply = "4.5e11kJ/(km^2*month_mean_duration)"
+water_supply = "192.0mm/month_mean_duration"
+
+# Figure 5: the grid carved `sides` cells a side over the same area, the areas on the island's grid,
+# and the pools of species with widths, dispersal, mortality and size drawn per species - optima
+# `pool_spread` widths either side of the temperature, widths and dispersal uniform over the range
+# given, death (and birth equal to it) and size folded normal with the mean and standard deviation
+# given.
+[large.testing]
+sides = [1, 2, 5, 10]
+areas = ["10.0km^2", "20.0km^2", "50.0km^2", "100.0km^2"]
+pools = [100, 500, 1000, 5000]
+replicates = 10
+pool_width = ["1.0K", "5.0K"]
+pool_spread = 3
+pool_dispersal = ["0.6km", "2.4km"]
+pool_death = ["0.15/yr", "0.135/yr"]
+pool_size = ["1.0m^2", "0.1m^2"]
+
+# Figure 6: two species started from opposite edges, `founders` in each edge cell, for each of the
+# dispersal distances.
+[large.dispersal]
+distances = ["0.5km", "1.0km", "2.0km", "4.0km"]
+duration = "50yr"
+founders = 100
+
+# Figure 7: optima spread evenly up to `spread` either side of the temperature, and niche widths
+# spread evenly over `widths`, each in `bins` bins; the last panel's landscape `offset` warmer.
+[large.optima]
+spread = "6.0K"
+widths = ["0.1K", "5.1K"]
+bins = 10
+offset = "1.0K"
+
+# Figures 8 and 9: the circular continent, its generalists and the specialist introduced into them,
+# and figure 9's specialists of each width; `founders` individuals seed a species at its cell.
+[large.continent]
+side = 100
+cellsize = "80.0km"
+radius = "4000.0km"
+species = 50_000
+burnin = "25yr"
+after = "100yr"
+temperature = "25.0°C"
+generalist_width = "50.0K"
+specialist_width = "0.5K"
+widths = ["0.5K", "1.0K", "5.0K", "10.0K", "25.0K", "50.0K"]
+demand = "5.0MJ/d"
+supply = "20.0MJ/m^2/d"
+dispersal = "15.0km"
+birth = "0.6/yr"
+death = "0.6/yr"
+longevity = 1.0
+survival = 0.1
+founders = 100
+
+# --- the test suite's: the same code with a fraction of the species, years and replicates ---
+
+[small.island]
+cells = 10
+area = "100.0km^2"
+species = 10
+individuals = 10_000
+duration = "1yr"
+temperature = "25.0°C"
+width = "2.0K"
+dispersal = "2.4km"
+size = "1.0m^2"
+birth = "0.15/yr"
+death = "0.15/yr"
+longevity = 1.0
+survival = 0.1
+sunlight_demand = "450000.0kJ/(m^2*month_mean_duration)"
+water_demand = "192.0L/(m^2*month_mean_duration)"
+sunlight_supply = "4.5e11kJ/(km^2*month_mean_duration)"
+water_supply = "192.0mm/month_mean_duration"
+
+[small.testing]
+sides = [1, 2, 5, 10]
+areas = ["10.0km^2", "20.0km^2", "50.0km^2", "100.0km^2"]
+pools = [5, 10, 20]
+replicates = 1
+pool_width = ["1.0K", "5.0K"]
+pool_spread = 3
+pool_dispersal = ["0.6km", "2.4km"]
+pool_death = ["0.15/yr", "0.135/yr"]
+pool_size = ["1.0m^2", "0.1m^2"]
+
+[small.dispersal]
+distances = ["0.5km", "1.0km", "2.0km", "4.0km"]
+duration = "5yr"
+founders = 100
+
+[small.optima]
+spread = "6.0K"
+widths = ["0.1K", "5.1K"]
+bins = 10
+offset = "1.0K"
+
+[small.continent]
+side = 20
+cellsize = "80.0km"
+radius = "800.0km"
+species = 10
+burnin = "1yr"
+after = "2yr"
+temperature = "25.0°C"
+generalist_width = "50.0K"
+specialist_width = "0.5K"
+widths = ["0.5K", "5.0K", "50.0K"]
+demand = "5.0MJ/d"
+supply = "20.0MJ/m^2/d"
+dispersal = "15.0km"
+birth = "0.6/yr"
+death = "0.6/yr"
+longevity = 1.0
+survival = 0.1
+founders = 100

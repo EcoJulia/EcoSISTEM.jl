@@ -19,10 +19,10 @@ using DimensionalData: DimensionalData, dims, refdims
 using Rasters
 
 # The shared non-uniform, non-square, time-varying environment (see `test/varyingcase.jl`).
-# This test compares results across 1/2/4 rank+thread splits - the strongest reproducibility
+# This test compares results across rank-and-thread splits - the strongest reproducibility
 # property in the repository - and so must not run on a *uniform, square* grid, where every
 # decomposition looks alike and a partitioning bug cannot show. The field it decomposes varies down
-# `Y` (regime) and across `X` (supply), on a 7 × 12 grid that no rank count divides evenly.
+# `Y` (regime) and across `X` (supply), on a 7 × 11 grid that no rank count divides evenly.
 include(joinpath(@__DIR__, "varyingcase.jl"))
 include(joinpath(@__DIR__, "layercompare.jl"))
 # For `canonical_reference` only -- the blessed values are READ here, never written.
@@ -40,15 +40,18 @@ end
 comm = MPI.COMM_WORLD
 rank = MPI.Comm_rank(comm)
 
-# **Two testsets below run at some rank counts only, and this file is launched at 1, 2 and 4.**
-# Each is about what ranks do *to each other*, so at one rank there is nothing to see - and they are
-# the two most expensive things here, measured at 22 s and 9 s of a 53 s two-rank run, paid again in
-# every launch. What every launch still runs is everything a rank count can change: the partition,
-# the hot loop, the interventions, the recorders and the blessed comparisons.
+# **Two testsets below run at some rank counts only.** `ext_EcoSISTEMMPIExt.jl` launches this file
+# at one rank and at several, in shapes chosen from the machine's cores. Each testset is about what
+# ranks do *to each other*, so at one rank there is nothing to see - and they are the two most
+# expensive things here, measured at 22 s and 9 s of a 53 s two-rank run, paid again in every
+# launch. What every launch still runs is everything a rank count can change: the partition, the
+# hot loop, the interventions, the recorders and the blessed comparisons.
 const MANYRANKS = MPI.Comm_size(comm) > 1
 # The shared build is the stricter case: a third and fourth rank receive exactly what the second
-# does, so two ranks prove it and more only pay for it again.
-const TWORANKS = MPI.Comm_size(comm) == 2
+# does, so one launch with several ranks proves it and the others only pay for it again. The second
+# argument names that launch's rank count; run without one, it is two.
+const SHAREDRANKS = length(ARGS) > 1 ? parse(Int, ARGS[2]) : 2
+const SHAREDBUILD = MPI.Comm_size(comm) == SHAREDRANKS
 
 # Every rank asks for the same download at once: one fetches it, the others wait on its lock and
 # then find the file, so the bytes travel once and nothing is corrupted. A `file://` source, so no
@@ -80,8 +83,8 @@ end
 #
 # The ranks other than the root are given paths that do not exist. Their builds can only succeed
 # if they read nothing - by the cache or around it - and take the root's result instead.
-if !TWORANKS
-    @info "Skipping the shared study area and layers testset: it runs at two ranks."
+if !SHAREDBUILD
+    @info "Skipping the shared study area and layers testset: it runs at $SHAREDRANKS ranks."
 else
     @testset "a study area and its layers are built on the root and received by every rank" begin
         shared = MPI.bcast(rank == 0 ? mktempdir() : "", 0, comm)
@@ -95,7 +98,12 @@ else
                     band == 2 && (values[3, 2] = NaN)
                     ArchGDAL.write!(ds, values, band)
                 end
-                ArchGDAL.setgeotransform!(ds, [10.0, 0.5, 0.0, 55.0, 0.0, -0.5])
+                # ArchGDAL's `setgeotransform!` takes `pointer(transform)` without keeping the array
+                # alive, so a temporary vector can be dropped before GDAL reads it, which Julia 1.13.2
+                # does: the geotransform then stays the identity. Keep it alive across the call.
+                transform = [10.0, 0.5, 0.0, 55.0, 0.0, -0.5]
+                Base.GC.@preserve transform ArchGDAL.setgeotransform!(ds,
+                                                                      transform)
                 return ArchGDAL.setproj!(ds,
                                          ArchGDAL.toWKT(ArchGDAL.importEPSG(4326)))
             end
@@ -221,8 +229,8 @@ habitat = varying_environment()
 nichefit = NicheSuitability{Temperature, typeof(1.0K)}()
 
 # build_ecosystem auto-selects the type from the live MPI session: >1 rank => MPIEcosystem, a single
-# rank => serial Ecosystem (this script runs under mpiexec -n 1, 2 and 4). `sppl`/`habitat`/`nichefit` are
-# exactly what MPIEcosystem takes directly.
+# rank => serial Ecosystem (this script runs at one rank and at several). `sppl`/`habitat`/
+# `nichefit` are exactly what MPIEcosystem takes directly.
 expected = MPI.Comm_size(comm) > 1 ? MPIEcosystem : Ecosystem
 @test build_ecosystem(sppl, habitat, nichefit = nichefit, seed = 0) isa expected
 @test build_ecosystem(sppl, habitat, nichefit = nichefit, seed = 0,
@@ -303,7 +311,7 @@ MPI.Barrier(comm)
 true_abuns = gatherabundance(eco)
 # On root node, print abundances and save out
 if rank == 0
-    @save joinpath(ARGS[1], "Test_abuns$nt.jld2") abuns=true_abuns
+    @save joinpath(ARGS[1], "Test_abuns$(MPI.Comm_size(comm))x$nt.jld2") abuns=true_abuns
 end
 
 sppl, tolerance = mpifixture_species()
@@ -358,11 +366,11 @@ sleep(rank)
 true_abuns = gatherabundance(eco)
 # On root node, print abundances and save out
 if rank == 0
-    @save joinpath(ARGS[1], "Test_abuns$nt.jld2") abuns=true_abuns
+    @save joinpath(ARGS[1], "Test_abuns$(MPI.Comm_size(comm))x$nt.jld2") abuns=true_abuns
 end
 
 # **Serial is the reference the distributed loop has to reproduce, and nothing else checks it.**
-# The 1/2/4-rank comparison in `ext_EcoSISTEMMPIExt.jl` is MPI against MPI: every one of those runs
+# The comparison across launches in `ext_EcoSISTEMMPIExt.jl` is MPI against MPI: every one of them
 # takes the duplicated hot loop in `ext/EcoSISTEMMPIExt/dynamics.jl`, so a change made there and not
 # in `src/dynamics.jl` agrees with itself at every rank count and passes. That is exactly how the
 # birth draw stayed pre-2021 in the distributed loop while the serial one was fixed -- the serial
@@ -382,7 +390,7 @@ end
 # **And pin BOTH paths to one blessed number, at EVERY rank count.** The comparison above needs a
 # serial run alongside, so it can only happen at one rank; these keys are recorded once by
 # `test/canonical/test_mpifixture.jl` from a serial run and asserted here however many ranks there
-# are. That is what makes a distributed-only divergence visible at 2 and 4 ranks.
+# are. That is what makes a distributed-only divergence visible at every rank count above one.
 #
 # **Read-only on purpose.** `canonical(...)` would *write* the reference file, and doing that from
 # inside an `mpiexec` child - several of them at once - must never happen. `canonical_reference()`
@@ -697,10 +705,26 @@ end
 #
 # Every rank must run the measurement, not just rank 0: `update!` is collective, so a rank that
 # skipped it would leave the others waiting inside an `Alltoallv`.
+#
+# Several steps are measured, each with the collections and compilation that fell inside it:
+# `@timed` counts every thread's allocations, so either would add to a step's figure without the
+# loop itself having allocated.
 function _mpiupdatealloc(eco, timestep)
     EcoSISTEM.update!(eco, timestep)
     EcoSISTEM.update!(eco, timestep)
-    return @allocated EcoSISTEM.update!(eco, timestep)
+    return map(1:5) do _
+        timed = @timed EcoSISTEM.update!(eco, timestep)
+        return (bytes = timed.bytes, collections = timed.gcstats.pause,
+                compilation = timed.compile_time)
+    end
+end
+
+# One line per measured step, for the failure report.
+function _allocreport(numspecies, steps)
+    return join(("$numspecies species, step $k: $(s.bytes) bytes, " *
+                 "$(s.collections) collections, " *
+                 "$(round(1000 * s.compilation, digits = 1)) ms compiling"
+                 for (k, s) in enumerate(steps)), "\n")
 end
 
 function _mpiecosystem(numspecies)
@@ -710,21 +734,31 @@ function _mpiecosystem(numspecies)
     return built
 end
 
-fewalloc = _mpiupdatealloc(_mpiecosystem(VARYING_SPECIES), MPIFIXTURE_TIMESTEP)
-manyalloc = _mpiupdatealloc(_mpiecosystem(8 * VARYING_SPECIES),
+fewsteps = _mpiupdatealloc(_mpiecosystem(VARYING_SPECIES), MPIFIXTURE_TIMESTEP)
+manysteps = _mpiupdatealloc(_mpiecosystem(8 * VARYING_SPECIES),
                             MPIFIXTURE_TIMESTEP)
 
 if rank == 0
     # A slope, as in the serial checks, because the threading and the collectives both cost a
-    # constant per call that cancels from a difference.
+    # constant per call that cancels from a difference. Each side is its cheapest step: whatever
+    # lands inside one step only adds to it, while anything the loop allocates recurs every step.
     #
-    # The bound is looser than the serial one's byte-per-species: an `Allgatherv` buffer is sized
-    # from the partition, so at more than one rank the figure wobbles by a couple of hundred bytes
-    # between species counts without any trend. Measured at 8 bytes per cell per species before the
-    # habitat's topology was parameterised, which over these 49 extra species is about 30 kB - so
-    # this bound still catches that by a factor of about seventy.
+    # The bound is looser than the serial one's byte per species, because two costs grow with the
+    # species count without the loop allocating: an `Allgatherv` buffer sized from the partition,
+    # and the `:greedy` scheduler, which hands out one block per `species_blocksize()` species
+    # through a channel and allocates more when its tasks contend for cores (over 700 bytes
+    # between these two counts on an oversubscribed machine). An abstractly typed topology costs
+    # 8 bytes per cell per species, about 30 kB over these 49 extra species: ten times the bound.
     extraspecies = 8 * VARYING_SPECIES - VARYING_SPECIES
-    @test manyalloc - fewalloc < 8 * extraspecies
+    bound = 64 * extraspecies
+    slope = minimum(s.bytes for s in manysteps) -
+            minimum(s.bytes for s in fewsteps)
+    slope < bound ||
+        @error "A distributed timestep allocated $slope more bytes for $extraspecies more " *
+               "species, against a bound of $bound:\n" *
+               _allocreport(VARYING_SPECIES, fewsteps) * "\n" *
+               _allocreport(8 * VARYING_SPECIES, manysteps)
+    @test slope < bound
 
     # The same sweep `test_dynamics.jl` runs, over the distributed types. `epoch`, `calendar` and
     # `active` are abstract by design and are explained there; anything else must be looked at.

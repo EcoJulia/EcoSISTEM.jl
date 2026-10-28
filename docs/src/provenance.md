@@ -14,8 +14,14 @@ them.
 ## What is recorded
 
 Every file the package fetches gets a record written beside it - where it came from, when, its
-size and checksum, and the dataset's DOI, licence, version and citation from the catalogue (see
-[Layers](layers.md)). When a study area reads a layer, it keeps a record of each file it read, and
+size and checksum, whether it is the provider's own file or an extract cut to a request, and from
+the catalogue (see [Layers](layers.md)) the file's title, the dataset's DOI, licence, version and
+release date, and what its provider asks of anyone using the data: the works to cite and the
+notices to carry, quoted as the provider wrote them and gathered on
+[Providers' requests](requests.md). A date or year a provider leaves to be filled
+in is filled from when the file was fetched wherever a record is shown or written. A listing ends by
+saying what was done to the inputs - each was resampled or rasterised onto the study grid - which a
+modified dataset's licence often asks to be said. When a study area reads a layer, it keeps a record of each file it read, and
 those records stay with the area, and with a habitat or an ecosystem built on it, after the reads
 themselves are discarded. The files of a shape or mask that cut the grid are recorded the same way.
 A file with no record of its own - one you handed over rather than one the package fetched - is

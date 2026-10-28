@@ -278,12 +278,13 @@ a raster, so the natural way to write a combine is also the correct one:
 
 ```julia
 # a mask - Bool-valued, still a raster; it claims nothing, so it names the root axis
-ConstructedRasterSpec(EarthEnv{LandCover}, axis = EcoSISTEM.NicheAxis) do lc
+ConstructedRasterSpec(EarthEnv{LandCover{:DISCover}}, axis = EcoSISTEM.NicheAxis) do lc
     compress_landcover(lc) .!= landcoverclass(:open_water)
 end
 
 # a derived layer - several bands added together, its meaning declared by `axis`
-ConstructedRasterSpec(EarthEnv{LandCover}, [:shrubs, :herbaceous], axis = SurfaceArea) do bands...
+ConstructedRasterSpec(EarthEnv{LandCover{:DISCover}}, [:shrubs, :herbaceous],
+                      axis = SurfaceArea) do bands...
     sum(bands)
 end
 ```
@@ -315,11 +316,15 @@ The sources fall into two kinds:
 
 | source | data | how its files arrive |
 | --- | --- | --- |
-| `WorldClim{BioClim}`, `WorldClim{Climate}`, `WorldClim{Elevation}`, `CHELSA{BioClim}`, `CHELSA{BioClimPlus}`, `CHELSA{Climate}`, `EarthEnv{LandCover}`, `EarthEnv{HabitatHeterogeneity}` | the RasterDataSources datasets | downloaded by RasterDataSources on first use, so `using RasterDataSources` |
-| [`ERA`](@ref) | ERA5 monthly means | a file you hold, or a [`EcoSISTEM.CDSRequest`](@ref) fetched from the Climate Data Store on first use (`using CDSAPI`, and a key in `~/.cdsapirc`) |
+| `WorldClim{BioClim}`, `WorldClim{Climate}`, `WorldClim{Elevation}`, `CHELSA{BioClim}`, `CHELSA{BioClimPlus}`, `CHELSA{Climate}`, `EarthEnv{LandCover}`, `EarthEnv{LandCover{:DISCover}}`, `EarthEnv{HabitatHeterogeneity}` | the RasterDataSources datasets | downloaded by RasterDataSources on first use, so `using RasterDataSources` |
+| [`ERA`](@ref) | ERA5 monthly means | fetched from the Climate Data Store on first use for the `years` asked (`using CDSAPI`, and a key in `~/.cdsapirc`), or a file you hold |
 | [`CERA`](@ref) | CERA-20C monthly means | files you hold |
 | [`TwentyCR`](@ref) | 20CRv3 monthly means, 1806 to 2015 | fetched from NOAA PSL on first use, or a file you hold |
 | [`CRUTS`](@ref) | CRU TS | a directory of monthly GeoTIFFs you hold |
+
+EarthEnv's land cover comes in two versions, made with and without one of its inputs, DISCover:
+`EarthEnv{LandCover{:DISCover}}` is the full version, which EarthEnv recommends for most uses and
+the examples here read, and `EarthEnv{LandCover}` the reduced one. They share one layer table.
 
 A file you hold is named alongside the code - `file = path` for one, `files = [...]` for several
 in time order, `directory = dir` for a directory read in name order - and the catalogue still
@@ -329,6 +334,17 @@ one, its dates:
 ```@example sources
 SourceSpec(ERA, "t2m", file = "era5_t2m_1990s.nc", atend = HoldAtEnd())
 ```
+
+An ERA5 layer can instead be fetched for you, one file a decade into the asset cache, the first
+time it is read. `years` is required, `months` narrows each year, and `area` is a box in degrees or
+a region's name, whose box comes from the shipped regions table rounded outwards to whole degrees:
+
+```julia
+SourceSpec(ERA, "t2m", years = 1990:2019, area = "Scotland", months = 6:8)
+```
+
+The asset cache is EcoSISTEM's scratch space in the Julia depot; `EcoSISTEM.set_assetdir!(dir)`
+keeps it on a disk of your choosing instead.
 
 What the catalogue records about a whole source - its grid, its longitude convention, how it is
 fetched, its licence - is [`datasetinfo`](@ref EcoSISTEM.datasetinfo), and the first file read of
@@ -407,9 +423,10 @@ a layer being built onto a grid reads only the cells that grid needs. Two cases 
 use. A mask passed as `within` is what *decides* the grid, so there is nothing to narrow it to yet;
 and a read that asks for a `scale` without a `cut` coarsens the whole source file, because the
 aggregated form is memoised per file rather than per window. For a global dataset that first read is
-expensive -- aggregating the twelve global bands of `EarthEnv{LandCover}` needs upwards of 10 GB of
-memory, whatever `scale` is asked for, since the scale only decides what comes out. Every later read
-of the same file, scale and reducer loads the memoised result instead and is quick.
+expensive -- aggregating the twelve global bands of either version of EarthEnv's land cover needs
+upwards of 10 GB of memory, whatever `scale` is asked for, since the scale only decides what comes
+out. Every later read of the same file, scale and reducer loads the memoised result instead and is
+quick.
 
 Give such a read a `cut` when you can, which windows it and skips the memo altogether; a bounding box
 from [`boundingbox`](@ref) is usually enough. The first-read cost is easy to miss precisely because it
