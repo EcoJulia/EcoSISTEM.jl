@@ -2,8 +2,10 @@ run_metadata:
   description: The EcoSISTEM paper's computational figures and tables, drawn by examples/paper.jl
   default_input_namespace: EcoSISTEM
   default_output_namespace: EcoSISTEM
+  # `JULIA_NUM_THREADS` where it is set, else every core: `fair` runs this with `sh`, which expands it
+  # (a Windows `batch` shell would pass it through as written).
   script: |
-    julia --project=examples/paper examples/paper/pipeline.jl
+    julia --threads=${JULIA_NUM_THREADS:-auto} --project=examples/paper examples/paper/pipeline.jl
 
 # `fair pull` registers the parameters from the repository's own file (`cache`), `root` and `path`
 # recording where it is published, at a new version whenever the file changes; `fair run` then

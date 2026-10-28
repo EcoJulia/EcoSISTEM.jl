@@ -1,7 +1,9 @@
 run_metadata:
   description: One species over Scotland, built from the registered inputs
+  # `JULIA_NUM_THREADS` where it is set, else every core: `fair` runs this with `sh`, which expands it
+  # (a Windows `batch` shell would pass it through as written).
   script: |
-    julia --project=examples/pipeline examples/pipeline/model.jl
+    julia --threads=${JULIA_NUM_THREADS:-auto} --project=examples/pipeline examples/pipeline/model.jl
 
 # Each source's files and their records, in its namespace: a `*` matches one segment of a name, so
 # `<root>/*/*` takes `<root>/data/...` and `<root>/provenance/...` and leaves the deposit, which has

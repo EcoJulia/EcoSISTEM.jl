@@ -3,9 +3,10 @@
 # The paper's figures as a FAIR data pipeline run. Launched by `fair run` from `paper.yaml`, which
 # runs
 #
-#     julia --project=examples/paper examples/paper/pipeline.jl
+#     julia --threads=${JULIA_NUM_THREADS:-auto} --project=examples/paper examples/paper/pipeline.jl
 #
-# in this directory's environment, after `fair pull` has registered `parameters.toml` as
+# on `JULIA_NUM_THREADS` threads where it is set, else every core - each simulation is threaded, and a
+# `julia` started without `--threads` has one - in this directory's environment, after `fair pull` has registered `parameters.toml` as
 # `Examples/Parameters`. It reads the parameters from the registry, includes `examples/paper.jl`,
 # which draws everything from them exactly as a plain run does, into `outputs/` here, and registers
 # each output in namespace `EcoSISTEM`, derived from the parameters: every figure as

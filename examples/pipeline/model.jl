@@ -3,9 +3,9 @@
 # The model run of the data pipeline example: one species over Scotland, built from the files the
 # fetch run registered. Launched by `fair run` from `model.yaml`, which runs
 #
-#     julia --project=examples/pipeline examples/pipeline/model.jl
+#     julia --threads=${JULIA_NUM_THREADS:-auto} --project=examples/pipeline examples/pipeline/model.jl
 #
-# every file is read from the run's store, never fetched, and the figure is registered as the run's
+# (`JULIA_NUM_THREADS` threads where it is set, else every core): every file is read from the run's store, never fetched, and the figure is registered as the run's
 # output. Started any other way it reads the asset cache and writes the figure to a temporary
 # directory.
 
