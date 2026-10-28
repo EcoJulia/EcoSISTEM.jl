@@ -31,7 +31,7 @@ water_supply = "192.0mm/month_mean_duration"
 # `pool_spread` widths either side of the temperature, widths and dispersal uniform over the range
 # given, death (and birth equal to it) and size folded normal with the mean and standard deviation
 # given.
-[large.abundance]
+[large.testing]
 sides = [1, 2, 5, 10]
 areas = ["10.0km^2", "20.0km^2", "50.0km^2", "100.0km^2"]
 pools = [100, 500, 1000, 5000]
@@ -100,7 +100,7 @@ water_demand = "192.0L/(m^2*month_mean_duration)"
 sunlight_supply = "4.5e11kJ/(km^2*month_mean_duration)"
 water_supply = "192.0mm/month_mean_duration"
 
-[small.abundance]
+[small.testing]
 sides = [1, 2, 5, 10]
 areas = ["10.0km^2", "20.0km^2", "50.0km^2", "100.0km^2"]
 pools = [5, 10, 20]

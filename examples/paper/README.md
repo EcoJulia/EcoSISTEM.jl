@@ -31,7 +31,7 @@ julia -t 12 --project=examples examples/paper.jl /path/to/output
 The first argument is the output directory; without it, `examples/paper/outputs/`, which this
 directory's `.gitignore` keeps out of the repository. It is printed at the start and the end.
 
-`ECOSISTEM_PAPER_FIGURES=NicheWidth,Abundance` draws only the figures named, by their file
+`ECOSISTEM_PAPER_FIGURES=NicheWidth,IslandTesting` draws only the figures named, by their file
 names, so the continent can be left for a machine that has the hours. The continent run prints a
 line every fifth simulated year with the projected finish and how many individuals the generalists
 and the specialist hold; redirected to a file, those lines are flushed as they are written.

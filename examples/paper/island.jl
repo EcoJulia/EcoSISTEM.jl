@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Figure 5, `Abundance.pdf`: the model tested on island ecosystems - abundance against the two
+# Figure 5, `IslandTesting.pdf`: the model tested on island ecosystems - abundance against the two
 # resources together, invariance to grid resolution, scaling with area, and survival in large
 # species pools. Island topology throughout.
 #
@@ -56,11 +56,11 @@ function _island_total(cells, area)
 end
 
 # The fraction of a heterogeneous pool of `n` species still present after the run, the pool's
-# traits drawn as `parameters.toml`'s `abundance` set says: widths and dispersal uniform, optima
+# traits drawn as `parameters.toml`'s `testing` set says: widths and dispersal uniform, optima
 # spread about the island's temperature by their widths, mortality (and birth equal to it) and body
 # size folded normal - so coexistence cannot be an artefact of every species being identical.
 function _survival(n, rng)
-    pool = PAPER.abundance
+    pool = PAPER.testing
     widths = rand(rng, Uniform(ustrip.(K, pool.pool_width)...), n) .* K
     opts = island_temperature() .+
            widths .* range(-pool.pool_spread, pool.pool_spread, length = n)
@@ -87,7 +87,7 @@ end
 # the percentage surviving from pools of 100 to 5,000 species, ten replicates, mean and standard
 # deviation - the slow panel, ten runs of 5,000 species on 100 cells for ten years.
 function island_figure()
-    island, pool = PAPER.island, PAPER.abundance
+    island, pool = PAPER.island, PAPER.testing
     surface = _surface_run()
     sides = pool.sides
     bysides = map(s -> _island_total(s, island.area), sides)
@@ -123,6 +123,6 @@ function island_figure()
                 tickfontsize = 10, titlefontsize = 16)
 end
 
-timed("Abundance") do
-    return savefigure(island_figure(), "Abundance")
+timed("IslandTesting") do
+    return savefigure(island_figure(), "IslandTesting")
 end

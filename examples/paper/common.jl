@@ -240,7 +240,7 @@ end
 # Table S1, the island and patch dynamics: the island's species and environment, each range spanning
 # every island experiment - figure 5's pools, figure 6's distances, figure 7's optima and widths.
 function island_table(p = PAPER)
-    island, pool, optima = p.island, p.abundance, p.optima
+    island, pool, optima = p.island, p.testing, p.optima
     temperature = uconvert(K, island.temperature)
     furthest = pool.pool_spread * maximum(pool.pool_width)
     preferences = [temperature, temperature - optima.spread,

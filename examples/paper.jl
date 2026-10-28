@@ -18,13 +18,13 @@
 # registering each output (`paper/pipeline.jl`).
 #
 # The output directory is the first argument, else `examples/paper/outputs/`; it is printed at the
-# start and the end. `ECOSISTEM_PAPER_FIGURES=NicheWidth,Abundance` draws only the figures named, so
-# the hours-long continent can be left for a machine that has them. Every value a figure is built
-# from is in `paper/parameters.toml`, a set for each scale, and Tables S1 and S2 are written from it
-# as `IslandParameters.tex` and `ContinentParameters.tex`. Beside the PDFs it writes `figures.toml`,
-# recording the package version, commit, scale, seed, thread count and the wall time of each figure,
-# and `continent.jld2`, the per-cell maps figure 8 is drawn from, so that figure can be redrawn
-# without rerunning.
+# start and the end. `ECOSISTEM_PAPER_FIGURES=NicheWidth,IslandTesting` draws only the figures
+# named, so the hours-long continent can be left for a machine that has them. Every value a figure
+# is built from is in `paper/parameters.toml`, a set for each scale, and Tables S1 and S2 are
+# written from it as `IslandParameters.tex` and `ContinentParameters.tex`. Beside the PDFs it writes
+# `figures.toml`, recording the package version, commit, scale, seed, thread count and the wall time
+# of each figure, and `continent.jld2`, the per-cell maps figure 8 is drawn from, so that figure can
+# be redrawn without rerunning.
 #
 # Everything it needs lives in `examples/paper/`:
 #
