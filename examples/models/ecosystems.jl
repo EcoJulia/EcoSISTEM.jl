@@ -32,22 +32,22 @@ end
 # of the map, not of the species dispersing over it. `Torus()` here because these experiments
 # were written against a wrapping grid; the ones that want an edge ask for `Island()`.
 """
-    uniform_environment(cells, area; temperature = 298.0K)
+    uniform_environment(cells, area; temperature = 298.0K, supply = SUPPLY, topology = Torus())
 
 Build a `cells × cells` environment over `area`, uniform in every respect: one temperature
-everywhere, with uniform solar and water supply.
+everywhere, with uniform solar and water supply, `supply.sunlight` and `supply.water`.
 
  The regime is a **single, unnamed** temperature layer, as the original was - a one-element named
 regime is refused, deliberately, since there would be nothing to check it against. The supplies are
 named, so a gradient can say which resource it grades.
 """
 function uniform_environment(cells, area; temperature = 298.0K,
-                             topology = Torus())
+                             supply = SUPPLY, topology = Torus())
     return GridHabitat(regime = UniformSpec(temperature,
                                             axis = Temperature),
-                       supply = (sunlight = UniformSpec(SUPPLY.sunlight,
+                       supply = (sunlight = UniformSpec(supply.sunlight,
                                                         axis = SolarRadiation),
-                                 water = UniformSpec(SUPPLY.water,
+                                 water = UniformSpec(supply.water,
                                                      axis = Precipitation)),
                        area = _studyarea(cells, area),
                        topology = topology)
@@ -57,7 +57,8 @@ end
     community(env, opts, widths; kw...)
 
 Put `length(opts)` species on `env`, with Gaussian temperature tolerances (`opts` the optima,
-`widths` the niche widths) and Gaussian dispersal of mean distance `dispersal`.
+`widths` the niche widths) and Gaussian dispersal of mean distance `dispersal`. `demand` is per unit of
+plant, `demand.sunlight` and `demand.water`, so a species of body size `sizes` demands it times that.
 
 Every per-species keyword takes a scalar or a length-`n` vector, so an experiment can vary body
 size, dispersal or mortality across the pool without needing a different builder - which is what
@@ -68,14 +69,15 @@ run.
 function community(env, opts, widths; dispersal = 2.4km,
                    individuals = 100_000_000,
                    birth = 0.15 / year, death = 0.15 / year, sizes = 1.0m^2,
-                   seed = 1)
+                   longevity = 1.0, survival = 0.1, demand = DEMAND, seed = 1)
     species = build_species(length(opts), tolerance = (opts, widths),
                             toleranceaxis = Temperature,
-                            demand = map(d -> d .* sizes, DEMAND),
+                            demand = map(d -> d .* sizes, demand),
                             demandaxis = (sunlight = SolarRadiation,
                                           water = Precipitation),
                             dispersal = dispersal,
-                            birth = birth, death = death, survival = 0.1,
+                            birth = birth, death = death,
+                            longevity = longevity, survival = survival,
                             abundance = individuals, seed = seed)
     return build_ecosystem(species, env, seed = seed)
 end

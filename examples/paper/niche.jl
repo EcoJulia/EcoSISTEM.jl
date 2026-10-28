@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# Figure 3, `NicheWidth2.pdf`: the analytic curves behind the demographics - how a species'
+# Figure 3, `NicheWidth.pdf`: the analytic curves behind the demographics - how a species'
 # resource demand scales its rates, and how its niche width sets its match to the environment. No
 # simulation, so the figure is identical at both scales.
 #
@@ -69,6 +69,6 @@ function niche_figure()
                 titlefontsize = 16)
 end
 
-timed("NicheWidth2") do
-    return savefigure(niche_figure(), "NicheWidth2")
+timed("NicheWidth") do
+    return savefigure(niche_figure(), "NicheWidth")
 end

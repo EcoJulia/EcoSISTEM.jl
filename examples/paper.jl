@@ -14,13 +14,17 @@
 #     julia -t 12 --project=examples examples/paper.jl [output directory]
 #
 # The threads are the package's own: each simulation runs multithreaded, and the figures follow
-# one another.
+# one another. `fair run examples/paper/paper.yaml` draws the same through the data pipeline,
+# registering each output (`paper/pipeline.jl`).
 #
-# The output directory defaults to `ECOSISTEM_PAPER_DIR`, else a temporary directory; it is printed
-# at the start and the end. `ECOSISTEM_PAPER_FIGURES=NicheWidth2,Abundance` draws only the figures
-# named, so the hours-long continent can be left for a machine that has them. Beside the PDFs it writes `figures.toml`, recording the package version,
-# commit, scale, seed, thread count and the wall time of each figure, and `continent.jld2`, the
-# per-cell maps figure 8 is drawn from, so that figure can be redrawn without rerunning.
+# The output directory is the first argument, else `examples/paper/outputs/`; it is printed at the
+# start and the end. `ECOSISTEM_PAPER_FIGURES=NicheWidth,Abundance` draws only the figures named, so
+# the hours-long continent can be left for a machine that has them. Every value a figure is built
+# from is in `paper/parameters.toml`, a set for each scale, and Tables S1 and S2 are written from it
+# as `IslandParameters.tex` and `ContinentParameters.tex`. Beside the PDFs it writes `figures.toml`,
+# recording the package version, commit, scale, seed, thread count and the wall time of each figure,
+# and `continent.jld2`, the per-cell maps figure 8 is drawn from, so that figure can be redrawn
+# without rerunning.
 #
 # Everything it needs lives in `examples/paper/`:
 #
@@ -52,9 +56,14 @@ using JLD2
 
 gr()
 
-# Whether this file is the program being run, as opposed to included by the suite - decided here,
-# where `@__FILE__` is this file, and read by `common.jl` to know whether `ARGS` is ours.
-const PAPER_ISSCRIPT = abspath(PROGRAM_FILE) == @__FILE__
+# Whether this file was launched as a script - itself, or by `paper/pipeline.jl` - as opposed to
+# included by the suite: decided here, where `@__FILE__` is this file, and read by `common.jl` to
+# know whether `ARGS` is ours. Compared as files rather than paths, which a case-insensitive file
+# system lets differ in case for the same file.
+const PAPER_ISSCRIPT = isfile(PROGRAM_FILE) &&
+                       any(f -> samefile(PROGRAM_FILE, f),
+                           (@__FILE__,
+                            joinpath(@__DIR__, "paper", "pipeline.jl")))
 
 include(joinpath(@__DIR__, "models", "ecosystems.jl"))
 include(joinpath(@__DIR__, "paper", "common.jl"))
@@ -64,6 +73,7 @@ include(joinpath(@__DIR__, "paper", "island.jl"))
 include(joinpath(@__DIR__, "paper", "dispersal.jl"))
 include(joinpath(@__DIR__, "paper", "continent.jl"))
 
+write_tables()
 write_sidecar()
 println("Done - figures are in ", PAPER_DIR)
 

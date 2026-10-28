@@ -23,7 +23,7 @@ of that, put it in a subdirectory instead.
 | `interventions/` | the scenario library the top-level `interventions.jl` exercises |
 | `landscapes/` | the five landscape configurations the top-level `landscapes.jl` exercises |
 | `models/` | the published experiments and diversity measures, included by the top-level `models.jl` |
-| `paper/` | the paper's computational figures, included by the top-level `paper.jl` |
+| `paper/` | the paper's computational figures, included by the top-level `paper.jl`; and the same through the data pipeline (`pipeline.jl`, `paper.yaml`), in an environment of its own |
 | `other/` | examples that are *not* run - long runs, ones needing data or a cluster, work in progress |
 | `HPC/`, `pipeline/` | tooling, not examples |
 
@@ -54,7 +54,8 @@ files, so they *are* found by the test suite; they simply decline to run.
 **`paper.jl` writes the paper's figures**, as PDFs under the filenames its LaTeX source includes,
 so that what the paper shows is produced by code under test. It never skips: the suite draws every
 figure from a small run. `ECOSISTEM_PAPER_FIGURES` names a subset to draw, and the output
-directory is the script's first argument. `paper/README.md` has the full instructions.
+directory is the script's first argument, else `paper/outputs/`. `fair run examples/paper/paper.yaml`
+draws them as a data pipeline run. `paper/README.md` has the full instructions.
 
 **`biodiversity.jl` and `models.jl` investigate the same ecology to different ends**: the first
 asserts the end state as property tests, the second follows the same experiments *through time* with

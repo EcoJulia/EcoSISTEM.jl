@@ -40,6 +40,10 @@
       tuples - and a dry run reports each of their files.
     - `datasets.csv` and `DatasetRecord` gain whether each identifier names the data or a paper
       (`identifies`), and the namespace its files are registered in, with its name and website.
+    - Every value the paper's figures are built from is in `examples/paper/parameters.toml`, and
+      `examples/paper.jl` writes Tables S1 and S2 from it. `fair pull` then `fair run` of
+      `examples/paper/paper.yaml` draws them as a data pipeline run, in an environment of its own,
+      registering each output in namespace `EcoSISTEM` as derived from the parameters.
   - Changed
     - CHELSA's rows name their EnviDat deposits' DOIs, CHELSA-BIOCLIM+ its deposit's own version
       (1.0), and every licence is an SPDX identifier or the provider's terms URL.
@@ -51,6 +55,9 @@
     - A layer code a dataset's table lacks is refused naming the tables that have it.
     - `fetchfiles(spec, dryrun = true)` reports a RasterDataSources dataset's files one by one,
       each with the path it has or would have and whether it is there.
+    - `examples/paper.jl` writes to its first argument, else `examples/paper/outputs/`, which git
+      ignores; `ECOSISTEM_PAPER_DIR` is gone. Figure 3 is `NicheWidth.pdf`, not `NicheWidth2.pdf`,
+      and the island figures are at 25 C (298.15 K) where they were at 298 K.
   - Fixed
     - `era5requests` puts every field a request varies by in its file's name - a box, and months
       other than all twelve - so two requests never share a file. A file fetched with a box or
