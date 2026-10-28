@@ -166,7 +166,7 @@ end
 ![](Abundance.svg)
 
 *At full scale: (A) abundance across a landscape with graded water and solar supply;
-(B) abundance against landscape area; (C) abundance against grid resolution; (D) percentage of
+(B) abundance against grid resolution; (C) abundance against landscape area; (D) percentage of
 species surviving ten years.*
 
 ## Dispersal
