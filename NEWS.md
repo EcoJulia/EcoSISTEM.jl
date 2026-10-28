@@ -59,6 +59,9 @@
       ignores; `ECOSISTEM_PAPER_DIR` is gone. Figure 3 is `NicheWidth.pdf`, not `NicheWidth2.pdf`,
       and the island figures are at 25 C (298.15 K) where they were at 298 K.
   - Fixed
+    - `AddSpecies` with no `tolerance` gives a categorical arrival the last species' set of classes,
+      as documented, rather than a randomly chosen species' set drawn from the global generator,
+      which the run's seed did not fix.
     - `era5requests` puts every field a request varies by in its file's name - a box, and months
       other than all twelve - so two requests never share a file. A file fetched with a box or
       some months under the old name is fetched again unless renamed.
