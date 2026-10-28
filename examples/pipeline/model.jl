@@ -1,13 +1,14 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# The model run of the data pipeline example: one species over Scotland, built from the files the
-# fetch run registered. Launched by `fair run` from `model.yaml`, which runs
+# The model run of the data pipeline example: one species over Scotland, built from WorldClim's
+# temperature and rainfall within Natural Earth's outline, as their fetch runs registered them.
+# Launched by `fair run` from `model.yaml`, which runs
 #
 #     julia --threads=${JULIA_NUM_THREADS:-auto} --project=examples/pipeline examples/pipeline/model.jl
 #
-# (`JULIA_NUM_THREADS` threads where it is set, else every core): every file is read from the run's store, never fetched, and the figure is registered as the run's
-# output. Started any other way it reads the asset cache and writes the figure to a temporary
-# directory.
+# (`JULIA_NUM_THREADS` threads where it is set, else every core): every file is read from the
+# run's store, never fetched, and the figure is registered as the run's output. Started any other
+# way it reads the asset cache and writes the figure to a temporary directory.
 
 using DataPipeline
 using Plots
@@ -17,7 +18,7 @@ using Unitful.DefaultSymbols
 using EcoSISTEM.Units
 
 include("inputs.jl")
-using EcoSISTEM: materialise
+using EcoSISTEM: getcellareas
 
 launched = haskey(ENV, "FDP_CONFIG_DIR")
 handle = launched ? DataPipeline.initialise() : nothing
@@ -31,8 +32,6 @@ const AREA = StudyArea(regime = INPUTS.temperature, supply = INPUTS.rainfall,
                        cellsize = 10.0km)
 const HABITAT = GridHabitat(regime = INPUTS.temperature,
                             supply = INPUTS.rainfall, area = AREA)
-# The ERA5 month on the same grid, read beside the habitat for the figure.
-const SUMMER = materialise(INPUTS.summer, AREA)
 
 # --- one species, tolerant of a cool climate and limited by water ------------------------
 
@@ -62,17 +61,20 @@ println("Scotland on a $(ny) x $(nx) grid of 10 km cells ",
         "($(count(HABITAT.active)) active): total abundance ",
         sum(frames[:, :, 1]), " -> ", sum(frames[:, :, end]), ".")
 heatmap(masked(1), clim = (0, maximum(frames)), title = "start",
-        layout = (@layout [a b; c d]))
+        layout = (@layout [a b; c d]), size = (800, 600))
 heatmap!(masked(STEPS), clim = (0, maximum(frames)), title = "end",
          subplot = 2)
 heatmap!(Array(HABITAT.regime.matrix), title = "annual temperature",
          subplot = 3)
-heatmap!(Array(SUMMER.matrix[:, :, 1]), title = "July 2015 (ERA5)",
-         subplot = 4)
+# The supply is the volume of rain a cell receives a day, shown as a depth a year over the land.
+rainfall = uconvert.(u"mm/yr",
+                     Array(HABITAT.supply.matrix) ./ getcellareas(HABITAT))
+heatmap!(ifelse.(Array(HABITAT.active), rainfall, NaN * u"mm/yr"),
+         title = "annual rainfall", subplot = 4)
 
 # --- register the figure ----------------------------------------------------------------------
 
-figure = isnothing(handle) ? joinpath(mktempdir(), "Scotland-plot.pdf") :
+figure = isnothing(handle) ? joinpath(mktempdir(), "Scotland-plot.png") :
          link_write!(handle, "Scotland-plot")
-Plots.pdf(figure)
+Plots.png(figure)
 isnothing(handle) || DataPipeline.finalise(handle)

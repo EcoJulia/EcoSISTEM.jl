@@ -70,7 +70,8 @@
       v0.58.1, and the extension and its test hook are exercised by the test suite.
     - `examples/pipeline/` runs under `fair run` again, as a fetch run for each of WorldClim,
       Natural Earth and ERA5 and a model run over Scotland, each with its config, in an environment
-      of their own; it replaces `AfricaRun.jl`.
+      of their own; it replaces `AfricaRun.jl`. The model run needs no Climate Data Store key, and
+      the Data Pipeline page runs it, tracing its figure back to the providers' data.
   - Removed
     - Everything deprecated in v0.8.0 and earlier: `read` on dataset types and on `ERA`, `CERA`
       and `CRUTS`, `readfile`, `retrieve_era5`, `simulate_action!`, `simulate_record!`,

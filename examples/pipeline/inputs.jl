@@ -3,7 +3,9 @@
 # The inputs of the data pipeline example, shared by its two runs, `fetch.jl` and `model.jl`: one
 # of each kind of file a tracked spec reads. WorldClim's two layers are downloads of a source cited
 # by its paper, Natural Earth's outline of Scotland a download of a source identified by its web
-# page, and a month of ERA5 over Scotland an extract the Climate Data Store makes to a request.
+# page, and a month of ERA5 over Scotland an extract the Climate Data Store makes to a request. The
+# model run is built from the first three alone, so needs no Climate Data Store key; the ERA5
+# month's fetch run shows how an extract is registered.
 #
 # Each spec is tracked by `handle`, the run's handle, under a root of its own; a `handle` of
 # `nothing`, for a script started any other way, tracks nothing, so the same specs read the asset

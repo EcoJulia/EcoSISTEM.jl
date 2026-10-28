@@ -27,6 +27,32 @@ jobs:
           using Pkg
           Pkg.instantiate()
       - uses: julia-actions/julia-buildpkg@v1
+      # The data pipeline page runs `examples/pipeline/` against a local registry that starts empty,
+      # and draws the figure's provenance with GraphViz. The CLI and the registry are pinned to a
+      # pair known to work together.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install and start the FAIR Data Pipeline's local registry
+        run: |
+          python -m pip install fair-cli==0.11.0
+          fair registry install --version v1.4.0
+          fair init --ci
+          fair registry start
+      - name: Install GraphViz
+        run: sudo apt-get install --yes graphviz
+      - name: Configure the pipeline example's environment
+        shell: julia --project=examples/pipeline --color=yes {0}
+        run: |
+          using Pkg
+          Pkg.instantiate()
       - uses: julia-actions/julia-docdeploy@v1
+        with:
+          # `docs/Project.toml` names this checkout under `[sources]`, which installing it again
+          # would rewrite with an absolute path; `fair run` refuses to run in a modified checkout.
+          install-package: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ECOSISTEM_DOCS_RUN_PIPELINE: 'true'
+          # GR's null workstation, so the model run draws its figure with no display.
+          GKSwstype: '100'

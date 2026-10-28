@@ -1,9 +1,16 @@
 run_metadata:
   description: One species over Scotland, built from the registered inputs
+  default_input_namespace: EcoSISTEM
+  default_output_namespace: EcoSISTEM
   # `JULIA_NUM_THREADS` where it is set, else every core: `fair` runs this with `sh`, which expands it
   # (a Windows `batch` shell would pass it through as written).
   script: |
     julia --threads=${JULIA_NUM_THREADS:-auto} --project=examples/pipeline examples/pipeline/model.jl
+
+register:
+- namespace: EcoSISTEM
+  full_name: EcoSISTEM
+  website: https://github.com/EcoJulia/EcoSISTEM.jl
 
 # Each source's files and their records, in its namespace: a `*` matches one segment of a name, so
 # `<root>/*/*` takes `<root>/data/...` and `<root>/provenance/...` and leaves the deposit, which has
@@ -15,11 +22,8 @@ read:
 - data_product: naturalearth/*/*
   use:
     namespace: NaturalEarth
-- data_product: era5/*/*
-  use:
-    namespace: ECMWF
 
 write:
 - data_product: Scotland-plot
-  description: Start and end abundances over Scotland, with the annual and July temperatures
-  file_type: pdf
+  description: Start and end abundances over Scotland, with the annual temperature and rainfall
+  file_type: png

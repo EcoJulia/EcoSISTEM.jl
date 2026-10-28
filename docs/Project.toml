@@ -1,10 +1,13 @@
 [deps]
+DataPipeline = "9ced6f0a-eb77-43a8-bbd1-bbf3031b0d12"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 DimensionalData = "0703355e-b756-11e9-17c0-8b28908087d0"
 Diversity = "d3d5718d-52de-57ab-b67a-eca7fd6175a4"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 EcoSISTEM = "ed2dc23b-ada4-5fdb-a26f-56368a14ad8f"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 JuliaFormatter = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
 LiveServer = "16fef848-5104-11e9-1b77-fb7a48bbb589"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
