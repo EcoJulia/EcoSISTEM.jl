@@ -187,11 +187,12 @@ jobs:
       # raster caches go the same way. One depot serves all four sets on a given OS,
       # Julia and architecture, which is what this key says.
       #
-      # **And only the current release's depot is cached.** An entry is 1.7-2.0 GB, so three of
-      # them and the three raster caches (1.2 GB each) come to about 9 GB; a depot for every Julia
-      # passed 10 GB, evicting the raster caches between the prime job's probe and the tests. The
-      # other Julias precompile from cold.
-      if: matrix.julia-version == '1'
+      # **And only the current release's depot is cached, on Linux and macOS.** An entry is 1.7-2.1
+      # GB, and replacing one briefly holds two, since the key carries the run id; with the three
+      # raster caches (1.2 GB each) that leaves room for two depots under the repository's 10 GB.
+      # More evicts the raster caches between the prime job's probe and the tests. The other jobs
+      # precompile from cold.
+      if: matrix.julia-version == '1' && matrix.os != 'windows-latest'
       uses: julia-actions/cache@v3
       with:
         cache-name: julia-cache;workflow=${{ github.workflow }};job=${{ github.job }};julia=${{ matrix.julia-version }};arch=${{ matrix.arch }}
