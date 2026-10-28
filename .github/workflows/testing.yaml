@@ -131,9 +131,9 @@ jobs:
           - core_rasters
           - core_ext
           - extras
+        # The oldest supported Julia and the current release.
         julia-version:
           - '1.11'
-          - '1.12'
           - '1'
         os:
           - ubuntu-latest
@@ -153,8 +153,6 @@ jobs:
           - suite: extras
             os: windows-latest
           - suite: extras
-            julia-version: '1.12'
-          - suite: extras
             julia-version: '1.11'
             os: macOS-latest
           - os: macOS-latest
@@ -163,6 +161,16 @@ jobs:
             arch: arm64
           - os: windows-latest
             arch: arm64
+        include:
+          # Julia 1.12 on macOS, for the one workaround that acts only there, GDAL's CA bundle
+          # (`_brokencurl` in `src/EcoSISTEM.jl`, and `test_EcoSISTEM.jl`'s check that it is still
+          # needed). Remove this with it, when the `julia` compat floor passes 1.12.
+          - suite: core_test
+            julia-version: '1.12'
+            os: macOS-latest
+            R-version: 'release'
+            arch: arm64
+            experimental: false
       fail-fast: false
     steps:
     - name: Checkout code
@@ -174,10 +182,16 @@ jobs:
         arch: ${{ matrix.arch }}
     - name: Cache
       # **The depot cache must NOT be keyed on the test set.** By default this action appends every
-      # matrix value to its key, which after the split gave each of the thirty jobs its own ~1.2 GB
-      # entry - about 36 GB competing for the repository's 10 GB cache limit, so entries are evicted,
-      # jobs precompile from cold, and the raster caches can go the same way. One depot serves all
-      # four sets on a given OS, Julia and architecture, which is what this key says.
+      # matrix value to its key, which gives every job an entry of its own, far past the
+      # repository's 10 GB cache limit, so entries are evicted, jobs precompile from cold, and the
+      # raster caches go the same way. One depot serves all four sets on a given OS,
+      # Julia and architecture, which is what this key says.
+      #
+      # **And only the current release's depot is cached.** An entry is 1.7-2.0 GB, so three of
+      # them and the three raster caches (1.2 GB each) come to about 9 GB; a depot for every Julia
+      # passed 10 GB, evicting the raster caches between the prime job's probe and the tests. The
+      # other Julias precompile from cold.
+      if: matrix.julia-version == '1'
       uses: julia-actions/cache@v3
       with:
         cache-name: julia-cache;workflow=${{ github.workflow }};job=${{ github.job }};julia=${{ matrix.julia-version }};arch=${{ matrix.arch }}
@@ -229,6 +243,14 @@ jobs:
           rasterdata-${{ runner.os }}-
     - name: Build package
       uses: julia-actions/julia-buildpkg@v1
+    - name: Fetch what the raster cache lacked
+      # The prime job's probe can find an entry that is evicted before this job restores it, and a
+      # partial restore lacks some files. Without this every raster read would download in the
+      # suite, where one dropped connection fails a test; `primecache.jl` fetches with retries,
+      # before the suite, so its memory is not added to the suite's.
+      if: steps.rasters.outputs.cache-hit != 'true'
+      shell: bash
+      run: julia --project -e 'using Pkg; Pkg.test(test_args = ["primecache.jl"])'
     # The instrumented extras job also runs `test/extras_pipeline.jl`, which drives `fair` and
     # installs a registry of its own; `ECOSISTEM_TEST_PIPELINE` below requires the set there, so a
     # broken install fails it rather than skipping it. The CLI is pinned to go with that registry.
