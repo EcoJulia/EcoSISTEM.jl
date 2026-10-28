@@ -27,15 +27,17 @@ include("testsets.jl")
 # `test_Layer.jl` as readily as a whole set - and `extras` on its own names every extra set, run as a
 # full run runs them.
 #
-# **The suite is nine nameable sets**, which is what lets a full run go in parallel rather than in
+# **The suite is ten nameable sets**, which is what lets a full run go in parallel rather than in
 # sequence, and what the CI workflow gives a job each:
 #
 #     core_test  core_rasters  core_ext
-#     extras_canonical  extras_clean  extras_docs  extras_examples  extras_notebooks  extras_pkg
+#     extras_canonical  extras_clean  extras_docs  extras_examples  extras_notebooks  extras_pipeline
+#     extras_pkg
 #
 # The split is semantic: the **core** sets test this package against itself, the **extras** check it
 # against something outside - the examples, the notebooks, the repo's own hygiene, the blessed
-# results, another package.
+# results, the data pipeline, another package. `extras_pipeline` runs only when named or when
+# `ECOSISTEM_TEST_PIPELINE=true`, since it needs `fair` and installs a registry.
 #
 # `core_test` and `core_rasters` are the longest and most others ~1-2 min each, so running them
 # concurrently takes about as long as the longest alone rather than the sum. `extras_pkg` is the

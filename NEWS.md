@@ -86,6 +86,9 @@
       alive across ArchGDAL's `setgeotransform!`, which does not, and the docstring checks import
       REPL rather than relying on another package having loaded it.
     - Printf is no longer a dependency.
+    - A new extra test set, `extras_pipeline`, runs `examples/pipeline/` and the paper's small
+      figures as `fair` runs against a registry of its own and checks what it records; CI requires
+      it on the job measuring coverage to reach the pipeline extension.
 
 - v0.8.0
   - Added
