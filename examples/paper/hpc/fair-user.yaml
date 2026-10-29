@@ -1,0 +1,17 @@
+# Who the paper's HPC runs are registered as. Copy this file to
+# `$ECOSISTEM_HPC_ROOT/fair/user.yaml`, outside the clone, and replace each `<...>` there: an
+# edited file in the clone makes `fair run` refuse to run. `setup.bash` adds where the registry and
+# its data store are, and initialises the clone with the whole.
+user:
+  given_names: <given names>
+  family_name: <family name>
+  email: <email address>
+  # The identifier the registry records you by, as a URL: your ORCID or your GitHub page.
+  uri: <https://orcid.org/0000-0000-0000-0000>
+  # Your ORCID alone, or delete the value.
+  orcid: <0000-0000-0000-0000>
+  # Who you are on a remote registry, should the runs be pushed there: your GitHub user name.
+  remote_user: <GitHub user name>
+  # Required by `fair init`, and left empty: `uri` identifies you, and a UUID stands in only for
+  # someone with no ORCID or GitHub page.
+  uuid:

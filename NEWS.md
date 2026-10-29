@@ -1,6 +1,9 @@
 # NEWS
 
 - v0.9.1
+  - Added
+    - `examples/paper/hpc/` runs the paper's figures as a `fair run` in a Slurm job on one node, set
+      up for the University of Glasgow's MARS cluster; `examples/paper/README.md` says how.
   - Fixed
     - Bump compat for DataPipeline to v0.58.2 for bug fixes.
     - The paper's example writes each figure, table and `figures.toml` to a new file renamed into

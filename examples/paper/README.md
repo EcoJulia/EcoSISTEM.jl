@@ -15,8 +15,8 @@ from, so that figure can be redrawn without rerunning.
 The pieces are in this directory: `parameters.toml`, `common.jl` (scale, seed, parameters, output
 directory, timing, the tables, the sidecar), `niche.jl` (figure 3), `island.jl` (figure 5),
 `dispersal.jl` (figure 6), `optima.jl` (figure 7) and `continent.jl` (figures 8 and 9), with
-`pipeline.jl` and `paper.yaml` for a run through the data pipeline (below). The island builders come
-from `examples/models/ecosystems.jl`.
+`pipeline.jl` and `paper.yaml` for a run through the data pipeline, and `hpc/` for that run as a
+job on a cluster (both below). The island builders come from `examples/models/ecosystems.jl`.
 
 ## Running it in full
 
@@ -62,6 +62,60 @@ The figures are drawn into `outputs/` here, as for a plain run with no argument,
 replaces the last's files there: the registered copies are in the data store, and `continent.jld2`,
 which is not registered, is the latest run's. `ECOSISTEM_SCALE` and `ECOSISTEM_PAPER_FIGURES` work
 as for a plain run; set them before `fair run`, which passes them on.
+
+## On an HPC cluster
+
+`hpc/` runs that `fair run` as a Slurm job on one node, set up for the `smp` nodes of the University
+of Glasgow's MARS cluster: 128 cores and 1 TB each. Its `#SBATCH` lines name MARS's partition and
+project `project0000`, and `hpc/env.sh` MARS's juliaup module and project storage, so change those
+for another machine. A full run spends nearly all its time on figure 8 (eighteen hours on twelve
+threads of a laptop); the job asks for three days, and the continent's progress lines give its
+projected finish early.
+
+Everything large goes under `ECOSISTEM_HPC_ROOT`, by default `/mnt/data/project0000/$USER`: the
+Julia depot, and with it EcoSISTEM's asset cache and DataPipeline's copy of `fair`, then the local
+registry and its data store. `env.sh` also picks the juliaup channel (`JULIAUP_CHANNEL`, `1.13.3`)
+and the registry's port (`ECOSISTEM_HPC_PORT`, 8030; a node is shared, so not 8000). Set any of the
+three in `~/.bashrc` rather than editing `env.sh`: `fair run` refuses a clone with changes.
+
+Once, on the login node - the clone, at the release to run, and who the registry records the runs
+as:
+
+```sh
+module load apps/juliaup/1.18.9
+juliaup add 1.13.3
+export ECOSISTEM_HPC_ROOT=/mnt/data/project0000/$USER
+git clone https://github.com/EcoJulia/EcoSISTEM.jl.git $ECOSISTEM_HPC_ROOT/EcoSISTEM.jl
+cd $ECOSISTEM_HPC_ROOT/EcoSISTEM.jl
+git checkout v0.9.1
+mkdir -p $ECOSISTEM_HPC_ROOT/fair
+cp examples/paper/hpc/fair-user.yaml $ECOSISTEM_HPC_ROOT/fair/user.yaml
+```
+
+Fill in `user.yaml` - your name, email, and your ORCID or GitHub page - then, from the root of the
+clone, set the rest up as a job. It instantiates and precompiles this directory's environment on an
+`smp` node, installs DataPipeline's copy of `fair` (`DataPipeline.install_cli()`) and the registry,
+writes a CLI configuration from `user.yaml` and the paths above, and runs `fair init --using` with
+it:
+
+```sh
+sbatch examples/paper/hpc/setup.bash
+```
+
+If it fails part way, with a download cut short say, submit it again: it keeps what it finished.
+
+Then the small-scale run, which tests every piece in minutes, and the full one:
+
+```sh
+ECOSISTEM_SCALE=small sbatch --time=01:00:00 examples/paper/hpc/run.bash
+sbatch examples/paper/hpc/run.bash
+```
+
+Each starts the registry, runs `fair pull` and `fair run` as above, and stops it. Both runs stay in
+the registry under the same names, each `Examples/Config` recording its scale. `run` is given no
+`--local`, so it refuses a commit the clone's remote does not have. Each job writes
+`<name>-<job ID>.out` and `.err` in the clone, with the `Manifest.toml` it ran with beside them,
+since the manifest is not part of the repository.
 
 ## Under the test suite
 

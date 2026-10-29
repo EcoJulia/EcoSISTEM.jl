@@ -5,11 +5,11 @@
 # that what the paper shows is produced by code under test.
 #
 # **Two scales.** Run directly it reproduces the published experiments in full, which takes hours
-# (figure 8 alone is 50,000 species on a 100 x 100 continent for 200 years; time one year first,
-# below). Under the test suite, which sets `ECOSISTEM_SCALE=small`, every figure is drawn from a
-# run that finishes in seconds - the same code, the same layout, a fraction of the species and the
-# years - so the figures are exercised like every other top-level example. Unlike `models.jl`, this
-# file never skips.
+# (figure 8 alone is 50,000 species on a 100 x 100 continent for 125 years, and prints its
+# projected finish as it goes). Under the test suite, which sets `ECOSISTEM_SCALE=small`, every
+# figure is drawn from a run that finishes in seconds - the same code, the same layout, a fraction
+# of the species and the years - so the figures are exercised like every other top-level example.
+# Unlike `models.jl`, this file never skips.
 #
 #     julia -t 12 --project=examples examples/paper.jl [output directory]
 #
