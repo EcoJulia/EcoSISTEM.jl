@@ -68,10 +68,23 @@ println("Writing the paper's figures to ", PAPER_DIR, " at ", paper_scale(),
 # path: what `paper/pipeline.jl` registers once everything is drawn.
 const PAPER_OUTPUTS = @NamedTuple{kind::Symbol, name::String, path::String}[]
 
+# Write the file at `path` by calling `writer` with a new path beside it, of the same extension,
+# which `savefig` takes the format from, then rename that over `path`. Never written into the file
+# already there: a data pipeline run may have registered it, and the data store may hold that same
+# file under another name.
+function _replacefile(writer::Function, path::AbstractString)
+    part = tempname(dirname(path)) * last(splitext(path))
+    writer(part)
+    mv(part, path, force = true)
+    return path
+end
+
 # Save a figure as a PDF under the name the paper's LaTeX includes, and say where.
 function savefigure(plt, name)
     path = joinpath(PAPER_DIR, name * ".pdf")
-    savefig(plt, path)
+    _replacefile(path) do part
+        return savefig(plt, part)
+    end
     push!(PAPER_OUTPUTS, (kind = :figure, name = name, path = path))
     println("    wrote ", path)
     return path
@@ -111,18 +124,20 @@ end
 # `figures.toml`: what produced the PDFs beside it.
 function write_sidecar()
     path = joinpath(PAPER_DIR, "figures.toml")
-    open(path, "w") do io
-        println(io, "package = \"EcoSISTEM\"")
-        println(io, "version = \"", pkgversion(EcoSISTEM), "\"")
-        println(io, "commit = \"", _commit(), "\"")
-        println(io, "julia = \"", VERSION, "\"")
-        println(io, "scale = \"", paper_scale(), "\"")
-        println(io, "seed = ", PAPER_SEED)
-        println(io, "threads = ", Threads.nthreads())
-        println(io)
-        println(io, "[seconds]")
-        for (name, elapsed) in PAPER_TIMINGS
-            println(io, name, " = ", round(elapsed, digits = 1))
+    _replacefile(path) do part
+        return open(part, "w") do io
+            println(io, "package = \"EcoSISTEM\"")
+            println(io, "version = \"", pkgversion(EcoSISTEM), "\"")
+            println(io, "commit = \"", _commit(), "\"")
+            println(io, "julia = \"", VERSION, "\"")
+            println(io, "scale = \"", paper_scale(), "\"")
+            println(io, "seed = ", PAPER_SEED)
+            println(io, "threads = ", Threads.nthreads())
+            println(io)
+            println(io, "[seconds]")
+            for (name, elapsed) in PAPER_TIMINGS
+                println(io, name, " = ", round(elapsed, digits = 1))
+            end
         end
     end
     push!(PAPER_OUTPUTS, (kind = :config, name = "Config", path = path))
@@ -338,7 +353,9 @@ function write_tables()
     for (name, table) in (("IslandParameters", island_table()),
                           ("ContinentParameters", continent_table()))
         path = joinpath(PAPER_DIR, name * ".tex")
-        write(path, table)
+        _replacefile(path) do part
+            return write(part, table)
+        end
         push!(PAPER_OUTPUTS, (kind = :table, name = name, path = path))
         println("    wrote ", path)
     end

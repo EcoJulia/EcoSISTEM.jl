@@ -3,6 +3,9 @@
 - v0.9.1
   - Fixed
     - Bump compat for DataPipeline to v0.58.2 for bug fixes.
+    - The paper's example writes each figure, table and `figures.toml` to a new file renamed into
+      place, so a run no longer changes the files an earlier `fair run` registered, which the data
+      store can hold as the same file under another name.
 
 - v0.9.0
   - Added
