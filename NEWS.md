@@ -58,6 +58,8 @@
     - `examples/paper.jl` writes to its first argument, else `examples/paper/outputs/`, which git
       ignores; `ECOSISTEM_PAPER_DIR` is gone. Figure 3 is `NicheWidth.pdf`, not `NicheWidth2.pdf`,
       and the island figures are at 25 C (298.15 K) where they were at 298 K.
+    - `gatherabundance` allocates the whole abundance matrix only on the root rank, which alone
+      receives it; every other rank gets an empty matrix rather than one of zeros.
   - Fixed
     - `AddSpecies` with no `tolerance` gives a categorical arrival the last species' set of classes,
       as documented, rather than a randomly chosen species' set drawn from the global generator,

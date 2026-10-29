@@ -314,6 +314,21 @@ if rank == 0
     @save joinpath(ARGS[1], "Test_abuns$(MPI.Comm_size(comm))x$nt.jld2") abuns=true_abuns
 end
 
+# Only the root receives the whole matrix, so it is the only rank that allocates one; every other
+# rank returns an empty matrix and allocates less. The bound catches a second copy of a rank's own
+# share only at two ranks, where two shares come to about one whole matrix, not at three or more.
+function gatheredbytes(eco)
+    gatherabundance(eco)
+    return @allocated gatherabundance(eco)
+end
+gatherbytes = gatheredbytes(eco)
+if rank == 0
+    @test size(true_abuns) == (numSpecies, VARYING_NY * VARYING_NX)
+else
+    @test size(true_abuns) == (0, 0)
+    @test gatherbytes < sizeof(Int64) * numSpecies * VARYING_NY * VARYING_NX
+end
+
 sppl, tolerance = mpifixture_species()
 
 # The shared varying environment: a temperature gradient down the grid, a solar gradient across it,

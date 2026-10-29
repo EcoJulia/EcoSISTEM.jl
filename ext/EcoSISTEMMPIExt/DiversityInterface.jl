@@ -299,22 +299,23 @@ using DataFrames: DataFrame, ncol
 function EcoSISTEM.gatherabundance(eco::MPIEcosystem)
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
-    true_abuns = zeros(Int64, counttypes(eco), countsubcommunities(eco))
     if rank == 0
+        # `zeros`, not `undef`: the counts cover every entry, but a miscount must show as zeros
+        # rather than as uninitialised memory.
+        true_abuns = zeros(Int64, counttypes(eco), countsubcommunities(eco))
         # **Counted over the COLUMN partition, because that is what is being sent.**
-        # `reshaped_cols` holds *every* species for *this rank's* cells, so a rank contributes
-        # `counttypes(eco) * sccounts[rank]` values. The previous
-        # `sppcounts .* sum(sccounts)` - this rank's *species* by *all* cells - is the row
-        # partition, and the two agree only when species and cells both divide evenly across the
-        # ranks. They always did in the old test fixture (8 species on a 4 × 4 grid), so the
-        # mismatch never showed; with 7 species on 77 cells rank 0 sends 273 values while the old
-        # expression asked for 308, and `MPI_Gatherv` fails outright.
+        # `reshaped_cols` holds *every* species for *this rank's* cells, so each rank sends
+        # `counttypes(eco)` times its own entry of `sccounts`. The row partition's counts, a rank's
+        # species by all cells, agree with these only when species and cells both divide evenly
+        # across the ranks.
         output_vbuf = VBuffer(true_abuns,
                               Int32.(counttypes(eco) .* eco.sccounts))
     else
+        # Only the root receives, so no other rank holds the whole matrix.
+        true_abuns = Matrix{Int64}(undef, 0, 0)
         output_vbuf = VBuffer(nothing)
     end
-    MPI.Gatherv!(vcat(eco.abundances.reshaped_cols...)[1:end], output_vbuf, 0,
+    MPI.Gatherv!(reduce(vcat, eco.abundances.reshaped_cols), output_vbuf, 0,
                  comm)
     return true_abuns
 end

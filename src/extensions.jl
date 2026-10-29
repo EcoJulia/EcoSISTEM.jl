@@ -208,7 +208,18 @@ function brownian_motion end
 """
     gatherabundance(eco::MPIEcosystem)
 
-Gather the full abundances matrix onto the root node.
+Gather the whole abundance matrix of a distributed ecosystem, species by cells, onto the root rank.
+Every rank must call it, since it is collective.
+
+# Arguments
+
+  - `eco`: the distributed ecosystem.
+
+# Returns
+
+  - On the root rank, the `Int64` matrix a serial run of the same ecosystem holds in
+    `abundances.matrix`, one row per species and one column per cell; on every other rank, an
+    empty matrix.
 """
 function gatherabundance end
 
