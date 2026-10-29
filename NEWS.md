@@ -1,5 +1,9 @@
 # NEWS
 
+- v0.9.1
+  - Fixed
+    - Bump compat for DataPipeline to v0.58.2 for bug fixes.
+
 - v0.9.0
   - Added
     - `SourceSpec(ERA, code; years, months, area)` fetches an ERA5 layer from the Climate Data
