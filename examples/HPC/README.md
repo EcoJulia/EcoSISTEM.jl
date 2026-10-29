@@ -51,6 +51,9 @@ Any run is multithreaded and uses every available thread. On a node with two 64-
 sbatch examples/HPC/demo-threads.bash
 ```
 
+The paper's figures have jobs of their own, run through the data pipeline and registered:
+`examples/paper/hpc/`, described in `examples/paper/README.md`.
+
 ## MPI runs
 
 Julia's own MPI libraries are used here. On a real cluster its native MPI is usually much faster,

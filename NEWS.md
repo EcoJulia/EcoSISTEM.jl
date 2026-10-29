@@ -1,5 +1,17 @@
 # NEWS
 
+- v0.9.1
+  - Added
+    - `examples/paper/hpc/` runs the paper's figures as a `fair run` in a Slurm job on one node, set
+      up for the University of Glasgow's MARS cluster; `examples/paper/README.md` says how.
+  - Fixed
+    - Bump compat for DataPipeline to v0.59 for bug fixes.
+    - The paper's example writes each figure, table and `figures.toml` to a new file renamed into
+      place, so a run no longer changes the files an earlier `fair run` registered, which the data
+      store can hold as the same file under another name.
+    - The paper's `figures.toml` names the package version and commit a run started from, read as
+      it starts, so a checkout that moves on during a run of hours is not what it records.
+
 - v0.9.0
   - Added
     - `SourceSpec(ERA, code; years, months, area)` fetches an ERA5 layer from the Climate Data
