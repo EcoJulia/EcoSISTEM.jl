@@ -6,6 +6,8 @@
     - The paper's example writes each figure, table and `figures.toml` to a new file renamed into
       place, so a run no longer changes the files an earlier `fair run` registered, which the data
       store can hold as the same file under another name.
+    - The paper's `figures.toml` names the package version and commit a run started from, read as
+      it starts, so a checkout that moves on during a run of hours is not what it records.
 
 - v0.9.0
   - Added

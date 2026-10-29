@@ -121,14 +121,19 @@ function _commit()
     end
 end
 
+# The package version and commit the figures are drawn by, read as the run starts: a full run takes
+# hours, and the checkout may move on before the sidecar is written at the end.
+const PAPER_VERSION = pkgversion(EcoSISTEM)
+const PAPER_COMMIT = _commit()
+
 # `figures.toml`: what produced the PDFs beside it.
 function write_sidecar()
     path = joinpath(PAPER_DIR, "figures.toml")
     _replacefile(path) do part
         return open(part, "w") do io
             println(io, "package = \"EcoSISTEM\"")
-            println(io, "version = \"", pkgversion(EcoSISTEM), "\"")
-            println(io, "commit = \"", _commit(), "\"")
+            println(io, "version = \"", PAPER_VERSION, "\"")
+            println(io, "commit = \"", PAPER_COMMIT, "\"")
             println(io, "julia = \"", VERSION, "\"")
             println(io, "scale = \"", paper_scale(), "\"")
             println(io, "seed = ", PAPER_SEED)
