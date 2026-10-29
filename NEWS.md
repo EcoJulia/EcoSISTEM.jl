@@ -5,7 +5,7 @@
     - `examples/paper/hpc/` runs the paper's figures as a `fair run` in a Slurm job on one node, set
       up for the University of Glasgow's MARS cluster; `examples/paper/README.md` says how.
   - Fixed
-    - Bump compat for DataPipeline to v0.58.2 for bug fixes.
+    - Bump compat for DataPipeline to v0.59 for bug fixes.
     - The paper's example writes each figure, table and `figures.toml` to a new file renamed into
       place, so a run no longer changes the files an earlier `fair run` registered, which the data
       store can hold as the same file under another name.
