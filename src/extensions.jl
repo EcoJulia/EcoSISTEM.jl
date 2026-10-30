@@ -81,24 +81,29 @@ Clear all node data records in the tree, resetting every node to an empty
 function resettraits! end
 
 """
-    assigntraits!(tree::AbstractTree, switch_rate::Vector{Float64}, traits::DataFrame)
-    assigntraits!(tree::AbstractTree, switch_rate::Float64, traits::DataFrame)
-    assigntraits!(tree::AbstractTree, traits::DataFrame)
+    assigntraits!([rng::AbstractRNG,] tree::AbstractTree, switch_rate::Vector{Float64}, traits::DataFrame)
+    assigntraits!([rng::AbstractRNG,] tree::AbstractTree, switch_rate::Float64, traits::DataFrame)
+    assigntraits!([rng::AbstractRNG,] tree::AbstractTree, traits::DataFrame)
 
 Evolve functional traits through a phylogenetic tree, writing the result onto the
 tree's node records.
 
 The first two forms evolve **categorical** traits, switching between the values in
-each column of `traits` at `switch_rate` - one rate per trait, or a single rate
-shared by all of them. The third evolves **continuous** traits by Brownian motion,
+each column of `traits` at times drawn along each root-to-tip path, spaced by
+`switch_rate` - one value per trait, or a single value shared by all of them. The
+third evolves **continuous** traits by Brownian motion,
 and takes a `traits` with a `start` column of initial values and a `σ²` column of
 rates, one row per trait.
 
 # Arguments
 
+  - `rng`: the generator the switch times, trait values and Brownian steps are drawn from.
+    Left out, the global generator.
   - `tree`: the phylogeny to evolve the traits along.
-  - `switch_rate`: the rate of categorical trait change along a branch, per trait
-    or shared by all of them. Omitted for the Brownian form.
+  - `switch_rate`: the mean time between changes of a categorical trait, as a fraction
+    of the root-to-tip length, so `0.5` changes it about twice between root and tip and a
+    larger value changes it less often; per trait or shared by all of them. Omitted for the
+    Brownian form.
   - `traits`: the traits to evolve - the categorical values per trait, or the
     `start`/`σ²` pairs the Brownian form needs.
 """
@@ -114,19 +119,22 @@ all nodes.
 function gettraits end
 
 """
-    discrete_evolve(numTraits::Int64, tree::BinaryTree)
+    discrete_evolve([rng::AbstractRNG,] numTraits::Int64, tree::BinaryTree, switch_rate = 0.5)
 
-Evolve a discrete switching trait along a BinaryTree, `tree`. Takes in a number
-of traits, `numTraits` to be switched between and rate to switch between traits,
-`switch_rate` with default value of 0.5.
+Evolve a discrete switching trait along a BinaryTree, `tree`, between `numTraits`
+values. `switch_rate` is the mean time between switches as a fraction of the
+root-to-tip length, so its default of 0.5 switches about twice between root and tip
+and a larger value switches less often. The switches are drawn from `rng`; left out,
+the global generator.
 """
 function discrete_evolve end
 
 """
-    continuous_evolve(val::Union{Float64, Unitful.Quantity{Float64}}, var::Union{Float64, Unitful.Quantity{Float64}}, tree::BinaryTree)
+    continuous_evolve([rng::AbstractRNG,] val::Union{Float64, Unitful.Quantity{Float64}}, var::Union{Float64, Unitful.Quantity{Float64}}, tree::BinaryTree)
 
 Evolve a continuous trait along a BinaryTree, `tree` via Brownian motion. Takes
-in a starting value, `val` and a variance, `var`.
+in a starting value, `val` and a variance, `var`. The steps are drawn from `rng`;
+left out, the global generator.
 """
 function continuous_evolve end
 
@@ -191,10 +199,11 @@ a vector of `Bool` values, one per node.
 function arenoderecordsempty end
 
 """
-    brownian_motion(T::Real, σ²::Float64, start::Float64, lab::String = "")
+    brownian_motion([rng::AbstractRNG,] T::Real, σ²::Float64, start::Float64, lab::String = "")
 
 Evolve a Real value through Brownian motion, with a starting value,
- `start`, and rate, `σ²`.
+ `start`, and rate, `σ²`. The steps are drawn from `rng`; left out, the global
+generator.
 
 """
 function brownian_motion end

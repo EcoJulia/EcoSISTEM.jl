@@ -198,7 +198,8 @@ mismatch):
     (scalar rates give an [`EqualPop`](@ref), vectors a [`PopGrowth`](@ref)).
 
 `abundance` is either a total number of individuals split at random across
-species (seedable via `seed`) or an explicit per-species vector. `native` marks
+species or an explicit per-species vector; `seed` fixes the split, from a stream of its own, so
+the same seed gives the same starting abundances whatever else has been drawn. `native` marks
 species as native (default all `true`). `names` gives the species their names, one unique string
 each - binomials, say - which also label their Diversity types; left unset they are `"1"` to
 `"numspecies"`. `provenance` is an [`InputRecord`](@ref), or a vector of them, for the published

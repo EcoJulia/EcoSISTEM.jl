@@ -3,8 +3,10 @@
 # --- The tree-generating `SpeciesList` constructors --------------------------------------------------
 #
 # These two do not merely *accept* a phylogeny - they **build** one
-# (`rand(Ultrametric{BinaryTree{...}}(names))`) and derive a `PhyloBranches` similarity from it, so
-# they cannot work without `Phylo`. Every other `SpeciesList` constructor is untouched and stays
+# (`rand(rng, Ultrametric{BinaryTree{...}}(names))`) and derive a `PhyloBranches` similarity from
+# it, so they cannot work without `Phylo`. The tree and the traits evolved along it come from one
+# stream, `_phylogenyrng(seed)`, so a seed fixes both and an unseeded build draws from the global
+# generator without ever reseeding it. Every other `SpeciesList` constructor is untouched and stays
 # in `src/Species.jl`, including the one `build_species` uses; their docstrings stay there too.
 
 function EcoSISTEM.SpeciesList(numspecies::Int64,
@@ -14,18 +16,18 @@ function EcoSISTEM.SpeciesList(numspecies::Int64,
                                movement::MO,
                                params::P,
                                native::Vector{Bool},
-                               switch::Vector{Float64}) where {DM <:
-                                                               AbstractDemand,
-                                                               MO <:
-                                                               AbstractMovement,
-                                                               P <:
-                                                               AbstractParams}
+                               switch::Vector{Float64};
+                               seed = nothing) where {DM <: AbstractDemand,
+                                                      MO <: AbstractMovement,
+                                                      P <: AbstractParams}
     names = map(x -> "$x", 1:numspecies)
+    rng = _phylogenyrng(seed)
     # Create tree
-    tree = rand(Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(names))
+    tree = rand(rng,
+                Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(names))
     # Create tolerance and assign to tips
     traits = DataFrame(trait1 = collect(1:numtraits))
-    assigntraits!(tree, switch, traits)
+    assigntraits!(rng, tree, switch, traits)
     # Get tolerance from tree
     # `penalty = 0.5` is **soft** exclusion, and must be stated rather than left to the default:
     # this evolves a *niche* label, and a species outside its niche should do worse there rather than
@@ -38,7 +40,7 @@ function EcoSISTEM.SpeciesList(numspecies::Int64,
     phy = PhyloBranches(tree)
     # Draw random set of abundances from distribution
     if length(abun) < numspecies
-        abun = vcat(abun, repmat([0], numspecies - length(abun)))
+        abun = vcat(abun, fill(0, numspecies - length(abun)))
     end
     # error out when abun dist and NumberSpecies are not the same (same for resource dist)
     length(abun) == numspecies || throw(DimensionMismatch("Abundance vector
@@ -67,18 +69,19 @@ function EcoSISTEM.SpeciesList(numspecies::Int64,
                                movement::MO,
                                phy::T,
                                params::P,
-                               native::Vector{Bool}) where {DM <:
-                                                            AbstractDemand,
-                                                            MO <:
-                                                            AbstractMovement,
-                                                            T <: AbstractTypes,
-                                                            P <: AbstractParams}
+                               native::Vector{Bool};
+                               seed = nothing) where {DM <: AbstractDemand,
+                                                      MO <: AbstractMovement,
+                                                      T <: AbstractTypes,
+                                                      P <: AbstractParams}
     names = map(x -> "$x", 1:numspecies)
+    rng = _phylogenyrng(seed)
     # Create tree
-    tree = rand(Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(names))
+    tree = rand(rng,
+                Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(names))
     # Create tolerance and assign to tips
     traits = DataFrame(trait1 = collect(1:numtraits))
-    assigntraits!(tree, 0.5, traits)
+    assigntraits!(rng, tree, 0.5, traits)
     # Get tolerance from tree
     # `penalty = 0.5` is **soft** exclusion, and must be stated rather than left to the default:
     # this evolves a *niche* label, and a species outside its niche should do worse there rather than
@@ -89,7 +92,7 @@ function EcoSISTEM.SpeciesList(numspecies::Int64,
                                         penalty = 0.5)
     # Draw random set of abundances from distribution
     if length(abun) < numspecies
-        abun = vcat(abun, repmat([0], numspecies - length(abun)))
+        abun = vcat(abun, fill(0, numspecies - length(abun)))
     end
     # error out when abun dist and NumberSpecies are not the same (same for resource dist)
     length(abun) == numspecies || throw(DimensionMismatch("Abundance vector

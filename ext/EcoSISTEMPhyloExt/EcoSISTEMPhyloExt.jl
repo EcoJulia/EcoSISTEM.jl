@@ -40,6 +40,11 @@ using EcoSISTEM: arenoderecordsempty, pair, root_to_tips, brownian_motion
 # fitters' unqualified calls to it would be an `UndefVarError`. Naming it here is the same fix the
 # line above makes for `gettraits`/`assigntraits!`.
 using EcoSISTEM: gettraits, assigntraits!, varcovar
+# The stream the tree-growing constructors draw from, keyed on their `seed`; the tag it carries
+# lives beside the abundance split's in `src/Species.jl`, so every tagged stream is declared in
+# the parent.
+using EcoSISTEM: _phylogenyrng
+using Random: AbstractRNG, default_rng
 using Phylo
 using Phylo: NodeNameIterator
 using Optim

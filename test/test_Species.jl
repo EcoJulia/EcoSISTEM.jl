@@ -10,6 +10,7 @@ using Distributions
 using EcoSISTEM.Units
 using Diversity
 using EcoBase
+using Random
 # **Load-bearing, and it took a parallel runner to notice.** The `SpeciesList` forms this file
 # builds are completed by `EcoSISTEMPhyloExt` - `src/Species.jl`'s 7-argument constructor forwards
 # to an 8-argument one (`switch::Vector{Float64}`) that only exists once `Phylo` is loaded. This file
@@ -78,6 +79,64 @@ using Phylo
     @test_nowarn sppl = SpeciesList(numSpecies, numTraits, abun, resource_vec,
                                     movement, UniqueTypes(numSpecies), param,
                                     native)
+end
+
+# **Species building must leave the global generator alone.** A seeded abundance split, or a seeded
+# phylogeny, comes from a stream of its own: it is the same whatever was drawn before it, and
+# drawing it moves nothing drawn after it. Unseeded, both come from the global generator, as an
+# unseeded `NicheSpec` does. A reseed of the global generator would pass the first two checks and
+# fail the third.
+@testset "species building draws from streams of its own" begin
+    n = 6
+    build(; kw...) = build_species(n, tolerance = (298.0K, 2.0K),
+                                   toleranceaxis = Temperature,
+                                   demand = 2.0kJ / day,
+                                   demandaxis = SolarRadiation,
+                                   abundance = 100_000; kw...)
+    Random.seed!(1)
+    seeded = build(seed = 7).abun
+    Random.seed!(2)
+    @test build(seed = 7).abun == seeded
+    @test build(seed = 8).abun != seeded
+    @test sum(seeded) == 100_000
+    Random.seed!(3)
+    untouched = rand(UInt64)
+    Random.seed!(3)
+    build(seed = 7)
+    @test rand(UInt64) == untouched
+    Random.seed!(4)
+    unseeded = build().abun
+    Random.seed!(4)
+    @test build().abun == unseeded
+
+    # The tree-growing constructors: the tree, and the tolerances evolved along it, from one stream.
+    demand = Demand{SolarRadiation}(fill(2.0kJ / day, n))
+    movement = BirthOnlyMovement(GaussianKernel.(fill(2.0km, n), 10e-4))
+    param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2)
+    grow(abun = fill(10, n); kw...) = SpeciesList(n, 2, abun, demand, movement,
+                                                  param, fill(true, n); kw...)
+    branchlengths(sl) = sort([getlength(sl.types.tree, b)
+                              for b in getbranches(sl.types.tree)])
+    Random.seed!(1)
+    tree = grow(seed = 7)
+    Random.seed!(2)
+    again = grow(seed = 7)
+    @test branchlengths(again) == branchlengths(tree)
+    @test again.tolerance.vals == tree.tolerance.vals
+    @test branchlengths(grow(seed = 8)) != branchlengths(tree)
+    Random.seed!(3)
+    grow(seed = 7)
+    @test rand(UInt64) == untouched
+    # The seed reaches the other two forms as well: the one taking the switch rates, and the one
+    # taking a similarity structure, which keeps no tree but evolves the tolerances along one.
+    @test branchlengths(SpeciesList(n, 2, fill(10, n), demand, movement, param,
+                                    fill(true, n), [0.5], seed = 7)) ==
+          branchlengths(tree)
+    @test SpeciesList(n, 2, fill(10, n), demand, movement, UniqueTypes(n),
+                      param, fill(true, n), seed = 7).tolerance.vals ==
+          tree.tolerance.vals
+    # A short abundance vector is padded with zeros, as the tolerance-taking constructor pads it.
+    @test grow([10, 20], seed = 7).abun == [10, 20, 0, 0, 0, 0]
 end
 
 # **Diversity's API hooks drifted, and nothing noticed for a release.** `_calcsimilarity`'s second
