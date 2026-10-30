@@ -68,4 +68,34 @@ end
     @test unique.spplist.names == named
 end
 
+# Bytes one call allocates, after a call that compiles it.
+_bytes(f, x) = (f(x); @allocated f(x))
+
+# The weights, the metacommunity abundances and the scale are summed from the ecosystem's scratch,
+# not from a normalised copy of the abundances, which Diversity's defaults would make on every call
+# and every measure asks for. They must still be exactly Diversity's own answers, for a phylogeny,
+# whose processed abundances are over branches, as well as for unique types.
+@testset "weights and metacommunity abundances come from the scratch" begin
+    phylo = Test1Ecosystem(seed = 1)
+    unique = makeunique(Test1Ecosystem(seed = 1))
+    for eco in (phylo, unique)
+        raw = eco.abundances.matrix
+        processed = Diversity.API._getabundance(eco, false)
+        @test getweight(eco) == vec(sum(processed, dims = 1))
+        @test getmetaabundance(eco, false) == vec(sum(processed, dims = 2))
+        @test getmetaabundance(eco, true) == vec(sum(raw, dims = 2))
+        @test Diversity.API._getscale(eco) ==
+              Diversity.API._calcabundance(Diversity.API._gettypes(eco),
+                                           raw / sum(raw))[2]
+    end
+
+    # Unique types pass the scratch straight through, so nothing the size of the abundances is
+    # made; a phylogeny's branch abundances are a new matrix by any route, so it cannot show this.
+    eco = makeunique(Test1Ecosystem(seed = 1, grid = (20, 30), numspecies = 50))
+    copybytes = 8 * length(eco.abundances.matrix)
+    @test _bytes(getweight, eco) < copybytes / 10
+    @test _bytes(e -> getmetaabundance(e, false), eco) < copybytes / 10
+    @test _bytes(Diversity.API._getscale, eco) < copybytes / 10
+end
+
 end

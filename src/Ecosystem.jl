@@ -38,16 +38,14 @@ Cache houses an integer array of moves made by all species in a timestep for the
 mutable struct Cache
     netmigration::Matrix{Int64}
     totaldemand::Matrix{Float64}
-    # **Scratch for `_getordinariness!`, and it is the difference between 32 bytes and ~1.9 GiB
-    # a call.** The ordinariness chain allocates about one `Float64`
-    # matrix** of the abundances' shape - on a UK 1 km grid with 1000 species that is **1.86 GiB
-    # every time a diversity measure is asked for**.
-    # **It is scratch, NOT a cache** - it is refilled on every call and never trusted. The cache
-    # A cached one goes stale - nothing invalidates it when the ecosystem changes - and is safe only
-    # by *position*. Filling in place gives the saving without the hazard.
-    # `_calcabundance`/`_calcordinariness` **pass a `UniqueTypes` array straight through** (
-    # measured: 32 B and 0 B, returning the same array), so the value handed back aliases this
-    # buffer. A caller wanting to keep a result across calls must copy it.
+    # **Scratch for the normalised abundances behind the ordinariness, the weights, the
+    # metacommunity abundances and the scale** (`src/DiversityInterface.jl`). Without it each of
+    # those allocates a `Float64` matrix of the abundances' shape on every call - 7 GiB at 44,000
+    # species on 21,000 cells - and every diversity measure asks for two of them.
+    # **It is scratch, NOT a cache**: refilled on every call and never trusted, since nothing would
+    # invalidate a cached value when the ecosystem changes. `_calcabundance`/`_calcordinariness`
+    # **pass a `UniqueTypes` array straight through**, so the ordinariness handed back aliases this
+    # buffer, and a caller wanting to keep it across calls must copy it.
     relativeabun::Matrix{Float64}
     valid::Bool
 

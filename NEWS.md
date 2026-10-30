@@ -1,5 +1,12 @@
 # NEWS
 
+- v0.9.2
+  - Fixed
+    - Diversity measures of an `Ecosystem` no longer copy its whole abundance matrix to find the
+      cell weights, the metacommunity abundances or the scale: each measure made two such copies,
+      and now makes one. Under MPI the weights come from each rank's own cells.
+    - `examples/paper/hpc/env.sh` keeps requests to the local registry off any web proxy.
+
 - v0.9.1
   - Added
     - `examples/paper/hpc/` runs the paper's figures as a `fair run` in a Slurm job on one node, set

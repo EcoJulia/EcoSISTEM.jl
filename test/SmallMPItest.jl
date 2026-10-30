@@ -384,6 +384,14 @@ if rank == 0
     @save joinpath(ARGS[1], "Test_abuns$(MPI.Comm_size(comm))x$nt.jld2") abuns=true_abuns
 end
 
+# Each rank sums the weights of its own cells, which hold every species, and the parts are gathered,
+# so they are the serial weights of the gathered matrix to the last bit however the cells are
+# divided. Every rank must ask: the gather is collective.
+weights = getweight(eco)
+if rank == 0
+    @test weights == vec(sum(true_abuns ./ sum(true_abuns), dims = 1))
+end
+
 # **Serial is the reference the distributed loop has to reproduce, and nothing else checks it.**
 # The comparison across launches in `ext_EcoSISTEMMPIExt.jl` is MPI against MPI: every one of them
 # takes the duplicated hot loop in `ext/EcoSISTEMMPIExt/dynamics.jl`, so a change made there and not

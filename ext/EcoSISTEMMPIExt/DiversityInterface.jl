@@ -14,8 +14,8 @@
 # so every one of them reads as dead code and is not. Deleting one silently breaks the interface for
 # a distributed run.
 #
-# Two of them are COLLECTIVE - `_getmetaabundance` calls `Allgatherv` and `_getweight` calls
-# `Allreduce` - so every rank must reach them, in the same order, or the run deadlocks. That
+# Two of them are COLLECTIVE - `_getmetaabundance` and `_getweight` each call `Allgatherv` - so
+# every rank must reach them, in the same order, or the run deadlocks. That
 # constrains where a guard or an early return may be placed, and is invisible when reading the
 # serial file alone.
 
@@ -33,9 +33,10 @@ function _globaltotal(eco::MPIEcosystem)
 end
 
 using Diversity.API: _calcabundance, _gettypes
-# This rank's block of the abundances, normalised by the **metacommunity** total - the internal input
-# every quantity here is built from, and deliberately not what `getabundance` hands a caller (see the
-# refusal below). In the rows decomposition that block is this rank's species over every cell.
+# This rank's block of the abundances, normalised by the **metacommunity** total - the input the
+# metacommunity abundances are built from, and deliberately not what `getabundance` hands a caller
+# (see the refusal below). In the rows decomposition that block is this rank's species over every
+# cell.
 #
 # The non-raw form goes through `_calcabundance`, so a phylogeny's species abundances are mapped onto
 # its branches; skipping it would answer a different question for a `PhyloBranches` species list and
@@ -82,14 +83,19 @@ function _getmetaabundance(eco::MPIEcosystem, raw::Bool)
     return out
 end
 
-# Each subcommunity's share of the total abundance. A cell's species are split across ranks in this
-# decomposition, so each rank contributes its own species' part and the parts are summed. Collective,
-# and the result is the whole per-cell vector on every rank - it is only as long as the grid, so it
-# costs nothing to hold everywhere.
+# Each subcommunity's share of the total abundance, from the scratch the ordinariness is built from.
+# The column partition holds every species of a rank's own cells, so each rank's weights are
+# complete for its cells and summed exactly as the serial ones are, and the parts are gathered.
+# Collective, and the result is the whole per-cell vector on every rank - it is only as long as the
+# grid, so it costs nothing to hold everywhere.
 import Diversity.API: _getweight
 function _getweight(eco::MPIEcosystem)
-    w = sum(_localabundance(eco, false), dims = 1)
-    return MPI.Allreduce(w, +, MPI.COMM_WORLD)[1, :]
+    processed = _calcabundance(_gettypes(eco),
+                               EcoSISTEM._relativeabundance!(eco))[1]
+    w = vec(sum(processed, dims = 1))
+    out = similar(w, Int64(sum(eco.sccounts)))
+    MPI.Allgatherv!(w, MPI.VBuffer(out, eco.sccounts), MPI.COMM_WORLD)
+    return out
 end
 
 # The scale that pairs with those abundances, from the same `_calcabundance` call Diversity's own
@@ -100,6 +106,20 @@ import Diversity.API: _getscale
 function _getscale(eco::MPIEcosystem)
     return _calcabundance(_gettypes(eco),
                           eco.abundances.rows_matrix / _globaltotal(eco))[2]
+end
+
+# The scratch filled with this rank's columns - every species over its own cells - as shares of the
+# metacommunity total, which the ordinariness and the weights are built from. The blocked array is
+# read from directly rather than materialised: the broadcast already copies it once, and
+# materialising first would copy it twice. `Matrix{Float64}(undef, ...)` rather than `similar`,
+# because `similar` on a blocked array returns another blocked array, which the cache's declared
+# `Matrix{Float64}` will not hold. Collective, through the total's `Allreduce`.
+function EcoSISTEM._relativeabundance!(eco::MPIEcosystem)
+    cols = parent(eco.abundances.dimcols)
+    size(eco.cache.relativeabun) == size(cols) ||
+        (eco.cache.relativeabun = Matrix{Float64}(undef, size(cols)))
+    eco.cache.relativeabun .= cols ./ _globaltotal(eco)
+    return eco.cache.relativeabun
 end
 
 import Diversity.API: _getordinariness!
@@ -123,20 +143,13 @@ using Diversity.API: _calcsimilarity, _calcabundance
 # applies with no slice at all, and the result needs no communication: a cell's value is complete on
 # the rank that owns it.
 #
-# The blocked array is read from directly rather than materialised: the broadcast into
-# `cache.relativeabun` already copies it once, and materialising first would copy it twice.
-# `Matrix{Float64}(undef, ...)` rather than `similar` because `similar` on a blocked array returns
-# another blocked array, which the cache's declared `Matrix{Float64}` will not hold.
 # The one-argument `_calcordinariness(eco)` method this replaces was not in Diversity's contract
 # at all - that generic is `(types, abundances, scale)`.
 # Fills `cache.relativeabun` in place, exactly as the serial path does - this is where the big
 # runs happen, so the ~1.9 GiB-a-call normalisation matters most here.
 function _getordinariness!(eco::MPIEcosystem)
-    cols = parent(eco.abundances.dimcols)
-    size(eco.cache.relativeabun) == size(cols) ||
-        (eco.cache.relativeabun = Matrix{Float64}(undef, size(cols)))
-    eco.cache.relativeabun .= cols ./ _globaltotal(eco)
-    processed, scale = _calcabundance(_gettypes(eco), eco.cache.relativeabun)
+    processed, scale = _calcabundance(_gettypes(eco),
+                                      EcoSISTEM._relativeabundance!(eco))
     return _calcsimilarity(eco.spplist, scale) * processed
 end
 
@@ -157,11 +170,13 @@ end
 # per-cell weights. The two must be cut the same way - a full-length weight vector against a block of
 # columns is a shape error at best and a silently wrong power mean at worst.
 #
-# Materialised here, unlike in `_getordinariness!`: this array is *stored* in the measure rather than
-# broadcast into an existing buffer, so it has to be a concrete matrix either way.
+# Materialised here, unlike in `_getordinariness!`: this array is *stored* in the measure, so it is
+# a matrix of its own rather than the scratch, filled in one pass from the blocked array.
 function _measureinputs(eco::MPIEcosystem)
     cells = (eco.abundances.cols_tuple.first):(eco.abundances.cols_tuple.last)
-    ab = Matrix(parent(eco.abundances.dimcols)) ./ _globaltotal(eco)
+    cols = parent(eco.abundances.dimcols)
+    ab = Matrix{Float64}(undef, size(cols))
+    ab .= cols ./ _globaltotal(eco)
     return (abundances = _calcabundance(_gettypes(eco), ab)[1],
             weights = _getweight(eco)[cells])
 end
