@@ -129,6 +129,9 @@ end
 # reduction machinery. `GridLandscape.matrix` is a plain `Matrix{Int64}` precisely so that it can be
 # passed straight through here; the labelled views are `dimmatrix`/`dimgrid` and must not be used at
 # this boundary.
+#
+# The normalised form is a matrix of the caller's own, never the scratch the hooks below fill: a
+# caller may keep it, and the scratch changes with the next diversity call.
 function Diversity.API._getabundance(eco::AbstractEcosystem, raw::Bool)
     abun = eco.abundances.matrix
     if raw
@@ -174,12 +177,15 @@ end
 #
 # The shape check is what makes adding a species safe, and it is deliberately a check rather than a
 # hook into `_addspecies!` - nothing then has to remember to keep the two in step.
-function Diversity.API._getordinariness!(eco::AbstractEcosystem)
+function _relativeabundance!(eco::AbstractEcosystem)
     abun = eco.abundances.matrix
     size(eco.cache.relativeabun) == size(abun) ||
         (eco.cache.relativeabun = similar(abun, Float64))
     eco.cache.relativeabun .= abun ./ sum(abun)
-    processed, scale = _calcabundance(_gettypes(eco), eco.cache.relativeabun)
+    return eco.cache.relativeabun
+end
+function Diversity.API._getordinariness!(eco::AbstractEcosystem)
+    processed, scale = _calcabundance(_gettypes(eco), _relativeabundance!(eco))
     return _calcordinariness(eco.spplist, processed, scale)
 end
 # The same call `_getabundance(eco, false)` makes, taking the scale instead of the abundances, which
@@ -187,6 +193,22 @@ end
 # **normalised** matrix rather than the raw counts, or the scale does not match the abundances it is
 # paired with.
 function Diversity.API._getscale(eco::AbstractEcosystem)
-    abun = eco.abundances.matrix
-    return _calcabundance(_gettypes(eco), abun / sum(abun))[2]
+    return _calcabundance(_gettypes(eco), _relativeabundance!(eco))[2]
+end
+
+# == Ecosystem - the hooks Diversity would otherwise answer from a copy ============================
+# Diversity's defaults sum `_getabundance(eco, false)`, a whole normalised copy of the abundances,
+# to get a vector, and every measure it builds asks for the weights. These sum the scratch instead:
+# the same values in the same order, so the same answers. A `CachedEcosystem` keeps the defaults,
+# which reach its own `_getabundance`.
+function Diversity.API._getweight(eco::Ecosystem)
+    processed = _calcabundance(_gettypes(eco), _relativeabundance!(eco))[1]
+    w = sum(processed, dims = 1)
+    return reshape(w, length(w))
+end
+function Diversity.API._getmetaabundance(eco::Ecosystem, raw::Bool)
+    ab = raw ? eco.abundances.matrix :
+         _calcabundance(_gettypes(eco), _relativeabundance!(eco))[1]
+    s = sum(ab, dims = 2)
+    return reshape(s, length(s))
 end
