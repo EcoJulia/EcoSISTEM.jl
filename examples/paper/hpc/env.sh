@@ -25,6 +25,10 @@ fi
 export JULIA_DEPOT_PATH="$ECOSISTEM_HPC_ROOT/julia:"
 # Where `fair registry install` puts the registry; once `fair init` has run, its configuration says.
 export FAIR_REGISTRY_DIR="$ECOSISTEM_HPC_ROOT/fair/registry"
+# The local registry is reached directly, never through a web proxy: MARS sets `http_proxy` on every
+# node, and `fair` then takes the proxy's answer for another registry's and will not start its own.
+export no_proxy="127.0.0.1,localhost${no_proxy:+,$no_proxy}"
+export NO_PROXY="127.0.0.1,localhost${NO_PROXY:+,$NO_PROXY}"
 # A compute node has no display: GR draws the figures without one.
 export GKSwstype=100
 # Keep threaded system libraries to one thread each, under Julia's own threads.
