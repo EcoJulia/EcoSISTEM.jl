@@ -51,7 +51,8 @@ function EcoSISTEM.arenoderecordsempty(tree::AbstractTree,
     end
 end
 
-function EcoSISTEM.assigntraits!(tree::AbstractTree,
+function EcoSISTEM.assigntraits!(rng::AbstractRNG,
+                                 tree::AbstractTree,
                                  switch_rate::Vector{Float64},
                                  traits::DataFrame)
     # Check if tree already assigned
@@ -63,7 +64,7 @@ function EcoSISTEM.assigntraits!(tree::AbstractTree,
     root = first(collect(nodenamefilter(isroot, tree)))
 
     paths = root_to_tips(tree)
-    samp = DataFrame(hcat([rand(col) for col in eachcol(traits)]),
+    samp = DataFrame(hcat([rand(rng, col) for col in eachcol(traits)]),
                      names(traits))
     # Assign first node a trait randomly
     setnodedata!(tree, root, samp)
@@ -84,7 +85,7 @@ function EcoSISTEM.assigntraits!(tree::AbstractTree,
         alltimes = map(switch_rate) do swt
             times = Array{Float64}(undef, 0)
             while (sum(times) < len)
-                time_switch = rand(Exponential(swt * len))
+                time_switch = rand(rng, Exponential(swt * len))
                 append!(times, time_switch)
             end
             return times
@@ -118,7 +119,8 @@ function EcoSISTEM.assigntraits!(tree::AbstractTree,
                         set_node = last(sel_pair)
                         newtrait = map(names(traits)) do trt
                             col = traits[!, trt]
-                            return sample(col[col .!= last_label[:, trt]])
+                            return sample(rng,
+                                          col[col .!= last_label[:, trt]])
                         end
                         newtrait = DataFrame(hcat(newtrait), names(traits))
                         setnodedata!(tree, set_node, newtrait)
@@ -131,23 +133,40 @@ function EcoSISTEM.assigntraits!(tree::AbstractTree,
     end
 end
 
-function EcoSISTEM.assigntraits!(tree::AbstractTree, switch_rate::Float64,
+function EcoSISTEM.assigntraits!(tree::AbstractTree,
+                                 switch_rate::Vector{Float64},
                                  traits::DataFrame)
-    return assigntraits!(tree, [switch_rate], traits)
+    return assigntraits!(default_rng(), tree, switch_rate, traits)
 end
 
-function EcoSISTEM.brownian_motion(T::Real, σ²::Float64, start::Float64,
-                                   lab::String = "")
+function EcoSISTEM.assigntraits!(rng::AbstractRNG, tree::AbstractTree,
+                                 switch_rate::Float64, traits::DataFrame)
+    return assigntraits!(rng, tree, [switch_rate], traits)
+end
+
+function EcoSISTEM.assigntraits!(tree::AbstractTree, switch_rate::Float64,
+                                 traits::DataFrame)
+    return assigntraits!(default_rng(), tree, [switch_rate], traits)
+end
+
+function EcoSISTEM.brownian_motion(rng::AbstractRNG, T::Real, σ²::Float64,
+                                   start::Float64, lab::String = "")
     t = 0:T  # time
     # first, simulate a set of random deviates
-    x = rand(Normal(0, sqrt(σ²)), length(t))
+    x = rand(rng, Normal(0, sqrt(σ²)), length(t))
     # now compute their cumulative sum
     x = cumsum(append!([start], x))
 
     return x
 end
 
-function EcoSISTEM.assigntraits!(tree::AbstractTree, traits::DataFrame)
+function EcoSISTEM.brownian_motion(T::Real, σ²::Float64, start::Float64,
+                                   lab::String = "")
+    return brownian_motion(default_rng(), T, σ², start, lab)
+end
+
+function EcoSISTEM.assigntraits!(rng::AbstractRNG, tree::AbstractTree,
+                                 traits::DataFrame)
 
     # Warning for nodes that have already been assigned traits
     check = arenoderecordsempty(tree, collect(getnodenames(tree)))
@@ -182,12 +201,16 @@ function EcoSISTEM.assigntraits!(tree::AbstractTree, traits::DataFrame)
 
             # Run the Brownian-motion model on each trait and set record
             newtrait = map(srt, traits[!, :σ²]) do start, sig
-                return last(brownian_motion(ln, sig, start))
+                return last(brownian_motion(rng, ln, sig, start))
             end
             newdat = DataFrame(start = newtrait, σ² = traits[!, :σ²])
             setnodedata!(tree, i, newdat)
         end
     end
+end
+
+function EcoSISTEM.assigntraits!(tree::AbstractTree, traits::DataFrame)
+    return assigntraits!(default_rng(), tree, traits)
 end
 
 function EcoSISTEM.gettraits(tree::AbstractTree, tips::Bool = true)
@@ -203,11 +226,11 @@ function EcoSISTEM.gettraits(tree::AbstractTree, tips::Bool = true)
     return df
 end
 
-function EcoSISTEM.discrete_evolve(numTraits::Int64, tree::BinaryTree,
-                                   switch_rate = 0.5)
+function EcoSISTEM.discrete_evolve(rng::AbstractRNG, numTraits::Int64,
+                                   tree::BinaryTree, switch_rate = 0.5)
     # Create traits and assign to tips
     traits = DataFrame(trait1 = 1:numTraits)
-    assigntraits!(tree, 0.5, traits)
+    assigntraits!(rng, tree, switch_rate, traits)
     # Get traits from tree
     # `penalty = 0.5` pins the released behaviour - see the note in `species_list.jl`: this is a
     # niche label, so being outside it is a disadvantage rather than an exclusion.
@@ -216,7 +239,14 @@ function EcoSISTEM.discrete_evolve(numTraits::Int64, tree::BinaryTree,
                                       penalty = 0.5)
 end
 
-function EcoSISTEM.continuous_evolve(val::Union{Float64,
+function EcoSISTEM.discrete_evolve(numTraits::Int64, tree::BinaryTree,
+                                   switch_rate = 0.5)
+    return EcoSISTEM.discrete_evolve(default_rng(), numTraits, tree,
+                                     switch_rate)
+end
+
+function EcoSISTEM.continuous_evolve(rng::AbstractRNG,
+                                     val::Union{Float64,
                                                 Unitful.Quantity{Float64}},
                                      var::Union{Float64,
                                                 Unitful.Quantity{Float64}},
@@ -224,10 +254,18 @@ function EcoSISTEM.continuous_evolve(val::Union{Float64,
     # Create traits and assign to tips
     numspecies = length(getleafnames(tree))
     traits = DataFrame(start = ustrip(val), σ² = ustrip(var))
-    assigntraits!(tree, traits)
+    assigntraits!(rng, tree, traits)
     # Get traits from tree
     newtraits = gettraits(tree, true)
     newtraits[!, :start] = newtraits[!, :start] .* unit(val)
     return NicheTolerance(EcoSISTEM.NicheAxis, Normal, newtraits[!, :start],
                           newtraits[!, :σ²])
+end
+
+function EcoSISTEM.continuous_evolve(val::Union{Float64,
+                                                Unitful.Quantity{Float64}},
+                                     var::Union{Float64,
+                                                Unitful.Quantity{Float64}},
+                                     tree::BinaryTree)
+    return EcoSISTEM.continuous_evolve(default_rng(), val, var, tree)
 end

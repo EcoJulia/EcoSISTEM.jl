@@ -1,5 +1,21 @@
 # NEWS
 
+- v0.10.0
+  - Added
+    - The phylogeny-building `SpeciesList` constructors take a `seed`, which fixes the tree and the
+      tolerances evolved along it from a stream of their own. `assigntraits!`, `discrete_evolve`,
+      `continuous_evolve` and `brownian_motion` take a random number generator as a first argument.
+  - Fixed
+    - `build_species` splits an integer `abundance` across species from a stream of its own, keyed
+      on `seed`, instead of reseeding Julia's global generator; an unseeded split still draws from
+      the global generator, which a seeded one no longer touches. A seeded split differs from
+      before, so the paper's figures 5 and 7 change.
+    - The phylogeny-building `SpeciesList` constructors pad a short abundance vector with zeros
+      instead of erroring, and `discrete_evolve` uses the switch value it is given.
+    - The switch parameter of `assigntraits!`, `discrete_evolve` and the phylogeny-building `SpeciesList`
+      constructor is documented as what it is: the mean time between trait changes as a fraction of the
+      root-to-tip length, so a larger value means fewer changes.
+
 - v0.9.2
   - Fixed
     - Diversity measures of an `Ecosystem` no longer copy its whole abundance matrix to find the

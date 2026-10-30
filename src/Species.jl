@@ -157,12 +157,12 @@ end
 # explicitly, which is the path `build_species` uses.
 """
     SpeciesList(numspecies::Int64, numtraits::Int64, abun::Vector{Int64},
-      demand::DM, movement::MO, params::P, native::Vector{Bool})
+      demand::DM, movement::MO, params::P, native::Vector{Bool}; seed = nothing)
     SpeciesList(numspecies::Int64, numtraits::Int64, abun::Vector{Int64},
       demand::DM, movement::MO, params::P, native::Vector{Bool},
-      switch::Vector{Float64})
+      switch::Vector{Float64}; seed = nothing)
     SpeciesList(numspecies::Int64, numtraits::Int64, abun::Vector{Int64},
-      demand::DM, movement::MO, phy::T, params::P, native::Vector{Bool})
+      demand::DM, movement::MO, phy::T, params::P, native::Vector{Bool}; seed = nothing)
 
 Create a `SpeciesList` whose categorical niche tolerances are **evolved along a random ultrametric
 phylogeny**, with a `PhyloBranches` similarity structure computed from that tree.
@@ -178,13 +178,17 @@ tolerances are still evolved along a random ultrametric tree.
 
   - `numspecies`: how many species.
   - `numtraits`: how many categorical niche classes the tolerances are drawn from.
-  - `abun`: the starting abundances.
+  - `abun`: the starting abundances. Padded with zeros if shorter than `numspecies`.
   - `demand`: what each species takes from the shared pool.
   - `movement`: which individuals disperse and how far.
   - `params`: the demographic rates.
   - `native`: whether each species is native.
-  - `switch`: the rate of trait change along branches. Defaults to `[0.5]`.
+  - `switch`: the mean time between changes of the niche class along a root-to-tip path, as a
+    fraction of its length, so a larger value changes it less often. Defaults to `[0.5]`.
   - `phy`: a similarity structure to use in place of the one the tree would give.
+  - `seed`: an integer fixing the tree, and so the tolerances evolved along it. They are drawn
+    from a stream of their own, so the same seed gives the same phylogeny whatever else has been
+    drawn; left unset, they come from the global generator.
 """
 function SpeciesList(numspecies::Int64,
                      numtraits::Int64,
@@ -192,11 +196,12 @@ function SpeciesList(numspecies::Int64,
                      demand::DM,
                      movement::MO,
                      params::P,
-                     native::Vector{Bool}) where {DM <: AbstractDemand,
-                                                  MO <: AbstractMovement,
-                                                  P <: AbstractParams}
+                     native::Vector{Bool};
+                     seed = nothing) where {DM <: AbstractDemand,
+                                            MO <: AbstractMovement,
+                                            P <: AbstractParams}
     return SpeciesList(numspecies, numtraits, abun, demand, movement, params,
-                       native, [0.5])
+                       native, [0.5], seed = seed)
 end
 # ---------------------------------------------------------------------------
 # The size-based (`SizeDemand`) constructor is parked - still commented out - in
@@ -315,7 +320,7 @@ end
 _tofield(x, n::Integer, name::AbstractString) = fill(x, n)
 
 # A per-species abundance vector: an integer total is split at random across
-# species (seedable); an explicit vector is validated and used as-is.
+# species, from `_abundancerng(seed)`; an explicit vector is validated and used as-is.
 function _abundances(abundance::AbstractVector, n::Integer, seed)
     length(abundance) == n ||
         throw(DimensionMismatch("`abundance` has $(length(abundance)) entries but there are $n species"))
@@ -323,6 +328,33 @@ function _abundances(abundance::AbstractVector, n::Integer, seed)
 end
 
 function _abundances(abundance, n::Integer, seed)
-    isnothing(seed) || Random.seed!(seed)
-    return rand(Multinomial(Int(abundance), n))
+    return rand(_abundancerng(seed), Multinomial(Int(abundance), n))
+end
+
+# The word standing for the abundance split in a stream's seed - "abund" in ASCII - so that the
+# split's stream can never coincide with a species' `(seed, j)`, a niche layout's or an
+# intervention's. A literal rather than `hash(:abundance)`, because `Base.hash` changes between
+# Julia versions and the split must not.
+const _ABUNDANCE_STREAM = 0x6162756e64
+
+# The generator an integer `abundance` is split from: a stream of its own with a seed, the global
+# one without. Never `Random.seed!` here: reseeding the global generator would fix every later
+# unseeded draw as well, and a result would then be reproducible only by that coincidence.
+_abundancerng(::Nothing) = Random.default_rng()
+
+function _abundancerng(seed::Integer)
+    return Random.Xoshiro(UInt64[seed % UInt64, _ABUNDANCE_STREAM])
+end
+
+# The word standing for a phylogeny in a stream's seed - "phylo" in ASCII - distinct from the other
+# tags for the same reason. The tree-growing `SpeciesList` constructors in `EcoSISTEMPhyloExt` draw
+# the tree, and the traits evolved along it, from `_phylogenyrng(seed)`.
+const _PHYLOGENY_STREAM = 0x7068796c6f
+
+# The generator a tree-growing constructor draws from: a stream of its own with a seed, the global
+# one without.
+_phylogenyrng(::Nothing) = Random.default_rng()
+
+function _phylogenyrng(seed::Integer)
+    return Random.Xoshiro(UInt64[seed % UInt64, _PHYLOGENY_STREAM])
 end

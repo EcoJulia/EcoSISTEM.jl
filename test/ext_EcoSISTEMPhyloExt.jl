@@ -7,6 +7,7 @@ using DataFrames
 using EcoSISTEM
 # `[C7-VIS]` B1/B2/B3: these are `public` rather than exported, so they must be named.
 using EcoSISTEM: gettraits, reroot!, assigntraits!, resettraits!
+using EcoSISTEM: discrete_evolve, continuous_evolve
 using EcoSISTEM: varcovar, fitbrownian
 using LinearAlgebra: diag, issymmetric
 using Random
@@ -33,6 +34,59 @@ using Test
     @test nrow(gettraits(tree)) == 10
     resettraits!(tree)
     @test_throws ErrorException gettraits(tree)
+end
+
+# Evolving traits along a tree draws the root's trait, the switch times along each path, each
+# switch's new value and the Brownian steps. Every one of them comes from the generator given, so two
+# equal generators agree and the global generator is left where it was; the released forms without a
+# generator draw from the global one.
+@testset "trait evolution takes a generator" begin
+    grow() = rand(Xoshiro(1),
+                  Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(10))
+    function switched(seed)
+        tree = grow()
+        assigntraits!(Xoshiro(seed), tree, [0.5], DataFrame(trait1 = 1:3))
+        return gettraits(tree)
+    end
+    function walked(seed)
+        tree = grow()
+        assigntraits!(Xoshiro(seed), tree,
+                      DataFrame(start = [1.0], σ² = [0.5]))
+        return gettraits(tree)
+    end
+    @test switched(2) == switched(2)
+    @test walked(2) == walked(2)
+    @test walked(2) != walked(3)
+    @test continuous_evolve(Xoshiro(5), 1.0, 0.1, grow()).dists ==
+          continuous_evolve(Xoshiro(5), 1.0, 0.1, grow()).dists
+    @test continuous_evolve(Xoshiro(5), 1.0, 0.1, grow()).dists !=
+          continuous_evolve(Xoshiro(6), 1.0, 0.1, grow()).dists
+    @test discrete_evolve(Xoshiro(5), 2, grow()).vals ==
+          discrete_evolve(Xoshiro(5), 2, grow()).vals
+    # The switch parameter reaches the draw. It scales the mean wait between switches by the
+    # root-to-tip length, so a wait far longer than any path leaves every tip with the root's value,
+    # where the default switches some.
+    @test allequal(discrete_evolve(Xoshiro(5), 3, grow(), 1e6).vals)
+    @test !allequal(discrete_evolve(Xoshiro(5), 3, grow()).vals)
+
+    Random.seed!(11)
+    untouched = rand(UInt64)
+    Random.seed!(11)
+    switched(2)
+    walked(2)
+    continuous_evolve(Xoshiro(5), 1.0, 0.1, grow())
+    discrete_evolve(Xoshiro(5), 2, grow())
+    @test rand(UInt64) == untouched
+
+    # Without a generator, the global one: seeding it reproduces the traits.
+    Random.seed!(12)
+    tree = grow()
+    assigntraits!(tree, 0.5, DataFrame(trait1 = 1:3))
+    fromglobal = gettraits(tree)
+    Random.seed!(12)
+    tree = grow()
+    assigntraits!(tree, 0.5, DataFrame(trait1 = 1:3))
+    @test gettraits(tree) == fromglobal
 end
 
 # The phylogenetic trait models, which had NO test of any kind until 2026-08-28. That is not a

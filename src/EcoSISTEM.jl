@@ -456,9 +456,9 @@ public getnichefit
 # **How abundances change** - `populate!` sets them up, `update!` advances them one timestep.
 include("dynamics.jl")
 
-# These five are the shipped values of a *user-selectable strategy*, not machinery: they share
-# one signature so that any of them can be passed to `Ecosystem(popfun, ...)`, and a user may write
-# a sixth. They stay exported.
+# These five are the shipped values of a *user-selectable strategy*, not machinery. The three
+# placements share one signature, so any of them can be passed to `Ecosystem(popfun, ...)` and a
+# user may write a fourth; the two re-placements take a built ecosystem. They stay exported.
 export populate!, repopulate!, populate_by_tolerance!, repopulate_by_tolerance!,
        emptypopulate!
 
