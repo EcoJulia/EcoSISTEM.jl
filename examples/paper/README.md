@@ -117,6 +117,11 @@ the registry under the same names, each `Examples/Config` recording its scale. `
 `<name>-<job ID>.out` and `.err` in the clone, with the `Manifest.toml` it ran with beside them,
 since the manifest is not part of the repository.
 
+A run job that is killed, by its time limit or for running out of memory, cannot stop the registry,
+which stays recorded as running on that job's node. The next run job, if it lands on another node,
+refuses with "The local registry installed in '...' is recorded as running on the host '...'":
+the killed job has gone, so delete the file the message names, then submit again.
+
 ## Under the test suite
 
 `test/extras_examples.jl` runs `examples/paper.jl` like every other top-level example, with
