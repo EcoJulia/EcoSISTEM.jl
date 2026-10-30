@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Data Pipeline · EcoSISTEM.jl</title><meta name="title" content="Data Pipeline · EcoSISTEM.jl"/><meta property="og:title" content="Data Pipeline · EcoSISTEM.jl"/><meta property="twitter:title" content="Data Pipeline · EcoSISTEM.jl"/><meta name="description" content="Documentation for EcoSISTEM.jl."/><meta property="og:description" content="Documentation for EcoSISTEM.jl."/><meta property="twitter:description" content="Documentation for EcoSISTEM.jl."/><meta property="og:url" content="https://docs.ecojulia.org/EcoSISTEM.jl/stable/pipeline/"/><meta property="twitter:url" content="https://docs.ecojulia.org/EcoSISTEM.jl/stable/pipeline/"/><link rel="canonical" href="https://docs.ecojulia.org/EcoSISTEM.jl/stable/pipeline/"/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.63.2/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.svg" alt="EcoSISTEM.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../">EcoSISTEM.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><span class="tocitem">Getting started</span><ul><li><a class="tocitem" href="../basics/">Basics</a></li><li><a class="tocitem" href="../examples/">Examples</a></li></ul></li><li><span class="tocitem">Building a model</span><ul><li><a class="tocitem" href="../layers/">Layers</a></li><li><a class="tocitem" href="../units/">Axes, units and roles</a></li><li><a class="tocitem" href="../time/">Time</a></li><li><a class="tocitem" href="../interventions/">Interventions</a></li><li><a class="tocitem" href="../regions/">Named regions</a></li></ul></li><li><a class="tocitem" href="../model/">How the model works</a></li><li><span class="tocitem">Analysing results</span><ul><li><a class="tocitem" href="../diversity/">Diversity</a></li><li><a class="tocitem" href="../provenance/">Provenance</a></li><li><a class="tocitem" href="../requests/">Providers&#39; requests</a></li></ul></li><li><span class="tocitem">Going further</span><ul><li><a class="tocitem" href="../scale/">Running at scale</a></li><li><a class="tocitem" href="../africa/">Africa</a></li><li class="is-active"><a class="tocitem" href>Data Pipeline</a><ul class="internal"><li><a class="tocitem" href="#Two-runs,-the-same-specs"><span>Two runs, the same specs</span></a></li><li><a class="tocitem" href="#What-a-file-is-registered-as"><span>What a file is registered as</span></a></li><li><a class="tocitem" href="#The-example"><span>The example</span></a></li></ul></li></ul></li><li><a class="tocitem" href="../api/">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Going further</a></li><li class="is-active"><a href>Data Pipeline</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Data Pipeline</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/EcoJulia/EcoSISTEM.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/EcoJulia/EcoSISTEM.jl/blob/main/docs/src/pipeline.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Data-pipeline"><a class="docs-heading-anchor" href="#Data-pipeline">Data pipeline</a><a id="Data-pipeline-1"></a><a class="docs-heading-anchor-permalink" href="#Data-pipeline" title="Permalink"></a></h1><p>The <a href="https://www.fairdatapipeline.org/">FAIR Data Pipeline</a> records where every input of a run came from and what the run made of it, in a registry that can be pushed to the online <a href="https://data.fairdatapipeline.org/">data registry</a>. EcoSISTEM takes part through <a href="https://github.com/FAIRDataPipeline/DataPipeline.jl">DataPipeline.jl</a>, a weak dependency: with it loaded, a spec given a <a href="../api/#EcoSISTEM.Track"><code>EcoSISTEM.Track</code></a> as its <code>track</code> keyword has its files go through a pipeline run.</p><h2 id="Two-runs,-the-same-specs"><a class="docs-heading-anchor" href="#Two-runs,-the-same-specs">Two runs, the same specs</a><a id="Two-runs,-the-same-specs-1"></a><a class="docs-heading-anchor-permalink" href="#Two-runs,-the-same-specs" title="Permalink"></a></h2><p>A <strong>fetch run</strong> fetches the files its specs read and registers each one with its source, its authors and its licence, from the catalogue; a <strong>model run</strong> then builds the same specs, and every file is read from the pipeline&#39;s store rather than fetched. Which a run is depends on the function called, never on what is there: <a href="../api/#EcoSISTEM.fetchfiles-Tuple{RasterSpec}"><code>fetchfiles</code></a> on a tracked spec is the fetch run&#39;s, and building from one only reads.</p><pre><code class="language-julia hljs">using EcoSISTEM, DataPipeline
+using EcoSISTEM: Track
+temperature(handle) = SourceSpec(WorldClim{BioClim}, :bio1,
+                                 track = Track(handle, &quot;worldclim&quot;))</code></pre><p>A track names the run&#39;s <code>handle</code>, from <code>DataPipeline.initialise()</code>, and a root: each file is the data product <code>&lt;root&gt;/data/&lt;stem&gt;</code>, the stem its name without its extension, and its provenance record <code>&lt;root&gt;/provenance/&lt;stem&gt;</code>. A handle of <code>nothing</code> tracks nothing, so one script runs with the pipeline or without it:</p><pre><code class="language-julia hljs">launched = haskey(ENV, &quot;FDP_CONFIG_DIR&quot;)      # started by `fair run`
+if launched
+    nothing_to_fetch = DataPipeline.rehearse() do handle
+        return isempty(EcoSISTEM.missingfiles(inputs(handle)))
+    end
+    nothing_to_fetch &amp;&amp; exit()
+end
+handle = launched ? DataPipeline.initialise() : nothing
+EcoSISTEM.fetchfiles(inputs(handle))
+isnothing(handle) || DataPipeline.finalise(handle)</code></pre><p><a href="../api/#EcoSISTEM.missingfiles-Tuple{Any}"><code>EcoSISTEM.missingfiles</code></a> says what is still to do, and why, without fetching: a fetch run with nothing to do stops in the rehearsal, before a code run exists.</p><h2 id="What-a-file-is-registered-as"><a class="docs-heading-anchor" href="#What-a-file-is-registered-as">What a file is registered as</a><a id="What-a-file-is-registered-as-1"></a><a class="docs-heading-anchor-permalink" href="#What-a-file-is-registered-as" title="Permalink"></a></h2><p>The registry derives every output of a run from every input of it, so a fetch run registers one source&#39;s files. Its one input is the source&#39;s deposit, registered with no file and named by the catalogue&#39;s identifier in the source&#39;s namespace (<code>datasets.csv</code>&#39;s <code>Namespace</code>), so every user registers one source&#39;s files alike. Its outputs, each derived from that deposit alone, are:</p><ul><li>every file, whether downloaded as its provider publishes it, made by the Climate Data Store to a request (as an ERA5 extract is), or given to a spec by you (<code>file</code>, <code>files</code> or <code>directory</code>). A download is the cited item&#39;s own file (<code>primary</code>) where the identifier names the data - a CHELSA deposit, Natural Earth&#39;s web page - and not where it names a paper describing the data, as WorldClim&#39;s does; an extract or a file of yours never is. A netCDF extract&#39;s <code>history</code> attribute, which records when and where the CDS converted it, is replaced by a note of the same length, so fetches of the same data are identical. A file of yours is of the catalogue&#39;s release unless the track says otherwise: <code>Track(handle, &quot;cru&quot;, release_version = &quot;4.8&quot;, release_date = &quot;2024-05&quot;)</code>;</li><li>every file&#39;s provenance record, <code>&lt;file&gt;.provenance.toml</code>.</li></ul><p>A fetch run asked to register a second source&#39;s files refuses. A provider can change a file without a new release: a file whose bytes differ from those already registered under its release is registered under that release with build metadata, <code>2.1.0+20230104</code>, the day its provider changed it, so both stay traceable.</p><h2 id="The-example"><a class="docs-heading-anchor" href="#The-example">The example</a><a id="The-example-1"></a><a class="docs-heading-anchor-permalink" href="#The-example" title="Permalink"></a></h2><p><code>examples/pipeline/</code> is a model run over Scotland and the fetch runs it reads from, with an environment of its own (<code>examples/pipeline/Project.toml</code>), since DataPipeline is a weak dependency: <code>inputs.jl</code> names the specs, <code>fetch.jl</code> fetches one source&#39;s files, with a config for each source (<code>fetch-worldclim.yaml</code>, <code>fetch-naturalearth.yaml</code>, <code>fetch-era5.yaml</code>), and <code>model.jl</code> and <code>model.yaml</code> are the model run, one species built from WorldClim&#39;s annual temperature and rainfall within Natural Earth&#39;s outline of Scotland. Its environment is instantiated once, with <code>julia --project=examples/pipeline -e &#39;using Pkg; Pkg.instantiate()&#39;</code>; then, in Julia started with <code>julia --project=examples/pipeline</code> from the root of a clone of this repository:</p><pre><code class="language-julia hljs">using DataPipeline
+DataPipeline.install_cli!()      # where there is no `fair` installed
+fair&quot;registry install&quot;           # the first time: the local registry
+fair&quot;init&quot;                       # the first time in this clone: it asks who you are, and more
+fair&quot;run examples/pipeline/fetch-worldclim.yaml&quot;      # fetches and registers WorldClim&#39;s files
+fair&quot;run examples/pipeline/fetch-naturalearth.yaml&quot;
+fair&quot;run examples/pipeline/fetch-worldclim.yaml&quot;      # stops at once: everything is registered
+fair&quot;pull --local examples/pipeline/model.yaml&quot;
+fair&quot;run examples/pipeline/model.yaml&quot;                # reads them from the store, registers the figure</code></pre><p><code>fair&quot;...&quot;</code> runs the pipeline&#39;s command-line tool with its arguments as on the command line, so from a shell, with <code>fair-cli</code> installed from PyPI, the same commands are <code>fair registry install</code>, <code>fair init</code> and so on. <code>pull</code> takes <code>--local</code> because it would otherwise look for what the config&#39;s patterns match in a remote registry, where none of this is; a run matches them in the local one. A run records the commit it ran from, and refuses unless the clone&#39;s git remote has that commit and nothing is uncommitted; <code>--dirty</code> lets it run regardless, recorded as made from changed code.</p><p><code>fetch-era5.yaml</code> fetches and registers a month of ERA5 over Scotland the same way, an extract the Climate Data Store makes to a request; fetching it needs a key in <code>~/.cdsapirc</code>, and the model does not read it.</p><p>The rest of this page runs those steps when this documentation is built with the environment variable <code>ECOSISTEM_DOCS_RUN_PIPELINE</code> set to <code>true</code>, as the package&#39;s own documentation build does, against a registry that starts empty; built without it, the blocks only say so.</p><h3 id="Fetching-each-source"><a class="docs-heading-anchor" href="#Fetching-each-source">Fetching each source</a><a id="Fetching-each-source-1"></a><a class="docs-heading-anchor-permalink" href="#Fetching-each-source" title="Permalink"></a></h3><p>A fetch config takes its source&#39;s namespace for the run&#39;s inputs and outputs, registers it, and writes the files and their records:</p><pre><code class="language-julia hljs">using EcoSISTEM
+example = joinpath(pkgdir(EcoSISTEM), &quot;examples&quot;, &quot;pipeline&quot;)
+print(read(joinpath(example, &quot;fetch-worldclim.yaml&quot;), String))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">run_metadata:
+  description: WorldClim&#39;s files for the data pipeline example, fetched and registered
+  default_input_namespace: WorldClim
+  default_output_namespace: WorldClim
+  script: |
+    julia --project=examples/pipeline examples/pipeline/fetch.jl worldclim
+
+# The source&#39;s namespace, as the catalogue names it (`data/catalogue/datasets.csv`), which is the
+# run&#39;s own: its one input is the source&#39;s deposit, and its outputs the files and their records.
+register:
+- namespace: WorldClim
+  full_name: WorldClim
+  website: https://www.worldclim.org/
+
+write:
+- data_product: worldclim/data/*
+  description: A WorldClim file
+  file_type: tif
+- data_product: worldclim/provenance/*
+  description: EcoSISTEM&#39;s provenance record of a file under worldclim
+  file_type: toml</code></pre><p>Its run fetches WorldClim&#39;s two layers where they are not held, and registers each file and its record as derived from WorldClim&#39;s deposit. The first fetch run in a registry also registers the catalogue&#39;s authors, so that each citation&#39;s authors are found by their identifiers; the rehearsal the run starts with says which it would.</p><pre><code class="language-julia hljs">using DataPipeline
+run_example = get(ENV, &quot;ECOSISTEM_DOCS_RUN_PIPELINE&quot;, &quot;&quot;) == &quot;true&quot;
+run_example || println(&quot;Not run: ECOSISTEM_DOCS_RUN_PIPELINE is not set.&quot;)
+# `fair` runs from the root of the repository, which the configs&#39; paths start from
+run_example &amp;&amp; cd(pkgdir(EcoSISTEM)) do
+    fair&quot;run examples/pipeline/fetch-worldclim.yaml&quot;
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Preparing the job and running its script, please wait
+checking the run prepared in /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-10-30_23_44_12_890163 by a rehearsal, which registers nothing
+would register the author Chantal Hari (https://orcid.org/0000-0003-2507-8747)
+would register the author Dirk Nikolaus Karger (https://orcid.org/0000-0001-7770-6229)
+would register the author Ed Hawkins (https://orcid.org/0000-0001-9477-3677)
+would register the author Eric de Boisseson (https://orcid.org/0000-0002-0330-4021)
+would register the author G.W. Kent Moore (https://orcid.org/0000-0002-3986-5605)
+would register the author Gilbert P. Compo (https://orcid.org/0000-0001-5199-9633)
+would register the author Holger Kreft (https://orcid.org/0000-0003-4471-8236)
+would register the author Ian Harris (https://orcid.org/0000-0003-2037-9284)
+would register the author Jürg Luterbacher (https://orcid.org/0000-0002-8569-0973)
+would register the author Laura C. Slivinski (https://orcid.org/0000-0002-3531-3889)
+would register the author Leopold Haimberger (https://orcid.org/0000-0002-0379-6353)
+would register the author Linden Ashcroft (https://orcid.org/0000-0003-3898-6648)
+would register the author Loïc Pellissier (https://orcid.org/0000-0002-2289-8259)
+would register the author Magdalena Balmaseda (https://orcid.org/0000-0002-9611-8788)
+would register the author Niklaus E. Zimmermann (https://orcid.org/0000-0003-3099-9604)
+would register the author Patrick Laloyaux (https://orcid.org/0000-0003-2808-0463)
+would register the author Paul Poli (https://orcid.org/0000-0002-8392-6524)
+would register the author Philipp Brun (https://orcid.org/0000-0002-2750-9793)
+would register the author Przemysław Wyszyński (https://orcid.org/0000-0003-3470-7349)
+would register the author Rajmund Przybylak (https://orcid.org/0000-0003-4101-6116)
+would register the author Roberto Buizza (https://orcid.org/0000-0002-3754-2271)
+would register the author Stephen E. Fick (https://orcid.org/0000-0002-3548-6966)
+would register the author Timothy J. Osborn (https://orcid.org/0000-0001-8425-6799)
+processing config file: /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-10-30_23_44_12_890163/config.yaml
+pipeline initialised.
+finished - code run locally registered as: http://127.0.0.1:8000/api/code_run/1/</code></pre><p>Natural Earth&#39;s config is the same in its own namespace, and its run registers the zip of outlines that Scotland&#39;s is read from:</p><pre><code class="language-julia hljs">run_example &amp;&amp; cd(pkgdir(EcoSISTEM)) do
+    fair&quot;run examples/pipeline/fetch-naturalearth.yaml&quot;
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Preparing the job and running its script, please wait
+checking the run prepared in /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-10-30_23_45_28_162162 by a rehearsal, which registers nothing
+processing config file: /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-10-30_23_45_28_162162/config.yaml
+pipeline initialised.
+finished - code run locally registered as: http://127.0.0.1:8000/api/code_run/2/</code></pre><p>Run again, WorldClim&#39;s fetch run finds every file registered as it would register it now, and stops in its rehearsal, before a code run exists, registering nothing:</p><pre><code class="language-julia hljs">run_example &amp;&amp; cd(pkgdir(EcoSISTEM)) do
+    fair&quot;run examples/pipeline/fetch-worldclim.yaml&quot;
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Preparing the job and running its script, please wait
+checking the run prepared in /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-10-30_23_46_36_723379 by a rehearsal, which registers nothing</code></pre><h3 id="The-model-run"><a class="docs-heading-anchor" href="#The-model-run">The model run</a><a id="The-model-run-1"></a><a class="docs-heading-anchor-permalink" href="#The-model-run" title="Permalink"></a></h3><p>The model config reads each source&#39;s files and their records in its namespace, and writes the figure in EcoSISTEM&#39;s:</p><pre><code class="language-julia hljs">print(read(joinpath(example, &quot;model.yaml&quot;), String))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">run_metadata:
+  description: One species over Scotland, built from the registered inputs
+  default_input_namespace: EcoSISTEM
+  default_output_namespace: EcoSISTEM
+  # `JULIA_NUM_THREADS` where it is set, else every core: `fair` runs this with `sh`, which expands it
+  # (a Windows `batch` shell would pass it through as written).
+  script: |
+    julia --threads=${JULIA_NUM_THREADS:-auto} --project=examples/pipeline examples/pipeline/model.jl
+
+register:
+- namespace: EcoSISTEM
+  full_name: EcoSISTEM
+  website: https://github.com/EcoJulia/EcoSISTEM.jl
+
+# Each source&#39;s files and their records, in its namespace: a `*` matches one segment of a name, so
+# `&lt;root&gt;/*/*` takes `&lt;root&gt;/data/...` and `&lt;root&gt;/provenance/...` and leaves the deposit, which has
+# no file.
+read:
+- data_product: worldclim/*/*
+  use:
+    namespace: WorldClim
+- data_product: naturalearth/*/*
+  use:
+    namespace: NaturalEarth
+
+write:
+- data_product: Scotland-plot
+  description: Start and end abundances over Scotland, with the annual temperature and rainfall
+  file_type: png</code></pre><p><code>fair pull</code> finds what the config reads in the registry, and <code>fair run</code> runs <code>model.jl</code>, which builds the habitat from the files in the store, simulates five years and registers the figure:</p><pre><code class="language-julia hljs">run_example &amp;&amp; cd(pkgdir(EcoSISTEM)) do
+    fair&quot;pull --local examples/pipeline/model.yaml&quot;
+    fair&quot;run examples/pipeline/model.yaml&quot;
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Pulling, please wait
+There are no items in the [read] block to pull from registry: &#39;origin&#39;.
+Preparing the job and running its script, please wait
+processing config file: /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-10-30_23_47_35_735220/config.yaml
+pipeline initialised.
+data product found: naturalearth/data/ne_10m_admin_0_map_units
+data product found: naturalearth/provenance/ne_10m_admin_0_map_units
+data product found: worldclim/data/wc2.1_10m_bio_1
+data product found: worldclim/provenance/wc2.1_10m_bio_1
+data product found: worldclim/data/wc2.1_10m_bio_12
+data product found: worldclim/provenance/wc2.1_10m_bio_12
+[ Info: layer `:regime` is resampled onto the study grid, because it is in a different CRS.
+[ Info: layer `:supply` is resampled onto the study grid, because it is in a different CRS.
+┌ Warning: no layer is in the target grid&#39;s CRS, so no layer can be kept exactly - every one of them will be resampled. Choosing a `crs` that matches one of them would avoid that.
+└ @ EcoSISTEM ~/work/EcoSISTEM.jl/EcoSISTEM.jl/src/StudyAreaReport.jl:240
+Scotland on a 43 x 27 grid of 10 km cells (696 active): total abundance 10000 -&gt; 69201.
+finished - code run locally registered as: http://127.0.0.1:8000/api/code_run/3/</code></pre><h3 id="Where-the-figure-came-from"><a class="docs-heading-anchor" href="#Where-the-figure-came-from">Where the figure came from</a><a id="Where-the-figure-came-from-1"></a><a class="docs-heading-anchor-permalink" href="#Where-the-figure-came-from" title="Permalink"></a></h3><p>DataPipeline&#39;s <code>provenance</code> traces a data product back through the runs that made it to what each of them read, and each one&#39;s source:</p><pre><code class="language-julia hljs">trace = run_example ? DataPipeline.provenance(&quot;EcoSISTEM:Scotland-plot&quot;) : nothing</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Provenance of EcoSISTEM:Scotland-plot@v0.0.1  sha1 3043e759
+&lt;- run ada15661 on 2026-10-30 23:47 UTC, github.com/EcoJulia/EcoSISTEM.jl at 8966e6c2
+   used WorldClim:worldclim/data/wc2.1_10m_bio_1@v0.0.1  sha1 f6426c76  from https://doi.org/10.1002/joc.5086 (supplement)
+   &lt;- run c7f5e873 on 2026-10-30 23:45 UTC, github.com/EcoJulia/EcoSISTEM.jl at 8966e6c2
+      used WorldClim:worldclim/deposit@v0.0.1  no file  from https://doi.org/10.1002/joc.5086 (supplement)
+   used WorldClim:worldclim/data/wc2.1_10m_bio_12@v0.0.1  sha1 fd39b387  from https://doi.org/10.1002/joc.5086 (supplement)
+   &lt;- run c7f5e873 on 2026-10-30 23:45 UTC, github.com/EcoJulia/EcoSISTEM.jl at 8966e6c2
+      used WorldClim:worldclim/deposit@v0.0.1  (above)
+   used WorldClim:worldclim/provenance/wc2.1_10m_bio_1@v0.0.1  sha1 246da0b4
+   &lt;- run c7f5e873 on 2026-10-30 23:45 UTC, github.com/EcoJulia/EcoSISTEM.jl at 8966e6c2
+      used WorldClim:worldclim/deposit@v0.0.1  (above)
+   used WorldClim:worldclim/provenance/wc2.1_10m_bio_12@v0.0.1  sha1 25a7ea5f
+   &lt;- run c7f5e873 on 2026-10-30 23:45 UTC, github.com/EcoJulia/EcoSISTEM.jl at 8966e6c2
+      used WorldClim:worldclim/deposit@v0.0.1  (above)
+   used NaturalEarth:naturalearth/data/ne_10m_admin_0_map_units@v0.0.1  sha1 286d07d8  from https://www.naturalearthdata.com/ (primary)
+   &lt;- run bc6acfdf on 2026-10-30 23:46 UTC, github.com/EcoJulia/EcoSISTEM.jl at 8966e6c2
+      used NaturalEarth:naturalearth/deposit@v0.0.1  no file  from https://www.naturalearthdata.com/ (primary)
+   used NaturalEarth:naturalearth/provenance/ne_10m_admin_0_map_units@v0.0.1  sha1 a6d17a8d
+   &lt;- run bc6acfdf on 2026-10-30 23:46 UTC, github.com/EcoJulia/EcoSISTEM.jl at 8966e6c2
+      used NaturalEarth:naturalearth/deposit@v0.0.1  (above)
+</code></pre><p>The figure, read back from the store where the registry says it is: the abundance at the start and after five years, beside the annual temperature and rainfall the habitat was built from.</p><pre><code class="language-julia hljs">run_example &amp;&amp; include(joinpath(pkgdir(EcoSISTEM), &quot;docs&quot;, &quot;pipeline.jl&quot;))
+run_example ? registeredimage(trace.products[only(trace.roots)]) : nothing</code></pre><img src="3043e759.png" alt="Example block output"/><p>The same provenance as a graph, drawn by <code>docs/pipeline.jl</code> from the registry&#39;s own record two code runs back, which reaches the providers: grey for each item a provider&#39;s data is cited by, with its authors; yellow for each data product; blue for each code run, with the code it ran and that code&#39;s authors. A dashed arrow joins a cited item to a file that is the item itself, as Natural Earth&#39;s zip is; WorldClim&#39;s files are cited by the paper describing their data.</p><pre><code class="language-julia hljs">run_example ? provenancegraph(trace, depth = 2) : nothing</code></pre><img src="c2cf4d58.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../africa/">« Africa</a><a class="docs-footer-nextpage" href="../api/">API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Friday 30 October 2026 23:50">Friday 30 October 2026</span>. Using Julia version 1.13.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
