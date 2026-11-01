@@ -43,8 +43,8 @@ function EcoSISTEM._fetchfiles(T::Type{<:RDS.RasterDataSource}, code; kw...)
     _refusemisnamed(T, layers; kw...)
     raw = getraster(T, layers; kw...)
     for (layer, path) in _layerfiles(T, layers, raw)
-        isfile(EcoSISTEM._sidecarpath(path)) && continue
-        record = EcoSISTEM._baserecord(path, :habitat)
+        isfile(Provenancer.sidecarpath(path)) && continue
+        record = Provenancer.baserecord(path, :habitat)
         delete!(record, "fetched")      # not known for a file already in the cache
         url = _rasterurl(T, layer; kw...)
         isnothing(url) || (record["url"] = url)
@@ -52,8 +52,8 @@ function EcoSISTEM._fetchfiles(T::Type{<:RDS.RasterDataSource}, code; kw...)
                EcoSISTEM._cataloguerecord(T,
                                           isnothing(layer) ? nothing :
                                           EcoSISTEM.layerinfo(T, layer), path,
-                                          route = :published))
-        EcoSISTEM._writesidecar(path, record)
+                                          route = Provenancer.route(T)))
+        Provenancer.writesidecar(path, record)
     end
     return raw
 end

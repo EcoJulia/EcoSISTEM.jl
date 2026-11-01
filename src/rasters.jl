@@ -228,6 +228,10 @@ function _missing(::Nothing, spec)
     return [(file = p, reason = "not held") for p in paths if !isfile(p)]
 end
 
+# A track with no run tracks nothing, so the spec takes the untracked route; the release it may
+# state is for the record of a file the user gives, not for the route.
+_missing(::Track{Nothing}, spec) = _missing(nothing, spec)
+
 _missing(track::Track, spec) = _trackedmissing(track, spec)
 
 # Where a spec's files are or would be, fetching nothing, or `nothing` for a source that cannot say.
@@ -2066,6 +2070,8 @@ _allfiles(raw) = _filelist(raw)
 # them.
 _fetched(::Nothing, spec) = _fetchspec(spec)
 
+_fetched(::Track{Nothing}, spec) = _fetchspec(spec)
+
 _fetched(track::Track, spec) = _trackedfetch(track, spec)
 
 # A spec's dry-run report, a file each: its named entries, or the files its source would fetch, or
@@ -2090,6 +2096,8 @@ _readkw(spec::RasterSpec) = (; _getrasterkw(spec.source)..., spec.readkw...)
 _providespec!(spec) = _provide!(_spectrack(spec), spec)
 
 _provide!(::Nothing, spec) = nothing
+
+_provide!(::Track{Nothing}, spec) = nothing
 
 function _provide!(track::Track, spec)
     paths = _specpaths(spec)
@@ -2144,7 +2152,8 @@ _localpath(request::CDSRequest) = request.path
 function _remotesize(asset::CachedAsset)
     response = try
         Downloads.request(asset.url, method = "HEAD",
-                          downloader = _http11downloader(), throw = false)
+                          downloader = Provenancer._http11downloader(),
+                          throw = false)
     catch
         return nothing
     end

@@ -380,10 +380,6 @@ const _DATASET_COLUMNS = (:Dataset, :Format, :LongitudeRange, :CRS, :Resolution,
 # What a row's identifier can name: the data, or a paper describing it.
 const _IDENTIFIES = (:data, :paper)
 
-# How strongly a provider asks for a notice: it, or the data's licence, says the notice must
-# accompany the data; it asks for it; or it offers it for those who wish.
-const _NOTICE_STRENGTHS = (:required, :requested, :optional)
-
 # What a request's text may hold in place of a fact known only once a file is fetched: the date it
 # was fetched, and the year. `DD-MMM-YYYY` comes first, as the longer of the two.
 const _REQUEST_PLACEHOLDERS = ("DD-MMM-YYYY", "YYYY")
@@ -640,12 +636,12 @@ function _datasetrecord(key::AbstractString)
 end
 
 # Whether a file is its source's own, as the data pipeline means it - the cited item or one of its
-# files, so that the same bytes can be fetched again: a file fetched as its provider publishes it
-# (`route` `:published`), from a source whose identifier names the data. A paper's file, an extract
-# a service made to a request (`:extract`) and a file the user gave (`:given`) are not.
-function _isprimary(rec::DatasetRecord, route::Symbol)
-    return route === :published && rec.identifies === :data
-end
+# files, so that the same bytes can be fetched again: a file fetched as its provider publishes it,
+# from a source whose identifier names the data. A paper's file, an extract a service made to a
+# request and a file the user gave are not.
+_isprimary(rec::DatasetRecord, ::PublishedByProvider) = rec.identifies === :data
+
+_isprimary(::DatasetRecord, ::AbstractFileRoute) = false
 
 # A file's title: its release's, the layer's name where the file is one layer, and the file's own
 # name, which carries whatever else tells it from its siblings - a resolution, a month, a span of
@@ -791,9 +787,9 @@ function _readrequest(name::AbstractString, dataset)
     end
     notices = map(get(t, "notice", [])) do n
         strength = Symbol(get(n, "strength", ""))
-        strength in _NOTICE_STRENGTHS ||
+        strength in Provenancer.NOTICE_STRENGTHS ||
             error("a notice in `$path` has strength `$strength`; expected one of " *
-                  "$(join(_NOTICE_STRENGTHS, ", ")).")
+                  "$(join(Provenancer.NOTICE_STRENGTHS, ", ")).")
         haskey(n, "text") || error("each notice in `$path` needs a `text`.")
         return (strength = strength, text = String(n["text"]))
     end

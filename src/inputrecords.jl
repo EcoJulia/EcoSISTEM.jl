@@ -2,8 +2,8 @@
 #
 # What an assembled model was built from: one question, asked of anything that holds a study area -
 # its report, the area itself, a habitat, an ecosystem - each answering by walking down to the
-# report, which holds the records of what was read, and adding what it knows itself - and the answer
-# written out as the TOML file a paper's repository commits.
+# report, which holds the records of what was read, and adding what it knows itself: the grid, and
+# for an ecosystem the run, as the `GridContext` of a `Provenance`.
 
 """
     provenance(report::StudyAreaReport)
@@ -12,8 +12,9 @@
     provenance(eco::AbstractEcosystem)
 
 Return a [`Provenance`](@ref): what this package version was, every input the object was built
-from, the grid it sits on and, for an ecosystem, the run. The same answer comes from each object
-holding the same study area, and on every MPI rank, since it is taken from the inputs alone.
+from, and as its [`GridContext`](@ref) the grid it sits on and, for an ecosystem, the run. The
+same answer comes from each object holding the same study area, and on every MPI rank, since it
+is taken from the inputs alone.
 
 An input is recorded by its provenance record where it has one - every file this package fetched -
 and otherwise by its file name, with the catalogue's facts about its dataset where it is a layer of
@@ -28,10 +29,10 @@ alike; a synthetic layer reads nothing and adds nothing. An ecosystem adds the r
 """
 function provenance(report::StudyAreaReport)
     within = get(report.constraints, :within, nothing)
-    return Provenance(_softwarerecord(),
+    return Provenance(Provenancer.softwarerecord(EcoSISTEM),
                       _uniqueinputs(vcat(_reportinputs(report),
                                          _specinputs(within))),
-                      _gridrecord(report), nothing)
+                      GridContext(_gridrecord(report), nothing))
 end
 
 provenance(area::StudyArea) = provenance(area.report)
@@ -41,17 +42,18 @@ provenance(habitat::GridHabitat) = provenance(habitat.area)
 function provenance(eco::AbstractEcosystem)
     built = provenance(eco.habitat)
     inputs = _uniqueinputs(vcat(built.inputs, eco.spplist.inputs, eco.inputs))
-    return Provenance(built.software, inputs, built.grid, _runrecord(eco))
+    return Provenance(built.software, inputs,
+                      GridContext(built.context.grid, _runrecord(eco)))
 end
 
 """
-    write_provenance(path::AbstractString, p::Provenance)
     write_provenance(path::AbstractString, obj)
 
 Write what a study area, a habitat or an ecosystem was built from to `path` as TOML, and return the
 path: the software, the grid, the run where there is one, and every input with its DOI, licence,
 version, citation, file name and checksum - the file a paper's repository commits beside its
-figures, so a reader can see what made them.
+figures, so a reader can see what made them. The object's [`provenance`](@ref) is written as a
+[`Provenance`](@ref) is.
 
 An input is written as its record holds it, named by its file and never by a directory, so nothing
 in the file is particular to the machine that wrote it. Quantities, the coordinate reference system
@@ -60,18 +62,9 @@ and the grid's extent are written as text, and fetch times and an epoch as TOML 
 # Arguments
 
   - `path`: the file to write; its directory is created if it does not exist.
-  - `p`: the [`Provenance`](@ref) to write.
   - `obj`: a study area report, a `StudyArea`, a `GridHabitat` or an ecosystem, whose
     [`provenance`](@ref) is written, or a recorder, whose run's provenance as of its last write is.
 """
-function write_provenance(path::AbstractString, p::Provenance)
-    mkpath(dirname(abspath(path)))
-    open(path, "w") do io
-        return TOML.print(io, _provenancetoml(p), sorted = true)
-    end
-    return path
-end
-
 function write_provenance(path::AbstractString,
                           obj::Union{StudyAreaReport, StudyArea, GridHabitat,
                                      AbstractEcosystem})
@@ -84,23 +77,6 @@ function write_provenance(path::AbstractString, recorder::AbstractRecorder)
         error("this `$(nameof(typeof(recorder)))` has not recorded anything yet, so there is no " *
               "run to write the provenance of.")
     return write_provenance(path, record)
-end
-
-# This package as the software a result came from: its version, the DOI every version is cited by,
-# and the Julia it ran on.
-function _softwarerecord()
-    return (package = "EcoSISTEM", version = string(pkgversion(@__MODULE__)),
-            doi = _conceptdoi(), julia = string(VERSION))
-end
-
-# The Zenodo DOI the shipped `codemeta.json` declares, or `""` where the file or the DOI is missing.
-# Read by pattern, since the file holds one and JSON is not a dependency.
-function _conceptdoi()
-    path = pkgdir(@__MODULE__, "codemeta.json")
-    isfile(path) || return ""
-    found = match(r"\"identifier\"\s*:\s*\"(10\.5281/zenodo\.[0-9]+)\"",
-                  read(path, String))
-    return isnothing(found) ? "" : String(only(found.captures))
 end
 
 # Where the cells are: the grid's coordinate reference system, its cell size, the extent its cells
@@ -138,16 +114,16 @@ end
 function _specinputs(spec::ShapeSpec; role::Symbol = :region)
     path = _localpath(spec.path)
     isfile(path) || return InputRecord[]
-    return [something(_ourrecordat(path),
-                      InputRecord(role = role, dataset = "file",
+    return [something(Provenancer.recordat(path),
+                      InputRecord(role = role, source = "file",
                                   path = basename(path)))]
 end
 
 function _specinputs(spec::NaturalEarthSpec; role::Symbol = :region)
     path = _localpath(_nesource(_checklevel(spec.level)))
     isfile(path) || return InputRecord[]
-    record = something(_ourrecordat(path),
-                       InputRecord(role = role, dataset = "file",
+    record = something(Provenancer.recordat(path),
+                       InputRecord(role = role, source = "file",
                                    path = basename(path)))
     return [_withcatalogue(record, datasetinfo(NaturalEarthLevel), path)]
 end
@@ -174,75 +150,3 @@ end
 function _specinputs(spec::ShapeMaskSpec; role::Symbol = :region)
     return _specinputs(spec.shape, role = role)
 end
-
-# A `Provenance` as the tables its TOML file holds: the software, the grid, the run where there is
-# one, a table per input, and what was done to the inputs where there are any.
-function _provenancetoml(p::Provenance)
-    toml = Dict{String, Any}("software" => _tomltable(p.software),
-                             "grid" => _tomltable(p.grid),
-                             "inputs" => Dict{String, Any}[_tomltable(r)
-                                               for r in p.inputs])
-    isnothing(p.run) || (toml["run"] = _tomltable(p.run))
-    isempty(p.inputs) || (toml["modification"] = _modification(p))
-    return toml
-end
-
-# A named tuple's or an input record's fields as a TOML table, leaving out those with nothing to say.
-function _tomltable(nt::NamedTuple)
-    return Dict{String, Any}(string(k) => _tomlvalue(v)
-                             for (k, v) in pairs(nt) if !_tomlblank(v))
-end
-
-# A record's references and notices are written with their placeholders filled from its fetch time.
-function _tomltable(r::InputRecord)
-    function written(k)
-        v = getfield(r, k)
-        k in (:references, :notices) || return v
-        return [merge(x, (text = _fillplaceholders(x.text, r.fetched),))
-                for x in v]
-    end
-    return Dict{String, Any}(string(k) => _tomlvalue(written(k))
-                             for k in fieldnames(InputRecord)
-                             if !_tomlblank(getfield(r, k)))
-end
-
-# Whether a field has nothing to say: `nothing`, empty text, or an empty list.
-function _tomlblank(v)
-    return isnothing(v) ||
-           (v isa Union{AbstractString, AbstractVector} && isempty(v))
-end
-
-# A value in a form TOML holds: text, booleans, floats, dates, integers that fit TOML's own, and
-# tables and arrays of those. A seed too large for a signed integer is written as text.
-_tomlvalue(v::AbstractString) = String(v)
-
-_tomlvalue(v::Bool) = v
-
-_tomlvalue(v::Union{Float64, Dates.Date, Dates.DateTime}) = v
-
-function _tomlvalue(v::Integer)
-    return typemin(Int64) <= v <= typemax(Int64) ? Int64(v) : string(v)
-end
-
-function _tomlvalue(v::AbstractDict)
-    return Dict{String, Any}(string(k) => _tomlvalue(x) for (k, x) in v)
-end
-
-_tomlvalue(v::AbstractVector) = Any[_tomlvalue(x) for x in v]
-
-function _tomlvalue(v::NamedTuple)
-    return Dict{String, Any}(string(k) => _tomlvalue(x) for (k, x) in pairs(v))
-end
-
-# An extent as each dimension's lower and upper bound, as text.
-function _tomlvalue(v::Extents.Extent)
-    return Dict{String, Any}(string(k) => [string(first(b)), string(last(b))]
-                             for (k, b) in pairs(Extents.bounds(v)))
-end
-
-# An EPSG code as it is written, `EPSG:27700`, rather than the type's own display.
-_tomlvalue(v::Rasters.EPSG) = _crsname(v)
-
-# Everything else - a quantity, another form of coordinate reference system, a symbol, another
-# calendar's date - as its printed text. Deliberately untyped, as the fallback for all of them.
-_tomlvalue(v) = string(v)

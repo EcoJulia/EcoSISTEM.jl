@@ -164,7 +164,7 @@ struct RasterSpec{A <: NicheAxis, U} <: EcoSISTEM.AbstractLazySpec
         _refusefetchedrelease(track, files)
         return new{A, U}(source, code, files, unit, cut,
                          isnothing(scale) ? nothing : Int(scale), fn, times,
-                         atend, calendar, readkw, _storedtrack(track))
+                         atend, calendar, readkw, track)
     end
 end
 
@@ -403,8 +403,7 @@ struct NaturalEarthSpec{C <: EcoSISTEM.AbstractCoverage} <: AbstractShapeSpec
         _refusefetchedrelease(track, nothing)
         # The source's own spelling is stored, not the caller's: the lookup is case-insensitive, and
         # what is kept should be what the data says so that `show` and any later report agree with it.
-        return new{typeof(coverage)}(lvl, row.Name, coverage,
-                                     _storedtrack(track))
+        return new{typeof(coverage)}(lvl, row.Name, coverage, track)
     end
 end
 
@@ -438,6 +437,11 @@ function NaturalEarthSpec(report::EcoSISTEM.RegionReport; kw...)
                  "one, `first(report)` takes the best by the report's own ordering, `report[i]` " *
                  "takes the one you want.")
 end
+
+# Its files are Natural Earth's own zips, fetched as published.
+@traitimpl IsFetchable{NaturalEarthSpec}
+
+Provenancer.route(::NaturalEarthSpec) = PublishedByProvider()
 
 function Base.show(io::IO, s::NaturalEarthSpec)
     _showregion(io, s)
@@ -894,7 +898,7 @@ function verifyassets(spec::RasterSpec)
     checked = 0
     for path in _localpath.(entries)
         isfile(path) || continue
-        checked += _verifyfile(path)
+        checked += Provenancer.verifyfile(path)
     end
     return checked
 end
@@ -917,10 +921,10 @@ end
 # facts.
 function _inputrecord(spec::RasterSpec, path::AbstractString, role::Symbol)
     rec = _specrecord(spec)
-    record = something(_ourrecordat(path),
+    record = something(Provenancer.recordat(path),
                        InputRecord(role = role,
-                                   dataset = isnothing(rec) ? "file" :
-                                             rec.dataset,
+                                   source = isnothing(rec) ? "file" :
+                                            rec.dataset,
                                    code = spec.code, path = basename(path)))
     isnothing(rec) && return record
     layer = spec.code isa CODE_TYPE ? layerinfo(spec.source, spec.code) :
@@ -954,8 +958,8 @@ function _withcatalogue(record::InputRecord, rec::DatasetRecord,
     version = isempty(record.version) ?
               something(_fileversion(rec, path), rec.version) : record.version
     return InputRecord(role = record.role,
-                       dataset = record.dataset == "file" ? rec.dataset :
-                                 record.dataset,
+                       source = record.source == "file" ? rec.dataset :
+                                record.source,
                        code = record.code, path = record.path, url = record.url,
                        request = record.request, region = record.region,
                        job = record.job, fetched = record.fetched,

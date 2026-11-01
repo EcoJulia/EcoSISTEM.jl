@@ -39,11 +39,17 @@ EcoSISTEM._trackedprovide!(::Track{Empty}, spec, paths) = nothing
     for bad in ("", "/era5", "era5/", "a//b", ".era5", "era5./x", "era 5", "\u00e9r")
         @test_throws "cannot begin a data product name" Track(nothing, bad)
     end
-    # No run means no tracking: the spec stores none, so there is one untracked state.
-    @test isnothing(SourceSpec(WorldClim{BioClim}, :bio1,
-                               track = Track(nothing, "wc")).track)
-    @test isnothing(NaturalEarthSpec("Scotland",
-                                     track = Track(nothing, "ne")).track)
+    # No run means no tracking: the track is kept as given, for the release it may state, and the
+    # spec takes the untracked route.
+    untracked = SourceSpec(WorldClim{BioClim}, :bio1)
+    tracked = SourceSpec(WorldClim{BioClim}, :bio1,
+                         track = Track(nothing, "wc"))
+    @test tracked.track isa Track{Nothing}
+    @test EcoSISTEM.missingfiles(tracked) == EcoSISTEM.missingfiles(untracked)
+    shape = NaturalEarthSpec("Scotland", track = Track(nothing, "ne"))
+    @test shape.track isa Track{Nothing}
+    @test EcoSISTEM.missingfiles(shape) ==
+          EcoSISTEM.missingfiles(NaturalEarthSpec("Scotland"))
     # A track among the read keywords is a misspelt `track`, refused rather than read with.
     @test_throws "`track = Track(handle, root)`" SourceSpec(WorldClim{BioClim},
                                                             :bio1,
@@ -77,7 +83,7 @@ end
                        track = Track(Recording([]), "cru",
                                      release_version = "4.8"))
     @test given.track.release_version == "4.8"
-    @test isnothing(SourceSpec(CRUTS, "tavg", file = file, track = track).track)
+    @test SourceSpec(CRUTS, "tavg", file = file, track = track).track === track
     # Fetched files are not: their row and their provider say which release they are.
     for fetched in (() -> SourceSpec(WorldClim{BioClim}, :bio1, track = track),
         () -> SourceSpec(ERA, "t2m", years = 2000:2000,

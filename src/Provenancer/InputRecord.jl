@@ -1,50 +1,48 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# The record of where a published input came from, and the reader of the records the fetches write.
-
-using Unitful
+# The record of where an input came from, and the reader of the sidecars the fetches write.
 
 """
-    InputRecord(; role, dataset, code = nothing, path = nothing, url = nothing, request = nothing,
+    InputRecord(; role, source, code = nothing, path = nothing, url = nothing, request = nothing,
                 region = nothing, job = nothing, fetched = nothing, bytes = nothing,
                 sha256 = nothing, doi = "", licence = "", version = "", citation = "",
                 title = "", primary = nothing, releasedate = "", references = [],
                 notices = [], requestpage = "", modified = nothing, history = nothing)
 
-The provenance of one published input to an experiment: a file this package fetched, or a dataset
-you handed it that it never fetched - an occurrence download, a trait table, a phylogeny. One shape
-for both, so that everything an ecosystem was built from can be listed together and a paper's
-references written from the list. [`provenance`](@ref) reads the records the package wrote; you
-write one for anything it could not have known about.
+The provenance of one input to a result: a file the package fetched, or a dataset the user handed
+it that it never fetched - an occurrence download, a trait table, a phylogeny. One shape for both,
+so that everything a result was built from can be listed together and a paper's references written
+from the list. [`provenance`](@ref) reads the records the fetches wrote; the user writes one for
+anything the package could not have known about.
 
 # Fields
 
-  - `role`: which part of the system the input entered by - `:habitat` for a layer, `:region` for a
-    shape or a named region's outline, `:species`, `:phylogeny`, `:dispersal`, `:demography` or
-    `:intervention` for what you attached, `:abundance` for records a starting population was
-    placed from, `:state` for a saved run a forward run starts from, `:software` for the package
-    itself.
-  - `dataset`: the source's name - a catalogue key such as `TwentyCR` or `WorldClim{BioClim}`, or
-    your own name for a dataset of yours.
+  - `role`: which part of the system the input entered by, a word of the package using the record
+    (EcoSISTEM's are `:habitat` for a layer, `:region` for a shape or a named region's outline,
+    `:species`, `:phylogeny`, `:dispersal`, `:demography` or `:intervention` for what the user
+    attached, `:abundance` for records a starting population was placed from, `:state` for a
+    saved run a forward run starts from, `:software` for the package itself). Any symbol is
+    accepted here; the package using the record says which it takes.
+  - `source`: the source's name - a catalogue key such as `TwentyCR` or `WorldClim{BioClim}`, or
+    the user's own name for a dataset of theirs.
   - `code`: which layer of the source, where the input is one.
   - `path`: the file's own name, or a path relative to wherever its record sits - never an absolute
     one, since a record is meant to be committed and shared.
   - `url`: where it was fetched from, where it was.
   - `request`: the request body sent to a service, as it was sent.
-  - `region`: the named region a request's area was taken from, as the
-    [`NaturalEarthSpec`](@ref) naming it, where it was given as one.
+  - `region`: the named region a request's area was taken from, where it was given as one.
   - `job`: the identifier a service gave the request.
   - `fetched`: when it was fetched, in UTC.
   - `bytes`, `sha256`: the file's size and checksum at fetch, which is what tells a truncated or
     replaced copy from the original.
-  - `doi`, `licence`, `version`, `citation`: the dataset's own, blank where unknown; `citation` is
+  - `doi`, `licence`, `version`, `citation`: the source's own, blank where unknown; `citation` is
     the text a paper prints.
   - `title`: the file's own title, the release's with the layer and whatever else tells the file
     apart from its siblings, blank where unknown.
   - `primary`: whether the file is the cited item or one of its files, so that the same bytes can
     be fetched again (`true`) - a file fetched as published from a source whose identifier names
     the data - or not (`false`): a file of a source cited by its paper, an extract a service cut to
-    a request, a file you gave; `nothing` where unknown.
+    a request, a file the user gave; `nothing` where unknown.
   - `releasedate`: when the release was published, as ISO 8601 text, blank where unknown.
   - `modified`: when the provider last changed the file, as its server said, in UTC; `nothing`
     where unknown.
@@ -52,7 +50,7 @@ write one for anything it could not have known about.
     file the Climate Data Store converts says there when and in which temporary directory it did
     so, which would make two fetches of the same data differ; `nothing` where nothing was
     replaced.
-  - `references`: the works the dataset's provider asks to be cited, each its `doi` and `text`,
+  - `references`: the works the source's provider asks to be cited, each its `doi` and `text`,
     and `notices`: the statements it asks to accompany the data, each its `strength` (`:required`,
     `:requested` or `:optional`) and `text`. `DD-MMM-YYYY` in a text stands for the date the file
     was fetched and `YYYY` for its year, filled in wherever the record is shown or written.
@@ -60,7 +58,7 @@ write one for anything it could not have known about.
 """
 struct InputRecord
     role::Symbol
-    dataset::String
+    source::String
     code::Union{Nothing, String}
     path::Union{Nothing, String}
     url::Union{Nothing, String}
@@ -83,7 +81,7 @@ struct InputRecord
     modified::Union{Nothing, Dates.DateTime}
     history::Union{Nothing, String}
 
-    function InputRecord(; role::Symbol, dataset::AbstractString,
+    function InputRecord(; role::Symbol, source::AbstractString,
                          code = nothing, path = nothing, url = nothing,
                          request = nothing, region = nothing, job = nothing,
                          fetched = nothing, bytes = nothing, sha256 = nothing,
@@ -92,13 +90,11 @@ struct InputRecord
                          releasedate = "", references = [], notices = [],
                          requestpage = "", modified = nothing,
                          history = nothing)
-        role in _INPUT_ROLES ||
-            throw(ArgumentError("`role` must be one of $(join(_INPUT_ROLES, ", ")); got `$role`."))
         isnothing(path) || !isabspath(path) ||
             throw(ArgumentError("an `InputRecord` holds a file's name or a relative path, never " *
                                 "an absolute one: it is meant to be committed and shared, and " *
                                 "`$path` names a directory on one machine."))
-        return new(role, String(dataset), _optstring(code), _optstring(path),
+        return new(role, String(source), _optstring(code), _optstring(path),
                    _optstring(url),
                    isnothing(request) ? nothing :
                    Dict{String, Any}(string(k) => v for (k, v) in request),
@@ -131,7 +127,7 @@ function Base.hash(r::InputRecord, h::UInt)
 end
 
 function Base.show(io::IO, r::InputRecord)
-    print(io, "InputRecord(", r.role, ", ", repr(r.dataset))
+    print(io, "InputRecord(", r.role, ", ", repr(r.source))
     isnothing(r.code) || print(io, ", ", repr(r.code))
     isnothing(r.path) || print(io, ", ", repr(r.path))
     isempty(r.doi) || print(io, ", doi = ", repr(r.doi))
@@ -140,7 +136,7 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", r::InputRecord)
     println(io, "InputRecord (", r.role, ")")
-    for (label, value) in (("dataset", r.dataset), ("title", r.title),
+    for (label, value) in (("source", r.source), ("title", r.title),
         ("code", r.code), ("file", r.path), ("url", r.url),
         ("region", r.region), ("job", r.job), ("fetched", r.fetched),
         ("bytes", r.bytes), ("sha256", r.sha256), ("primary", r.primary),
@@ -157,137 +153,79 @@ function Base.show(io::IO, ::MIME"text/plain", r::InputRecord)
     return nothing
 end
 
-"""
-    Provenance
-
-What a study area, a habitat or an ecosystem can say about how it came to be, returned by
-[`provenance`](@ref): the software, the published inputs, the grid and, for an ecosystem, the run.
-
-# Fields
-
-  - `software`: a named tuple of the `package`, its `version`, the `doi` every version of it is
-    cited by, and the `julia` version.
-  - `inputs`: an [`InputRecord`](@ref) per input, one per file, in a fixed order.
-  - `grid`: a named tuple of the grid's `crs` (`nothing` for a synthetic grid), its `cellsize`, the
-    `extent` its cells cover, and how many `cells` it has and how many of them are `active`.
-  - `run`: for an ecosystem, a named tuple of its `seed`, its `epoch` (`nothing` without one), the
-    run `calendar` its dates were placed by and the time `elapsed`; `nothing` for a study area or a
-    habitat.
-"""
-struct Provenance
-    software::NamedTuple
-    inputs::Vector{InputRecord}
-    grid::NamedTuple
-    run::Union{Nothing, NamedTuple}
-end
-
-function Base.show(io::IO, p::Provenance)
-    n = length(p.inputs)
-    return print(io, "Provenance(", p.software.package, " ", p.software.version,
-                 ", $(n) input$(n == 1 ? "" : "s"), $(p.grid.active) of $(p.grid.cells) cells",
-                 isnothing(p.run) ? "" : ", seed $(p.run.seed)", ")")
-end
-
-# The software, grid and run on a line each, then the inputs grouped by dataset: each dataset's DOI
-# and citation once, above the files it supplied.
-function Base.show(io::IO, ::MIME"text/plain", p::Provenance)
-    s = p.software
-    println(io, "Provenance")
-    println(io, "  software  ", s.package, " ", s.version,
-            isempty(s.doi) ? "" : " (doi $(s.doi))", ", Julia ", s.julia)
-    println(io,
-            "  grid      $(p.grid.active) of $(p.grid.cells) cells active, ",
-            "cells of $(p.grid.cellsize)",
-            isnothing(p.grid.crs) ? ", synthetic" :
-            ", crs $(_crsname(p.grid.crs))")
-    isnothing(p.run) ||
-        println(io, "  run       seed $(p.run.seed), ",
-                _elapsedname(p.run.elapsed), " elapsed",
-                isnothing(p.run.epoch) ? "" : " from $(p.run.epoch)",
-                _calendarnote(p.run.calendar))
-    if isempty(p.inputs)
-        print(io, "  inputs    none")
-        return nothing
-    end
-    println(io, "  inputs")
-    for dataset in unique(r.dataset for r in p.inputs)
-        group = filter(r -> r.dataset == dataset, p.inputs)
-        dois = unique(r.doi for r in group if !isempty(r.doi))
-        println(io, "    ", dataset,
-                isempty(dois) ? "" : " (doi $(join(dois, ", ")))")
-        for line in unique(Iterators.flatten(_requestlines(r) for r in group))
-            println(io, "      ", line)
-        end
-        foreach(r -> println(io, "      ", _recordline(r)), group)
-    end
-    print(io, "  modified  ", _modification(p))
-    return nothing
-end
-
 # == Functions ======================================================================================
 
 """
     provenance(path::AbstractString)
-    provenance(spec::RasterSpec)
-    provenance(spec::ConstructedRasterSpec)
-    provenance(spec::AbstractShapeSpec)
 
-Return what is known about where an input came from.
-
-For a file, the [`InputRecord`](@ref) its provenance sidecar holds - written beside every file this
-package fetched or first used, as `<file>.provenance.toml` - or `nothing` for a file with none. A
-sidecar of that name that this package did not write is left alone and reports `nothing` too, with
-a warning saying so, since its fields mean whatever its writer meant.
-
-For a raster spec, one entry per file the spec reads, in order: the file's record, or `nothing`
-where the file is absent or has no record. Nothing is fetched to answer; use
-[`fetchfiles`](@ref EcoSISTEM.fetchfiles) first for a spec whose files are not there yet. A
-combination of layers lists its data members' entries in order, a synthetic member having none.
-
-For a shape spec, the same for the files it outlines: a vector file's record, or a named region's
-Natural Earth zip, with the source's licence and citation and the version the zip states filled in
-where the record lacks them. A combination of shapes lists its members' in order.
+Return what is known about where a file came from: the [`InputRecord`](@ref) its provenance
+sidecar holds - written beside every file the package fetched or first used, as
+`<file>.provenance.toml` - or `nothing` for a file with none. A sidecar of that name that this
+machinery did not write is left alone and reports `nothing` too, with a warning saying so, since
+its fields mean whatever its writer meant.
 
 # Arguments
 
   - `path`: the file, not its sidecar.
-  - `spec`: the spec whose files to report on.
 """
 function provenance(path::AbstractString)
-    isfile(_sidecarpath(path)) || return nothing
-    return _readsidecar(_sidecarpath(path))
+    isfile(sidecarpath(path)) || return nothing
+    return _readsidecar(sidecarpath(path))
 end
 
-# The parts of the system a published input can enter by.
-const _INPUT_ROLES = (:habitat, :region, :species, :phylogeny, :dispersal,
-                      :demography, :intervention, :abundance, :state,
-                      :software)
+"""
+    NOTICE_STRENGTHS
 
-# A `provenance` keyword's value as a vector of records: one record, or a vector of them. Anything
-# else is refused by name - the untyped fallback exists to give a better message than a
-# `MethodError` naming this function.
-_recordvector(record::InputRecord) = [record]
+The strengths a provider's notice may carry in a record: `:required`, `:requested` or `:optional`.
+"""
+const NOTICE_STRENGTHS = (:required, :requested, :optional)
 
-_recordvector(records::AbstractVector{InputRecord}) = collect(records)
+"""
+    sidecarpath(path::AbstractString)
 
-function _recordvector(x)
-    return throw(ArgumentError("`provenance` takes an `InputRecord` or a vector of them; got a " *
-                               "$(typeof(x))."))
+Return the path of the provenance sidecar of the file at `path`: its own name with
+`.provenance.toml` after it, beside it.
+
+# Arguments
+
+  - `path`: the file, not its sidecar.
+"""
+sidecarpath(path::AbstractString) = path * ".provenance.toml"
+
+"""
+    recordat(path::AbstractString)
+
+Return the record of ours beside the file at `path`, or `nothing` - silently - where there is no
+sidecar, or one another program wrote, or one that does not parse. For a read recording its
+inputs, where a warning on every build would be noise and a malformed file of someone else's must
+not stop it; [`provenance`](@ref) is the asking form, which warns.
+
+# Arguments
+
+  - `path`: the file, not its sidecar.
+"""
+function recordat(path::AbstractString)
+    sidecar = sidecarpath(path)
+    isfile(sidecar) || return nothing
+    t = TOML.tryparsefile(sidecar)
+    (t isa AbstractDict && _isourrecord(t)) || return nothing
+    return _recordfromtoml(t)
 end
 
-# An optional text field, `nothing` kept, anything else as a `String`.
-_optstring(x) = isnothing(x) ? nothing : string(x)
+# What this module writes as a record's `writer`: its full name and the version of the package it
+# is part of, which is what tells its records from a same-named TOML another program wrote.
+function _writer()
+    return join(string.(Base.fullname(@__MODULE__)), ".") * " " *
+           string(something(pkgversion(@__MODULE__), ""))
+end
 
-# An optional time field: a `DateTime` as it is, ISO 8601 text with or without its `Z` parsed.
-_optdate(::Nothing) = nothing
-
-_optdate(t::Dates.DateTime) = t
-
-_optdate(s::AbstractString) = Dates.DateTime(chopsuffix(String(s), "Z"))
-
-# Whether a parsed sidecar is one this package wrote: its `writer` says so.
-function _ourrecord(t::AbstractDict)
-    return startswith(string(get(t, "writer", "")), "EcoSISTEM")
+# Whether a parsed sidecar is one this machinery wrote, by its `writer`: this module under any
+# package it is part of, or `EcoSISTEM` itself, which wrote the records before the machinery had a
+# name of its own and whose records must go on being read.
+function _isourrecord(t::AbstractDict)
+    writer = string(get(t, "writer", ""))
+    name = first(split(writer, ' ', limit = 2))
+    return endswith(name, "Provenancer") || startswith(writer, "EcoSISTEM")
 end
 
 # A sidecar's TOML as an `InputRecord`. A sidecar another program wrote under the same name is not
@@ -295,8 +233,8 @@ end
 # wrong in ways no reader could see.
 function _readsidecar(sidecar::AbstractString)
     t = TOML.parsefile(sidecar)
-    _ourrecord(t) || begin
-        @warn "`$(basename(sidecar))` was not written by EcoSISTEM (writer: "*
+    _isourrecord(t) || begin
+        @warn "`$(basename(sidecar))` was not written by Provenancer (writer: "*
               "$(repr(get(t, "writer", nothing)))), so it is left alone and reports nothing; "*
               "delete or rename it to have the file recorded on its next use." maxlog=1 _id=Symbol(sidecar)
         return nothing
@@ -304,24 +242,13 @@ function _readsidecar(sidecar::AbstractString)
     return _recordfromtoml(t)
 end
 
-# The record of ours beside `path`, or `nothing` - silently - where there is no sidecar, or one
-# another program wrote, or one that does not parse. For a read recording its inputs, where a
-# warning on every build would be noise and a malformed file of someone else's must not stop it.
-function _ourrecordat(path::AbstractString)
-    sidecar = _sidecarpath(path)
-    isfile(sidecar) || return nothing
-    t = TOML.tryparsefile(sidecar)
-    (t isa AbstractDict && _ourrecord(t)) || return nothing
-    return _recordfromtoml(t)
-end
-
 # A parsed sidecar of ours as an `InputRecord`: the keys the writers use, any it does not know left
-# behind.
+# behind. The source is read from `source`, or from `dataset`, which earlier records called it.
 function _recordfromtoml(t::AbstractDict)
     field(k) = get(t, k, nothing)
     return InputRecord(role = Symbol(something(field("role"), "habitat")),
-                       dataset = something(field("source"), field("dataset"),
-                                           "file"),
+                       source = something(field("source"), field("dataset"),
+                                          "file"),
                        code = field("code"), path = field("file"),
                        url = something(field("final_url"), field("url"),
                                        Some(nothing)),
@@ -343,6 +270,16 @@ function _recordfromtoml(t::AbstractDict)
                        history = field("history"))
 end
 
+# An optional text field, `nothing` kept, anything else as a `String`.
+_optstring(x) = isnothing(x) ? nothing : string(x)
+
+# An optional time field: a `DateTime` as it is, ISO 8601 text with or without its `Z` parsed.
+_optdate(::Nothing) = nothing
+
+_optdate(t::Dates.DateTime) = t
+
+_optdate(s::AbstractString) = Dates.DateTime(chopsuffix(String(s), "Z"))
+
 # References in the one shape a record holds them, from named tuples or a sidecar's tables.
 function _references(refs::AbstractVector)
     return @NamedTuple{doi::String, text::String}[(doi = String(_entry(r, :doi)),
@@ -363,9 +300,9 @@ end
 # A notice's strength, one a provider can ask with.
 function _strength(s)
     strength = Symbol(s)
-    strength in _NOTICE_STRENGTHS ||
+    strength in NOTICE_STRENGTHS ||
         throw(ArgumentError("a notice's `strength` must be one of " *
-                            "$(join(_NOTICE_STRENGTHS, ", ")); got `$strength`."))
+                            "$(join(NOTICE_STRENGTHS, ", ")); got `$strength`."))
     return strength
 end
 
@@ -398,26 +335,10 @@ function _requestlines(r::InputRecord)
     return lines
 end
 
-# What was done to the inputs to build on them, for the statement a modified dataset's licence or
-# provider asks for: each was read for this grid and resampled or rasterised onto its cells.
-function _modification(p::Provenance)
-    crs = isnothing(p.grid.crs) ? "" : " in $(_crsname(p.grid.crs))"
-    return "contains modified data: each input was read for this grid's extent and resampled " *
-           "or rasterised onto its cells of $(p.grid.cellsize)$(crs)."
-end
-
-# One input's line under its dataset in a provenance listing: its role, its layer where it has one,
+# One input's line under its source in a provenance listing: its role, its layer where it has one,
 # and its file, or where it was fetched from where it has no file.
 function _recordline(r::InputRecord)
     parts = (string(r.role), something(r.code, ""),
              something(r.path, r.url, ""))
     return join(filter(!isempty, parts), "  ")
-end
-
-# A run's elapsed time in the unit it is most easily read in: seconds under a day, days under a
-# year, and years beyond.
-function _elapsedname(t::Unitful.Time)
-    t < 1.0u"d" && return string(round(typeof(1.0u"s"), t, digits = 1))
-    t < 1.0u"yr" && return string(round(typeof(1.0u"d"), t, digits = 1))
-    return string(round(typeof(1.0u"yr"), t, digits = 2))
 end

@@ -253,7 +253,7 @@ end
 # order, since the cache is a `Dict` whose iteration order follows `Base.hash` and so varies between
 # Julia versions.
 function _uniqueinputs(records::AbstractVector{InputRecord})
-    key(r) = (string(r.role), r.dataset, something(r.code, ""),
+    key(r) = (string(r.role), r.source, something(r.code, ""),
               something(r.path, ""), something(r.url, ""))
     return sort!(unique(key, records), by = key)
 end

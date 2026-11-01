@@ -524,8 +524,9 @@ Data Store on first use; the catalogue's per-dataset row says which backend open
 A `SourceSpec` or a `NaturalEarthSpec` may hold a `Track`, naming the FAIR data pipeline run its files
 go through and the root of their data product names. Every route a file takes - a read, a grid
 probe, `fetchfiles` - asks the run first, through a hook the run's package supplies for its handle.
-A track is a field rather than a type parameter, and a spec with no run stores `nothing`, so there is
-one untracked state and no spec type changes with tracking.
+A track is a field rather than a type parameter, so no spec type changes with tracking. A track whose
+handle is `nothing` is kept as given, for the release it may state of files the user gives, and the
+spec takes the untracked route as one with no track does.
 
 **`ConstructedShapeSpec` and `ConstructedRasterSpec` are mirrors**: each is the "several members
 become one" node for its medium. Three of their differences are forced by that medium and one is
@@ -1061,19 +1062,49 @@ per month) and `Dim{:layer}` for everything else.
 ### Where an input came from - the records
 
 A source type says which archive a raster belongs to; an `InputRecord` says which **file** an
-object was built from, where it was fetched, and what the dataset's DOI, licence, version and
+object was built from, where it was fetched, and what the source's DOI, licence, version and
 citation are. Every fetch writes one beside its file, and every read made while deciding a study
 area records its files in the area's report, which keeps them after the reads themselves are
 discarded. `provenance` asked of a report, a study area, a habitat or an ecosystem gathers them
-into a `Provenance`, beside the software, the grid and, for an ecosystem, the run. Published data
-the package never fetched - occurrence records, a trait table, a scenario - enters as records the
-caller attaches to a species list, an intervention or `build_ecosystem`, in the same shape.
+into a `Provenance`, beside the software and the result's context, which for this package is a
+`GridContext`: the grid and, for an ecosystem, the run. Published data the package never fetched -
+occurrence records, a trait table, a scenario - enters as records the caller attaches to a species
+list, an intervention or `build_ecosystem`, in the same shape.
+
+The record, the account and the machinery behind them - the sidecar every fetched file gets, the
+download that resumes and records itself, and the names a file takes in a FAIR data pipeline run
+(`Track`) - are the submodule `Provenancer`'s, which depends on nothing of this package's so that
+another package can use it. Whatever fetches or finds a file for this package - a `CachedAsset`, a
+`CDSRequest`, a `NaturalEarthSpec`, a dataset type whose source resolves its own files - implements
+its `IsFetchable` trait and says which `AbstractFileRoute` the files come by: published by its
+provider, extracted by a service to a request, or supplied by the user. The context is the
+one abstract field in the model's types left abstract on purpose: a `Provenance` is assembled once
+per recording, and a parameter would make every `Provenance` in a signature a `UnionAll`.
 
 ```mermaid
 classDiagram
     class Provenance
+    class SoftwareRecord
     class InputRecord
+    class AbstractProvenanceContext
+    class NoContext
+    class GridContext
+    Provenance "1" *-- "1" SoftwareRecord : software
     Provenance "1" *-- "*" InputRecord : inputs
+    Provenance "1" *-- "1" AbstractProvenanceContext : context
+    AbstractProvenanceContext <|-- NoContext
+    AbstractProvenanceContext <|-- GridContext
+```
+
+```mermaid
+classDiagram
+    class AbstractFileRoute
+    class PublishedByProvider
+    class ExtractedByService
+    class SuppliedByUser
+    AbstractFileRoute <|-- PublishedByProvider
+    AbstractFileRoute <|-- ExtractedByService
+    AbstractFileRoute <|-- SuppliedByUser
 ```
 
 ## Notes

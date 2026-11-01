@@ -42,7 +42,7 @@ for data an intervention is built from - whose records join the ecosystem's once
 using EcoSISTEM
 
 seeding = EcoSISTEM.InputRecord(role = :abundance,
-                                dataset = "GBIF occurrence download",
+                                source = "GBIF occurrence download",
                                 doi = "10.15468/dl.abc123",
                                 licence = "CC BY-NC 4.0")
 species = build_species(DefaultEcosystem(), numspecies = 3, verbosity = :silent)

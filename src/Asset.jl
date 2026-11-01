@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# A file downloaded once and cached outside the repository, under `EcoSISTEM.assetdir`, or fetched
-# once to a path of the caller's; and the provenance record every such fetch writes beside it.
+# The two things this package fetches, each implementing `Provenancer`'s `IsFetchable`: a file
+# downloaded once into the asset cache (`CachedAsset`) and a request to the Copernicus Climate Data
+# Store (`CDSRequest`); the cache's own directory; and the provenance records their fetches write,
+# with the catalogue's facts about the file folded in. The download, the lock, the sidecar and the
+# cache root are `Provenancer`'s.
 
 """
     CachedAsset(owner::Type, url::AbstractString; path = nothing)
@@ -30,6 +33,10 @@ struct CachedAsset
                    isnothing(path) ? nothing : String(path))
     end
 end
+
+@traitimpl IsFetchable{CachedAsset}
+
+Provenancer.route(::CachedAsset) = PublishedByProvider()
 
 """
     CDSRequest(dataset::AbstractString, request::AbstractDict, path::AbstractString;
@@ -67,6 +74,12 @@ struct CDSRequest
     end
 end
 
+@traitimpl IsFetchable{CDSRequest}
+
+Provenancer.route(::CDSRequest) = ExtractedByService()
+
+# == Functions ======================================================================================
+
 """
     EcoSISTEM.assetdir(mod::Module = EcoSISTEM; owner::Union{Type, Nothing} = nothing)
 
@@ -87,9 +100,7 @@ by the extension's `__init__` setting `RASTERDATASOURCES_PATH`.
 """
 function assetdir(mod::Module = EcoSISTEM;
                   owner::Union{Type, Nothing} = nothing)
-    dir = joinpath(_assetroot(), string(nameof(mod)))
-    isnothing(owner) || (dir = joinpath(dir, string(nameof(owner))))
-    return mkpath(dir)
+    return Provenancer.assetdir(mod, owner = owner, cache = EcoSISTEM)
 end
 
 """
@@ -113,22 +124,15 @@ never reclaims a directory chosen here.
   - `dir`: the directory to keep the cache in, `~` and a relative path expanded.
 """
 function set_assetdir!(dir::AbstractString)
-    path = mkpath(abspath(expanduser(dir)))
-    # Into the environment that has EcoSISTEM rather than the active one, which may not name it and
-    # would then be given it in `[extras]`, its Project.toml rewritten
-    Preferences.set_preferences!(EcoSISTEM, "assetdir" => path,
-                                 active_project_only = false, force = true)
+    root = Provenancer.set_assetdir!(EcoSISTEM, dir)
     _repointextensions()
-    return _assetroot()
+    return root
 end
 
 function set_assetdir!(::Nothing)
-    Preferences.has_preference(EcoSISTEM, "assetdir") &&
-        Preferences.delete_preferences!(EcoSISTEM, "assetdir",
-                                        active_project_only = false,
-                                        force = true)
+    root = Provenancer.set_assetdir!(EcoSISTEM, nothing)
     _repointextensions()
-    return _assetroot()
+    return root
 end
 
 """
@@ -161,11 +165,10 @@ function assetpath(asset::CachedAsset; verify::Bool = false)
                      joinpath(assetdir(owner = asset.owner),
                               basename(asset.url)))
     if isfile(path)
-        _recordpresent(path) do
-            record = _assetrecord(asset, path, nothing)
-            return record
+        Provenancer.recordpresent(path) do
+            return _assetrecord(asset, path, nothing)
         end
-        verify && _verifyfile(path)
+        verify && Provenancer.verifyfile(path)
         return path
     end
     mkpath(dirname(abspath(path)))
@@ -176,10 +179,11 @@ function assetpath(asset::CachedAsset; verify::Bool = false)
     # per destination, under a lock: a second process wanting the same file waits, then finds it
     # present, and the part file of an interrupted run is what the next run resumes from.
     part = path * ".part"
-    _fetchlocked(path) do
-        response = _download(asset.url, part)
+    Provenancer.fetchlocked(path) do
+        response = Provenancer.download!(asset.url, part)
         mv(part, path, force = true)
-        return _writesidecar(path, _assetrecord(asset, path, response))
+        return Provenancer.writesidecar(path,
+                                        _assetrecord(asset, path, response))
     end
     return path
 end
@@ -187,33 +191,28 @@ end
 function assetpath(request::CDSRequest; verify::Bool = false)
     if isfile(request.path)
         _checkrequest(request)
-        _recordpresent(request.path) do
+        Provenancer.recordpresent(request.path) do
             return _requestrecord(request, request.path, nothing)
         end
-        verify && _verifyfile(request.path)
+        verify && Provenancer.verifyfile(request.path)
         return request.path
     end
     isnothing(Base.get_extension(EcoSISTEM, :EcoSISTEMERAExt)) &&
         error("`$(request.path)` is not there, and fetching it from the Climate Data Store " *
               "needs `using CDSAPI` (and a CDS key in `~/.cdsapirc`).")
     mkpath(dirname(abspath(request.path)))
-    _fetchlocked(request.path) do
+    Provenancer.fetchlocked(request.path) do
         status = _fetchcds(request)
         isfile(request.path) ||
             error("the Climate Data Store fetch for `$(request.path)` finished without writing it.")
-        return _writesidecar(request.path,
-                             _requestrecord(request, request.path, status))
+        return Provenancer.writesidecar(request.path,
+                                        _requestrecord(request, request.path,
+                                                       status))
     end
     return request.path
 end
 
 assetpath(relative_path::AbstractString) = joinpath(assetdir(), relative_path)
-
-# The asset cache's root: the directory `set_assetdir!` recorded, else EcoSISTEM's scratch space.
-function _assetroot()
-    dir = Preferences.load_preference(EcoSISTEM, "assetdir", nothing)
-    return isnothing(dir) ? get_scratch!(EcoSISTEM, "assets") : String(dir)
-end
 
 # Tell each loaded extension that keeps files under the asset cache that the cache has moved.
 function _repointextensions()
@@ -222,151 +221,14 @@ function _repointextensions()
     return nothing
 end
 
-# Run `fetch` under the lock for `path`, unless the file has appeared by the time the lock is held,
-# which is what a process that waited on another's download finds. The lock is a pid file beside
-# the target, released on return however `fetch` ends; a lock older than `_STALE_LOCK_SECONDS`
-# whose process is gone is taken over.
-function _fetchlocked(fetch::Function, path::AbstractString)
-    lock = mkpidlock(path * ".lock", stale_age = _STALE_LOCK_SECONDS)
-    try
-        isfile(path) || fetch()
-    finally
-        close(lock)
-    end
-    return path
-end
-
-# How old a download lock may be before a process that stopped holding it is presumed dead.
-const _STALE_LOCK_SECONDS = 4 * 3600.0
-
-# A downloader held to HTTP/1.1. Some networks cut a long HTTP/2 stream off part way through with
-# an `INTERNAL_ERROR`, and the reanalysis archives are hundreds of megabytes a file.
-function _http11downloader()
-    downloader = Downloads.Downloader()
-    downloader.easy_hook = (easy, _) -> Downloads.Curl.setopt(easy,
-                                                              Downloads.Curl.CURLOPT_HTTP_VERSION,
-                                                              Downloads.Curl.CURL_HTTP_VERSION_1_1)
-    return downloader
-end
-
-# The request headers that resume a transfer from the `have` bytes already held: a byte range
-# from there, or none at all from the start.
-function _resumeheaders(have::Integer)
-    return have > 0 ? ["Range" => "bytes=$(have)-"] : Pair{String, String}[]
-end
-
-# Fetch `url` to `path` over HTTP/1.1, appending to whatever `path` already holds through a byte
-# range on each retry, up to `attempts` transfers, the last failure rethrown; the part file is left
-# for a later call to resume from. A server that ignores the range and sends the whole file
-# restarts the file rather than appending a second copy. Returns the last response, for its final
-# URL and headers.
-function _download(url::AbstractString, path::AbstractString;
-                   attempts::Integer = 5)
-    downloader = _http11downloader()
-    for attempt in 1:attempts
-        have = isfile(path) ? filesize(path) : 0
-        try
-            return open(path, "a") do io
-                response = Downloads.request(url, output = io,
-                                             headers = _resumeheaders(have),
-                                             downloader = downloader,
-                                             throw = true)
-                # A file URL reports no status at all; a server answers 200 for the whole file and
-                # 206 for the range asked.
-                if have > 0 && response.status == 200
-                    truncate(io, 0)
-                    error("the server sent the whole file in answer to a byte range")
-                end
-                response.status in (0, 200, 206) ||
-                    error("HTTP $(response.status) for $url")
-                return response
-            end
-        catch e
-            if attempt == attempts
-                # Nothing received at all leaves nothing worth resuming from, and a stray empty
-                # part file would read as a download in progress.
-                isfile(path) && filesize(path) == 0 && rm(path)
-                rethrow()
-            end
-            @warn "download attempt $attempt of $attempts failed; resuming" url exception=e
-        end
-    end
-end
-
-# The sidecar a fetched file's provenance record is written to: the file's own name with
-# `.provenance.toml` after it, beside it.
-_sidecarpath(path::AbstractString) = path * ".provenance.toml"
-
-# Record a file that is already present when it is first used and has no sidecar - one fetched
-# before records were written, or by hand - with everything but a fetch time, which is not known.
-# A sidecar that is there already, ours or another program's, is left as it is.
-function _recordpresent(record::Function, path::AbstractString)
-    isfile(_sidecarpath(path)) && return nothing
-    r = record()
-    delete!(r, "fetched")
-    _writesidecar(path, r)
-    return nothing
-end
-
-# Write `record` as the provenance sidecar of `path`, in TOML, keys sorted so two records of one
-# file diff cleanly. Written to a sibling and renamed in, never into the file already there: a
-# sidecar a data pipeline run put in place is a hard link to the run's store, and writing into it
-# would change the store's copy. The sibling is each writer's own, since several processes may
-# record one file at once - the MPI ranks that waited on another's download among them.
-function _writesidecar(path::AbstractString, record::AbstractDict)
-    sidecar = _sidecarpath(path)
-    part, io = mktemp(dirname(abspath(sidecar)))
-    try
-        TOML.print(io, record, sorted = true)
-    finally
-        close(io)
-    end
-    chmod(part, 0o644)
-    mv(part, sidecar, force = true)
-    return sidecar
-end
-
-# The SHA-256 digest of a file, as hex.
-_sha256(path::AbstractString) = bytes2hex(open(SHA.sha256, path))
-
-# Check a present file against the checksum its sidecar records, erroring on a mismatch, and say
-# whether there was one to check: a file with no sidecar, one this package did not write, or a
-# record with no checksum has nothing to check against and passes unchecked.
-function _verifyfile(path::AbstractString)
-    isfile(_sidecarpath(path)) || return false
-    record = TOML.parsefile(_sidecarpath(path))
-    (_ourrecord(record) && haskey(record, "sha256")) || return false
-    actual = _sha256(path)
-    actual == record["sha256"] ||
-        error("`$(basename(path))` does not match the checksum its provenance record holds: " *
-              "recorded $(record["sha256"]), found $actual. The file has been truncated or " *
-              "replaced since it was fetched; delete it to fetch it again.")
-    return true
-end
-
-# The fields every fetched file's record carries: who wrote it, when, the file's name (never its
-# directory, since the record travels), its size and checksum. The name is relative by
-# construction and no field ever holds a home directory, user name, host name or key.
-function _baserecord(path::AbstractString, role::Symbol)
-    return Dict{String, Any}("writer" => "EcoSISTEM $(pkgversion(EcoSISTEM))",
-                             "role" => string(role),
-                             "file" => basename(path),
-                             "fetched" => _utcnow(),
-                             "bytes" => filesize(path),
-                             "sha256" => _sha256(path))
-end
-
-# Now, in UTC, written as ISO 8601 with its `Z`.
-_utcnow() = Dates.format(Dates.now(Dates.UTC), "yyyy-mm-ddTHH:MM:SS") * "Z"
-
 # The catalogue's facts about a file of a catalogued source, the one place they are computed for
 # every record written and every registration made: the source, the layer where the file is one,
-# the file's title, whether it is its source's own for the `route` it came by (`:published`,
-# `:extract` or `:given`, as `_isprimary` reads them), and the row's DOI, licence, version, release
-# date and citation, with what its provider asks - the references, the notices and the
-# documentation's section quoting them - left out where blank. Empty where the owner is no source.
+# the file's title, whether it is its source's own for the `route` it came by (as `_isprimary`
+# reads it), and the row's DOI, licence, version, release date and citation, with what its provider
+# asks - the references, the notices and the documentation's section quoting them - left out
+# where blank. Empty where the owner is no source.
 function _cataloguerecord(owner::Type, layer, path::AbstractString;
-                          route::Symbol)
+                          route::AbstractFileRoute)
     rec = _datasetrecord(owner)
     isnothing(rec) && return Dict{String, Any}()
     record = Dict{String, Any}("source" => rec.dataset,
@@ -388,73 +250,23 @@ function _cataloguerecord(owner::Type, layer, path::AbstractString;
     return record
 end
 
-# The provenance record of a file fetched over https: the URL asked for and the one the server
-# answered from, and the validators it sent, plus the catalogue's facts where the owner is a
-# source and the URL is one of its layers' files. `response` is `nothing` for a file recorded
-# when already present, which then carries the URL alone.
+# The provenance record of a file fetched over https: what `Provenancer` records of any download
+# - the URLs, the validators, the provider's time - plus the catalogue's facts where the owner is a
+# source and the URL is one of its layers' files. `response` is `nothing` for a file recorded when
+# already present, which then carries the URL alone.
 function _assetrecord(asset::CachedAsset, path::AbstractString, response)
+    record = Provenancer.downloadrecord(path, asset.url, response,
+                                        _assetrole(asset.owner))
     rec = _datasetrecord(asset.owner)
-    record = _baserecord(path, _assetrole(asset.owner))
-    record["url"] = asset.url
-    if !isnothing(response)
-        response.url == asset.url || (record["final_url"] = response.url)
-        for (name, key) in (("etag", "etag"), ("last-modified", "last_modified"))
-            value = _headervalue(response.headers, name)
-            isnothing(value) || (record[key] = value)
-        end
-        modified = _providertime(response.headers)
-        isnothing(modified) || (record["modified"] = modified)
-    end
     isnothing(rec) && return record
     layer = rec.format === :Shapefile ? nothing :
             _layerbyfile(asset.owner, asset.url)
     merge!(record,
-           _cataloguerecord(asset.owner, layer, path, route = :published))
+           _cataloguerecord(asset.owner, layer, path,
+                            route = Provenancer.route(asset)))
     version = _fileversion(rec, path)
     isnothing(version) || (record["version"] = version)
     return record
-end
-
-# A response header's value by its name in any case, or `nothing` where it was not sent.
-function _headervalue(headers, name::AbstractString)
-    i = findfirst(h -> lowercase(first(h)) == name, headers)
-    return isnothing(i) ? nothing : String(last(headers[i]))
-end
-
-# When the provider last changed the file a response describes, as ISO 8601 text in UTC with its
-# `Z`: the file's own time where the server keeps it as metadata (CHELSA's object store sends it
-# as `x-amz-meta-mtime`, its `Last-Modified` being when it was uploaded there), else the
-# `Last-Modified` it sent; `nothing` where it sent neither in a form that reads.
-function _providertime(headers)
-    mtime = _headervalue(headers, "x-amz-meta-mtime")
-    seconds = isnothing(mtime) ? nothing : tryparse(Float64, mtime)
-    isnothing(seconds) ||
-        return Dates.format(Dates.unix2datetime(floor(seconds)),
-                            "yyyy-mm-ddTHH:MM:SS") * "Z"
-    modified = _headervalue(headers, "last-modified")
-    isnothing(modified) && return nothing
-    t = tryparse(Dates.DateTime, replace(modified, r"\s+GMT$" => ""),
-                 Dates.dateformat"e, d u y H:M:S")
-    return isnothing(t) ? nothing :
-           Dates.format(t, "yyyy-mm-ddTHH:MM:SS") * "Z"
-end
-
-# The provider's time for the file at `url`, asked by a `HEAD` and read as `_providertime` reads
-# a response, where the answer can be tied to the bytes held at `held`: the size the server states
-# must be that file's, since a record may be written long after the file was fetched and the
-# server's file changed since. `nothing` where the server cannot be asked, states no time or no
-# size, or describes another file.
-function _headprovidertime(url::AbstractString, held::AbstractString)
-    response = try
-        Downloads.request(url, method = "HEAD", timeout = 30,
-                          downloader = _http11downloader(), throw = false)
-    catch
-        return nothing
-    end
-    response.status == 200 || return nothing
-    size = _headervalue(response.headers, "content-length")
-    (isnothing(size) || tryparse(Int, size) != filesize(held)) && return nothing
-    return _providertime(response.headers)
 end
 
 # The part of the system a download owned by `owner` enters by: an outline for a shape spec or a
@@ -487,7 +299,7 @@ end
 # means are `ERA`'s) and the variable one of its layers. An extract a service made to a request is
 # never its source's own.
 function _requestrecord(request::CDSRequest, path::AbstractString, status)
-    record = _baserecord(path, :habitat)
+    record = Provenancer.baserecord(path, :habitat)
     record["dataset"] = request.dataset
     record["request"] = request.request
     record["primary"] = false
@@ -500,7 +312,9 @@ function _requestrecord(request::CDSRequest, path::AbstractString, status)
         variables = get(request.request, "variable", String[])
         layer = length(variables) == 1 ?
                 _layerbyrequest(ERA, string(only(variables))) : nothing
-        merge!(record, _cataloguerecord(ERA, layer, path, route = :extract))
+        merge!(record,
+               _cataloguerecord(ERA, layer, path,
+                                route = Provenancer.route(request)))
     end
     return record
 end
@@ -531,10 +345,10 @@ end
 # months changed under one path - rather than serve it as this one. A file with no record, or with
 # another program's, passes, presence being all there is to go on.
 function _checkrequest(request::CDSRequest)
-    sidecar = _sidecarpath(request.path)
+    sidecar = Provenancer.sidecarpath(request.path)
     isfile(sidecar) || return nothing
     record = TOML.tryparsefile(sidecar)
-    (record isa AbstractDict && _ourrecord(record) &&
+    (record isa AbstractDict && Provenancer._isourrecord(record) &&
      haskey(record, "request")) || return nothing
     differ = _requestdifferences(record["request"], request.request)
     recorded = get(record, "dataset", request.dataset)

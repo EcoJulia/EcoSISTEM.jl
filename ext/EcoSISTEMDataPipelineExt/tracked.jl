@@ -53,7 +53,7 @@ _sourcetype(spec::RasterSpec) = spec.source
 _sourcetype(::NaturalEarthSpec) = EcoSISTEM.NaturalEarthLevel
 
 # The deposit a tracked spec's files are derived from, named in its source's namespace.
-_depositof(track, rec) = rec.namespace * ":" * EcoSISTEM._depositname(track)
+_depositof(track, rec) = rec.namespace * ":" * Provenancer._depositname(track)
 
 # Claim a fetch run for one deposit, refusing a second: every output of a run is derived from every
 # input, so a second source's deposit would be shown as what the first's files came from.
@@ -71,7 +71,7 @@ end
 # The name a file is registered, and asked about, under: the label of an output, which the run's
 # `write:` entry resolves in the namespace it gives.
 function _registrationname(track, path)
-    return ConfigDataProduct(EcoSISTEM._dataname(track, path))
+    return ConfigDataProduct(Provenancer._dataname(track, path))
 end
 
 # The data products the bytes at `path` are registered as under the name `name`, in whatever
@@ -118,23 +118,23 @@ end
 function _isregistered(track, rec, spec, entry)
     path, route = entry.path, entry.route
     isfile(path) || return false
-    r = EcoSISTEM._recordwith(path, EcoSISTEM._currentfacts(spec, entry))
+    r = Provenancer._recordwith(path, EcoSISTEM._currentfacts(spec, entry))
     isnothing(r) && return false
     handle = track.handle
-    held = _heldversion(handle, path, EcoSISTEM._dataname(track, path),
+    held = _heldversion(handle, path, Provenancer._dataname(track, path),
                         newest = true)
     isnothing(held) && return false
     _samefacts(track, rec, r, path, route, held) || return false
-    return _isrecorded(handle, EcoSISTEM._sidecarpath(path),
-                       EcoSISTEM._sidecarname(track, path))
+    return _isrecorded(handle, Provenancer.sidecarpath(path),
+                       Provenancer._sidecarname(track, path))
 end
 
 # Whether the run's working config writes both of a file's outputs, the file and its record.
 function _writable(track, path)
     return DataPipeline.canwrite(track.handle,
-                                 EcoSISTEM._dataname(track, path)) &&
+                                 Provenancer._dataname(track, path)) &&
            DataPipeline.canwrite(track.handle,
-                                 EcoSISTEM._sidecarname(track, path))
+                                 Provenancer._sidecarname(track, path))
 end
 
 # Refuse, before anything is fetched, a fetch run whose working config does not write what it would
@@ -144,8 +144,8 @@ function _checkwritable(track, rec, entries)
     isempty(lacking) && return nothing
     return error("This run's working config does not write what fetching " *
                  "$(join((basename(e.path) for e in lacking), ", ")) registers. Give it:\n" *
-                 EcoSISTEM._writelines(track, rec.namespace,
-                                       EcoSISTEM._filetype(first(lacking).path)))
+                 Provenancer._writelines(track, rec.namespace,
+                                         Provenancer._filetype(first(lacking).path)))
 end
 
 # The version and release date a file is registered under, and its record rewritten where they or
@@ -155,12 +155,12 @@ end
 # vouch for these bytes - or failing that the day it was fetched or registered.
 function _versionfor!(track, rec, r, path, route)
     handle = track.handle
-    name = EcoSISTEM._dataname(track, path)
+    name = Provenancer._dataname(track, path)
     held = _heldversion(handle, path, name, newest = false)
     isnothing(held) ||
         return (version = held,
                 date = EcoSISTEM._registereddate(r, rec, nothing), record = r)
-    full = EcoSISTEM._fullversion(r.version)
+    full = Provenancer._fullversion(r.version)
     kw = EcoSISTEM._sourcekeywords(r, rec, route, version = full,
                                    date = EcoSISTEM._registereddate(r, rec,
                                                                     nothing))
@@ -170,11 +170,11 @@ function _versionfor!(track, rec, r, path, route)
             date = EcoSISTEM._registereddate(r, rec, nothing),
             record = r)
     if isnothing(r.modified) && !isnothing(r.url)
-        modified = EcoSISTEM._headprovidertime(r.url, path)
+        modified = Provenancer._headprovidertime(r.url, path)
         isnothing(modified) || (r = _rerecord!(path, "modified" => modified))
     end
-    day = EcoSISTEM._stampday(r, Dates.today())
-    version = EcoSISTEM._registeredversion(r.version, nothing, true, day)
+    day = Provenancer._stampday(r, Dates.today())
+    version = Provenancer._registeredversion(r.version, nothing, true, day)
     date = EcoSISTEM._registereddate(r, rec, day)
     r = _rerecord!(path, "version" => version, "release_date" => date)
     return (version = version, date = date, record = r)
@@ -182,13 +182,13 @@ end
 
 # Rewrite a file's record of ours with `facts` in place of what it said, and return it read back.
 function _rerecord!(path, facts::Pair...)
-    sidecar = EcoSISTEM._sidecarpath(path)
+    sidecar = Provenancer.sidecarpath(path)
     record = TOML.parsefile(sidecar)
     for (key, value) in facts
         record[key] = value
     end
-    EcoSISTEM._writesidecar(path, record)
-    return EcoSISTEM._ourrecordat(path)
+    Provenancer.writesidecar(path, record)
+    return Provenancer.recordat(path)
 end
 
 # Register one file of a tracked spec with its run as an output, derived from its source's deposit -
@@ -201,13 +201,13 @@ function _register!(track, spec, rec, entry)
     isfile(path) ||
         error("`$path` was fetched for $spec, yet is not where it was expected, so it cannot be " *
               "registered.")
-    route === :given && EcoSISTEM._recordgiven(spec, entry)
-    r = EcoSISTEM._refreshrecord!(path, EcoSISTEM._currentfacts(spec, entry))
+    route isa SuppliedByUser && EcoSISTEM._recordgiven(spec, entry)
+    r = Provenancer._refreshrecord!(path, EcoSISTEM._currentfacts(spec, entry))
     isnothing(r) &&
         error("`$(basename(path))` has no provenance record of EcoSISTEM's, so what it is cannot " *
               "be registered: delete its `.provenance.toml` to have one written.")
     if EcoSISTEM._needsdate(r, rec) && !isnothing(r.url)
-        modified = EcoSISTEM._headprovidertime(r.url, path)
+        modified = Provenancer._headprovidertime(r.url, path)
         isnothing(modified) || (r = _rerecord!(path, "modified" => modified))
     end
     release = _versionfor!(track, rec, r, path, route)
@@ -219,11 +219,11 @@ function _register!(track, spec, rec, entry)
         link_register!(handle, deposit; EcoSISTEM._depositkeywords(rec)...)
         _markdone!(handle, "deposit")
     end
-    store = route === :published ? release.record.url : nothing
-    link_write!(handle, EcoSISTEM._dataname(track, path); path = path,
+    store = route isa PublishedByProvider ? release.record.url : nothing
+    link_write!(handle, Provenancer._dataname(track, path); path = path,
                 original_store = store, kw...)
-    link_write!(handle, EcoSISTEM._sidecarname(track, path),
-                path = EcoSISTEM._sidecarpath(path))
+    link_write!(handle, Provenancer._sidecarname(track, path),
+                path = Provenancer.sidecarpath(path))
     return path
 end
 
@@ -234,7 +234,7 @@ function EcoSISTEM._trackedfetch(track::Track{<:DataRegistryHandle}, spec)
     rec = _sourcerow(spec)
     entries = EcoSISTEM._specroutes(spec)
     paths = [e.path for e in entries]
-    EcoSISTEM._checkstems(paths)
+    Provenancer._checkstems(paths)
     _claimdeposit!(track, rec)
     _checkwritable(track, rec, entries)
     _readcitations!(track.handle)
@@ -250,13 +250,13 @@ end
 # rather than replacing it, and replacing a record of ours, whose file has matched.
 function _providefile!(track, rec, path)
     handle = track.handle
-    name = EcoSISTEM._dataname(track, path)
-    sidecarname = EcoSISTEM._sidecarname(track, path)
+    name = Provenancer._dataname(track, path)
+    sidecarname = Provenancer._sidecarname(track, path)
     (DataPipeline.canread(handle, name) &&
      DataPipeline.canread(handle, sidecarname)) ||
         error("This run's working config does not read `$name` and its provenance record, " *
               "which a tracked spec reads only from the run's store. Add to its config:\n" *
-              EcoSISTEM._readlines(track, rec.namespace))
+              Provenancer._readentry(track, rec.namespace))
     mkpath(dirname(abspath(path)))
     try
         link_read!(handle, name, path = path)
@@ -268,10 +268,10 @@ function _providefile!(track, rec, path)
         error("`$path` is there with other bytes than this run's `$name`, so it is not read in " *
               "its place: delete it and its `.provenance.toml` to have the run's copy put there.")
     end
-    sidecar = EcoSISTEM._sidecarpath(path)
+    sidecar = Provenancer.sidecarpath(path)
     if isfile(sidecar)
         t = TOML.tryparsefile(sidecar)
-        (t isa AbstractDict && EcoSISTEM._ourrecord(t)) ||
+        (t isa AbstractDict && Provenancer._isourrecord(t)) ||
             error("`$(basename(sidecar))` was not written by EcoSISTEM, so it is not replaced by " *
                   "this run's record `$sidecarname`: move it aside.")
         link_read!(handle, sidecarname, path = sidecar, force = true)
@@ -301,27 +301,28 @@ end
 function _missingreason(track, rec, spec, entry)
     handle = track.handle
     path, route = entry.path, entry.route
-    name = EcoSISTEM._dataname(track, path)
-    sidecarname = EcoSISTEM._sidecarname(track, path)
+    name = Provenancer._dataname(track, path)
+    sidecarname = Provenancer._sidecarname(track, path)
     (DataPipeline.canread(handle, name) &&
      DataPipeline.canread(handle, sidecarname)) &&
         return nothing
     if DataPipeline.canwrite(handle, sidecarname)
         present = isfile(path)
         r = present ?
-            EcoSISTEM._recordwith(path, EcoSISTEM._currentfacts(spec, entry)) :
+            Provenancer._recordwith(path,
+                                    EcoSISTEM._currentfacts(spec, entry)) :
             nothing
         held = isnothing(r) ? nothing :
                _heldversion(handle, path, name, newest = true)
         same = !isnothing(held) && _samefacts(track, rec, r, path, route, held)
         recorded = present &&
-                   _isrecorded(handle, EcoSISTEM._sidecarpath(path),
+                   _isrecorded(handle, Provenancer.sidecarpath(path),
                                sidecarname)
         named = DataPipeline.isregistered(handle,
                                           _registrationname(track, path))
-        return EcoSISTEM._fetchreason(present = present, held = held,
-                                      same = same,
-                                      recorded = recorded, named = named)
+        return Provenancer._fetchreason(present = present, held = held,
+                                        same = same,
+                                        recorded = recorded, named = named)
     end
     registered = try
         DataPipeline.isregistered(handle, ConfigDataProduct(name))
@@ -329,7 +330,7 @@ function _missingreason(track, rec, spec, entry)
         e isa ConfigFileException || rethrow()
         nothing
     end
-    return EcoSISTEM._modelreason(registered, track, rec.namespace)
+    return Provenancer._modelreason(registered, track, rec.namespace)
 end
 
 # What `missingfiles` reports of a tracked spec: its files still to do in its run, and why.

@@ -1,72 +1,68 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# What a tracked spec's files are registered as with a FAIR data pipeline run, decided from plain
-# data so that it is tested with no registry: the data product names, the route each file comes by,
-# the facts of its source, the version a file takes whose bytes differ from those registered, the
-# config lines a run lacks, and why a file is still to do. The calls that ask a registry and
-# register are the DataPipeline extension's.
+# What a tracked spec's files are registered as with a FAIR data pipeline run, the part that knows a
+# spec and the catalogue: each file a spec reads and the route it comes by, the facts the catalogue
+# gives it now, the registration keywords built from those facts and the source's row, and how a
+# spec keeps its track. The data product names, the version stamping and the config lines are
+# `Provenancer`'s (`src/Provenancer/naming.jl`); the calls that ask a registry and register are the
+# DataPipeline extension's.
 
-# The stem a file's data products are named by: its name without its extension, which the data
-# store adds.
-_filestem(path::AbstractString) = first(splitext(basename(path)))
-
-# The data products a tracked file gives rise to under its track's root: the file itself, its
-# provenance record, and the file-less deposit an extract's files are derived from.
-function _dataname(track::Track, path::AbstractString)
-    return track.root * "/data/" * _filestem(path)
-end
-
-function _sidecarname(track::Track, path::AbstractString)
-    return track.root * "/provenance/" * _filestem(path)
-end
-
-_depositname(track::Track) = track.root * "/deposit"
-
-# Refuse, before anything is fetched, a file whose stem cannot end a data product name.
-function _checkstems(paths)
-    for path in paths
-        stem = _filestem(path)
-        occursin(_PRODUCTNAME, stem) && !occursin('/', stem) ||
-            error("`$(basename(path))` cannot be tracked: a data product is named by the file's " *
-                  "name without its extension, `$stem`, which may hold only ASCII letters, " *
-                  "digits, `_`, `-` and `.`, not beginning or ending with `.`. Rename the file.")
-    end
-    return nothing
-end
-
-# Each file a spec reads, where it is or would be, with the route it comes by - `:published` for a
-# file fetched as its provider publishes it (by its source's own resolution, or from a URL),
-# `:extract` for one a service makes to a request, `:given` for a file the user names - the layer
-# `code` it holds where one is known, and the `url` it is fetched from where it has one.
+# Each file a spec reads, where it is or would be, with the route it comes by - `PublishedByProvider()`
+# for a file fetched as its provider publishes it (by its source's own resolution, or from a URL),
+# `ExtractedByService()` for one a service makes to a request, `SuppliedByUser()` for a file the
+# user names - the layer `code` it holds where one is known, and the `url` it is fetched from where
+# it has one.
 _specroutes(spec::RasterSpec) = _specroutes(spec, spec.files)
 
 function _specroutes(spec::RasterSpec, ::Nothing)
+    route = _fileroute(spec.source)
     files = _sourcefiles(spec.source, spec.code; _readkw(spec)...)
     isnothing(files) &&
-        return [(path = p, route = :published, code = nothing, url = nothing)
+        return [(path = p, route = route, code = nothing, url = nothing)
                 for p in _specpaths(spec)]
-    return [(path = f.path, route = :published, code = f.code, url = f.url)
+    return [(path = f.path, route = route, code = f.code, url = f.url)
             for f in files]
 end
 
 function _specroutes(spec::RasterSpec, files::AbstractVector)
     code = spec.code isa AbstractVector ? nothing : spec.code
-    return [(path = _localpath(f), route = _entryroute(f), code = code,
+    return [(path = _localpath(f), route = _fileroute(f), code = code,
              url = _entryurl(f))
             for f in files]
 end
 
 function _specroutes(spec::NaturalEarthSpec)
     url = _nesource(_checklevel(spec.level)).url
-    return [(path = p, route = :published, code = nothing, url = url)
+    return [(path = p, route = Provenancer.route(spec), code = nothing,
+             url = url)
             for p in _specpaths(spec)]
 end
 
-_entryroute(::AbstractString) = :given
+# The route a file comes by, asked of whatever describes it: a path the user gave; an entry of a
+# spec's `files`, a `CachedAsset` or a `CDSRequest`, which says of itself; or the dataset type of a
+# source resolving its own files. Anything else is refused by name: implementing `IsFetchable` is
+# the way in.
+_fileroute(::AbstractString) = SuppliedByUser()
 
-_entryroute(::CachedAsset) = :published
+@traitfn function _fileroute(entry::E) where {E; IsFetchable{E}}
+    return Provenancer.route(entry)
+end
 
-_entryroute(::CDSRequest) = :extract
+@traitfn _fileroute(entry::E) where {E; !IsFetchable{E}} = _notfetchable(E)
+
+@traitfn function _fileroute(::Type{S}) where {S; IsFetchable{S}}
+    return Provenancer.route(S)
+end
+
+@traitfn _fileroute(::Type{S}) where {S; !IsFetchable{S}} = _notfetchable(S)
+
+function _notfetchable(T)
+    return throw(ArgumentError("`$T` does not say which route its files come by: a `files` " *
+                               "entry is a path or a value of a type marked " *
+                               "`@traitimpl Provenancer.IsFetchable{$T}` with a " *
+                               "`Provenancer.route` method, and a source resolving its own " *
+                               "files is such a type."))
+end
 
 _entryurl(asset::CachedAsset) = asset.url
 
@@ -82,7 +78,7 @@ function _currentfacts(spec::RasterSpec, entry)
                              route = entry.route)
     isnothing(entry.url) || (facts["url"] = entry.url)
     track = spec.track
-    if entry.route === :given && !isnothing(track)
+    if entry.route isa SuppliedByUser && !isnothing(track)
         isnothing(track.release_version) ||
             (facts["version"] = track.release_version)
         isnothing(track.release_date) ||
@@ -93,40 +89,11 @@ end
 
 function _currentfacts(spec::NaturalEarthSpec, entry)
     facts = _cataloguerecord(NaturalEarthLevel, nothing, entry.path,
-                             route = :published)
+                             route = entry.route)
     facts["url"] = entry.url
     version = _fileversion(datasetinfo(NaturalEarthLevel), entry.path)
     isnothing(version) || (facts["version"] = version)
     return facts
-end
-
-# A file's record of ours as it would be with `facts` in place of what it says of them, read without
-# writing it; `nothing` where the file has no record of ours.
-function _recordwith(path::AbstractString, facts::AbstractDict)
-    sidecar = _sidecarpath(path)
-    isfile(sidecar) || return nothing
-    t = TOML.tryparsefile(sidecar)
-    (t isa AbstractDict && _ourrecord(t)) || return nothing
-    return _recordfromtoml(merge(t, facts))
-end
-
-# Bring a file's record of ours up to date with `facts`, what the catalogue says of it now, before it
-# is registered, rewriting it only where they differ: a record written by an earlier version of this
-# package may lack facts the registration needs, or hold ones the catalogue has since corrected,
-# and the record and the registration must agree. What the fetch itself recorded - when, the size
-# and checksum, the request, its job - is kept. Returns the record, or `nothing` for a file with no
-# record of ours.
-function _refreshrecord!(path::AbstractString, facts::AbstractDict)
-    sidecar = _sidecarpath(path)
-    isfile(sidecar) || return nothing
-    t = TOML.tryparsefile(sidecar)
-    (t isa AbstractDict && _ourrecord(t)) || return nothing
-    if any(get(t, k, nothing) != v for (k, v) in facts)
-        merge!(t, facts)
-        t["writer"] = "EcoSISTEM $(pkgversion(EcoSISTEM))"
-        _writesidecar(path, t)
-    end
-    return _ourrecordat(path)
 end
 
 # A spec's files fetched by its own route, as an untracked spec's are, for a tracked fetch run to
@@ -143,8 +110,8 @@ end
 function _recordgiven(spec::RasterSpec, entry)
     isfile(entry.path) ||
         error("`$(entry.path)`, a file given to $spec, is not there, so it cannot be registered.")
-    _recordpresent(entry.path) do
-        return merge!(_baserecord(entry.path, :habitat),
+    Provenancer.recordpresent(entry.path) do
+        return merge!(Provenancer.baserecord(entry.path, :habitat),
                       _currentfacts(spec, entry))
     end
     return entry.path
@@ -157,34 +124,6 @@ function _layerornothing(source::Type, code)
     catch
         nothing
     end
-end
-
-# A release version as the registry writes it, in full: `2.1` as `2.1.0`, and `1.0.0` for none.
-function _fullversion(version::AbstractString)
-    return isempty(version) ? "1.0.0" :
-           string(VersionNumber(version))
-end
-
-# The release version a file is registered under: the version its bytes are registered under
-# already (`held`), so a third fetch of a changed file adds nothing; else its source's own; or,
-# where that is taken by other bytes - its provider changed the file without a new release -
-# the same with build metadata `+YYYYMMDD` from `day`.
-function _registeredversion(version::AbstractString,
-                            held::Union{Nothing, AbstractString}, taken::Bool,
-                            day::Dates.Date)
-    isnothing(held) || return String(held)
-    full = _fullversion(version)
-    taken || return full
-    return full * "+" * Dates.format(day, "yyyymmdd")
-end
-
-# Whether a registered release version is a stamped one, a provider's change dated by its day.
-_isstamped(version::AbstractString) = occursin('+', version)
-
-# The day a file's bytes are dated by when they take a stamp: when its provider last changed it,
-# else when it was fetched, else `today`, the registration's day, for a file the user gave.
-function _stampday(r::InputRecord, today::Dates.Date)
-    return Dates.Date(something(r.modified, r.fetched, today))
 end
 
 # Whether a source's files state their own versions rather than its row giving one: Natural
@@ -227,14 +166,16 @@ _ornothing(::Nothing) = nothing
 # record and its source's row: the source, the file's title, whether it is the source's own, the
 # licence, the release, and the documentation's section quoting what the provider asks - for an
 # extract also the request it was made to. `version` and `date` are the release's.
-function _sourcekeywords(r::InputRecord, rec::DatasetRecord, route::Symbol;
+function _sourcekeywords(r::InputRecord, rec::DatasetRecord,
+                         route::AbstractFileRoute;
                          version::AbstractString,
                          date::Union{Nothing, AbstractString})
-    description = route === :extract ? _extractdescription(r) :
+    description = route isa ExtractedByService ? _extractdescription(r) :
                   _ornothing(r.requestpage)
     return (; _sourcename(rec)..., title = r.title,
             primary = something(r.primary, false),
-            licence = _ornothing(something(_ornothing(r.licence), rec.licence)),
+            licence = _ornothing(something(_ornothing(r.licence),
+                                           rec.licence)),
             release_version = String(version), release_date = date,
             description = description)
 end
@@ -246,7 +187,7 @@ function _extractdescription(r::InputRecord)
               join(("$k = $(repr(r.request[k]))"
                     for k in sort!(collect(keys(r.request)))),
                    ", ")
-    text = "An extract of $(r.dataset) made to the request $request."
+    text = "An extract of $(r.source) made to the request $request."
     return isempty(r.requestpage) ? text :
            text * " What its provider asks: " * r.requestpage
 end
@@ -260,66 +201,27 @@ function _depositkeywords(rec::DatasetRecord)
             primary = rec.identifies === :data,
             licence = _ornothing(rec.licence),
             release_version = isempty(rec.version) ? nothing :
-                              _fullversion(rec.version),
+                              Provenancer._fullversion(rec.version),
             release_date = _ornothing(rec.releasedate),
             description = _ornothing(_requestpage(rec)))
 end
 
-# The file type of a file's data product, its extension, as a `write:` entry names it.
-_filetype(path::AbstractString) = lstrip(last(splitext(path)), '.')
+# Whether a track says which release a spec's files come from, which only files the user gives
+# may be told.
+_hasrelease(::Nothing) = false
 
-# What a fetch config needs for a track's files: its source's namespace as the run's default for
-# inputs and outputs, since the run registers that source's deposit and nothing else, and `write:`
-# entries for the files, of `filetype`, and their provenance records.
-function _writelines(track::Track, namespace::AbstractString,
-                     filetype::AbstractString)
-    return join(["run_metadata:", "  default_input_namespace: $namespace",
-                    "  default_output_namespace: $namespace", "write:",
-                    "- data_product: $(track.root)/data/*",
-                    "  description: A file of the source tracked under $(track.root)",
-                    "  file_type: $filetype",
-                    "- data_product: $(track.root)/provenance/*",
-                    "  description: EcoSISTEM's provenance record of a file under $(track.root)",
-                    "  file_type: toml"], "\n")
+function _hasrelease(track::Track)
+    return !isnothing(track.release_version) ||
+           !isnothing(track.release_date)
 end
 
-# The `read:` entry a model config needs for a track's files and their records, both in their
-# source's namespace: `*` matches one segment of a name, so `<root>/*/*` takes the files and the
-# records and leaves the deposit, which has no file.
-function _readlines(track::Track, namespace::AbstractString)
-    return join(["read:", "- data_product: $(track.root)/*/*", "  use:",
-                    "    namespace: $namespace"], "\n")
-end
-
-# Why a fetch run still has a file to do, from what its registry answered, or `nothing` where it has
-# none: whether the file is `present`; the version its bytes hold under its name (`held`, `nothing`
-# for none); whether that version records the facts the catalogue gives now (`same`); whether its
-# record's bytes are registered (`recorded`); and whether its name is registered at all (`named`).
-function _fetchreason(; present::Bool, held::Union{Nothing, AbstractString},
-                      same::Bool, recorded::Bool, named::Bool)
-    present || return "not held: the fetch run fetches and registers it"
-    if isnothing(held)
-        named &&
-            return "registered with other bytes, its provider having changed it: the fetch " *
-                   "run registers these under a stamped version"
-        return "not registered: the fetch run registers it"
-    end
-    same ||
-        return "registered with other facts, a catalogue change: the fetch run registers a " *
-               "new version"
-    recorded ||
-        return "its provenance record is not registered: the fetch run registers it"
-    return nothing
-end
-
-# Why a model run cannot read a file, from whether its registry holds it (`registered`, `nothing`
-# where no `read:` entry covers its name, so the registry could not be asked).
-function _modelreason(registered::Union{Nothing, Bool}, track::Track,
-                      namespace::AbstractString)
-    isnothing(registered) &&
-        return "no `read:` entry covers it; add\n" *
-               _readlines(track, namespace)
-    registered &&
-        return "registered since this job was prepared: `fair pull`, then `fair run` again"
-    return "not registered in namespace `$namespace`: run the fetch run first"
+# Refuse a track saying which release the files come from, given to a spec whose files are not all
+# the user's own: for a fetched file the catalogue's row and the provider say it.
+function _refusefetchedrelease(track, files)
+    _hasrelease(track) || return nothing
+    files isa AbstractVector && all(f -> f isa AbstractString, files) &&
+        return nothing
+    return error("`release_version` and `release_date` of a `Track` say which release files you " *
+                 "give come from, by `file`, `files` or `directory`; this spec's files are fetched " *
+                 "for it, and its catalogue row says which release they are. Leave them out.")
 end

@@ -64,22 +64,22 @@ end
 
 @testset "a download resumes from what it holds and survives a cut-off transfer" begin
     E = EcoSISTEM
-    @test E._resumeheaders(0) == Pair{String, String}[]
-    @test E._resumeheaders(1024) == ["Range" => "bytes=1024-"]
+    @test E.Provenancer._resumeheaders(0) == Pair{String, String}[]
+    @test E.Provenancer._resumeheaders(1024) == ["Range" => "bytes=1024-"]
     data = rand(UInt8, 20_000)
     dir = mktempdir()
     # The plain path: one transfer, the response's final URL and validators come back.
     whole = servefile(data)
     part = joinpath(dir, "whole.bin.part")
-    response = E._download(whole.url, part)
+    response = E.Provenancer.download!(whole.url, part)
     @test read(part) == data && response.status == 200
     @test any(h -> lowercase(first(h)) == "etag", response.headers)
     close(whole.server)
     # Cut off after 7 000 bytes: the retry asks for the rest by range and gets a 206.
     cut = servefile(data, dropafter = 7_000)
     part = joinpath(dir, "cut.bin.part")
-    response = @test_logs (:warn, r"download attempt 1 of 5 failed") E._download(cut.url,
-                                                                                 part)
+    response = @test_logs (:warn, r"download attempt 1 of 5 failed") E.Provenancer.download!(cut.url,
+                                                                                             part)
     @test read(part) == data && response.status == 206
     close(cut.server)
     # A server that ignores the range answers 200 to a resume: the part file is restarted, not
@@ -87,17 +87,18 @@ end
     deaf = servefile(data, honourranges = false)
     part = joinpath(dir, "deaf.bin.part")
     write(part, rand(UInt8, 5_000))
-    response = @test_logs (:warn, r"download attempt 1 of 5 failed") E._download(deaf.url,
-                                                                                 part)
+    response = @test_logs (:warn, r"download attempt 1 of 5 failed") E.Provenancer.download!(deaf.url,
+                                                                                             part)
     @test read(part) == data && response.status == 200
     close(deaf.server)
     # A URL that cannot be fetched is retried as many times as asked and then rethrown, and the
     # part file is left for a later run to resume from.
     missing = joinpath(dir, "missing.bin")
-    @test_throws Exception E._download("file://" * missing,
-                                       joinpath(dir, "never.bin.part"),
-                                       attempts = 2)
-    @test E._http11downloader() isa E.Downloads.Downloader
+    @test_throws Exception E.Provenancer.download!("file://" * missing,
+                                                   joinpath(dir,
+                                                            "never.bin.part"),
+                                                   attempts = 2)
+    @test E.Provenancer._http11downloader() isa E.Downloads.Downloader
 end
 
 @testset "an asset lands where it is told, once, with its provenance beside it" begin
@@ -112,14 +113,14 @@ end
     @test !isfile(dest * ".part") && !isfile(dest * ".lock")
     # The sidecar: the base fields, the URL and validators, the source's row (the URL is none of
     # its layers' files, so no code), and nothing that names this machine.
-    sidecar = E._sidecarpath(dest)
+    sidecar = E.Provenancer.sidecarpath(dest)
     @test isfile(sidecar)
     @test !any(s -> occursin(homedir(), s) || occursin(dir, s) ||
                     occursin(gethostname(), s), tomlstrings(sidecar))
     r = provenance(dest)
-    @test r.role === :habitat && r.dataset == "TwentyCR" && isnothing(r.code)
+    @test r.role === :habitat && r.source == "TwentyCR" && isnothing(r.code)
     @test r.path == "fixture.bin" && r.url == site.url
-    @test r.bytes == 10_000 && r.sha256 == E._sha256(dest)
+    @test r.bytes == 10_000 && r.sha256 == E.Provenancer._filesha256(dest)
     @test !isnothing(r.fetched) && r.doi == "10.1002/qj.3598" &&
           !isempty(r.citation)
     text = read(sidecar, String)
@@ -130,18 +131,19 @@ end
     @test assetpath(asset) == dest
     @test assetpath(asset, verify = true) == dest
     # A replaced file fails verification by its checksum, and verification says what it checked.
-    @test E._verifyfile(dest)
+    @test E.Provenancer.verifyfile(dest)
     write(dest, rand(UInt8, 10_000))
     @test_throws "does not match the checksum" assetpath(asset, verify = true)
     # A record with no checksum, or none of ours, is nothing to check against.
     bare = joinpath(dir, "bare.bin")
     write(bare, "x")
-    @test !E._verifyfile(bare)
-    write(E._sidecarpath(bare),
+    @test !E.Provenancer.verifyfile(bare)
+    write(E.Provenancer.sidecarpath(bare),
           "writer = \"EcoSISTEM 0.8.0\"\nfile = \"bare.bin\"\n")
-    @test !E._verifyfile(bare)
-    write(E._sidecarpath(bare), "writer = \"someone else\"\nsha256 = \"00\"\n")
-    @test !E._verifyfile(bare)
+    @test !E.Provenancer.verifyfile(bare)
+    write(E.Provenancer.sidecarpath(bare),
+          "writer = \"someone else\"\nsha256 = \"00\"\n")
+    @test !E.Provenancer.verifyfile(bare)
     # An asset with no path lands in its owner's cache directory under the URL's name.
     @test E._localpath(CachedAsset(TwentyCR, "https://example.org/x/y.nc")) ==
           joinpath(E.assetdir(owner = TwentyCR), "y.nc")
@@ -173,8 +175,8 @@ end
     dir = mktempdir()
     dest = joinpath(dir, "shared.bin")
     calls = Ref(0)
-    held = E.mkpidlock(dest * ".lock")
-    waiter = @async E._fetchlocked(dest) do
+    held = E.Provenancer.mkpidlock(dest * ".lock")
+    waiter = @async E.Provenancer.fetchlocked(dest) do
         calls[] += 1
         return write(dest, "fetched by the waiter")
     end
@@ -189,7 +191,7 @@ end
     @test !isfile(dest * ".lock")
     # With no file to find, the fetch runs.
     rm(dest)
-    E._fetchlocked(dest) do
+    E.Provenancer.fetchlocked(dest) do
         calls[] += 1
         return write(dest, "x")
     end
@@ -247,14 +249,14 @@ end
 @testset "a provider's time for a file is the server's own record of it" begin
     E = EcoSISTEM
     # An object store that keeps a file's own time says so apart from when it was uploaded.
-    @test E._providertime(["x-amz-meta-mtime" => "1672790400.5",
-                              "Last-Modified" => "Fri, 13 Sep 2024 01:13:32 GMT"
-                          ]) ==
+    @test E.Provenancer._providertime(["x-amz-meta-mtime" => "1672790400.5",
+                                          "Last-Modified" => "Fri, 13 Sep 2024 01:13:32 GMT"
+                                      ]) ==
           "2023-01-04T00:00:00Z"
-    @test E._providertime(["last-modified" => "Wed, 15 Nov 2023 21:17:54 GMT"]) ==
+    @test E.Provenancer._providertime(["last-modified" => "Wed, 15 Nov 2023 21:17:54 GMT"]) ==
           "2023-11-15T21:17:54Z"
-    @test isnothing(E._providertime(["ETag" => "\"abc\""]))
-    @test isnothing(E._providertime(["Last-Modified" => "yesterday"]))
+    @test isnothing(E.Provenancer._providertime(["ETag" => "\"abc\""]))
+    @test isnothing(E.Provenancer._providertime(["Last-Modified" => "yesterday"]))
 end
 
 @testset "a netCDF file's history is replaced in place, the original returned" begin
@@ -295,11 +297,13 @@ end
     dir = mktempdir()
     path = joinpath(dir, "data.nc")
     write(path, "x")
-    sidecar = E._writesidecar(path, Dict("writer" => "EcoSISTEM test"))
+    sidecar = E.Provenancer.writesidecar(path,
+                                         Dict("writer" => "EcoSISTEM test"))
     # A second name for the sidecar, as a data pipeline run's hard link into its store is.
     linked = joinpath(dir, "store.toml")
     hardlink(sidecar, linked)
-    E._writesidecar(path, Dict("writer" => "EcoSISTEM test", "x" => 1))
+    E.Provenancer.writesidecar(path,
+                               Dict("writer" => "EcoSISTEM test", "x" => 1))
     @test occursin("x = 1", read(sidecar, String))
     @test !occursin("x = 1", read(linked, String))
     # Nothing is left beside it, and it reads as any file written in the directory does.
@@ -309,9 +313,10 @@ end
     # only the read-only attribute, and a writable file reports `0o666`.
     @test filemode(sidecar) & 0o777 == (Sys.iswindows() ? 0o666 : 0o644)
     # Writers recording one file at once each rename their own copy in.
-    tasks = [Threads.@spawn(E._writesidecar(path,
-                                            Dict("writer" => "EcoSISTEM test",
-                                                 "n" => n))) for n in 1:8]
+    tasks = [Threads.@spawn(E.Provenancer.writesidecar(path,
+                                                       Dict("writer" => "EcoSISTEM test",
+                                                            "n" => n)))
+             for n in 1:8]
     @test all(==(sidecar), fetch.(tasks))
     @test haskey(TOML.parsefile(sidecar), "n")
 end
@@ -333,12 +338,12 @@ end
           path
     # Another box, other months, or the globe are refused, naming what differs, and the file and
     # its record are left as they were.
-    sidecar = read(E._sidecarpath(path), String)
+    sidecar = read(E.Provenancer.sidecarpath(path), String)
     @test_throws "area: recorded" assetpath(asked(area = (41, -25, -36, 56)))
     @test_throws "month: recorded" assetpath(asked(area = (40, -25, -36, 56),
                                                    months = 6:8))
     @test_throws "different request" assetpath(asked())
-    @test read(E._sidecarpath(path), String) == sidecar
+    @test read(E.Provenancer.sidecarpath(path), String) == sidecar
     @test read(path, String) == "not a netCDF file, and never opened"
     # A record of ours written in another order or shape - years out of order, a single value not
     # in a list, as an older release might write it - asks for the same data, so is served.
@@ -349,7 +354,7 @@ end
                            older, nothing)
     rec["request"]["year"] = ["1991", "1990"]
     rec["request"]["product_type"] = "monthly_averaged_reanalysis"
-    E._writesidecar(older, rec)
+    E.Provenancer.writesidecar(older, rec)
     @test assetpath(E.CDSRequest(E.ERA, "t2m", years = 1990:1991, path = older)) ==
           older
     @test_throws "year: recorded" assetpath(E.CDSRequest(E.ERA, "t2m",
@@ -358,7 +363,7 @@ end
     # A record another program wrote says nothing about our request, so it is not compared.
     other = joinpath(dir, "theirs.nc")
     write(other, "x")
-    write(E._sidecarpath(other),
+    write(E.Provenancer.sidecarpath(other),
           "writer = \"someone else\"\nrequest = {area = [1, 2, 3, 4]}\n")
     @test assetpath(E.CDSRequest(E.ERA, "t2m", years = 1990:1990, path = other)) ==
           other

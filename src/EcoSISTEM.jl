@@ -2,12 +2,9 @@
 
 module EcoSISTEM
 
-using Scratch: get_scratch!
-using Preferences: Preferences
-using FileWatching: mkpidlock
 using TOML: TOML
-using SHA: SHA
 using Dates: Dates
+using SimpleTraits: @traitimpl
 using Downloads: Downloads
 using NetworkOptions: ca_roots_path
 import ArchGDAL
@@ -25,14 +22,26 @@ public NicheAxis, AbstractLayer, Role, Condition, Resource, AbstractRegime,
        AbstractNicheFit,
        AbstractEcosystem, AbstractHabitat
 
-# The asset cache's descriptor types, before the functions below name them, and the record of
-# where an input came from, which every fetch writes.
-include("Asset.jl")
-include("Provenance.jl")
-# A data pipeline run as the route a spec's files take, before the specs that hold one.
-include("Track.jl")
+# The provenance machinery, a module of its own that depends on nothing of this package's: the
+# record of where an input came from, the sidecar beside every fetched file, the download that
+# resumes and records itself, a pipeline run as the route files take, and the account of what a
+# result was built from. Everything below that fetches or records a file goes through it.
+include("Provenancer/Provenancer.jl")
+using .Provenancer: Provenancer, InputRecord, Provenance, Track,
+                    AbstractProvenanceContext, NoContext, SoftwareRecord,
+                    IsFetchable, AbstractFileRoute, PublishedByProvider,
+                    ExtractedByService, SuppliedByUser
+# Imported, not merely used, so that this package's methods extend them.
+import .Provenancer: provenance, write_provenance
 
-public CachedAsset, CDSRequest, InputRecord, Provenance, Track
+public Provenancer
+
+# The two things this package fetches, each implementing `Provenancer`'s trait, and the context it
+# adds to a result's provenance: the grid, and the run.
+include("Asset.jl")
+include("GridContext.jl")
+
+public CachedAsset, CDSRequest, InputRecord, Provenance, Track, GridContext
 
 public assetdir, set_assetdir!
 

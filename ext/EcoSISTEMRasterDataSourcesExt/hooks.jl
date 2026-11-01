@@ -11,6 +11,12 @@
 # Marking the abstract type covers the whole `RasterDataSources` hierarchy in one line.
 SimpleTraits.@traitimpl EcoSISTEM.IsRasterData{RDS.RasterDataSource}
 
+# Every dataset's files come as their provider publishes them - the download is RasterDataSources'
+# own, from the provider's URLs - so a source answers for its files as a type.
+SimpleTraits.@traitimpl EcoSISTEM.IsFetchable{RDS.RasterDataSource}
+
+Provenancer.route(::Type{<:RDS.RasterDataSource}) = PublishedByProvider()
+
 # Derived from the source package rather than declared here, so it cannot drift from it: an `Int`
 # for BioClim and land cover, a `Symbol` for the rest.
 function EcoSISTEM._codetype(::Type{T}) where {T <: RDS.RasterDataSource}
