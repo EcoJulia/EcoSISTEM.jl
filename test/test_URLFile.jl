@@ -24,8 +24,10 @@ const P = EcoSISTEM.Provenancer
     f = URLFile(url, joinpath(dir, "cache", "table.csv"), facts = facts)
     @test P.route(f) == PublishedByProvider() &&
           P.istrait(P.IsFetchable{URLFile})
+    # Compared against `repr`, as `show` writes the two strings: a Windows path's backslashes are
+    # escaped.
     @test string(f) ==
-          "URLFile(\"$url\", \"$(f.path)\", facts = " *
+          "URLFile($(repr(url)), $(repr(f.path)), facts = " *
           "SourceFacts(\"My table\", doi 10.1234/abc))"
     path = P.fetchfile(f, role = :species)
     @test path == f.path && isfile(path) && read(path, String) == "a,b\n1,2\n"
@@ -55,7 +57,7 @@ const P = EcoSISTEM.Provenancer
     @test r3.source == "file" && r3.doi == "" && isnothing(r3.primary) &&
           r3.url == url &&
           r3.role === :habitat
-    @test string(g) == "URLFile(\"$url\", \"$(g.path)\")"
+    @test string(g) == "URLFile($(repr(url)), $(repr(g.path)))"
     # A file altered since it was fetched is refused when verified.
     write(path, "a,b\n1,3\n")
     @test_throws "does not match the checksum" P.fetchfile(f, role = :species,

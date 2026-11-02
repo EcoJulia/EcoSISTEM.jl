@@ -1081,7 +1081,8 @@ provider, extracted by a service to a request, or supplied by the user. What is 
 source - a catalogue row's facts, the metadata a DOI resolves to, or the user's own - is a
 `SourceFacts`, from which a record's entries and a registration's keywords are written and whether
 a file is primary is read with its route; a `URLFile` is the module's own fetchable, a download
-recorded with the facts it is given. The context is the
+recorded with the facts it is given, and `record_input` records a file the user already has from
+them. The context is the
 one abstract field in the model's types left abstract on purpose: a `Provenance` is assembled once
 per recording, and a parameter would make every `Provenance` in a signature a `UnionAll`.
 
