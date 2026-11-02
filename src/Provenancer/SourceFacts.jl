@@ -9,11 +9,14 @@
                 identifiers = Dict(), releasedate = "", version = "", description = "",
                 licence = "", identifies = :other, citation = "", references = [],
                 notices = [], requestpage = "", key = "")
+    SourceFacts(facts::SourceFacts; kw...)
 
 What is known of the source a file comes from, from which the file's provenance record and its
 registration with a data pipeline are written: the facts a catalogue row holds of a dataset, the
 facts the metadata of a DOI gives ([`lookup_doi`](@ref)), or facts the user writes for a source
-that has neither. Blank text and empty lists mean unknown throughout.
+that has neither. Blank text and empty lists mean unknown throughout. The second form is `facts`
+with the fields named by keyword replaced and every other as it was: a looked-up source's facts
+with the citation its provider asks for, or the works it asks to be cited, written in.
 
 # Fields
 
@@ -83,6 +86,13 @@ struct SourceFacts
                    _references(references), _notices(notices),
                    String(requestpage), String(key))
     end
+end
+
+# The facts with the named fields replaced, through the keyword constructor, which checks them.
+function SourceFacts(facts::SourceFacts; kw...)
+    fields = NamedTuple{fieldnames(SourceFacts)}(Tuple(getfield(facts, f)
+                                                       for f in fieldnames(SourceFacts)))
+    return SourceFacts(; merge(fields, NamedTuple(kw))...)
 end
 
 # Value equality and hashing: the authors, identifiers, references and notices are containers,

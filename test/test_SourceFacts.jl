@@ -13,23 +13,7 @@ using RasterDataSources
 using Test
 
 const P = EcoSISTEM.Provenancer
-const SAVED = joinpath(@__DIR__, "doi")
-
-# The saved reply of `doi.org` for a DOI and a metadata type, or `nothing` where the type has no
-# file, which stands for the 406 the resolver answers for a form a DOI does not have.
-const FIXTURES = Dict("10.5285/ca339c86-3674-4030-b891-35326e71141e" => "eidc-envelopes",
-                      "10.15468/dl.n4a2sa" => "gbif-download",
-                      "10.5067/MODIS/MOD13C2.061" => "modis-mod13c2",
-                      "10.24381/cds.f17050d7" => "era5-monthly",
-                      "10.1111/geb.13564" => "geb-paper")
-const FORMS = Dict("application/vnd.datacite.datacite+json" => "datacite",
-                   "application/vnd.citationstyles.csl+json" => "csl")
-
-function saved(url, type)
-    doi = replace(url, "https://doi.org/" => "")
-    path = joinpath(SAVED, FIXTURES[doi] * "." * FORMS[type] * ".json")
-    return isfile(path) ? read(path, String) : nothing
-end
+include("doi/replies.jl")
 
 # The facts of a table, as a user writes them.
 function tablefacts()

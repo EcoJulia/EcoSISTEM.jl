@@ -156,21 +156,23 @@ end
 # == Functions ======================================================================================
 
 """
-    provenance(path::AbstractString)
+    provenance(path::AbstractString; sidecar = sidecarpath(path))
 
 Return what is known about where a file came from: the [`InputRecord`](@ref) its provenance
 sidecar holds - written beside every file the package fetched or first used, as
-`<file>.provenance.toml` - or `nothing` for a file with none. A sidecar of that name that this
-machinery did not write is left alone and reports `nothing` too, with a warning saying so, since
-its fields mean whatever its writer meant.
+`<file>.provenance.toml`, or where [`record_input`](@ref) was told to put it - or `nothing` for a
+file with none. A sidecar of that name that this machinery did not write is left alone and
+reports `nothing` too, with a warning saying so, since its fields mean whatever its writer meant.
 
 # Arguments
 
   - `path`: the file, not its sidecar.
+  - `sidecar`: where its record is, the file's `.provenance.toml` beside it by default.
 """
-function provenance(path::AbstractString)
-    isfile(sidecarpath(path)) || return nothing
-    return _readsidecar(sidecarpath(path))
+function provenance(path::AbstractString;
+                    sidecar::AbstractString = sidecarpath(path))
+    isfile(sidecar) || return nothing
+    return _readsidecar(sidecar)
 end
 
 """
@@ -193,7 +195,7 @@ Return the path of the provenance sidecar of the file at `path`: its own name wi
 sidecarpath(path::AbstractString) = path * ".provenance.toml"
 
 """
-    recordat(path::AbstractString)
+    recordat(path::AbstractString; sidecar = sidecarpath(path))
 
 Return the record of ours beside the file at `path`, or `nothing` - silently - where there is no
 sidecar, or one another program wrote, or one that does not parse. For a read recording its
@@ -203,9 +205,10 @@ not stop it; [`provenance`](@ref) is the asking form, which warns.
 # Arguments
 
   - `path`: the file, not its sidecar.
+  - `sidecar`: where its record is, the file's `.provenance.toml` beside it by default.
 """
-function recordat(path::AbstractString)
-    sidecar = sidecarpath(path)
+function recordat(path::AbstractString;
+                  sidecar::AbstractString = sidecarpath(path))
     isfile(sidecar) || return nothing
     t = TOML.tryparsefile(sidecar)
     (t isa AbstractDict && _isourrecord(t)) || return nothing

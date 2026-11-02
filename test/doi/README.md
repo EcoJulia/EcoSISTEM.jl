@@ -11,4 +11,6 @@ returns it with an `Accept` header, so that the readers are tested with no netwo
 | `era5-monthly.datacite.json` | `10.24381/cds.f17050d7` | DataCite, as returned |
 | `geb-paper.csl.json` | `10.1111/geb.13564` | CSL JSON, the paper's reference list and Crossref's indexing fields cut; DataCite answers 406 for it |
 
-A test names a file by the DOI and the form, and a form with no file stands for a 406.
+A test names a file by the DOI and the form, and a form with no file stands for a 406:
+`replies.jl` here is the reader, `saved(url, type)`, included by `test_SourceFacts.jl` and
+`test_assets.jl`.

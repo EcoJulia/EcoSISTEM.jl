@@ -5,8 +5,9 @@
 
 The provenance machinery EcoSISTEM runs on, written to depend on nothing of EcoSISTEM's so that
 any package can use it: a record of where a file came from ([`InputRecord`](@ref)), written beside
-the file as `<file>.provenance.toml` and read back by [`provenance`](@ref); what is known of a
-source ([`SourceFacts`](@ref)), from a catalogue, from the metadata its DOI resolves to
+the file as `<file>.provenance.toml` by every fetch, or by [`record_input`](@ref) for a file the
+user has, and read back by [`provenance`](@ref); what is known of a source
+([`SourceFacts`](@ref)), from a catalogue, from the metadata its DOI resolves to
 ([`lookup_doi`](@ref)) or by hand; a download that resumes, locks and records itself
 ([`URLFile`](@ref), [`fetchfile`](@ref Provenancer.fetchfile)); the names a file and its record
 take in a FAIR data pipeline run ([`Track`](@ref)); and the account of what a result was built
@@ -49,7 +50,7 @@ include("doi.jl")
 
 export InputRecord, Provenance, Track, NoContext, SoftwareRecord,
        PublishedByProvider, ExtractedByService, SuppliedByUser, SourceFacts,
-       URLFile, provenance, write_provenance, lookup_doi
+       URLFile, provenance, write_provenance, lookup_doi, record_input
 
 public AbstractProvenanceContext, AbstractFileRoute, IsFetchable, route,
        NOTICE_STRENGTHS, IDENTIFIES, isprimary, sourceentries, contextsummary,

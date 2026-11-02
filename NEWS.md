@@ -18,6 +18,10 @@
       recorded with its source's facts, for a package with no catalogue of its own.
     - `ExtractedByService` carries the identifier a service gave the file, where it gave one, and
       an extract with a DOI of its own - an occurrence download - is primary by it.
+    - `Provenancer.record_input(path, doi or facts; role)` records a file you have - a table you
+      downloaded, an occurrence download - from its DOI's metadata or from `SourceFacts` you write,
+      once, as a sidecar beside it or where `sidecar` says; `provenance(path)` and the sidecar
+      functions take `sidecar` likewise. `SourceFacts(facts; ...)` amends looked-up facts.
   - Changed
     - `Provenance` holds `software`, `inputs` and a `context`: for EcoSISTEM's results a
       `GridContext` of the grid and the run, which were its `grid` and `run` fields. The file

@@ -1,7 +1,73 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
 # The asset cache a package keeps its downloads in, the download that resumes, locks and records
-# itself, and the provenance sidecar every fetched or first-used file gets.
+# itself, the provenance sidecar every fetched or first-used file gets, and the recording of a
+# file the user has from what is known of its source.
+
+"""
+    record_input(path::AbstractString, facts::SourceFacts; role, route = PublishedByProvider(),
+                 url = nothing, title = nothing, code = nothing, sidecar = sidecarpath(path))
+    record_input(path::AbstractString, doi::AbstractString; role, route = PublishedByProvider(),
+                 url = nothing, title = nothing, code = nothing, sidecar = sidecarpath(path))
+
+Record where the file at `path` came from, once, and return its [`InputRecord`](@ref): the
+provenance sidecar is written beside the file as `<file>.provenance.toml`, or at `sidecar`, from
+what the file itself says - its name, size and checksum, under `role` - and what `facts` say of
+its source ([`sourceentries`](@ref Provenancer.sourceentries)); given a DOI, the facts are what
+its metadata gives ([`lookup_doi`](@ref)). A file recorded already is left as it is and its record
+returned, with nothing looked up, so a call repeated on every run costs a read; delete the sidecar
+to record the file afresh. A sidecar another program wrote under that name is neither read nor
+overwritten: name another place with `sidecar`.
+
+No fetch time is recorded, since this call fetched nothing: a file fetched by
+[`fetchfile`](@ref Provenancer.fetchfile) carries one. Offline, a DOI cannot be looked up, and the
+error says so: write the facts by hand as [`SourceFacts`](@ref) and give those.
+
+# Arguments
+
+  - `path`: the file, which must be there.
+  - `facts`: what is known of its source; or `doi`, the DOI whose metadata gives them.
+  - `role`: which part of the system the file enters by, a word of the package using the record.
+  - `route`: how the file came to be: as its provider published it
+    ([`PublishedByProvider`](@ref)), the default, so that with an identifier naming the data it is
+    the cited item or one of its files; made by a service to a request, carrying the identifier
+    the service gave it ([`ExtractedByService`](@ref)); or altered or made by you
+    ([`SuppliedByUser`](@ref)). With the facts, it decides whether the record calls the file
+    `primary` ([`isprimary`](@ref Provenancer.isprimary)).
+  - `url`: where the file was fetched from, where known.
+  - `title`: the file's own title, the source's by default.
+  - `code`: which layer of the source the file holds, where it is one.
+  - `sidecar`: where the record is written, the file's `.provenance.toml` beside it by default;
+    somewhere else for a file in a place that cannot be written to. [`provenance`](@ref) takes
+    the same to read it back.
+"""
+function record_input(path::AbstractString, facts::SourceFacts; role::Symbol,
+                      route::AbstractFileRoute = PublishedByProvider(),
+                      url::Union{Nothing, AbstractString} = nothing,
+                      title::Union{Nothing, AbstractString} = nothing,
+                      code = nothing,
+                      sidecar::AbstractString = sidecarpath(path))
+    recorded = _priorrecord(path, sidecar)
+    isnothing(recorded) || return recorded
+    recordpresent(path, sidecar = sidecar) do
+        record = baserecord(path, role)
+        merge!(record,
+               sourceentries(facts, route,
+                             title = something(title, facts.title),
+                             code = code))
+        isnothing(url) || (record["url"] = String(url))
+        return record
+    end
+    return recordat(path, sidecar = sidecar)
+end
+
+function record_input(path::AbstractString, doi::AbstractString; role::Symbol,
+                      sidecar::AbstractString = sidecarpath(path), kw...)
+    recorded = _priorrecord(path, sidecar)
+    isnothing(recorded) || return recorded
+    return record_input(path, lookup_doi(doi); role = role, sidecar = sidecar,
+                        kw...)
+end
 
 """
     assetdir(mod::Module; owner::Union{Type, Nothing} = nothing, cache::Module = mod)
@@ -194,7 +260,7 @@ function fetchfile(file::URLFile; role::Symbol, verify::Bool = false)
 end
 
 """
-    recordpresent(record::Function, path::AbstractString)
+    recordpresent(record::Function, path::AbstractString; sidecar = sidecarpath(path))
 
 Record a file that is already present when it is first used and has no sidecar - one fetched
 before records were written, or by another program, or given by the user - writing the record
@@ -205,17 +271,19 @@ is there already, ours or another program's, is left as it is.
 
   - `record`: what builds the record, called with no arguments; a dictionary of the sidecar's keys.
   - `path`: the file.
+  - `sidecar`: where its record goes, the file's `.provenance.toml` beside it by default.
 """
-function recordpresent(record::Function, path::AbstractString)
-    isfile(sidecarpath(path)) && return nothing
+function recordpresent(record::Function, path::AbstractString;
+                       sidecar::AbstractString = sidecarpath(path))
+    isfile(sidecar) && return nothing
     r = record()
     delete!(r, "fetched")
-    writesidecar(path, r)
+    writesidecar(path, r, sidecar = sidecar)
     return nothing
 end
 
 """
-    writesidecar(path::AbstractString, record::AbstractDict)
+    writesidecar(path::AbstractString, record::AbstractDict; sidecar = sidecarpath(path))
 
 Write `record` as the provenance sidecar of the file at `path`, in TOML with its keys sorted so two
 records of one file diff cleanly, and return the sidecar's path. Written to a sibling and renamed
@@ -227,10 +295,12 @@ writer's own, since several processes may record one file at once.
 
   - `path`: the file, not its sidecar.
   - `record`: the sidecar's keys and values.
+  - `sidecar`: where to write it, the file's `.provenance.toml` beside it by default; its
+    directory is made if need be.
 """
-function writesidecar(path::AbstractString, record::AbstractDict)
-    sidecar = sidecarpath(path)
-    part, io = mktemp(dirname(abspath(sidecar)))
+function writesidecar(path::AbstractString, record::AbstractDict;
+                      sidecar::AbstractString = sidecarpath(path))
+    part, io = mktemp(mkpath(dirname(abspath(sidecar))))
     try
         TOML.print(io, record, sorted = true)
     finally
@@ -242,7 +312,7 @@ function writesidecar(path::AbstractString, record::AbstractDict)
 end
 
 """
-    verifyfile(path::AbstractString)
+    verifyfile(path::AbstractString; sidecar = sidecarpath(path))
 
 Check a present file against the checksum its sidecar records, erroring on a mismatch, and return
 whether there was one to check: a file with no sidecar, one this machinery did not write, or a
@@ -251,10 +321,12 @@ record with no checksum has nothing to check against and passes unchecked.
 # Arguments
 
   - `path`: the file, not its sidecar.
+  - `sidecar`: where its record is, the file's `.provenance.toml` beside it by default.
 """
-function verifyfile(path::AbstractString)
-    isfile(sidecarpath(path)) || return false
-    record = TOML.parsefile(sidecarpath(path))
+function verifyfile(path::AbstractString;
+                    sidecar::AbstractString = sidecarpath(path))
+    isfile(sidecar) || return false
+    record = TOML.parsefile(sidecar)
     (_isourrecord(record) && haskey(record, "sha256")) || return false
     actual = _filesha256(path)
     actual == record["sha256"] ||
@@ -317,6 +389,23 @@ function downloadrecord(path::AbstractString, url::AbstractString, response,
     end
     modified = _providertime(response.headers)
     isnothing(modified) || (record["modified"] = modified)
+    return record
+end
+
+# What a call recording the file at `path` finds before it writes: the file must be there; a record
+# of ours at `sidecar` is returned as it is, no sidecar at all is `nothing`, and a sidecar there
+# that is not a record of ours - another program's, or one that does not read - is refused, since
+# it is neither read nor overwritten.
+function _priorrecord(path::AbstractString, sidecar::AbstractString)
+    isfile(path) ||
+        throw(ArgumentError("`$path` is not there, so it cannot be recorded: a record carries " *
+                            "the file's size and checksum."))
+    isfile(sidecar) || return nothing
+    record = recordat(path, sidecar = sidecar)
+    isnothing(record) &&
+        error("`$sidecar` is there but is not a record this machinery wrote and can read, so " *
+              "`$(basename(path))` is neither read from it nor recorded over it. Move it, or " *
+              "give `sidecar` another path to write the record to.")
     return record
 end
 
