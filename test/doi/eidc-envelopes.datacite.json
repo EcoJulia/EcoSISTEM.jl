@@ -1,0 +1,274 @@
+{
+  "id": "https://doi.org/10.5285/ca339c86-3674-4030-b891-35326e71141e",
+  "doi": "10.5285/CA339C86-3674-4030-B891-35326E71141E",
+  "url": "https://catalogue.ceh.ac.uk/id/ca339c86-3674-4030-b891-35326e71141e",
+  "types": {
+    "resourceType": "Dataset",
+    "resourceTypeGeneral": "Dataset"
+  },
+  "creators": [
+    {
+      "lang": null,
+      "name": "Harris, C.",
+      "nameType": "Personal",
+      "givenName": "C.",
+      "familyName": "Harris",
+      "affiliation": [
+        {
+          "name": "Biomathematics and Statistics Scotland",
+          "schemeUri": "https://ror.org",
+          "affiliationIdentifier": "https://ror.org/03jwrz939",
+          "affiliationIdentifierScheme": "ROR"
+        }
+      ],
+      "nameIdentifiers": [
+        {
+          "schemeUri": "https://orcid.org/",
+          "nameIdentifier": "https://orcid.org/0000-0003-0852-2340",
+          "nameIdentifierScheme": "ORCID"
+        }
+      ]
+    },
+    {
+      "lang": null,
+      "name": "Brummitt, N.",
+      "nameType": "Personal",
+      "givenName": "N.",
+      "familyName": "Brummitt",
+      "affiliation": [
+        {
+          "name": "Natural History Museum",
+          "schemeUri": "https://ror.org",
+          "affiliationIdentifier": "https://ror.org/039zvsn29",
+          "affiliationIdentifierScheme": "ROR"
+        }
+      ],
+      "nameIdentifiers": [
+        {
+          "schemeUri": "",
+          "nameIdentifier": "",
+          "nameIdentifierScheme": "Other"
+        }
+      ]
+    },
+    {
+      "lang": null,
+      "name": "Cobbold, C.A.",
+      "nameType": "Personal",
+      "givenName": "C.A.",
+      "familyName": "Cobbold",
+      "affiliation": [
+        {
+          "name": "University of Glasgow",
+          "schemeUri": "https://ror.org",
+          "affiliationIdentifier": "https://ror.org/00vtgdb53",
+          "affiliationIdentifierScheme": "ROR"
+        }
+      ],
+      "nameIdentifiers": [
+        {
+          "schemeUri": "https://orcid.org/",
+          "nameIdentifier": "https://orcid.org/0000-0001-8814-7688",
+          "nameIdentifierScheme": "ORCID"
+        }
+      ]
+    },
+    {
+      "lang": null,
+      "name": "Reeve, R.",
+      "nameType": "Personal",
+      "givenName": "R.",
+      "familyName": "Reeve",
+      "affiliation": [
+        {
+          "name": "University of Glasgow",
+          "schemeUri": "https://ror.org",
+          "affiliationIdentifier": "https://ror.org/00vtgdb53",
+          "affiliationIdentifierScheme": "ROR"
+        }
+      ],
+      "nameIdentifiers": [
+        {
+          "schemeUri": "https://orcid.org/",
+          "nameIdentifier": "https://orcid.org/0000-0003-2589-8091",
+          "nameIdentifierScheme": "ORCID"
+        }
+      ]
+    }
+  ],
+  "titles": [
+    {
+      "lang": null,
+      "title": "Bioclimatic envelopes for global plant species",
+      "titleType": null
+    }
+  ],
+  "publisher": {
+    "name": "NERC EDS Environmental Information Data Centre",
+    "schemeUri": "https://ror.org/",
+    "publisherIdentifier": "https://ror.org/04xw4m193",
+    "publisherIdentifierScheme": "ROR"
+  },
+  "container": {},
+  "subjects": [
+    {
+      "subject": "Climate and climate change",
+      "valueUri": "http://onto.nerc.ac.uk/CEHMD/topic/4"
+    },
+    {
+      "subject": "Plant traits"
+    },
+    {
+      "subject": "Bioclimatic envelopes"
+    },
+    {
+      "subject": "Global"
+    }
+  ],
+  "contributors": [
+    {
+      "lang": null,
+      "name": "Reeve, R.",
+      "nameType": "Personal",
+      "givenName": "Richard",
+      "familyName": "Reeve",
+      "affiliation": [
+        {
+          "name": "University of Glasgow",
+          "schemeUri": "https://ror.org",
+          "affiliationIdentifier": "https://ror.org/00vtgdb53",
+          "affiliationIdentifierScheme": "ROR"
+        }
+      ],
+      "contributorType": "ContactPerson",
+      "nameIdentifiers": [
+        {
+          "schemeUri": "",
+          "nameIdentifier": "",
+          "nameIdentifierScheme": "Other"
+        }
+      ]
+    },
+    {
+      "lang": null,
+      "name": "University of Glasgow",
+      "nameType": "Organizational",
+      "givenName": null,
+      "familyName": null,
+      "affiliation": [
+        {
+          "name": "University of Glasgow",
+          "schemeUri": "",
+          "affiliationIdentifier": "https://ror.org/00vtgdb53",
+          "affiliationIdentifierScheme": "ROR"
+        }
+      ],
+      "contributorType": "RightsHolder"
+    },
+    {
+      "lang": null,
+      "name": "NERC EDS Environmental Information Data Centre",
+      "nameType": "Organizational",
+      "givenName": null,
+      "familyName": null,
+      "affiliation": [
+        {
+          "name": "NERC EDS Environmental Information Data Centre",
+          "schemeUri": "",
+          "affiliationIdentifier": "https://ror.org/04xw4m193",
+          "affiliationIdentifierScheme": "ROR"
+        }
+      ],
+      "contributorType": "HostingInstitution"
+    }
+  ],
+  "dates": [
+    {
+      "date": "2022-06-22",
+      "dateType": "Submitted",
+      "dateInformation": ""
+    }
+  ],
+  "publicationYear": 2022,
+  "language": "en",
+  "identifiers": [],
+  "sizes": [],
+  "formats": [
+    "text/csv Comma-separated values (CSV)"
+  ],
+  "rightsList": [
+    {
+      "lang": "",
+      "rights": "Open Government Licence v3.0",
+      "rightsUri": "http://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+      "schemeUri": "https://spdx.org/licenses/",
+      "rightsIdentifier": "ogl-uk-3.0",
+      "rightsIdentifierScheme": "SPDX"
+    }
+  ],
+  "descriptions": [
+    {
+      "lang": "en",
+      "description": "Bioclimatic envelopes for over 200,000 plant species. The data comprises a single csv file, containing the average value of the climate envelope per species for each of the following variables: Minimum temperature (K), Maximum temperature (K), Average temperature (K), Temperature range (K), Soil temperature level 1 (K), Soil temperature level 2 (K), Soil temperature level 3 (K), Soil temperature level 4 (K), Soil water volume level 1 (m^3 / m^3), Soil water volume level 2 (m^3 / m^3), Soil water volume level 3 (m^3 / m^3), Soil water volume level 4 (m^3 / m^3), Solar radiation (J / m^2), Total precipitation (mm).\n\nAlso included is taxonomic information for each species, including the phylum, class, order, family and genus, as well as the number of occurrence records that informed the envelope.",
+      "descriptionType": "Abstract"
+    },
+    {
+      "lang": "en",
+      "description": "These envelopes were extracted using data from the European Centre for Medium-Range Weather Forecasting and Global Biodiversity Information Facility. For each plant occurrence record in the last century we extracted the range of climates it was exposed to at that location, for the preceding year. On the species level, we corrected for bias in global plant sampling using Enhanced Vegetation Index from Modis as a proxy for plant density. \n\nFurther details can be found in our Julia package at https://github.com/boydorr/ClimatePref.jl - the DOI for the latest release is at https://doi.org/10.5281/zenodo.6452065 ",
+      "descriptionType": "Methods"
+    }
+  ],
+  "geoLocations": [
+    {
+      "geoLocationBox": {
+        "eastBoundLongitude": 180,
+        "northBoundLatitude": 90,
+        "southBoundLatitude": -90,
+        "westBoundLongitude": -180
+      }
+    }
+  ],
+  "fundingReferences": [
+    {
+      "awardUri": "",
+      "schemeUri": "",
+      "awardTitle": "Simulating UK plant biodiversity under climate change to aid landscape decision making",
+      "funderName": "Natural Environment Research Council",
+      "awardNumber": "NE/T010355/1",
+      "funderIdentifier": "https://ror.org/02b5d8509",
+      "funderIdentifierType": "ROR"
+    },
+    {
+      "awardUri": "",
+      "schemeUri": "",
+      "awardTitle": "The interplay of land-use, climate and plant biodiversity on the UK stage",
+      "funderName": "Natural Environment Research Council",
+      "awardNumber": "NE/T004193/1",
+      "funderIdentifier": "https://ror.org/02b5d8509",
+      "funderIdentifierType": "ROR"
+    },
+    {
+      "awardUri": "",
+      "schemeUri": "",
+      "awardTitle": "DTA - University of Glasgow",
+      "funderName": "Economic and Social Research Council",
+      "awardNumber": "EP/M506539/1",
+      "funderIdentifier": "https://ror.org/03n0ht308",
+      "funderIdentifierType": "ROR"
+    }
+  ],
+  "relatedIdentifiers": [
+    {
+      "relationType": "IsDescribedBy",
+      "relatedIdentifier": "https://data-package.ceh.ac.uk/sd/ca339c86-3674-4030-b891-35326e71141e.zip",
+      "resourceTypeGeneral": "Text",
+      "relatedIdentifierType": "URL"
+    }
+  ],
+  "relatedItems": [],
+  "schemaVersion": "http://datacite.org/schema/kernel-4",
+  "providerId": "rckq",
+  "clientId": "bl.nerc",
+  "agency": "datacite",
+  "state": "findable"
+}

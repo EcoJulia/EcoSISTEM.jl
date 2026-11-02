@@ -164,28 +164,9 @@ function assetpath(asset::CachedAsset; verify::Bool = false)
     path = something(asset.path,
                      joinpath(assetdir(owner = asset.owner),
                               basename(asset.url)))
-    if isfile(path)
-        Provenancer.recordpresent(path) do
-            return _assetrecord(asset, path, nothing)
-        end
-        verify && Provenancer.verifyfile(path)
-        return path
+    return Provenancer.fetchfile(asset.url, path, verify = verify) do response
+        return _assetrecord(asset, path, response)
     end
-    mkpath(dirname(abspath(path)))
-    # Downloaded to a sibling part file and renamed in, never written straight to `path`.
-    # `isfile(path)` is the only cache check, so a half-written file there would be served as valid
-    # forever, failing with an opaque reader error that re-running never clears; the rename, atomic
-    # within a directory, closes the window a process killed outright would leave. One part file
-    # per destination, under a lock: a second process wanting the same file waits, then finds it
-    # present, and the part file of an interrupted run is what the next run resumes from.
-    part = path * ".part"
-    Provenancer.fetchlocked(path) do
-        response = Provenancer.download!(asset.url, part)
-        mv(part, path, force = true)
-        return Provenancer.writesidecar(path,
-                                        _assetrecord(asset, path, response))
-    end
-    return path
 end
 
 function assetpath(request::CDSRequest; verify::Bool = false)
@@ -221,33 +202,17 @@ function _repointextensions()
     return nothing
 end
 
-# The catalogue's facts about a file of a catalogued source, the one place they are computed for
-# every record written and every registration made: the source, the layer where the file is one,
-# the file's title, whether it is its source's own for the `route` it came by (as `_isprimary`
-# reads it), and the row's DOI, licence, version, release date and citation, with what its provider
-# asks - the references, the notices and the documentation's section quoting them - left out
-# where blank. Empty where the owner is no source.
+# The catalogue's facts about a file of a catalogued source, as the record of every file of it
+# carries them: `Provenancer`'s entries for the row's facts, with the file's own title and the layer
+# it holds where it is one. Empty where the owner is no source.
 function _cataloguerecord(owner::Type, layer, path::AbstractString;
                           route::AbstractFileRoute)
     rec = _datasetrecord(owner)
     isnothing(rec) && return Dict{String, Any}()
-    record = Dict{String, Any}("source" => rec.dataset,
-                               "title" => _filetitle(rec, layer, path),
-                               "primary" => _isprimary(rec, route))
-    for (key, value) in (("doi", rec.doi), ("licence", rec.licence),
-        ("version", rec.version), ("release_date", rec.releasedate),
-        ("citation", rec.citation), ("request_page", _requestpage(rec)))
-        isempty(value) || (record[key] = value)
-    end
-    isempty(rec.references) ||
-        (record["references"] = [Dict("doi" => r.doi, "text" => r.text)
-                                 for r in rec.references])
-    isempty(rec.notices) ||
-        (record["notices"] = [Dict("strength" => string(n.strength),
-                                   "text" => n.text)
-                              for n in rec.notices])
-    isnothing(layer) || (record["code"] = first(layer.aliases))
-    return record
+    return Provenancer.sourceentries(_sourcefacts(rec), route,
+                                     title = _filetitle(rec, layer, path),
+                                     code = isnothing(layer) ? nothing :
+                                            first(layer.aliases))
 end
 
 # The provenance record of a file fetched over https: what `Provenancer` records of any download

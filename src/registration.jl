@@ -151,10 +151,10 @@ function _needsdate(r::InputRecord, rec::DatasetRecord)
            isnothing(r.modified)
 end
 
-# How a source is named to the registry: by its DOI, or, for a row identified by its web page, by
-# the key of its citation in `citations.bib`, which is the row's request name.
-function _sourcename(rec::DatasetRecord)
-    return isempty(rec.doi) ? (bibtex = rec.request,) : (doi = rec.doi,)
+# How a source is named to the registry: by its DOI, or, for one identified by its web page, by
+# the key of its citation - a catalogue row's request name, under which `citations.bib` has it.
+function _sourcename(facts::SourceFacts)
+    return isempty(facts.doi) ? (bibtex = facts.key,) : (doi = facts.doi,)
 end
 
 # Text or `nothing` where it is blank, as the registration keywords take an absent fact.
@@ -163,19 +163,25 @@ _ornothing(s::AbstractString) = isempty(s) ? nothing : String(s)
 _ornothing(::Nothing) = nothing
 
 # The keywords a file is registered with, as `link_register!` and `link_write!` take them, from its
-# record and its source's row: the source, the file's title, whether it is the source's own, the
-# licence, the release, and the documentation's section quoting what the provider asks - for an
-# extract also the request it was made to. `version` and `date` are the release's.
+# record and what is known of its source - a catalogue row's facts, or a DOI's: the source, the
+# file's title, whether it is the source's own, the licence, the release, and the documentation's
+# section quoting what the provider asks - for an extract also the request it was made to.
+# `version` and `date` are the release's.
 function _sourcekeywords(r::InputRecord, rec::DatasetRecord,
+                         route::AbstractFileRoute; kw...)
+    return _sourcekeywords(r, _sourcefacts(rec), route; kw...)
+end
+
+function _sourcekeywords(r::InputRecord, facts::SourceFacts,
                          route::AbstractFileRoute;
                          version::AbstractString,
                          date::Union{Nothing, AbstractString})
     description = route isa ExtractedByService ? _extractdescription(r) :
                   _ornothing(r.requestpage)
-    return (; _sourcename(rec)..., title = r.title,
+    return (; _sourcename(facts)..., title = r.title,
             primary = something(r.primary, false),
             licence = _ornothing(something(_ornothing(r.licence),
-                                           rec.licence)),
+                                           facts.licence)),
             release_version = String(version), release_date = date,
             description = description)
 end
@@ -196,14 +202,16 @@ end
 # file-less, its own where its identifier names the data. Its release is the row's, else its
 # citation's in `citations.bib` (Natural Earth's), never a file's: the registry keeps a deposit's
 # first release, so it must not depend on which file is registered first.
-function _depositkeywords(rec::DatasetRecord)
-    return (; _sourcename(rec)..., title = rec.title,
-            primary = rec.identifies === :data,
-            licence = _ornothing(rec.licence),
-            release_version = isempty(rec.version) ? nothing :
-                              Provenancer._fullversion(rec.version),
-            release_date = _ornothing(rec.releasedate),
-            description = _ornothing(_requestpage(rec)))
+_depositkeywords(rec::DatasetRecord) = _depositkeywords(_sourcefacts(rec))
+
+function _depositkeywords(facts::SourceFacts)
+    return (; _sourcename(facts)..., title = facts.title,
+            primary = facts.identifies === :data,
+            licence = _ornothing(facts.licence),
+            release_version = isempty(facts.version) ? nothing :
+                              Provenancer._fullversion(facts.version),
+            release_date = _ornothing(facts.releasedate),
+            description = _ornothing(facts.requestpage))
 end
 
 # Whether a track says which release a spec's files come from, which only files the user gives

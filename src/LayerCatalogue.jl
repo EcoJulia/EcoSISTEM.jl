@@ -635,13 +635,17 @@ function _datasetrecord(key::AbstractString)
     return nothing
 end
 
-# Whether a file is its source's own, as the data pipeline means it - the cited item or one of its
-# files, so that the same bytes can be fetched again: a file fetched as its provider publishes it,
-# from a source whose identifier names the data. A paper's file, an extract a service made to a
-# request and a file the user gave are not.
-_isprimary(rec::DatasetRecord, ::PublishedByProvider) = rec.identifies === :data
-
-_isprimary(::DatasetRecord, ::AbstractFileRoute) = false
+# The facts of a catalogued source as `Provenancer` takes them, from its row: the key the row is
+# written under as the source's name; its identifier, licence, release and title; what its
+# provider asks; and its request name as the key its citation is filed under where it has no DOI.
+function _sourcefacts(rec::DatasetRecord)
+    return SourceFacts(source = rec.dataset, doi = rec.doi, url = rec.url,
+                       title = rec.title, releasedate = rec.releasedate,
+                       version = rec.version, licence = rec.licence,
+                       identifies = rec.identifies, citation = rec.citation,
+                       references = rec.references, notices = rec.notices,
+                       requestpage = _requestpage(rec), key = rec.request)
+end
 
 # A file's title: its release's, the layer's name where the file is one layer, and the file's own
 # name, which carries whatever else tells it from its siblings - a resolution, a month, a span of

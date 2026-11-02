@@ -22,13 +22,30 @@ own, the cited item or one of its files, so that the same bytes can be fetched a
 struct PublishedByProvider <: AbstractFileRoute end
 
 """
-    ExtractedByService()
+    ExtractedByService(identifier = nothing)
 
 The route of a file a service made to a request - a box of months cut from a reanalysis, an
 occurrence download built to a predicate. The request identifies what was asked for, and the
-service's own identifier for the result, where it gives one, identifies the file.
+service's own identifier for the result, where it gives one - the DOI an occurrence download is
+minted - identifies the file, and makes it the cited item itself; `nothing` says the service gave
+none, as the Climate Data Store does not.
+
+# Fields
+
+  - `identifier`: the service's identifier for the file, or `nothing`.
 """
-struct ExtractedByService <: AbstractFileRoute end
+struct ExtractedByService <: AbstractFileRoute
+    identifier::Union{Nothing, String}
+
+    function ExtractedByService(identifier::Union{Nothing, AbstractString} = nothing)
+        return new(isnothing(identifier) ? nothing : String(identifier))
+    end
+end
+
+function Base.show(io::IO, route::ExtractedByService)
+    return print(io, "ExtractedByService(",
+                 isnothing(route.identifier) ? "" : repr(route.identifier), ")")
+end
 
 """
     SuppliedByUser()

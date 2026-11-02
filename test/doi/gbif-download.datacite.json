@@ -1,0 +1,83 @@
+{
+ "doi": "10.15468/DL.N4A2SA",
+ "url": "https://www.gbif.org/occurrence/download/0014627-260903145123482",
+ "identifiers": [
+  {
+   "identifier": "0014627-260903145123482",
+   "identifierType": "GBIF"
+  }
+ ],
+ "creators": [
+  {
+   "name": "GBIF.org User",
+   "nameType": "Organizational"
+  }
+ ],
+ "titles": [
+  {
+   "title": "Occurrence Download"
+  }
+ ],
+ "publisher": {
+  "name": "The Global Biodiversity Information Facility"
+ },
+ "publicationYear": 2026,
+ "types": {
+  "ris": "DATA",
+  "bibtex": "misc",
+  "citeproc": "dataset",
+  "schemaOrg": "Dataset",
+  "resourceTypeGeneral": "Dataset"
+ },
+ "dates": [
+  {
+   "date": "2026-09-12",
+   "dateType": "Created"
+  },
+  {
+   "date": "2026-09-12",
+   "dateType": "Updated"
+  }
+ ],
+ "rightsList": [
+  {
+   "rights": "Creative Commons Attribution Non Commercial 4.0 International",
+   "rightsUri": "https://creativecommons.org/licenses/by-nc/4.0/legalcode",
+   "schemeUri": "https://spdx.org/licenses/",
+   "rightsIdentifier": "cc-by-nc-4.0",
+   "rightsIdentifierScheme": "SPDX"
+  }
+ ],
+ "descriptions": [
+  {
+   "lang": "eng",
+   "description": "A dataset containing 17208657 species occurrences available in GBIF matching the query:\n{\n \"and\" : [\n \"KingdomKey is Plantae\",\n \"HasCoordinate is true\",\n \"HasGeospatialIssue is false\",\n \"OccurrenceStatus is Present\",\n \"Year is greater than or equal to 1940\",\n \"Geometry POLYGON((-25.0 -36.0, 56.0 -36.0, 56.0 40.0, -25.0 40.0, -25.0 -36.0))\"\n ]\n}\n\n The dataset includes 17208657 records from 1676 constituent datasets; see https://api.gbif.org/v1/occurrence/download/0014627-260903145123482/datasets/export for details.\n \nData from some individual datasets included in this download may be licensed under less restrictive terms.",
+   "descriptionType": "Abstract"
+  }
+ ],
+ "sizes": [
+  "2148894084"
+ ],
+ "formats": [
+  "text/tab-separated-values",
+  "application/zip"
+ ],
+ "schemaVersion": "http://datacite.org/schema/kernel-4",
+ "relatedIdentifiers": [
+  {
+   "relationType": "IsDerivedFrom",
+   "relatedIdentifier": "10.15468/ab3s5x",
+   "relatedIdentifierType": "DOI"
+  },
+  {
+   "relationType": "IsDerivedFrom",
+   "relatedIdentifier": "10.15468/b4yqdy",
+   "relatedIdentifierType": "DOI"
+  },
+  {
+   "relationType": "IsDerivedFrom",
+   "relatedIdentifier": "10.15468/nqx5dj",
+   "relatedIdentifierType": "DOI"
+  }
+ ]
+}

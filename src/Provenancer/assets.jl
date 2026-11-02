@@ -138,6 +138,62 @@ function download!(url::AbstractString, path::AbstractString;
 end
 
 """
+    fetchfile(record::Function, url::AbstractString, path::AbstractString; verify = false)
+    fetchfile(file::URLFile; role::Symbol, verify = false)
+
+Return `path`, the file fetched from `url` into it first where it is not there, with its
+provenance record written beside it when it is: `record(response)` gives the record, as a
+dictionary of the sidecar's keys, from the last response of the download, or from `nothing` for a
+file found present with no record, which is recorded without a fetch time. A file present with a
+record is left as it is, and checked against the record's checksum where `verify` is `true`.
+
+The download goes to a sibling part file and is renamed in, never written straight to `path`: a
+present file is taken as whole, so a half-written one there would be served as valid forever. One
+part file per destination, under a lock, so a second process wanting the same file waits and then
+finds it present, and the part file of an interrupted run is what the next run resumes from.
+
+A [`URLFile`](@ref) is recorded with what its download says ([`downloadrecord`](@ref
+Provenancer.downloadrecord)) and what its facts say of the source ([`sourceentries`](@ref
+Provenancer.sourceentries)), under `role`.
+
+# Arguments
+
+  - `record`: what builds the record, called with the download's last response, or `nothing`.
+  - `url`: where to fetch from.
+  - `path`: where the file lives.
+  - `file`: the file to fetch, as a `URLFile`.
+  - `role`: which part of the system the file enters by, a word of the package using the record.
+  - `verify`: whether to check a file already present against its record's checksum.
+"""
+function fetchfile(record::Function, url::AbstractString, path::AbstractString;
+                   verify::Bool = false)
+    if isfile(path)
+        recordpresent(path) do
+            return record(nothing)
+        end
+        verify && verifyfile(path)
+        return path
+    end
+    mkpath(dirname(abspath(path)))
+    part = path * ".part"
+    fetchlocked(path) do
+        response = download!(url, part)
+        mv(part, path, force = true)
+        return writesidecar(path, record(response))
+    end
+    return path
+end
+
+function fetchfile(file::URLFile; role::Symbol, verify::Bool = false)
+    return fetchfile(file.url, file.path, verify = verify) do response
+        record = downloadrecord(file.path, file.url, response, role)
+        isnothing(file.facts) ||
+            merge!(record, sourceentries(file.facts, route(file)))
+        return record
+    end
+end
+
+"""
     recordpresent(record::Function, path::AbstractString)
 
 Record a file that is already present when it is first used and has no sidecar - one fetched

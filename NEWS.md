@@ -10,6 +10,14 @@
       `CDSRequest`, `NaturalEarthSpec` and every RasterDataSources dataset type implement it - each
       saying which route its files come by: `PublishedByProvider()`, `ExtractedByService()` or
       `SuppliedByUser()`.
+    - `Provenancer.SourceFacts`, what is known of a source - its DOI, title, authors, publisher,
+      release, licence, what its identifier names and what its provider asks - from which a file's
+      record and its registration are written; `Provenancer.lookup_doi` fills one from the metadata
+      a DOI resolves to, DataCite's record or the CSL record. JSON.jl is a new dependency for it.
+    - `Provenancer.URLFile` and `Provenancer.fetchfile`: a file fetched from a URL on first use and
+      recorded with its source's facts, for a package with no catalogue of its own.
+    - `ExtractedByService` carries the identifier a service gave the file, where it gave one, and
+      an extract with a DOI of its own - an occurrence download - is primary by it.
   - Changed
     - `Provenance` holds `software`, `inputs` and a `context`: for EcoSISTEM's results a
       `GridContext` of the grid and the run, which were its `grid` and `run` fields. The file

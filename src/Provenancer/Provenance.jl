@@ -286,14 +286,15 @@ end
 tomlvalue(v) = string(v)
 
 # The concept DOI the `codemeta.json` of the package `mod` belongs to declares as its `identifier`,
-# or `""` where the file or the DOI is missing. Read by pattern, since the file holds one and JSON is
-# not a dependency.
+# bare, or `""` where the file is missing or the identifier is no DOI.
 function _conceptdoi(mod::Module)
     path = pkgdir(Base.moduleroot(mod), "codemeta.json")
     (isnothing(path) || !isfile(path)) && return ""
-    found = match(r"\"identifier\"\s*:\s*\"(10\.5281/zenodo\.[0-9]+)\"",
-                  read(path, String))
-    return isnothing(found) ? "" : String(only(found.captures))
+    meta = JSON.parse(read(path, String))
+    identifier = meta isa AbstractDict ? get(meta, "identifier", nothing) :
+                 nothing
+    identifier isa AbstractString || return ""
+    return something(_trydoi(identifier), "")
 end
 
 # A `Provenance` as the tables its TOML file holds: `software`, `inputs` (a table per input), the

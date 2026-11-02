@@ -1077,7 +1077,11 @@ download that resumes and records itself, and the names a file takes in a FAIR d
 another package can use it. Whatever fetches or finds a file for this package - a `CachedAsset`, a
 `CDSRequest`, a `NaturalEarthSpec`, a dataset type whose source resolves its own files - implements
 its `IsFetchable` trait and says which `AbstractFileRoute` the files come by: published by its
-provider, extracted by a service to a request, or supplied by the user. The context is the
+provider, extracted by a service to a request, or supplied by the user. What is known of a
+source - a catalogue row's facts, the metadata a DOI resolves to, or the user's own - is a
+`SourceFacts`, from which a record's entries and a registration's keywords are written and whether
+a file is primary is read with its route; a `URLFile` is the module's own fetchable, a download
+recorded with the facts it is given. The context is the
 one abstract field in the model's types left abstract on purpose: a `Provenance` is assembled once
 per recording, and a parameter would make every `Provenance` in a signature a `UnionAll`.
 
@@ -1086,12 +1090,15 @@ classDiagram
     class Provenance
     class SoftwareRecord
     class InputRecord
+    class SourceFacts
+    class URLFile
     class AbstractProvenanceContext
     class NoContext
     class GridContext
     Provenance "1" *-- "1" SoftwareRecord : software
     Provenance "1" *-- "*" InputRecord : inputs
     Provenance "1" *-- "1" AbstractProvenanceContext : context
+    URLFile "1" *-- "0..1" SourceFacts : facts
     AbstractProvenanceContext <|-- NoContext
     AbstractProvenanceContext <|-- GridContext
 ```
