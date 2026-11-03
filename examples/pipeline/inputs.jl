@@ -17,7 +17,7 @@
 
 using EcoSISTEM
 using EcoSISTEM: Track
-using EcoSISTEM.Provenancer: SourceFacts, SuppliedByUser, record_provenance
+using EcoSISTEM.Provenancer: SourceFacts, OtherOrigin, record_provenance
 using RasterDataSources
 using Unitful: ustrip
 
@@ -50,7 +50,7 @@ function recordbox(handle)
     facts = SourceFacts(EcoSISTEM.datasetinfo(EcoSISTEM.NaturalEarthLevel),
                         title = "A box around Scotland (scotland_box)")
     return record_provenance(BOX, facts, role = :region,
-                             route = SuppliedByUser(),
+                             route = OtherOrigin(),
                              track = Track(handle, "box"))
 end
 

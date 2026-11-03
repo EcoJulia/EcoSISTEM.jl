@@ -22,7 +22,7 @@ const P = EcoSISTEM.Provenancer
                         licence = "CC-BY-4.0", identifies = :data,
                         releasedate = "2024-05")
     f = URLFile(url, joinpath(dir, "cache", "table.csv"), facts = facts)
-    @test P.route(f) == PublishedByProvider() &&
+    @test P.route(f) == VersionOfRecord() &&
           P.istrait(P.IsFetchable{URLFile})
     # Compared against `repr`, as `show` writes the two strings: a Windows path's backslashes are
     # escaped.

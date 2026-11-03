@@ -39,7 +39,7 @@ end
     # The record says where the file and its sidecar are, how the file came to be and what its
     # identifier names, none of which is written but the last two.
     @test r.location == path && r.sidecar == P.sidecarpath(path) &&
-          r.route == PublishedByProvider() && r.identifies === :data &&
+          r.route == VersionOfRecord() && r.identifies === :data &&
           isnothing(r.namespace)
     @test r.source == "Bioclimatic envelopes for global plant species" &&
           r.doi == ENVELOPES_DOI
@@ -57,7 +57,7 @@ end
     t = TOML.parsefile(sidecar)
     @test startswith(t["writer"], "EcoSISTEM.Provenancer") &&
           !haskey(t, "fetched") && t["primary"] === true &&
-          t["role"] == "species" && t["route"] == "PublishedByProvider" &&
+          t["role"] == "species" && t["route"] == "VersionOfRecord" &&
           !haskey(t, "route_identifier") && !haskey(t, "location") &&
           !haskey(t, "sidecar")
     # Recorded once: a second call from the same source under the same role, by a DOI that would
@@ -101,13 +101,13 @@ end
                                    "https://doi.org/" * GBIF_DOI)
     url = "https://api.gbif.org/v1/occurrence/download/request/0012345-250000000000000.zip"
     r = record_provenance(path, cited, role = :abundance,
-                          route = ExtractedByService(GBIF_DOI), url = url)
+                          route = GeneratedOnRequest(GBIF_DOI), url = url)
     @test r.role === :abundance && r.primary === true && r.doi == GBIF_DOI &&
           r.url == url
     # The route and the service's identifier are kept, and read back.
-    @test r.route == ExtractedByService(GBIF_DOI)
+    @test r.route == GeneratedOnRequest(GBIF_DOI)
     t = TOML.parsefile(P.sidecarpath(path))
-    @test t["route"] == "ExtractedByService" &&
+    @test t["route"] == "GeneratedOnRequest" &&
           t["route_identifier"] == GBIF_DOI
     @test r.licence == "cc-by-nc-4.0" && r.releasedate == "2026-09-12" &&
           r.source == "Occurrence Download"
@@ -116,10 +116,10 @@ end
     # user altered; the citation composed from the looked-up facts names the record's creator.
     rm(P.sidecarpath(path))
     @test record_provenance(path, facts, role = :abundance,
-                            route = ExtractedByService()).primary === false
+                            route = GeneratedOnRequest()).primary === false
     rm(P.sidecarpath(path))
     r3 = record_provenance(path, facts, role = :abundance,
-                           route = SuppliedByUser())
+                           route = OtherOrigin())
     @test r3.primary === false && isnothing(r3.url)
     @test r3.citation ==
           "GBIF.org User (2026). Occurrence Download. The Global Biodiversity " *
@@ -188,7 +188,7 @@ end
     fetched = tablefile(dir, "fetched.csv")
     P.writesidecar(fetched,
                    merge!(P.baserecord(fetched, :species),
-                          P.sourceentries(facts, PublishedByProvider())))
+                          P.sourceentries(facts, VersionOfRecord())))
     @test !isnothing(provenance(fetched).fetched) &&
           !P.iscatalogued(provenance(fetched))
     @test record_provenance(fetched, facts, role = :species) ==
@@ -202,7 +202,7 @@ end
                    merge!(P.baserecord(held, :region),
                           EcoSISTEM._cataloguerecord(EcoSISTEM.NaturalEarthLevel,
                                                      nothing, held,
-                                                     route = PublishedByProvider())))
+                                                     route = VersionOfRecord())))
     @test P.iscatalogued(provenance(held))
     @test_throws "fetched from the `EcoSISTEM` catalogue" record_provenance(held,
                                                                             catalogued,
@@ -212,7 +212,7 @@ end
                                                                             role = :region)
     cut = tablefile(dir, "cut.csv")
     r = record_provenance(cut, catalogued, role = :region,
-                          route = SuppliedByUser())
+                          route = OtherOrigin())
     @test !P.iscatalogued(r) && isnothing(r.fetched) &&
           record_provenance(cut, catalogued, role = :region) == r
     # The mark is the name the catalogue's fetch writes, with a fetch time, read from the record

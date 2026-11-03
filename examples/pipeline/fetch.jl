@@ -47,7 +47,7 @@ function todo(handle)
     boxwanted &&
         append!(files,
                 EcoSISTEM.missingfiles(BOX, track = Track(handle, "box"),
-                                       route = SuppliedByUser()))
+                                       route = OtherOrigin()))
     return files
 end
 

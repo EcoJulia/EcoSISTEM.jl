@@ -8,7 +8,7 @@ using DataPipeline: DataRegistryHandle, ConfigDataProduct, ConfigFileException,
                     register_authors!, register_citations!
 
 using EcoSISTEM
-using EcoSISTEM: Track, Provenancer, PublishedByProvider, SuppliedByUser,
+using EcoSISTEM: Track, Provenancer, VersionOfRecord, OtherOrigin,
                  SourceFacts
 
 using Dates: Dates

@@ -176,23 +176,23 @@ const IDENTIFIES = (:data, :paper, :software, :other)
 """
     isprimary(facts::SourceFacts, route::AbstractFileRoute)
 
-Return whether a file of the source is the cited item or one of its files, so that the same bytes
-can be fetched again under the source's identifier - what a data pipeline registers as primary.
-A file fetched as its provider publishes it ([`PublishedByProvider`](@ref)) is, where the
-identifier names the data; an extract a service made ([`ExtractedByService`](@ref)) is only where
-the service gave it an identifier of its own and the facts are that extract's; a file the user
-gave ([`SuppliedByUser`](@ref)) never is, since what was done to it is not known.
+Return whether a file of the source is the cited item or one of its files under the source's
+identifier - what a data pipeline registers as primary. The source's version of record
+([`VersionOfRecord`](@ref)) is, where the identifier names the data; a file a service generated to
+a request ([`GeneratedOnRequest`](@ref)) is only where the service gave it an identifier of its own
+and the facts are that file's; a file of any other origin ([`OtherOrigin`](@ref)) is not, since
+nothing is claimed of how its bytes relate to the source's.
 
 # Arguments
 
   - `facts`: what is known of the source.
   - `route`: the route the file came by.
 """
-function isprimary(facts::SourceFacts, ::PublishedByProvider)
+function isprimary(facts::SourceFacts, ::VersionOfRecord)
     return facts.identifies === :data
 end
 
-function isprimary(facts::SourceFacts, route::ExtractedByService)
+function isprimary(facts::SourceFacts, route::GeneratedOnRequest)
     return !isnothing(route.identifier) && facts.identifies === :data
 end
 

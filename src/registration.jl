@@ -7,10 +7,10 @@
 # stamping and the config lines are `Provenancer`'s (`src/Provenancer/naming.jl`); the calls that
 # ask a registry and register are the DataPipeline extension's.
 
-# Each file a spec reads, where it is or would be, with the route it comes by - `PublishedByProvider()`
-# for a file fetched as its provider publishes it (by its source's own resolution, or from a URL),
-# `ExtractedByService()` for one a service makes to a request, `SuppliedByUser()` for a file the
-# user names - the layer `code` it holds where one is known, and the `url` it is fetched from where
+# Each file a spec reads, where it is or would be, with the route it comes by - `VersionOfRecord()`
+# for a file fetched as its source issues it (by the source's own resolution, or from a URL),
+# `GeneratedOnRequest()` for one a service generates to a request, `OtherOrigin()` for a file the
+# user names by its path - the layer `code` it holds where one is known, and the `url` it is fetched from where
 # it has one.
 _specroutes(spec::RasterSpec) = _specroutes(spec, spec.files)
 
@@ -47,11 +47,11 @@ end
 # spec's `files`, a `CachedAsset` or a `CDSRequest`, which says of itself; or the dataset type of a
 # source resolving its own files. Anything else is refused by name: implementing `IsFetchable` is
 # the way in.
-_fileroute(::AbstractString) = SuppliedByUser()
+_fileroute(::AbstractString) = OtherOrigin()
 
 # A file given by its record comes by the route the record keeps, or as one the user named where
 # the record predates routes.
-_fileroute(record::ProvenanceRecord) = something(record.route, SuppliedByUser())
+_fileroute(record::ProvenanceRecord) = something(record.route, OtherOrigin())
 
 @traitfn function _fileroute(entry::E) where {E; IsFetchable{E}}
     return Provenancer.route(entry)
@@ -117,7 +117,7 @@ end
 # The release a track names for the files the user gives, written over a record's version and
 # release date, which only such a file's track may say.
 function _trackrelease!(facts::AbstractDict, track, route::AbstractFileRoute)
-    (route isa SuppliedByUser && !isnothing(track)) || return facts
+    (route isa OtherOrigin && !isnothing(track)) || return facts
     isnothing(track.release_version) ||
         (facts["version"] = track.release_version)
     isnothing(track.release_date) ||
@@ -229,7 +229,7 @@ function _sourcekeywords(r::ProvenanceRecord, facts::SourceFacts,
                          route::AbstractFileRoute;
                          version::AbstractString,
                          date::Union{Nothing, AbstractString})
-    description = route isa ExtractedByService ? _extractdescription(r) :
+    description = route isa GeneratedOnRequest ? _extractdescription(r) :
                   r.requestpage
     return (; _sourcename(facts)..., title = r.title,
             primary = something(r.primary, false),

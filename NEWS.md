@@ -8,8 +8,8 @@
       the names a file takes in a FAIR data pipeline run, and `Provenance`.
     - `Provenancer.IsFetchable`, a trait for anything that fetches or finds a file - `CachedAsset`,
       `CDSRequest`, `NaturalEarthSpec` and every RasterDataSources dataset type implement it - each
-      saying which route its files come by: `PublishedByProvider()`, `ExtractedByService()` or
-      `SuppliedByUser()`.
+      saying which route its files come by: the source's `VersionOfRecord()`, `GeneratedOnRequest()`
+      by a service, or `OtherOrigin()`.
     - `Provenancer.SourceFacts`, what is known of a source - its DOI, title, authors, publisher,
       release, licence, what its identifier names and what its provider asks - from which a file's
       record and its registration are written; `Provenancer.lookup_doi` fills one from the metadata
@@ -18,7 +18,7 @@
       recorded with its source's facts, for a package with no catalogue of its own;
       `Provenancer.fetchinto` is the locked, resumable fetch beneath, for a fetcher writing its own
       record.
-    - `ExtractedByService` carries the identifier a service gave the file, where it gave one, and
+    - `GeneratedOnRequest` carries the identifier a service gave the file, where it gave one, and
       an extract with a DOI of its own - an occurrence download - is primary by it.
     - `Provenancer.record_provenance(path, doi; role)` records a file you have - a table you downloaded,
       an occurrence download - from the metadata its DOI resolves to, or from `SourceFacts` you

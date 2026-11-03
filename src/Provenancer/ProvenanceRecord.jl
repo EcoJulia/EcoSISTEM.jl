@@ -44,10 +44,10 @@ references written from the list. [`provenance`](@ref) reads the records the fet
     prints.
   - `title`: the file's own title, the release's with the layer and whatever else tells the file
     apart from its siblings, `nothing` where unknown.
-  - `primary`: whether the file is the cited item or one of its files, so that the same bytes can
-    be fetched again (`true`) - a file fetched as published from a source whose identifier names
-    the data - or not (`false`): a file of a source cited by its paper, an extract a service cut to
-    a request, a file the user gave; `nothing` where unknown.
+  - `primary`: whether the file is the cited item or one of its files (`true`) - the version of
+    record of a source whose identifier names the data - or not (`false`): a file of a source cited
+    by its paper, an extract a service cut to a request, a file of any other origin; `nothing`
+    where unknown.
   - `releasedate`: when the release was published, as ISO 8601 text, `nothing` where unknown.
   - `modified`: when the provider last changed the file, as its server said, in UTC; `nothing`
     where unknown.

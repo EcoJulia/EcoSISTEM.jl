@@ -9,8 +9,8 @@
 A file downloaded from `url` to `path` on first use by [`fetchfile`](@ref Provenancer.fetchfile),
 which writes its provenance record beside it: what the download itself says, and what `facts` say
 of the source. Nothing is fetched at construction. It implements
-[`IsFetchable`](@ref Provenancer.IsFetchable), and its files come by [`PublishedByProvider`](@ref),
-as the provider serves them.
+[`IsFetchable`](@ref Provenancer.IsFetchable), and its file comes by [`VersionOfRecord`](@ref),
+as the provider serves it.
 
 # Fields
 
@@ -32,7 +32,7 @@ end
 
 @traitimpl IsFetchable{URLFile}
 
-route(::URLFile) = PublishedByProvider()
+route(::URLFile) = VersionOfRecord()
 
 function Base.show(io::IO, f::URLFile)
     print(io, "URLFile(", repr(f.url), ", ", repr(f.path))

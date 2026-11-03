@@ -84,10 +84,10 @@ is - under a run, the run's copy - so a spec of a file carries no `track` of its
 [`EcoSISTEM.missingfiles`](@ref) answers for the file as it does for a spec:
 
 ```julia
-using EcoSISTEM.Provenancer: SourceFacts, SuppliedByUser, record_provenance
+using EcoSISTEM.Provenancer: SourceFacts, OtherOrigin, record_provenance
 facts = SourceFacts(EcoSISTEM.datasetinfo(EcoSISTEM.NaturalEarthLevel),
                     title = "A box around Scotland (scotland_box)")
-box = ShapeSpec(record_provenance(path, facts, role = :region, route = SuppliedByUser(),
+box = ShapeSpec(record_provenance(path, facts, role = :region, route = OtherOrigin(),
                                   track = Track(handle, "box")))
 ```
 

@@ -92,7 +92,7 @@ end
     record = E.Provenancer.baserecord(path, :habitat)
     merge!(record,
            E._cataloguerecord(E.ERA, E.layerinfo(E.ERA, "t2m"), path,
-                              route = EcoSISTEM.ExtractedByService()))
+                              route = EcoSISTEM.GeneratedOnRequest()))
     record["region"] = r.region
     E.Provenancer.writesidecar(path, record)
     back = provenance(path)
@@ -154,7 +154,7 @@ end
     @test !haskey(written, "location") && !haskey(written, "sidecar") &&
           !haskey(written, "route")
     routed = ProvenanceRecord(role = :abundance, source = "GBIF",
-                              route = EcoSISTEM.ExtractedByService("10.1/x"),
+                              route = EcoSISTEM.GeneratedOnRequest("10.1/x"),
                               primary = true)
     @test routed.identifies === :data && isnothing(routed.location) &&
           isnothing(routed.catalogue) && isnothing(r.catalogue)
@@ -163,7 +163,7 @@ end
     @test EcoSISTEM.Provenancer.tomltable(marked)["catalogue"] == "EcoSISTEM" &&
           !haskey(EcoSISTEM.Provenancer.tomltable(routed), "catalogue")
     @test EcoSISTEM.Provenancer.tomltable(routed)["route"] ==
-          "ExtractedByService" &&
+          "GeneratedOnRequest" &&
           EcoSISTEM.Provenancer.tomltable(routed)["route_identifier"] ==
           "10.1/x"
     @test_throws ArgumentError ProvenanceRecord(role = :abundance,

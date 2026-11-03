@@ -175,7 +175,7 @@ end
 
 """
     missingfiles(x)
-    missingfiles(path::AbstractString; track = nothing, route = PublishedByProvider(),
+    missingfiles(path::AbstractString; track = nothing, route = VersionOfRecord(),
                  sidecar = Provenancer.sidecarpath(path))
 
 Return what is still to do before `x` can be built, fetching nothing: an entry per file still to
@@ -210,7 +210,7 @@ end
 
 function missingfiles(path::AbstractString;
                       track::Union{Nothing, Track} = nothing,
-                      route::AbstractFileRoute = PublishedByProvider(),
+                      route::AbstractFileRoute = VersionOfRecord(),
                       sidecar::AbstractString = Provenancer.sidecarpath(path))
     return Provenancer._inputmissing(track, path, route = route,
                                      sidecar = sidecar)

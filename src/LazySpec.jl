@@ -451,7 +451,7 @@ end
 # Its files are Natural Earth's own zips, fetched as published.
 @traitimpl IsFetchable{NaturalEarthSpec}
 
-Provenancer.route(::NaturalEarthSpec) = PublishedByProvider()
+Provenancer.route(::NaturalEarthSpec) = VersionOfRecord()
 
 function Base.show(io::IO, s::NaturalEarthSpec)
     _showregion(io, s)

@@ -47,24 +47,24 @@ end
 
 @testset "each file of a spec has the route it comes by" begin
     published = only(E._specroutes(SourceSpec(WorldClim{BioClim}, :bio1)))
-    @test published.route isa E.PublishedByProvider &&
+    @test published.route isa E.VersionOfRecord &&
           endswith(published.path, "wc2.1_10m_bio_1.tif")
     @test only(E._specroutes(SourceSpec(TwentyCR, "air"))).route isa
-          E.PublishedByProvider
+          E.VersionOfRecord
     @test only(E._specroutes(SourceSpec(ERA, "t2m", years = 1990:1999))).route isa
-          E.ExtractedByService
+          E.GeneratedOnRequest
     file = tempname() * ".tif"
     @test only(E._specroutes(SourceSpec(CRUTS, "tavg", file = file))) ==
-          (path = file, route = E.SuppliedByUser(), code = "tavg",
+          (path = file, route = E.OtherOrigin(), code = "tavg",
            url = nothing)
     @test endswith(only(E._specroutes(NaturalEarthSpec("Scotland"))).path,
                    ".zip")
     # A source resolving its own files answers for them as a type and a shape spec for its own;
     # anything saying nothing of its route is refused by name rather than failing in dispatch.
-    @test E.Provenancer.route(WorldClim{BioClim}) == E.PublishedByProvider()
+    @test E.Provenancer.route(WorldClim{BioClim}) == E.VersionOfRecord()
     @test E.Provenancer.route(NaturalEarthSpec("Scotland")) ==
-          E.PublishedByProvider()
-    @test E._fileroute(WorldClim{BioClim}) == E.PublishedByProvider()
+          E.VersionOfRecord()
+    @test E._fileroute(WorldClim{BioClim}) == E.VersionOfRecord()
     @test_throws "IsFetchable" E._fileroute(1)
     @test_throws "IsFetchable" E._fileroute(Int)
 end
@@ -96,9 +96,9 @@ end
     write(chelsa, "x")
     rec = E.datasetinfo(CHELSA{BioClim})
     r = _record(CHELSA{BioClim}, E.layerinfo(CHELSA{BioClim}, :bio1), chelsa,
-                route = E.PublishedByProvider(),
+                route = E.VersionOfRecord(),
                 extra = Dict{String, Any}("modified" => "2023-01-04T00:00:00Z"))
-    kw = E._sourcekeywords(r, rec, E.PublishedByProvider(), version = "2.1.0",
+    kw = E._sourcekeywords(r, rec, E.VersionOfRecord(), version = "2.1.0",
                            date = rec.releasedate)
     @test kw.doi == "10.16904/envidat.228.v2.1" && !haskey(kw, :bibtex)
     @test kw.primary === true && kw.licence == "CC0-1.0"
@@ -114,9 +114,9 @@ end
     tcr = joinpath(dir, "air.2m.mon.mean.nc")
     write(tcr, "x")
     p = _record(TwentyCR, E.layerinfo(TwentyCR, "air"), tcr,
-                route = E.PublishedByProvider())
+                route = E.VersionOfRecord())
     @test p.primary === false
-    @test E._sourcekeywords(p, E.datasetinfo(TwentyCR), E.PublishedByProvider(),
+    @test E._sourcekeywords(p, E.datasetinfo(TwentyCR), E.VersionOfRecord(),
                             version = "3.0.0", date = nothing).primary === false
     # A row identified by its web page names its source by its citation's key, and a file stating
     # its own version is dated by when its provider changed it.
@@ -124,9 +124,9 @@ end
     zip = joinpath(dir, "ne_10m_admin_0_countries.zip")
     write(zip, "x")
     z = _record(E.NaturalEarthLevel, nothing, zip,
-                route = E.PublishedByProvider())
+                route = E.VersionOfRecord())
     @test E._needsdate(z, ne)
-    zk = E._sourcekeywords(z, ne, E.PublishedByProvider(), version = "5.1.2",
+    zk = E._sourcekeywords(z, ne, E.VersionOfRecord(), version = "5.1.2",
                            date = nothing)
     @test zk.bibtex == ne.request && !haskey(zk, :doi) && zk.primary === true
     dated = ProvenanceRecord(role = :region, source = "NaturalEarth",
@@ -148,7 +148,7 @@ end
                                E._requestrecord(request, request.path, nothing))
     x = provenance(request.path)
     era = E.datasetinfo(ERA)
-    xk = E._sourcekeywords(x, era, E.ExtractedByService(), version = "1.0.0",
+    xk = E._sourcekeywords(x, era, E.GeneratedOnRequest(), version = "1.0.0",
                            date = nothing)
     @test xk.primary === false && occursin("2m_temperature", xk.description) &&
           occursin(E._requestpage(era), xk.description)
@@ -170,7 +170,7 @@ end
                       track = Track(:run, "cru", release_version = "4.8",
                                     release_date = "2024-05"))
     entry = only(E._specroutes(spec))
-    @test entry.route isa E.SuppliedByUser && entry.code == "tavg" &&
+    @test entry.route isa E.OtherOrigin && entry.code == "tavg" &&
           isnothing(entry.url)
     @test E._recordgiven(spec, entry) == file
     r = provenance(file)
@@ -196,7 +196,7 @@ end
                             "bytes" => 1)
     E.Provenancer.writesidecar(path, old)
     spec = SourceSpec(TwentyCR, "air", file = path)
-    entry = (; only(E._specroutes(spec))..., route = E.PublishedByProvider(),
+    entry = (; only(E._specroutes(spec))..., route = E.VersionOfRecord(),
              url = E.layerinfo(TwentyCR, "air").file)
     facts = E._currentfacts(spec, entry)
     # Read with the catalogue's facts, the record on disk is untouched.
@@ -294,7 +294,7 @@ end
     spec = ShapeSpec(geojson)
     @test sprint(show, spec) == "ShapeSpec($(repr(geojson)))"
     entry = only(E._specroutes(spec))
-    @test entry == (path = geojson, route = E.SuppliedByUser(), code = nothing,
+    @test entry == (path = geojson, route = E.OtherOrigin(), code = nothing,
            url = nothing)
     @test E._specpaths(spec) == [geojson] && E._fetchspec(spec) == [geojson]
     @test fetchfiles(spec) == [geojson] && isempty(missingfiles(spec))
@@ -304,13 +304,13 @@ end
     facts = E.Provenancer.SourceFacts(E.datasetinfo(E.NaturalEarthLevel),
                                       title = "A box")
     record = E.Provenancer.record_provenance(geojson, facts, role = :region,
-                                             route = E.SuppliedByUser())
+                                             route = E.OtherOrigin())
     recorded = ShapeSpec(record)
     @test recorded.path === record && E._specpaths(recorded) == [geojson] &&
           isnothing(E._spectrack(recorded))
     @test sprint(show, recorded) == "ShapeSpec($(repr(record)))"
     @test only(E._specroutes(recorded)) ==
-          (path = geojson, route = E.SuppliedByUser(), code = nothing,
+          (path = geojson, route = E.OtherOrigin(), code = nothing,
            url = nothing)
     @test only(provenance(recorded)) == record &&
           provenance(recorded) == provenance(spec) &&
@@ -322,9 +322,9 @@ end
     elsewhere = joinpath(dir, "records", "other.toml")
     moved = E.Provenancer.record_provenance(other, facts, role = :region,
                                             sidecar = elsewhere)
-    @test moved.route == E.PublishedByProvider() && moved.sidecar == elsewhere
+    @test moved.route == E.VersionOfRecord() && moved.sidecar == elsewhere
     ospec = ShapeSpec(moved)
-    @test only(E._specroutes(ospec)).route == E.PublishedByProvider() &&
+    @test only(E._specroutes(ospec)).route == E.VersionOfRecord() &&
           only(provenance(ospec)) == moved &&
           isnothing(only(provenance(ShapeSpec(other))))
     # A record naming no file is refused.
@@ -334,13 +334,13 @@ end
     tif = joinpath(dir, "layer.tif")
     write(tif, "x")
     trecord = E.Provenancer.record_provenance(tif, facts, role = :habitat,
-                                              route = E.SuppliedByUser())
+                                              route = E.OtherOrigin())
     rspec = RasterFileSpec(trecord, axis = E.NicheAxis)
     @test only(rspec.files) === trecord && E._specpaths(rspec) == [tif] &&
           isnothing(rspec.track)
     @test sprint(show, rspec) ==
           "RasterFileSpec($(repr(trecord)), axis = NicheAxis)"
-    @test only(E._specroutes(rspec)).route == E.SuppliedByUser() &&
+    @test only(E._specroutes(rspec)).route == E.OtherOrigin() &&
           only(provenance(rspec)) == trecord &&
           E._readinputs(rspec) == [trecord] && E.verifyassets(rspec) == 1
     @test_throws "no catalogued source" E._trackedsource(rspec)
@@ -353,7 +353,7 @@ end
     write(given, "x")
     gspec = RasterFileSpec(given, axis = E.NicheAxis)
     gentry = only(E._specroutes(gspec))
-    @test gentry.route == E.SuppliedByUser() && isnothing(E._catalogued(gspec))
+    @test gentry.route == E.OtherOrigin() && isnothing(E._catalogued(gspec))
     @test E._recordgiven(gspec, gentry) == given &&
           provenance(given).role === :habitat
     @test E._catalogued(SourceSpec(WorldClim{BioClim}, :bio1)).namespace ==

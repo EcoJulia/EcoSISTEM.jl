@@ -29,8 +29,8 @@ public NicheAxis, AbstractLayer, Role, Condition, Resource, AbstractRegime,
 include("Provenancer/Provenancer.jl")
 using .Provenancer: Provenancer, ProvenanceRecord, Provenance, Track,
                     AbstractProvenanceContext, NoContext, SoftwareRecord,
-                    IsFetchable, AbstractFileRoute, PublishedByProvider,
-                    ExtractedByService, SuppliedByUser, SourceFacts
+                    IsFetchable, AbstractFileRoute, VersionOfRecord,
+                    GeneratedOnRequest, OtherOrigin, SourceFacts
 # Imported, not merely used, so that this package's methods extend them.
 import .Provenancer: provenance, write_provenance
 

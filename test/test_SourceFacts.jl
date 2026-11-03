@@ -49,18 +49,18 @@ end
 @testset "a file is primary by what the identifier names and the route it came by" begin
     data = SourceFacts(source = "d", doi = "10.1/d", identifies = :data)
     paper = SourceFacts(source = "p", doi = "10.1/p", identifies = :paper)
-    @test P.isprimary(data, PublishedByProvider())
-    @test !P.isprimary(paper, PublishedByProvider())
+    @test P.isprimary(data, VersionOfRecord())
+    @test !P.isprimary(paper, VersionOfRecord())
     # An extract is the cited item only where the service gave it an identifier of its own.
-    @test !P.isprimary(data, ExtractedByService())
-    @test P.isprimary(data, ExtractedByService("10.1/d"))
-    @test !P.isprimary(paper, ExtractedByService("10.1/p"))
-    @test !P.isprimary(data, SuppliedByUser())
-    @test string(ExtractedByService()) == "ExtractedByService()"
-    @test string(ExtractedByService("10.1/d")) ==
-          "ExtractedByService(\"10.1/d\")"
-    @test ExtractedByService("10.1/d") == ExtractedByService("10.1/d") &&
-          isnothing(ExtractedByService().identifier)
+    @test !P.isprimary(data, GeneratedOnRequest())
+    @test P.isprimary(data, GeneratedOnRequest("10.1/d"))
+    @test !P.isprimary(paper, GeneratedOnRequest("10.1/p"))
+    @test !P.isprimary(data, OtherOrigin())
+    @test string(GeneratedOnRequest()) == "GeneratedOnRequest()"
+    @test string(GeneratedOnRequest("10.1/d")) ==
+          "GeneratedOnRequest(\"10.1/d\")"
+    @test GeneratedOnRequest("10.1/d") == GeneratedOnRequest("10.1/d") &&
+          isnothing(GeneratedOnRequest().identifier)
 end
 
 @testset "a source's entries in a file's record" begin
@@ -75,7 +75,7 @@ end
                                        text = "Fick, S.E.")],
                         notices = [(strength = :requested, text = "Cite it")],
                         requestpage = "https://docs/requests/#worldclim")
-    e = P.sourceentries(facts, PublishedByProvider(),
+    e = P.sourceentries(facts, VersionOfRecord(),
                         title = "WorldClim 2.1, bio1 (wc2.1_10m_bio_1)",
                         code = "bio1")
     @test e["source"] == "WorldClim{BioClim}" &&
@@ -90,10 +90,10 @@ end
           e["notices"] == [Dict("strength" => "requested", "text" => "Cite it")]
     # Blank facts write no key, the title defaults to the source's, and the route is kept.
     bare = P.sourceentries(SourceFacts(source = "s", title = "T"),
-                           SuppliedByUser())
+                           OtherOrigin())
     @test Set(keys(bare)) == Set(["source", "title", "primary", "route"]) &&
           bare["title"] == "T" &&
-          bare["primary"] === false && bare["route"] == "SuppliedByUser"
+          bare["primary"] === false && bare["route"] == "OtherOrigin"
     # A citation is composed where the source gives none and has a DOI and authors.
     composed = P.sourceentries(SourceFacts(source = "s", doi = "10.1/x",
                                            title = "A set",
@@ -101,25 +101,25 @@ end
                                            releasedate = "2022-06-22",
                                            publisher = "Pub",
                                            version = "2", identifies = :data),
-                               PublishedByProvider())
+                               VersionOfRecord())
     @test composed["citation"] ==
           "A. One, B. Two (2022). A set (version 2). Pub. https://doi.org/10.1/x"
     @test composed["primary"] === true
     @test !haskey(P.sourceentries(SourceFacts(source = "s", doi = "10.1/x"),
-                                  PublishedByProvider()), "citation")
+                                  VersionOfRecord()), "citation")
     # The catalogue's record of a file is these entries, from the row's facts, with the file's
     # own title and layer; a type with no row gives none.
     layer = EcoSISTEM.layerinfo(WorldClim{BioClim}, 1)
     rec = EcoSISTEM._cataloguerecord(WorldClim{BioClim}, layer,
                                      "/x/wc2.1_10m_bio_1.tif",
-                                     route = PublishedByProvider())
+                                     route = VersionOfRecord())
     @test rec["source"] == "WorldClim{BioClim}" &&
           rec["code"] == first(layer.aliases) &&
           rec["primary"] === false && rec["doi"] == "10.1002/joc.5086" &&
           endswith(rec["title"], "(wc2.1_10m_bio_1)") &&
           rec["catalogue"] == "EcoSISTEM"
     @test isempty(EcoSISTEM._cataloguerecord(Int, nothing, "/x/y.tif",
-                                             route = PublishedByProvider()))
+                                             route = VersionOfRecord()))
     era = SourceFacts(EcoSISTEM.datasetinfo(ERA))
     @test era.source == "ERA" && era.identifies === :data &&
           era.key == "era5" &&
@@ -156,8 +156,8 @@ end
     @test startswith(g.description,
                      "A dataset containing 17208657 species occurrences")
     @test g.publisher == "The Global Biodiversity Information Facility"
-    @test P.isprimary(g, ExtractedByService(g.doi)) &&
-          !P.isprimary(g, ExtractedByService())
+    @test P.isprimary(g, GeneratedOnRequest(g.doi)) &&
+          !P.isprimary(g, GeneratedOnRequest())
     # A creator with given and family names, the stray space in the given name dropped; the year
     # alone.
     m = lookup_doi("10.5067/MODIS/MOD13C2.061", fetch = saved)
@@ -184,8 +184,8 @@ end
           isnothing(p.licence) &&
           p.doi == "10.1111/geb.13564" &&
           p.url == "http://dx.doi.org/10.1111/geb.13564"
-    @test !P.isprimary(p, PublishedByProvider())
-    e = P.sourceentries(p, PublishedByProvider())
+    @test !P.isprimary(p, VersionOfRecord())
+    e = P.sourceentries(p, VersionOfRecord())
     @test startswith(e["citation"], "Claire Harris, ") &&
           endswith(e["citation"], "https://doi.org/10.1111/geb.13564") &&
           occursin("(2022). Strong phylogenetic", e["citation"])
@@ -299,10 +299,10 @@ end
     # The catalogue a file was fetched from is given by the fetch, not carried by the facts, so a
     # row's facts written for a file of your own name none; the name is checked as a namespace is.
     row = SourceFacts(EcoSISTEM.datasetinfo(EcoSISTEM.NaturalEarthLevel))
-    @test !haskey(P.sourceentries(row, PublishedByProvider()), "catalogue") &&
-          P.sourceentries(row, PublishedByProvider(),
+    @test !haskey(P.sourceentries(row, VersionOfRecord()), "catalogue") &&
+          P.sourceentries(row, VersionOfRecord(),
                           catalogue = "EcoSISTEM")["catalogue"] == "EcoSISTEM"
-    @test_throws ArgumentError P.sourceentries(row, PublishedByProvider(),
+    @test_throws ArgumentError P.sourceentries(row, VersionOfRecord(),
                                                catalogue = "a b")
     @test isnothing(P._factsat(joinpath(dir, "none.toml")))
     # A record keeping nothing of what its identifier identifies, as the catalogue's entries alone
@@ -311,11 +311,11 @@ end
     write(other, "x")
     P.writesidecar(other,
                    merge!(P.baserecord(other, :habitat),
-                          P.sourceentries(full, PublishedByProvider())))
+                          P.sourceentries(full, VersionOfRecord())))
     @test P._factsat(P.sidecarpath(other)).identifies === :data
     P.writesidecar(other,
                    merge!(P.baserecord(other, :habitat),
-                          P.sourceentries(full, SuppliedByUser())))
+                          P.sourceentries(full, OtherOrigin())))
     @test P._factsat(P.sidecarpath(other)).identifies === :other
     # Another program's sidecar gives none.
     write(P.sidecarpath(other), "writer = \"Other 1.0\"\n")

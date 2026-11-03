@@ -26,7 +26,7 @@ using Dates: Dates
 # only the exported names, and a moved body calls its neighbours by bare name.
 using EcoSISTEM: ClimateRaster, CODE_TYPE, NicheAxis, Supply,
                  _cellareas, _cancel, landcoverclass
-using EcoSISTEM: SourceSpec, Provenancer, PublishedByProvider
+using EcoSISTEM: SourceSpec, Provenancer, VersionOfRecord
 using EcoSISTEM: compress_landcover, layerinfo, sourcecrs
 # The dataset-reading pipeline lives in `src/datasetread.jl`, so these are the parent's.
 using EcoSISTEM: _filelist, _firstfile, _getrasterkw, _isblankcrs

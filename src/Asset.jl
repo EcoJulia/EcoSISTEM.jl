@@ -36,7 +36,7 @@ end
 
 @traitimpl IsFetchable{CachedAsset}
 
-Provenancer.route(::CachedAsset) = PublishedByProvider()
+Provenancer.route(::CachedAsset) = VersionOfRecord()
 
 """
     CDSRequest(dataset::AbstractString, request::AbstractDict, path::AbstractString;
@@ -76,7 +76,7 @@ end
 
 @traitimpl IsFetchable{CDSRequest}
 
-Provenancer.route(::CDSRequest) = ExtractedByService()
+Provenancer.route(::CDSRequest) = GeneratedOnRequest()
 
 # == Functions ======================================================================================
 

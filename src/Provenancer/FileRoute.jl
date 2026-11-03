@@ -5,27 +5,29 @@
 """
     AbstractFileRoute
 
-The route a file came by, which decides what its record says it is and how a registry is told of
-it: [`PublishedByProvider`](@ref), [`ExtractedByService`](@ref) or [`SuppliedByUser`](@ref). Every
+The route a file came by - how its bytes came to be - which decides what its record says it is
+and how a registry is told of it: [`VersionOfRecord`](@ref), [`GeneratedOnRequest`](@ref) or [`OtherOrigin`](@ref). Every
 type implementing [`IsFetchable`](@ref Provenancer.IsFetchable) says which by a
 [`route`](@ref Provenancer.route) method.
 """
 abstract type AbstractFileRoute end
 
 """
-    PublishedByProvider()
+    VersionOfRecord()
 
-The route of a file fetched as its provider publishes it, from a URL of the provider's or by its
-source's own resolution. A file of a source whose identifier names the data is then the source's
-own, the cited item or one of its files, so that the same bytes can be fetched again.
+The route of a file that is its source's version of record: its bytes as the source issued them,
+however they reached you - fetched from a URL of the provider's or by the source's own resolution,
+or sent by its author. A file of a source whose identifier names the data is then the source's
+own, the cited item or one of its files.
 """
-struct PublishedByProvider <: AbstractFileRoute end
+struct VersionOfRecord <: AbstractFileRoute end
 
 """
-    ExtractedByService(identifier = nothing)
+    GeneratedOnRequest(identifier = nothing)
 
-The route of a file a service made to a request - a box of months cut from a reanalysis, an
-occurrence download built to a predicate. The request identifies what was asked for, and the
+The route of a file a service generated to a request, whose bytes did not exist until they were
+asked for - a box of months cut from a reanalysis, an occurrence download built to a predicate.
+The request identifies what was asked for, and the
 service's own identifier for the result, where it gives one - the DOI an occurrence download is
 minted - identifies the file, and makes it the cited item itself; `nothing` says the service gave
 none, as the Climate Data Store does not.
@@ -34,26 +36,27 @@ none, as the Climate Data Store does not.
 
   - `identifier`: the service's identifier for the file, or `nothing`.
 """
-struct ExtractedByService <: AbstractFileRoute
+struct GeneratedOnRequest <: AbstractFileRoute
     identifier::Union{Nothing, String}
 
-    function ExtractedByService(identifier::Union{Nothing, AbstractString} = nothing)
+    function GeneratedOnRequest(identifier::Union{Nothing, AbstractString} = nothing)
         return new(isnothing(identifier) ? nothing : String(identifier))
     end
 end
 
-function Base.show(io::IO, route::ExtractedByService)
-    return print(io, "ExtractedByService(",
+function Base.show(io::IO, route::GeneratedOnRequest)
+    return print(io, "GeneratedOnRequest(",
                  isnothing(route.identifier) ? "" : repr(route.identifier), ")")
 end
 
 """
-    SuppliedByUser()
+    OtherOrigin()
 
-The route of a file the user named, which the package never fetched and knows only as the user
-describes it.
+The route of a file of any other origin: one named only by its path, one made or altered by you,
+or one recorded before routes were. Nothing is claimed of how its bytes relate to its source's, so
+it is not taken as the cited item ([`isprimary`](@ref Provenancer.isprimary)).
 """
-struct SuppliedByUser <: AbstractFileRoute end
+struct OtherOrigin <: AbstractFileRoute end
 
 @traitdef IsFetchable{X}
 
@@ -87,7 +90,7 @@ function route end
 # identifier a service gave an extract, where it gave one.
 function _routeentries(route::AbstractFileRoute)
     entries = Dict{String, Any}("route" => string(nameof(typeof(route))))
-    if route isa ExtractedByService && !isnothing(route.identifier)
+    if route isa GeneratedOnRequest && !isnothing(route.identifier)
         entries["route_identifier"] = route.identifier
     end
     return entries
@@ -99,8 +102,8 @@ _routeentries(::Nothing) = Dict{String, Any}()
 # before routes were recorded, or one naming a route this version does not know.
 function _routefrom(name, identifier)
     isnothing(name) && return nothing
-    name == "PublishedByProvider" && return PublishedByProvider()
-    name == "ExtractedByService" && return ExtractedByService(identifier)
-    name == "SuppliedByUser" && return SuppliedByUser()
+    name == "VersionOfRecord" && return VersionOfRecord()
+    name == "GeneratedOnRequest" && return GeneratedOnRequest(identifier)
+    name == "OtherOrigin" && return OtherOrigin()
     return nothing
 end

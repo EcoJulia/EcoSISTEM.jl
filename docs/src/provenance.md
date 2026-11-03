@@ -66,7 +66,7 @@ facts = SourceFacts(source = "GBIF occurrence download", doi = doi,
                     releasedate = "2026-09-12", licence = "cc-by-nc-4.0", identifies = :data,
                     citation = "GBIF.org (12 September 2026) GBIF Occurrence Download " *
                                "https://doi.org/" * doi)
-seeding = record_provenance(path, facts, role = :abundance, route = ExtractedByService(doi))
+seeding = record_provenance(path, facts, role = :abundance, route = GeneratedOnRequest(doi))
 ```
 
 [`provenance`](@ref) reads the record back from the file's path whenever it is wanted again. A

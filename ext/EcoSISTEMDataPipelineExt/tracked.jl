@@ -273,7 +273,7 @@ function EcoSISTEM._trackedfetch(track::Track{<:DataRegistryHandle}, spec)
     all(i -> _isregistered(track, src, i), items) && return paths
     EcoSISTEM._fetchspec(spec)
     for i in items
-        i.route isa SuppliedByUser && EcoSISTEM._recordgiven(spec, i)
+        i.route isa OtherOrigin && EcoSISTEM._recordgiven(spec, i)
         _register!(track, src, i)
     end
     return paths
@@ -392,7 +392,7 @@ end
 function Provenancer._trackedrecord(track::Track{<:DataRegistryHandle}, path,
                                     source; role::Symbol,
                                     sidecar::AbstractString,
-                                    route::EcoSISTEM.AbstractFileRoute = PublishedByProvider(),
+                                    route::EcoSISTEM.AbstractFileRoute = VersionOfRecord(),
                                     kw...)
     handle = track.handle
     path = String(path)

@@ -49,7 +49,7 @@ include("naming.jl")
 include("doi.jl")
 
 export ProvenanceRecord, Provenance, Track, NoContext, SoftwareRecord,
-       PublishedByProvider, ExtractedByService, SuppliedByUser, SourceFacts,
+       VersionOfRecord, GeneratedOnRequest, OtherOrigin, SourceFacts,
        URLFile, provenance, write_provenance, lookup_doi, record_provenance
 
 public AbstractProvenanceContext, AbstractFileRoute, IsFetchable, route,

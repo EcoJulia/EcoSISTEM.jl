@@ -15,7 +15,7 @@ SimpleTraits.@traitimpl EcoSISTEM.IsRasterData{RDS.RasterDataSource}
 # own, from the provider's URLs - so a source answers for its files as a type.
 SimpleTraits.@traitimpl EcoSISTEM.IsFetchable{RDS.RasterDataSource}
 
-Provenancer.route(::Type{<:RDS.RasterDataSource}) = PublishedByProvider()
+Provenancer.route(::Type{<:RDS.RasterDataSource}) = VersionOfRecord()
 
 # Derived from the source package rather than declared here, so it cannot drift from it: an `Int`
 # for BioClim and land cover, a `Symbol` for the rest.
