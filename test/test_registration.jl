@@ -74,7 +74,8 @@ end
     # Not yet registered, or registered with these very bytes: the source's own, in full.
     @test E.Provenancer._registeredversion("2.1", nothing, false, day) ==
           "2.1.0"
-    @test E.Provenancer._registeredversion("", nothing, false, day) == "1.0.0"
+    @test E.Provenancer._registeredversion(nothing, nothing, false, day) ==
+          "1.0.0"
     @test E.Provenancer._registeredversion("3", nothing, false, day) == "3.0.0"
     # Its source's version held by other bytes: a provider's silent change, dated by its day.
     stamped = E.Provenancer._registeredversion("2.1", nothing, true, day)
@@ -200,9 +201,9 @@ end
     facts = E._currentfacts(spec, entry)
     # Read with the catalogue's facts, the record on disk is untouched.
     seen = E.Provenancer._recordwith(path, facts)
-    @test !isempty(seen.title) && seen.url == entry.url &&
+    @test !isnothing(seen.title) && seen.url == entry.url &&
           seen.primary === false
-    @test isempty(provenance(path).title)
+    @test isnothing(provenance(path).title)
     # Brought up to date, what the fetch recorded is kept and the writer is this version.
     r = E.Provenancer._refreshrecord!(path, facts)
     @test r.title == seen.title && r.licence == "CC0-1.0" && r.sha256 == "abc"
@@ -359,14 +360,14 @@ end
           "WorldClim" &&
           E._catalogued(NaturalEarthSpec("Scotland")).dataset == "NaturalEarth"
     # The config lines for a source with no namespace of its own leave the run's defaults alone.
-    lines = E.Provenancer._writelines(Track(nothing, "box"), "", "geojson")
+    lines = E.Provenancer._writelines(Track(nothing, "box"), nothing, "geojson")
     @test startswith(lines, "write:") && occursin("box/data/*", lines) &&
           occursin("file_type: geojson", lines)
     @test startswith(E.Provenancer._writelines(Track(nothing, "box"),
                                                "NaturalEarth", "geojson"),
                      "run_metadata:")
     @test occursin("the fetch run's default namespace",
-                   E.Provenancer._readentry(Track(nothing, "box"), ""))
+                   E.Provenancer._readentry(Track(nothing, "box"), nothing))
     # Whether a file states its own version is asked of the source directly too.
     r = ProvenanceRecord(role = :region, source = "x",
                          modified = "2022-05-13T05:20:49Z")

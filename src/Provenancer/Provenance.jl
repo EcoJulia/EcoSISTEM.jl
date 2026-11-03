@@ -98,7 +98,7 @@ function Base.show(io::IO, ::MIME"text/plain", p::Provenance)
     println(io, "  inputs")
     for source in unique(r.source for r in p.inputs)
         group = filter(r -> r.source == source, p.inputs)
-        dois = unique(r.doi for r in group if !isempty(r.doi))
+        dois = unique(r.doi for r in group if !isnothing(r.doi))
         println(io, "    ", source,
                 isempty(dois) ? "" : " (doi $(join(dois, ", ")))")
         for line in unique(Iterators.flatten(_requestlines(r) for r in group))

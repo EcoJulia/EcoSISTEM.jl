@@ -28,8 +28,9 @@ end
 
 @testset "the facts of a source are kept as given, blank for unknown" begin
     f = tablefacts()
-    @test f.source == "My table" && f.doi == "10.1234/abc" && f.url == "" &&
-          f.version == "" && f.publisher == ""
+    @test f.source == "My table" && f.doi == "10.1234/abc" &&
+          isnothing(f.url) &&
+          isnothing(f.version) && isnothing(f.publisher)
     @test f.identifies === :data && only(f.notices).strength === :required
     @test f.identifiers["A. Person"] == "https://orcid.org/0000-0000-0000-0000"
     @test f == tablefacts() && hash(f) == hash(tablefacts())
@@ -132,7 +133,7 @@ end
           f.source == f.title
     @test f.doi == "10.5285/ca339c86-3674-4030-b891-35326e71141e"
     @test f.identifies === :data && f.releasedate == "2022-06-22" &&
-          f.version == ""
+          isnothing(f.version)
     @test f.licence == "ogl-uk-3.0"
     @test length(f.authors) == 4 && occursin("Harris", first(f.authors)) &&
           occursin("Reeve", last(f.authors))
@@ -160,13 +161,13 @@ end
     # alone.
     m = lookup_doi("10.5067/MODIS/MOD13C2.061", fetch = saved)
     @test m.authors == ["Kamel Didan"] && m.releasedate == "2021" &&
-          m.identifies === :data && m.licence == ""
+          m.identifies === :data && isnothing(m.licence)
     @test startswith(m.publisher, "NASA")
     # An organisation as creator, and no rights at all.
     e = lookup_doi("10.24381/cds.f17050d7", fetch = saved)
     @test e.authors == ["Copernicus Climate Change Service"] &&
           e.releasedate == "2019" &&
-          e.licence == "" && e.identifies === :data
+          isnothing(e.licence) && e.identifies === :data
     @test startswith(e.title, "ERA5 monthly averaged data on single levels")
 end
 
@@ -179,7 +180,7 @@ end
           p.identifiers["Claire Harris"] ==
           "https://orcid.org/0000-0003-0852-2340"
     @test p.releasedate == "2022-07-20" && p.publisher == "Wiley" &&
-          p.licence == "" &&
+          isnothing(p.licence) &&
           p.doi == "10.1111/geb.13564" &&
           p.url == "http://dx.doi.org/10.1111/geb.13564"
     @test !P.isprimary(p, PublishedByProvider())
@@ -259,7 +260,8 @@ end
 @testset "the namespace, and the facts a record keeps for a later registration" begin
     facts = SourceFacts(source = "s", doi = "10.1/x", title = "T",
                         identifies = :data, namespace = "EIDC")
-    @test facts.namespace == "EIDC" && SourceFacts(source = "s").namespace == ""
+    @test facts.namespace == "EIDC" &&
+          isnothing(SourceFacts(source = "s").namespace)
     @test_throws ArgumentError SourceFacts(source = "s", namespace = "a b")
     @test_throws ArgumentError SourceFacts(source = "s", namespace = "a:b")
     # A row's facts carry its namespace.
@@ -291,8 +293,16 @@ end
           back.licence == "CC0-1.0" && back.identifies === :data &&
           back.citation == "Cite" && back.references == full.references &&
           back.notices == full.notices &&
-          back.requestpage == full.requestpage && back.key == "" &&
-          back.namespace == "EIDC"
+          back.requestpage == full.requestpage && isnothing(back.key) &&
+          back.namespace == "EIDC" && isnothing(back.catalogue)
+    # A row's facts name this package as their catalogue, which a record written from them keeps;
+    # the name is checked as a namespace is.
+    row = SourceFacts(EcoSISTEM.datasetinfo(EcoSISTEM.NaturalEarthLevel))
+    @test row.catalogue == "EcoSISTEM" &&
+          SourceFacts(row, title = "cut").catalogue == "EcoSISTEM" &&
+          P.sourceentries(row, PublishedByProvider())["catalogue"] ==
+          "EcoSISTEM"
+    @test_throws ArgumentError SourceFacts(source = "s", catalogue = "a b")
     @test isnothing(P._factsat(joinpath(dir, "none.toml")))
     # A record keeping nothing of what its identifier identifies, as the catalogue's entries alone
     # write, identifies the data where it calls the file primary.

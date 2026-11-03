@@ -399,8 +399,9 @@ const _OPTIONAL_COLUMNS = Dict(:BioClimPlus => (:Group,),
 Return the facts of a catalogued source as [`EcoSISTEM.Provenancer.SourceFacts`](@ref) carries
 them, from its row: the key the row is written under as the source's name; its identifier,
 licence, release and title; what its provider asks; its request name as the key its citation is
-filed under where it has no DOI; and the namespace its files are registered in. What a file you
-cut or derived from a catalogued source is recorded with, through
+filed under where it has no DOI; the namespace its files are registered in; and this package's
+name as the `catalogue` they came from. What a file you cut or derived from a catalogued source is
+recorded with, through
 [`Provenancer.record_provenance`](@ref EcoSISTEM.Provenancer.record_provenance), the fields named by
 keyword replaced - the file's own `title`, say - and every other as the row has it.
 
@@ -415,7 +416,8 @@ function Provenancer.SourceFacts(rec::DatasetRecord; kw...)
                         identifies = rec.identifies, citation = rec.citation,
                         references = rec.references, notices = rec.notices,
                         requestpage = _requestpage(rec), key = rec.request,
-                        namespace = rec.namespace)
+                        namespace = rec.namespace,
+                        catalogue = string(nameof(@__MODULE__)))
     return isempty(kw) ? facts : SourceFacts(facts; kw...)
 end
 

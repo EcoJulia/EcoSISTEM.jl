@@ -74,7 +74,8 @@ registered the same way, from its provenance record, which says what it is.
 from the facts of the source the file was taken or cut from, and given the run's `track` does the
 run's work for the file before your code reads it: in a fetch run it records the file and
 registers it, derived from its source's deposit in the facts' `namespace`, the run's default where
-blank; in a model run it puts the run's copy of the file and its record in place from the store.
+that is `nothing`; in a model run it puts the run's copy of the file and its record in place from
+the store.
 The facts must name their source, by a DOI or by the key of a citation the run has read, as the
 catalogue's keys are; a file of your own making is an output of the run that made it, registered
 with DataPipeline's `link_write!`. The record returned stands in for the file's path in a

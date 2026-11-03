@@ -45,11 +45,15 @@
       field and keyword are now `source`, the word the sidecar and the data pipeline already use.
       A record takes any role; EcoSISTEM refuses one outside its set where a record is given to it.
     - `record_provenance` refuses a record already there that says otherwise - of a file the package
-      fetched from its catalogue (`Provenancer.iscatalogued`, a hook the package fills), or naming
-      another source or another role - and returns one of the same source under the same role with
-      nothing looked up.
+      fetched from its catalogue (`Provenancer.iscatalogued`: a record with a fetch time whose facts
+      name the `catalogue` they came from, which `SourceFacts` now carries and a catalogue's record
+      writes), or naming another source or another role - and returns one of the same source under
+      the same role with nothing looked up.
     - A sidecar's `writer` names the module, `EcoSISTEM.Provenancer <version>`; sidecars written by
       earlier versions are still read.
+    - Unknown text in `SourceFacts` and `ProvenanceRecord` is `nothing`, never blank: every text
+      field but a source's name is `Union{Nothing, String}`, and blank text given to either
+      constructor is taken as `nothing`.
 
 - v0.9.2
   - Fixed

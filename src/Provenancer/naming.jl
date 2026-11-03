@@ -26,7 +26,9 @@ _depositname(track::Track) = track.root * "/deposit"
 
 # Whether facts name their source as a registry takes one, by a DOI or by the key of a citation;
 # files of a source naming neither cannot be registered with it.
-_namessource(facts::SourceFacts) = !isempty(facts.doi) || !isempty(facts.key)
+function _namessource(facts::SourceFacts)
+    return !isnothing(facts.doi) || !isnothing(facts.key)
+end
 
 # Refuse, before anything is fetched, a file whose stem cannot end a data product name: one holding
 # anything but ASCII letters, digits, `_`, `-` and `.`, or beginning or ending with `.`.
@@ -71,16 +73,15 @@ function _refreshrecord!(path::AbstractString, facts::AbstractDict;
 end
 
 # A release version as the registry writes it, in full: `2.1` as `2.1.0`, and `1.0.0` for none.
-function _fullversion(version::AbstractString)
-    return isempty(version) ? "1.0.0" :
-           string(VersionNumber(version))
+function _fullversion(version::Union{Nothing, AbstractString})
+    return isnothing(version) ? "1.0.0" : string(VersionNumber(version))
 end
 
 # The release version a file is registered under: the version its bytes are registered under
 # already (`held`), so a third fetch of a changed file adds nothing; else its source's own
 # (`version`, in full); or, where that is `taken` by other bytes - its provider changed the file
 # without a new release - the same with build metadata `+YYYYMMDD` from `day`.
-function _registeredversion(version::AbstractString,
+function _registeredversion(version::Union{Nothing, AbstractString},
                             held::Union{Nothing, AbstractString}, taken::Bool,
                             day::Dates.Date)
     isnothing(held) || return String(held)
@@ -106,9 +107,9 @@ _filetype(path::AbstractString) = lstrip(last(splitext(path)), '.')
 # run's default for inputs and outputs, since the run registers that source's deposit and nothing
 # else, and `write:` entries for the files, of `filetype`, and their provenance records. A source
 # with no namespace of its own is registered in whatever the config's defaults are.
-function _writelines(track::Track, namespace::AbstractString,
+function _writelines(track::Track, namespace::Union{Nothing, AbstractString},
                      filetype::AbstractString)
-    defaults = isempty(namespace) ? String[] :
+    defaults = isnothing(namespace) ? String[] :
                ["run_metadata:", "  default_input_namespace: $namespace",
         "  default_output_namespace: $namespace"]
     return join([defaults..., "write:",
@@ -125,8 +126,8 @@ end
 # records and leaves the deposit, which has no file. A source with no namespace of its own was
 # registered in the namespace its fetch run's config gave as the default, which the entry's `use:`
 # block must name.
-function _readentry(track::Track, namespace::AbstractString)
-    use = isempty(namespace) ?
+function _readentry(track::Track, namespace::Union{Nothing, AbstractString})
+    use = isnothing(namespace) ?
           ["  use:", "    namespace: <the fetch run's default namespace>"] :
           ["  use:", "    namespace: $namespace"]
     return join(["read:", "- data_product: $(track.root)/*/*", use...], "\n")
@@ -156,11 +157,12 @@ end
 # Why a model run cannot read a file, from whether its registry holds it: `nothing` where no
 # `read:` entry covers its name, so the registry could not be asked.
 function _modelreason(registered::Union{Nothing, Bool}, track::Track,
-                      namespace::AbstractString)
+                      namespace::Union{Nothing, AbstractString})
     isnothing(registered) &&
         return "no `read:` entry covers it; add\n" *
                _readentry(track, namespace)
     registered &&
         return "registered since this job was prepared: `fair pull`, then `fair run` again"
-    return "not registered in namespace `$namespace`: run the fetch run first"
+    return "not registered in namespace " *
+           "`$(something(namespace, "<the fetch run's default>"))`: run the fetch run first"
 end

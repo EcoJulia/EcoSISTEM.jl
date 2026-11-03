@@ -25,7 +25,7 @@ end
                          bytes = 12, sha256 = "00")
     @test r.role === :species && r.source == "GBIF occurrence download"
     @test r.fetched == Dates.DateTime(2026, 9, 13, 7, 21, 7)
-    @test isnothing(r.url) && isnothing(r.request) && isempty(r.citation)
+    @test isnothing(r.url) && isnothing(r.request) && isnothing(r.citation)
     @test string(r) ==
           "ProvenanceRecord(species, \"GBIF occurrence download\", \"records.csv\", doi = \"10.15468/dl.abc123\")"
     shown = sprint(show, MIME("text/plain"), r)
@@ -156,7 +156,12 @@ end
     routed = ProvenanceRecord(role = :abundance, source = "GBIF",
                               route = EcoSISTEM.ExtractedByService("10.1/x"),
                               primary = true)
-    @test routed.identifies === :data && isnothing(routed.location)
+    @test routed.identifies === :data && isnothing(routed.location) &&
+          isnothing(routed.catalogue) && isnothing(r.catalogue)
+    marked = ProvenanceRecord(role = :habitat, source = "WorldClim{BioClim}",
+                              catalogue = "EcoSISTEM")
+    @test EcoSISTEM.Provenancer.tomltable(marked)["catalogue"] == "EcoSISTEM" &&
+          !haskey(EcoSISTEM.Provenancer.tomltable(routed), "catalogue")
     @test EcoSISTEM.Provenancer.tomltable(routed)["route"] ==
           "ExtractedByService" &&
           EcoSISTEM.Provenancer.tomltable(routed)["route_identifier"] ==

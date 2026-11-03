@@ -40,7 +40,7 @@ end
     # identifier names, none of which is written but the last two.
     @test r.location == path && r.sidecar == P.sidecarpath(path) &&
           r.route == PublishedByProvider() && r.identifies === :data &&
-          r.namespace == ""
+          isnothing(r.namespace)
     @test r.source == "Bioclimatic envelopes for global plant species" &&
           r.doi == ENVELOPES_DOI
     @test r.primary === true && r.licence == "ogl-uk-3.0" &&
@@ -137,7 +137,7 @@ end
     @test isfile(elsewhere) && !isfile(P.sidecarpath(path))
     @test r.path == "readonly.csv" && r.title == "Chosen rows" &&
           r.code == "rows" &&
-          r.primary === false && r.doi == "" && r.licence == "CC-BY-4.0"
+          r.primary === false && isnothing(r.doi) && r.licence == "CC-BY-4.0"
     @test isnothing(provenance(path)) &&
           provenance(path, sidecar = elsewhere) == r
     @test P.recordat(path, sidecar = elsewhere) == r &&
@@ -202,24 +202,31 @@ end
                    merge!(P.baserecord(held, :region),
                           P.sourceentries(catalogued, PublishedByProvider())))
     @test P.iscatalogued(provenance(held))
-    @test_throws "which the catalogue describes" record_provenance(held,
-                                                                   catalogued,
-                                                                   role = :region)
-    @test_throws "which the catalogue describes" record_provenance(held,
-                                                                   "10.1/x",
-                                                                   role = :region)
+    @test_throws "fetched from the `EcoSISTEM` catalogue" record_provenance(held,
+                                                                            catalogued,
+                                                                            role = :region)
+    @test_throws "fetched from the `EcoSISTEM` catalogue" record_provenance(held,
+                                                                            "10.1/x",
+                                                                            role = :region)
     cut = tablefile(dir, "cut.csv")
     r = record_provenance(cut, catalogued, role = :region,
                           route = SuppliedByUser())
     @test !P.iscatalogued(r) && isnothing(r.fetched) &&
           record_provenance(cut, catalogued, role = :region) == r
-    @test !P.iscatalogued(ProvenanceRecord(role = :habitat,
-                                           source = "WorldClim{BioClim}")) &&
-          P.iscatalogued(ProvenanceRecord(role = :habitat,
-                                          source = "WorldClim{BioClim}",
+    # The mark is the catalogue's name with a fetch time, read from the record alone: a sidecar
+    # from before carries no name, and is not refused.
+    @test r.catalogue == "EcoSISTEM" &&
+          provenance(held).catalogue == "EcoSISTEM"
+    @test !P.iscatalogued(ProvenanceRecord(role = :habitat, source = "x",
+                                           catalogue = "EcoSISTEM")) &&
+          P.iscatalogued(ProvenanceRecord(role = :habitat, source = "x",
+                                          catalogue = "EcoSISTEM",
                                           fetched = "2026-01-01T00:00:00Z")) &&
-          !P.iscatalogued(ProvenanceRecord(role = :habitat, source = "x",
+          !P.iscatalogued(ProvenanceRecord(role = :habitat,
+                                           source = "WorldClim{BioClim}",
                                            fetched = "2026-01-01T00:00:00Z"))
+    @test length(methods(P.iscatalogued)) == 1 &&
+          only(methods(P.iscatalogued)).module === P
     # A record naming its source by a citation key, or by name alone, is compared by that.
     keyed = tablefile(dir, "keyed.csv")
     bykey = SourceFacts(source = "Keyed", key = "keyed", identifies = :data)

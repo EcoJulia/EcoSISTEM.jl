@@ -78,7 +78,8 @@ function record_provenance(path::AbstractString, facts::SourceFacts;
         record = baserecord(path, role)
         merge!(record,
                sourceentries(facts, route,
-                             title = something(title, facts.title),
+                             title = something(title, facts.title,
+                                               Some(nothing)),
                              code = code), _factsentries(facts))
         isnothing(url) || (record["url"] = String(url))
         return record
@@ -423,22 +424,24 @@ function downloadrecord(path::AbstractString, url::AbstractString, response,
     return record
 end
 
-# The fallback is untyped on purpose: the package using this module supplies the method for its
-# records, and a method here with the same signature would be the one it overwrote.
 """
     iscatalogued(record::ProvenanceRecord)
 
 Return whether `record` is of a file the package using this machinery fetched from a catalogue of
 its own, so that the file's facts are the catalogue's and [`record_provenance`](@ref) refuses to
-record it afresh from facts given by hand. `false` unless the package supplies the method that
-asks its catalogue, as EcoSISTEM does for a record with a fetch time whose `source` names one of
-its catalogued datasets.
+record it afresh from facts given by hand: a record with a fetch time whose facts name the
+`catalogue` they came from, as a fetch from a catalogue writes them. A file cut from a catalogued
+source and recorded with its facts names the catalogue without a fetch time, a download of the
+user's own has a fetch time and names no catalogue, and a record written before the catalogue
+was recorded names none, so none of those is.
 
 # Arguments
 
   - `record`: the record beside the file.
 """
-iscatalogued(_) = false
+function iscatalogued(record::ProvenanceRecord)
+    return !isnothing(record.fetched) && !isnothing(record.catalogue)
+end
 
 # Record a file through the data pipeline run `track` names and return its record: what
 # `record_provenance` does for a tracked file, given the facts or the DOI and its keywords. The
@@ -504,8 +507,8 @@ end
 # failing both by name - is another.
 function _otherclaim(record::ProvenanceRecord, source, role::Symbol)
     iscatalogued(record) &&
-        return "as a file of `$(record.source)`, which the catalogue describes and a spec of " *
-               "it reads"
+        return "as a file of `$(record.source)` fetched from the `$(record.catalogue)` " *
+               "catalogue, which a spec of it reads"
     record.role === role ||
         return "under the role `$(record.role)` rather than `$role`"
     _samesource(record, source) ||
@@ -516,12 +519,12 @@ end
 # Whether a record names the source a call gives: the same DOI, in any case; or, where the facts
 # have none, the same citation key; or, where they have neither, the same name.
 function _samesource(record::ProvenanceRecord, doi::AbstractString)
-    return lowercase(record.doi) == lowercase(doi)
+    return !isnothing(record.doi) && lowercase(record.doi) == lowercase(doi)
 end
 
 function _samesource(record::ProvenanceRecord, facts::SourceFacts)
-    isempty(facts.doi) || return _samesource(record, facts.doi)
-    isempty(facts.key) || return record.key == facts.key
+    isnothing(facts.doi) || return _samesource(record, facts.doi)
+    isnothing(facts.key) || return record.key == facts.key
     return record.source == facts.source
 end
 
@@ -529,8 +532,8 @@ end
 _sourcelabel(doi::AbstractString) = "the DOI `$doi`"
 
 function _sourcelabel(x::Union{ProvenanceRecord, SourceFacts})
-    isempty(x.doi) || return _sourcelabel(x.doi)
-    isempty(x.key) || return "the citation `$(x.key)`"
+    isnothing(x.doi) || return _sourcelabel(x.doi)
+    isnothing(x.key) || return "the citation `$(x.key)`"
     return "`$(x.source)`"
 end
 

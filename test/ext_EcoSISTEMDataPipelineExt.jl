@@ -52,7 +52,7 @@ end
     @test EXT._claimdeposit!(Track(Ref(0), "worldclim"), "WorldClim") ==
           "WorldClim:worldclim/deposit"
     # A source with no namespace of its own is registered in the run's default.
-    @test EXT._depositof(Track(Ref(0), "box"), "") == "box/deposit"
+    @test EXT._depositof(Track(Ref(0), "box"), nothing) == "box/deposit"
 end
 
 @testset "a tracked spec's source is its catalogue row's" begin

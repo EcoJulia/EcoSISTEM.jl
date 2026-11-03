@@ -5,17 +5,19 @@
 # metadata a DOI resolves to, or from the user's own hand.
 
 """
-    SourceFacts(; source, doi = "", url = "", title = "", publisher = "", authors = [],
-                identifiers = Dict(), releasedate = "", version = "", description = "",
-                licence = "", identifies = :other, citation = "", references = [],
-                notices = [], requestpage = "", key = "", namespace = "")
+    SourceFacts(; source, doi = nothing, url = nothing, title = nothing, publisher = nothing,
+                authors = [], identifiers = Dict(), releasedate = nothing, version = nothing,
+                description = nothing, licence = nothing, identifies = :other,
+                citation = nothing, references = [], notices = [], requestpage = nothing,
+                key = nothing, namespace = nothing, catalogue = nothing)
     SourceFacts(facts::SourceFacts; kw...)
     SourceFacts(record::ProvenanceRecord)
 
 What is known of the source a file comes from, from which the file's provenance record and its
 registration with a data pipeline are written: the facts a catalogue row holds of a dataset, the
 facts the metadata of a DOI gives ([`lookup_doi`](@ref)), or facts the user writes for a source
-that has neither. Blank text and empty lists mean unknown throughout. The second form is `facts`
+that has neither. `nothing` and an empty list mean unknown throughout, and blank text given for a
+field is taken as `nothing`. The second form is `facts`
 with the fields named by keyword replaced and every other as it was: a looked-up source's facts
 with the citation its provider asks for, or the works it asks to be cited, written in. The third
 is what a file's [`ProvenanceRecord`](@ref) keeps of its source, so that the file can be
@@ -51,49 +53,63 @@ registered from its record alone.
   - `key`: the key its citation is filed under where it has no DOI, for a registry that takes a
     citation by key.
   - `namespace`: the data pipeline namespace its files are registered in - ASCII letters, digits,
-    `_` and `-` - or blank for the namespace a run gives as its default.
+    `_` and `-` - or `nothing` for the namespace a run gives as its default.
+  - `catalogue`: the name of the catalogue the facts were read from - a package's, in the same
+    characters - or `nothing` for facts looked up or written by hand. A record written from them
+    carries it, which is how a file the package fetched from its catalogue is told from a file of
+    the user's own ([`iscatalogued`](@ref Provenancer.iscatalogued)).
 """
 struct SourceFacts
     source::String
-    doi::String
-    url::String
-    title::String
-    publisher::String
+    doi::Union{Nothing, String}
+    url::Union{Nothing, String}
+    title::Union{Nothing, String}
+    publisher::Union{Nothing, String}
     authors::Vector{String}
     identifiers::Dict{String, String}
-    releasedate::String
-    version::String
-    description::String
-    licence::String
+    releasedate::Union{Nothing, String}
+    version::Union{Nothing, String}
+    description::Union{Nothing, String}
+    licence::Union{Nothing, String}
     identifies::Symbol
-    citation::String
+    citation::Union{Nothing, String}
     references::Vector{@NamedTuple{doi::String, text::String}}
     notices::Vector{@NamedTuple{strength::Symbol, text::String}}
-    requestpage::String
-    key::String
-    namespace::String
+    requestpage::Union{Nothing, String}
+    key::Union{Nothing, String}
+    namespace::Union{Nothing, String}
+    catalogue::Union{Nothing, String}
 
-    function SourceFacts(; source::AbstractString, doi = "", url = "",
-                         title = "", publisher = "", authors = String[],
-                         identifiers = Dict{String, String}(), releasedate = "",
-                         version = "", description = "", licence = "",
-                         identifies::Symbol = :other, citation = "",
-                         references = [], notices = [], requestpage = "",
-                         key = "", namespace = "")
+    function SourceFacts(; source::AbstractString, doi = nothing, url = nothing,
+                         title = nothing, publisher = nothing,
+                         authors = String[],
+                         identifiers = Dict{String, String}(),
+                         releasedate = nothing, version = nothing,
+                         description = nothing, licence = nothing,
+                         identifies::Symbol = :other, citation = nothing,
+                         references = [], notices = [], requestpage = nothing,
+                         key = nothing, namespace = nothing,
+                         catalogue = nothing)
         identifies in IDENTIFIES ||
             throw(ArgumentError("`identifies` must be one of $(join(IDENTIFIES, ", ")); got " *
                                 "`$identifies`."))
-        occursin(r"^[A-Za-z0-9_-]*$", namespace) ||
+        ns, cat = _opttext(namespace), _opttext(catalogue)
+        isnothing(ns) || occursin(r"^[A-Za-z0-9_-]+$", ns) ||
             throw(ArgumentError("`namespace` names a data pipeline namespace, in ASCII letters, " *
-                                "digits, `_` and `-`; got `$namespace`."))
-        return new(String(source), String(doi), String(url), String(title),
-                   String(publisher), String[string(a) for a in authors],
+                                "digits, `_` and `-`; got `$ns`."))
+        isnothing(cat) || occursin(r"^[A-Za-z0-9_-]+$", cat) ||
+            throw(ArgumentError("`catalogue` names the catalogue the facts came from, in ASCII " *
+                                "letters, digits, `_` and `-`; got `$cat`."))
+        return new(String(source), _opttext(doi), _opttext(url),
+                   _opttext(title), _opttext(publisher),
+                   String[string(a) for a in authors],
                    Dict{String, String}(string(k) => string(v)
                                         for (k, v) in identifiers),
-                   String(releasedate), String(version), String(description),
-                   String(licence), identifies, String(citation),
-                   _references(references), _notices(notices),
-                   String(requestpage), String(key), String(namespace))
+                   _opttext(releasedate), _opttext(version),
+                   _opttext(description), _opttext(licence), identifies,
+                   _opttext(citation), _references(references),
+                   _notices(notices), _opttext(requestpage), _opttext(key), ns,
+                   cat)
     end
 end
 
@@ -108,14 +124,15 @@ end
 # `_factsentries` kept.
 function SourceFacts(record::ProvenanceRecord)
     return SourceFacts(source = record.source, doi = record.doi,
-                       url = something(record.url, ""), title = record.title,
+                       url = record.url, title = record.title,
                        releasedate = record.releasedate,
                        version = record.version, licence = record.licence,
                        identifies = record.identifies,
                        citation = record.citation,
                        references = record.references, notices = record.notices,
                        requestpage = record.requestpage, key = record.key,
-                       namespace = record.namespace)
+                       namespace = record.namespace,
+                       catalogue = record.catalogue)
 end
 
 # Value equality and hashing: the authors, identifiers, references and notices are containers,
@@ -134,20 +151,20 @@ end
 
 function Base.show(io::IO, f::SourceFacts)
     print(io, "SourceFacts(", repr(f.source))
-    isempty(f.doi) || print(io, ", doi ", f.doi)
+    isnothing(f.doi) || print(io, ", doi ", f.doi)
     return print(io, ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", f::SourceFacts)
     println(io, "SourceFacts ", repr(f.source), " (", f.identifies, ")")
     for name in (:title, :doi, :url, :publisher, :releasedate, :version,
-        :licence, :citation, :key)
+        :licence, :citation, :key, :namespace, :catalogue)
         value = getfield(f, name)
-        isempty(value) || println(io, "  ", rpad(string(name), 12), value)
+        isnothing(value) || println(io, "  ", rpad(string(name), 12), value)
     end
     isempty(f.authors) ||
         println(io, "  ", rpad("authors", 12), join(f.authors, "; "))
-    isempty(f.description) ||
+    isnothing(f.description) ||
         println(io, "  ", rpad("description", 12),
                 length(f.description) > 70 ?
                 first(f.description, 67) * "..." : f.description)
@@ -198,7 +215,8 @@ isprimary(::SourceFacts, ::AbstractFileRoute) = false
 
 Return what a file's provenance record carries of its source, as a dictionary of the sidecar's
 keys, to be merged into the record of the file itself: the `source`, the file's `title`, the
-`route` it came by, with the identifier a service gave it where it gave one, whether it is
+`route` it came by, with the identifier a service gave it where it gave one, the `catalogue` the
+facts came from where they came from one, whether it is
 `primary` for that route ([`isprimary`](@ref Provenancer.isprimary)), and the DOI, licence,
 version, release date, citation, references, notices and request page where known, each under
 the key the sidecar uses. The citation is composed from the authors, date, title,
@@ -214,16 +232,17 @@ one from.
   - `code`: which layer of the source the file holds, where it is one.
 """
 function sourceentries(facts::SourceFacts, route::AbstractFileRoute;
-                       title::AbstractString = facts.title, code = nothing)
+                       title::Union{Nothing, AbstractString} = facts.title,
+                       code = nothing)
     record = Dict{String, Any}("source" => facts.source,
-                               "title" => String(title),
                                "primary" => isprimary(facts, route))
     merge!(record, _routeentries(route))
-    for (key, value) in (("doi", facts.doi), ("licence", facts.licence),
+    for (key, value) in (("title", title), ("catalogue", facts.catalogue),
+        ("doi", facts.doi), ("licence", facts.licence),
         ("version", facts.version), ("release_date", facts.releasedate),
         ("citation", _citationtext(facts)),
         ("request_page", facts.requestpage))
-        isempty(value) || (record[key] = value)
+        isnothing(value) || (record[key] = String(value))
     end
     isempty(facts.references) ||
         (record["references"] = [Dict("doi" => r.doi, "text" => r.text)
@@ -240,15 +259,16 @@ end
 # dataset - authors, year, title with its version, publisher, DOI - where there is a DOI and there
 # are authors to compose it from, else none.
 function _citationtext(facts::SourceFacts)
-    isempty(facts.citation) || return facts.citation
-    (isempty(facts.doi) || isempty(facts.authors)) && return ""
-    year = length(facts.releasedate) >= 4 ?
+    isnothing(facts.citation) || return facts.citation
+    (isnothing(facts.doi) || isempty(facts.authors)) && return nothing
+    year = !isnothing(facts.releasedate) && length(facts.releasedate) >= 4 ?
            " (" * first(facts.releasedate, 4) * ")" : ""
-    title = isempty(facts.title) ? "" :
+    title = isnothing(facts.title) ? "" :
             " " * facts.title *
-            (isempty(facts.version) ? "" : " (version " * facts.version * ")") *
+            (isnothing(facts.version) ? "" :
+             " (version " * facts.version * ")") *
             "."
-    publisher = isempty(facts.publisher) ? "" : " " * facts.publisher * "."
+    publisher = isnothing(facts.publisher) ? "" : " " * facts.publisher * "."
     return join(facts.authors, ", ") * year * "." * title * publisher *
            " https://doi.org/" * facts.doi
 end
@@ -258,8 +278,8 @@ end
 # where there is no DOI, and the namespace, each only where it says something.
 function _factsentries(facts::SourceFacts)
     record = Dict{String, Any}("identifies" => string(facts.identifies))
-    isempty(facts.key) || (record["key"] = facts.key)
-    isempty(facts.namespace) || (record["namespace"] = facts.namespace)
+    isnothing(facts.key) || (record["key"] = facts.key)
+    isnothing(facts.namespace) || (record["namespace"] = facts.namespace)
     return record
 end
 

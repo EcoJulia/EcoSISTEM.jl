@@ -122,7 +122,7 @@ end
     @test r.path == "fixture.bin" && r.url == site.url
     @test r.bytes == 10_000 && r.sha256 == E.Provenancer._filesha256(dest)
     @test !isnothing(r.fetched) && r.doi == "10.1002/qj.3598" &&
-          !isempty(r.citation)
+          !isnothing(r.citation)
     text = read(sidecar, String)
     @test occursin("etag = \"\\\"fixture-etag\\\"\"", text) ||
           occursin("fixture-etag", text)

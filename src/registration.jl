@@ -180,7 +180,7 @@ _fileversioned(rec::DatasetRecord) = rec.format === :Shapefile
 function _registereddate(r::ProvenanceRecord, fileversioned::Bool,
                          stamp::Union{Nothing, Dates.Date})
     isnothing(stamp) || return string(stamp)
-    isempty(r.releasedate) || return r.releasedate
+    isnothing(r.releasedate) || return r.releasedate
     if fileversioned
         day = something(r.modified, r.fetched, Some(nothing))
         isnothing(day) || return string(Dates.Date(day))
@@ -196,7 +196,7 @@ end
 # Whether a file's registration needs a date its record does not hold: one stating its own version,
 # whose provider's time was not recorded when it was fetched.
 function _needsdate(r::ProvenanceRecord, fileversioned::Bool)
-    return isempty(r.releasedate) && fileversioned && isnothing(r.modified)
+    return isnothing(r.releasedate) && fileversioned && isnothing(r.modified)
 end
 
 function _needsdate(r::ProvenanceRecord, rec::DatasetRecord)
@@ -206,10 +206,11 @@ end
 # How a source is named to the registry: by its DOI, or, for one identified by its web page, by
 # the key of its citation - a catalogue row's request name, under which `citations.bib` has it.
 function _sourcename(facts::SourceFacts)
-    return isempty(facts.doi) ? (bibtex = facts.key,) : (doi = facts.doi,)
+    return isnothing(facts.doi) ? (bibtex = facts.key,) : (doi = facts.doi,)
 end
 
-# Text or `nothing` where it is blank, as the registration keywords take an absent fact.
+# Text or `nothing` where it is blank, as the registration keywords take an absent fact and a
+# catalogue row writes one.
 _ornothing(s::AbstractString) = isempty(s) ? nothing : String(s)
 
 _ornothing(::Nothing) = nothing
@@ -229,11 +230,10 @@ function _sourcekeywords(r::ProvenanceRecord, facts::SourceFacts,
                          version::AbstractString,
                          date::Union{Nothing, AbstractString})
     description = route isa ExtractedByService ? _extractdescription(r) :
-                  _ornothing(r.requestpage)
+                  r.requestpage
     return (; _sourcename(facts)..., title = r.title,
             primary = something(r.primary, false),
-            licence = _ornothing(something(_ornothing(r.licence),
-                                           facts.licence)),
+            licence = something(r.licence, facts.licence, Some(nothing)),
             release_version = String(version), release_date = date,
             description = description)
 end
@@ -248,7 +248,7 @@ function _extractdescription(r::ProvenanceRecord)
                         for k in sort!(collect(keys(r.request)))), ", ")
         "An extract of $(r.source) made to the request $request."
     end
-    return isempty(r.requestpage) ? text :
+    return isnothing(r.requestpage) ? text :
            text * " What its provider asks: " * r.requestpage
 end
 
@@ -261,11 +261,11 @@ _depositkeywords(rec::DatasetRecord) = _depositkeywords(SourceFacts(rec))
 function _depositkeywords(facts::SourceFacts)
     return (; _sourcename(facts)..., title = facts.title,
             primary = facts.identifies === :data,
-            licence = _ornothing(facts.licence),
-            release_version = isempty(facts.version) ? nothing :
+            licence = facts.licence,
+            release_version = isnothing(facts.version) ? nothing :
                               Provenancer._fullversion(facts.version),
-            release_date = _ornothing(facts.releasedate),
-            description = _ornothing(facts.requestpage))
+            release_date = facts.releasedate,
+            description = facts.requestpage)
 end
 
 # Whether a track says which release a spec's files come from, which only files the user gives

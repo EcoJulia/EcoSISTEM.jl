@@ -54,7 +54,7 @@ const P = EcoSISTEM.Provenancer
     g = URLFile(url, joinpath(dir, "cache", "plain.csv"))
     P.fetchfile(g, role = :habitat)
     r3 = provenance(g.path)
-    @test r3.source == "file" && r3.doi == "" && isnothing(r3.primary) &&
+    @test r3.source == "file" && isnothing(r3.doi) && isnothing(r3.primary) &&
           r3.url == url &&
           r3.role === :habitat
     @test string(g) == "URLFile($(repr(url)), $(repr(g.path)))"

@@ -43,14 +43,14 @@ end
 
 # The deposit a tracked file is derived from, named in its source's namespace, or in the run's
 # default input namespace for a source naming none.
-function _depositof(track, namespace::AbstractString)
+function _depositof(track, namespace::Union{Nothing, AbstractString})
     name = Provenancer._depositname(track)
-    return isempty(namespace) ? name : namespace * ":" * name
+    return isnothing(namespace) ? name : namespace * ":" * name
 end
 
 # Claim a fetch run for one deposit, refusing a second: every output of a run is derived from every
 # input, so a second source's deposit would be shown as what the first's files came from.
-function _claimdeposit!(track, namespace::AbstractString)
+function _claimdeposit!(track, namespace::Union{Nothing, AbstractString})
     deposit = _depositof(track, namespace)
     claimed = get!(_DEPOSIT, track.handle, deposit)
     claimed == deposit ||
@@ -164,7 +164,8 @@ end
 
 # Refuse, before anything is fetched, a fetch run whose working config does not write what it would
 # register for these files, writing out the entries to add.
-function _checkwritable(track, namespace::AbstractString, items)
+function _checkwritable(track, namespace::Union{Nothing, AbstractString},
+                        items)
     lacking = filter(i -> !_writable(track, i.path), items)
     isempty(lacking) && return nothing
     return error("This run's working config does not write what fetching " *
@@ -281,7 +282,8 @@ end
 # Put one file and its record in place from the run's store, refusing a different file in the way
 # rather than replacing it, and replacing a record of ours, whose file has matched. `namespace` is
 # the source's, for the config entry a run that cannot read them is told to add.
-function _providefile!(track, namespace::AbstractString, path, sidecar)
+function _providefile!(track, namespace::Union{Nothing, AbstractString}, path,
+                       sidecar)
     handle = track.handle
     name = Provenancer._dataname(track, path)
     sidecarname = Provenancer._sidecarname(track, path)
@@ -318,7 +320,7 @@ end
 function EcoSISTEM._trackedprovide!(track::Track{<:DataRegistryHandle}, spec,
                                     paths)
     rec = EcoSISTEM._catalogued(spec)
-    namespace = isnothing(rec) ? "" : rec.namespace
+    namespace = isnothing(rec) ? nothing : EcoSISTEM._ornothing(rec.namespace)
     for path in paths
         key = "provided:" * path
         _isdone(track.handle, key) && continue
@@ -365,7 +367,7 @@ function _missingreason(track, src, item)
         e isa ConfigFileException || rethrow()
         nothing
     end
-    namespace = isnothing(src) ? "" : src.facts.namespace
+    namespace = isnothing(src) ? nothing : src.facts.namespace
     return Provenancer._modelreason(registered, track, namespace)
 end
 
@@ -419,12 +421,12 @@ function Provenancer._trackedrecord(track::Track{<:DataRegistryHandle}, path,
     if _readable(track, path)
         key = "provided:" * path
         if !_isdone(handle, key)
-            _providefile!(track, "", path, sidecar)
+            _providefile!(track, nothing, path, sidecar)
             _markdone!(handle, key)
         end
         return Provenancer.recordat(path, sidecar = sidecar)
     end
-    namespace = source isa SourceFacts ? source.namespace : ""
+    namespace = source isa SourceFacts ? source.namespace : nothing
     return error("This run's working config neither writes nor reads " *
                  "`$(Provenancer._dataname(track, path))` and its provenance record. A fetch " *
                  "run, which records and registers the file, needs:\n" *

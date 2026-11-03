@@ -996,9 +996,10 @@ end
 # `layer` is the layer the file is, where it is one.
 function _withcatalogue(record::ProvenanceRecord, rec::DatasetRecord,
                         path::AbstractString; layer = nothing)
-    orrow(have, row) = isempty(have) ? row : have
-    version = isempty(record.version) ?
-              something(_fileversion(rec, path), rec.version) : record.version
+    orrow(have, row) = something(have, _ornothing(row), Some(nothing))
+    version = isnothing(record.version) ?
+              something(_fileversion(rec, path), _ornothing(rec.version),
+                        Some(nothing)) : record.version
     return ProvenanceRecord(role = record.role,
                             source = record.source == "file" ? rec.dataset :
                                      record.source,
@@ -1026,7 +1027,8 @@ function _withcatalogue(record::ProvenanceRecord, rec::DatasetRecord,
                             modified = record.modified,
                             history = record.history,
                             identifies = record.identifies, key = record.key,
-                            namespace = record.namespace, route = record.route,
+                            namespace = record.namespace,
+                            catalogue = record.catalogue, route = record.route,
                             location = record.location,
                             sidecar = record.sidecar)
 end

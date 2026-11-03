@@ -5,10 +5,12 @@
 """
     ProvenanceRecord(; role, source, code = nothing, path = nothing, url = nothing,
                      request = nothing, region = nothing, job = nothing, fetched = nothing,
-                     bytes = nothing, sha256 = nothing, doi = "", licence = "", version = "",
-                     citation = "", title = "", primary = nothing, releasedate = "",
-                     references = [], notices = [], requestpage = "", modified = nothing,
-                     history = nothing, identifies = nothing, key = "", namespace = "",
+                     bytes = nothing, sha256 = nothing, doi = nothing, licence = nothing,
+                     version = nothing, citation = nothing, title = nothing, primary = nothing,
+                     releasedate = nothing, references = [], notices = [],
+                     requestpage = nothing, modified = nothing, history = nothing,
+                     identifies = nothing, key = nothing, namespace = nothing,
+                     catalogue = nothing,
                      route = nothing, location = nothing, sidecar = nothing)
 
 The provenance of one file: a file the package fetched, a dataset the user handed it that it never
@@ -37,15 +39,16 @@ references written from the list. [`provenance`](@ref) reads the records the fet
   - `fetched`: when it was fetched, in UTC.
   - `bytes`, `sha256`: the file's size and checksum at fetch, which is what tells a truncated or
     replaced copy from the original.
-  - `doi`, `licence`, `version`, `citation`: the source's own, blank where unknown; `citation` is
-    the text a paper prints.
+  - `doi`, `licence`, `version`, `citation`: the source's own, `nothing` where unknown, as every
+    text field is, and blank text given is taken as `nothing`; `citation` is the text a paper
+    prints.
   - `title`: the file's own title, the release's with the layer and whatever else tells the file
-    apart from its siblings, blank where unknown.
+    apart from its siblings, `nothing` where unknown.
   - `primary`: whether the file is the cited item or one of its files, so that the same bytes can
     be fetched again (`true`) - a file fetched as published from a source whose identifier names
     the data - or not (`false`): a file of a source cited by its paper, an extract a service cut to
     a request, a file the user gave; `nothing` where unknown.
-  - `releasedate`: when the release was published, as ISO 8601 text, blank where unknown.
+  - `releasedate`: when the release was published, as ISO 8601 text, `nothing` where unknown.
   - `modified`: when the provider last changed the file, as its server said, in UTC; `nothing`
     where unknown.
   - `history`: the file's own global `history` attribute where the fetch replaced it - a netCDF
@@ -60,9 +63,12 @@ references written from the list. [`provenance`](@ref) reads the records the fet
   - `identifies`: what the source's identifier names - `:data`, `:paper` or `:other`, the values
     of [`IDENTIFIES`](@ref Provenancer.IDENTIFIES) - and `key`, the key of the citation naming a
     source with no DOI, and `namespace`, the data pipeline namespace its files are registered in,
-    blank where unknown: what a registration needs of the source beyond its entries. Where
+    `nothing` where unknown: what a registration needs of the source beyond its entries. Where
     `identifies` is not given, a file called `primary` identifies the data and any other is
     `:other`.
+  - `catalogue`: the name of the catalogue the file's facts came from, `nothing` for none: with a
+    fetch time, the mark of a file the package fetched from its catalogue
+    ([`iscatalogued`](@ref Provenancer.iscatalogued)).
   - `route`: how the file came to be, an [`AbstractFileRoute`](@ref Provenancer.AbstractFileRoute),
     or `nothing` for a record written before routes were recorded.
   - `location`: the file's path as it was when the record was read, and `sidecar`, the path the
@@ -80,22 +86,23 @@ struct ProvenanceRecord
     fetched::Union{Nothing, Dates.DateTime}
     bytes::Union{Nothing, Int}
     sha256::Union{Nothing, String}
-    doi::String
-    licence::String
-    version::String
-    citation::String
+    doi::Union{Nothing, String}
+    licence::Union{Nothing, String}
+    version::Union{Nothing, String}
+    citation::Union{Nothing, String}
     region::Union{Nothing, String}
-    title::String
+    title::Union{Nothing, String}
     primary::Union{Nothing, Bool}
-    releasedate::String
+    releasedate::Union{Nothing, String}
     references::Vector{@NamedTuple{doi::String, text::String}}
     notices::Vector{@NamedTuple{strength::Symbol, text::String}}
-    requestpage::String
+    requestpage::Union{Nothing, String}
     modified::Union{Nothing, Dates.DateTime}
     history::Union{Nothing, String}
     identifies::Symbol
-    key::String
-    namespace::String
+    key::Union{Nothing, String}
+    namespace::Union{Nothing, String}
+    catalogue::Union{Nothing, String}
     route::Union{Nothing, AbstractFileRoute}
     location::Union{Nothing, String}
     sidecar::Union{Nothing, String}
@@ -104,14 +111,17 @@ struct ProvenanceRecord
                               code = nothing, path = nothing, url = nothing,
                               request = nothing, region = nothing,
                               job = nothing, fetched = nothing, bytes = nothing,
-                              sha256 = nothing, doi = "", licence = "",
-                              version = "", citation = "", title = "",
+                              sha256 = nothing, doi = nothing,
+                              licence = nothing,
+                              version = nothing, citation = nothing,
+                              title = nothing,
                               primary::Union{Nothing, Bool} = nothing,
-                              releasedate = "", references = [], notices = [],
-                              requestpage = "", modified = nothing,
-                              history = nothing,
+                              releasedate = nothing, references = [],
+                              notices = [], requestpage = nothing,
+                              modified = nothing, history = nothing,
                               identifies::Union{Nothing, Symbol} = nothing,
-                              key = "", namespace = "",
+                              key = nothing, namespace = nothing,
+                              catalogue = nothing,
                               route::Union{Nothing, AbstractFileRoute} = nothing,
                               location = nothing, sidecar = nothing)
         isnothing(path) || !isabspath(path) ||
@@ -128,12 +138,14 @@ struct ProvenanceRecord
                    Dict{String, Any}(string(k) => v for (k, v) in request),
                    _optstring(job), _optdate(fetched),
                    isnothing(bytes) ? nothing : Int(bytes), _optstring(sha256),
-                   String(doi), String(licence), String(version),
-                   String(citation), _optstring(region), String(title), primary,
-                   String(releasedate), _references(references),
-                   _notices(notices), String(requestpage), _optdate(modified),
-                   _optstring(history), names, String(key), String(namespace),
-                   route, _optstring(location), _optstring(sidecar))
+                   _opttext(doi), _opttext(licence), _opttext(version),
+                   _opttext(citation), _optstring(region), _opttext(title),
+                   primary, _opttext(releasedate), _references(references),
+                   _notices(notices), _opttext(requestpage), _optdate(modified),
+                   _optstring(history), names, _opttext(key),
+                   _opttext(namespace),
+                   _opttext(catalogue), route, _optstring(location),
+                   _optstring(sidecar))
     end
 end
 
@@ -159,7 +171,7 @@ function Base.show(io::IO, r::ProvenanceRecord)
     print(io, "ProvenanceRecord(", r.role, ", ", repr(r.source))
     isnothing(r.code) || print(io, ", ", repr(r.code))
     isnothing(r.path) || print(io, ", ", repr(r.path))
-    isempty(r.doi) || print(io, ", doi = ", repr(r.doi))
+    isnothing(r.doi) || print(io, ", doi = ", repr(r.doi))
     return print(io, ")")
 end
 
@@ -172,8 +184,8 @@ function Base.show(io::IO, ::MIME"text/plain", r::ProvenanceRecord)
         ("bytes", r.bytes), ("sha256", r.sha256), ("primary", r.primary),
         ("doi", r.doi), ("licence", r.licence), ("version", r.version),
         ("released", r.releasedate), ("modified", r.modified),
-        ("namespace", r.namespace),
-        ("citation", isempty(r.references) ? r.citation : ""))
+        ("namespace", r.namespace), ("catalogue", r.catalogue),
+        ("citation", isempty(r.references) ? r.citation : nothing))
         (isnothing(value) || (value isa AbstractString && isempty(value))) &&
             continue
         println(io, "  ", rpad(label, 9), value)
@@ -292,23 +304,21 @@ function _recordfromtoml(t::AbstractDict; location, sidecar)
                             request = field("request"), job = field("job"),
                             fetched = field("fetched"), bytes = field("bytes"),
                             sha256 = field("sha256"),
-                            doi = something(field("doi"), ""),
-                            licence = something(field("licence"), ""),
-                            version = something(field("version"), ""),
-                            citation = something(field("citation"), ""),
-                            region = field("region"),
-                            title = something(field("title"), ""),
+                            doi = field("doi"), licence = field("licence"),
+                            version = field("version"),
+                            citation = field("citation"),
+                            region = field("region"), title = field("title"),
                             primary = field("primary"),
-                            releasedate = something(field("release_date"), ""),
+                            releasedate = field("release_date"),
                             references = something(field("references"), []),
                             notices = something(field("notices"), []),
-                            requestpage = something(field("request_page"), ""),
+                            requestpage = field("request_page"),
                             modified = field("modified"),
                             history = field("history"),
                             identifies = isnothing(identifies) ? nothing :
                                          Symbol(identifies),
-                            key = something(field("key"), ""),
-                            namespace = something(field("namespace"), ""),
+                            key = field("key"), namespace = field("namespace"),
+                            catalogue = field("catalogue"),
                             route = _routefrom(field("route"),
                                                field("route_identifier")),
                             location = location, sidecar = sidecar)
@@ -316,6 +326,14 @@ end
 
 # An optional text field, `nothing` kept, anything else as a `String`.
 _optstring(x) = isnothing(x) ? nothing : string(x)
+
+# An optional text field whose blank is unknown too: `nothing` kept, blank text made `nothing`,
+# anything else as a `String`.
+function _opttext(x)
+    isnothing(x) && return nothing
+    s = string(x)
+    return isempty(s) ? nothing : s
+end
 
 # An optional time field: a `DateTime` as it is, ISO 8601 text with or without its `Z` parsed.
 _optdate(::Nothing) = nothing
@@ -369,13 +387,13 @@ end
 # record with no references but a citation of its own cites that.
 function _requestlines(r::ProvenanceRecord)
     cites = isempty(r.references) ?
-            (isempty(r.citation) ? String[] : [r.citation]) :
+            (isnothing(r.citation) ? String[] : [r.citation]) :
             [_fillplaceholders(ref.text, r.fetched) for ref in r.references]
     lines = ["cite    " * c for c in cites]
     append!(lines,
             ["notice  ($(n.strength)) " * _fillplaceholders(n.text, r.fetched)
              for n in r.notices])
-    isempty(r.requestpage) || push!(lines, "asks    " * r.requestpage)
+    isnothing(r.requestpage) || push!(lines, "asks    " * r.requestpage)
     return lines
 end
 
