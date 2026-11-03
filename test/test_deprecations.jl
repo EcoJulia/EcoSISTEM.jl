@@ -8,8 +8,18 @@ using Test
 using Unitful
 
 # Coverage for `src/deprecations.jl` and the dataset-typed shims in the RasterDataSources
-# extension, which hold none at present. A shim is checked on both halves: it warns
-# (`@test_deprecated`) and its result matches the current API it forwards to.
+# extension, which holds none at present. A shim is checked on both halves: it warns
+# (`@test_deprecated` for a method; a deprecated binding's warning is the runtime's, printed to
+# stderr once, so `@test_warn` on its first use) and its result matches the current API it
+# forwards to.
+
+@testset "InputRecord is ProvenanceRecord" begin
+    @test Base.isdeprecated(EcoSISTEM, :InputRecord)
+    @test (@test_warn "deprecated" EcoSISTEM.InputRecord) ===
+          EcoSISTEM.ProvenanceRecord
+    @test Base.ispublic(EcoSISTEM, :InputRecord) &&
+          !Base.isexported(EcoSISTEM, :InputRecord)
+end
 
 # Shims removed at a breaking release must leave nothing behind: a stale `export` or `public` of a
 # deleted binding is only a precompile warning, and a method left on a function that stays is

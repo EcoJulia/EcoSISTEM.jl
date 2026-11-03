@@ -5,23 +5,39 @@
 # file the user has from what is known of its source.
 
 """
-    record_input(path::AbstractString, facts::SourceFacts; role, route = PublishedByProvider(),
-                 url = nothing, title = nothing, code = nothing, sidecar = sidecarpath(path))
-    record_input(path::AbstractString, doi::AbstractString; role, route = PublishedByProvider(),
-                 url = nothing, title = nothing, code = nothing, sidecar = sidecarpath(path))
+    record_provenance(path::AbstractString, facts::SourceFacts; role,
+                      route = PublishedByProvider(), url = nothing, title = nothing,
+                      code = nothing, sidecar = sidecarpath(path), track = nothing)
+    record_provenance(path::AbstractString, doi::AbstractString; role,
+                      route = PublishedByProvider(), url = nothing, title = nothing,
+                      code = nothing, sidecar = sidecarpath(path), track = nothing)
 
-Record where the file at `path` came from, once, and return its [`InputRecord`](@ref): the
-provenance sidecar is written beside the file as `<file>.provenance.toml`, or at `sidecar`, from
-what the file itself says - its name, size and checksum, under `role` - and what `facts` say of
-its source ([`sourceentries`](@ref Provenancer.sourceentries)); given a DOI, the facts are what
-its metadata gives ([`lookup_doi`](@ref)). A file recorded already is left as it is and its record
-returned, with nothing looked up, so a call repeated on every run costs a read; delete the sidecar
-to record the file afresh. A sidecar another program wrote under that name is neither read nor
-overwritten: name another place with `sidecar`.
+Record where the file at `path` came from, once, and return its [`ProvenanceRecord`](@ref), which
+says where the file and its record are: the provenance sidecar is written beside the file as
+`<file>.provenance.toml`, or at `sidecar`, from what the file itself says - its name, size and
+checksum, under `role` - and what `facts` say of its source
+([`sourceentries`](@ref Provenancer.sourceentries)); given a DOI, the facts are what its metadata
+gives ([`lookup_doi`](@ref)). A file recorded already from the same source under the same role is
+left as it is and its record returned, with nothing looked up - a DOI given is compared with the
+record's - so a call repeated on every run costs a read. A record saying otherwise is refused: one
+of a file this machinery fetched, whose provenance it knows, or one naming another source or
+another role; delete the sidecar to record the file afresh. A sidecar another program wrote under
+that name is neither read nor overwritten: name another place with `sidecar`.
 
 No fetch time is recorded, since this call fetched nothing: a file fetched by
 [`fetchfile`](@ref Provenancer.fetchfile) carries one. Offline, a DOI cannot be looked up, and the
 error says so: write the facts by hand as [`SourceFacts`](@ref) and give those.
+
+Given a `track` naming a FAIR data pipeline run, the call does that run's work for the file
+before your own code reads it, and the run's working config says which work that is. A fetch run,
+whose config writes the file's provenance record, records the file as above and registers it with
+the run: its source's deposit, named by the facts' DOI or citation key in their namespace, as the
+run's input, and the file and its record as outputs derived from it, under the names
+[`Track`](@ref) gives them. A model run, whose config reads the record, puts the run's copy of the
+file and its record in place at `path` and `sidecar` from the run's store, where your code then
+reads them. A track with no handle tracks nothing, so one script runs with the pipeline or
+without it. The facts must name the source, by a DOI or a citation key, for the file to be
+registered with it.
 
 # Arguments
 
@@ -40,33 +56,46 @@ error says so: write the facts by hand as [`SourceFacts`](@ref) and give those.
   - `sidecar`: where the record is written, the file's `.provenance.toml` beside it by default;
     somewhere else for a file in a place that cannot be written to. [`provenance`](@ref) takes
     the same to read it back.
+  - `track`: a [`Track`](@ref) naming the data pipeline run the file goes through and the root of
+    its data product names, or `nothing`, the default, for none.
 """
-function record_input(path::AbstractString, facts::SourceFacts; role::Symbol,
-                      route::AbstractFileRoute = PublishedByProvider(),
-                      url::Union{Nothing, AbstractString} = nothing,
-                      title::Union{Nothing, AbstractString} = nothing,
-                      code = nothing,
-                      sidecar::AbstractString = sidecarpath(path))
-    recorded = _priorrecord(path, sidecar)
+function record_provenance(path::AbstractString, facts::SourceFacts;
+                           role::Symbol,
+                           route::AbstractFileRoute = PublishedByProvider(),
+                           url::Union{Nothing, AbstractString} = nothing,
+                           title::Union{Nothing, AbstractString} = nothing,
+                           code = nothing,
+                           sidecar::AbstractString = sidecarpath(path),
+                           track::Union{Nothing, Track} = nothing)
+    _istracked(track) &&
+        return _trackedrecord(track, path, facts, role = role, route = route,
+                              url = url, title = title, code = code,
+                              sidecar = sidecar)
+    recorded = _priorrecord(path, sidecar, facts, role)
     isnothing(recorded) || return recorded
     recordpresent(path, sidecar = sidecar) do
         record = baserecord(path, role)
         merge!(record,
                sourceentries(facts, route,
                              title = something(title, facts.title),
-                             code = code))
+                             code = code), _factsentries(facts))
         isnothing(url) || (record["url"] = String(url))
         return record
     end
     return recordat(path, sidecar = sidecar)
 end
 
-function record_input(path::AbstractString, doi::AbstractString; role::Symbol,
-                      sidecar::AbstractString = sidecarpath(path), kw...)
-    recorded = _priorrecord(path, sidecar)
+function record_provenance(path::AbstractString, doi::AbstractString;
+                           role::Symbol,
+                           sidecar::AbstractString = sidecarpath(path),
+                           track::Union{Nothing, Track} = nothing, kw...)
+    _istracked(track) &&
+        return _trackedrecord(track, path, doi; role = role, sidecar = sidecar,
+                              kw...)
+    recorded = _priorrecord(path, sidecar, doi, role)
     isnothing(recorded) || return recorded
-    return record_input(path, lookup_doi(doi); role = role, sidecar = sidecar,
-                        kw...)
+    return record_provenance(path, lookup_doi(doi); role = role,
+                             sidecar = sidecar, kw...)
 end
 
 """
@@ -254,7 +283,8 @@ function fetchfile(file::URLFile; role::Symbol, verify::Bool = false)
     return fetchfile(file.url, file.path, verify = verify) do response
         record = downloadrecord(file.path, file.url, response, role)
         isnothing(file.facts) ||
-            merge!(record, sourceentries(file.facts, route(file)))
+            merge!(record, sourceentries(file.facts, route(file)),
+                   _factsentries(file.facts))
         return record
     end
 end
@@ -392,11 +422,48 @@ function downloadrecord(path::AbstractString, url::AbstractString, response,
     return record
 end
 
-# What a call recording the file at `path` finds before it writes: the file must be there; a record
-# of ours at `sidecar` is returned as it is, no sidecar at all is `nothing`, and a sidecar there
-# that is not a record of ours - another program's, or one that does not read - is refused, since
-# it is neither read nor overwritten.
-function _priorrecord(path::AbstractString, sidecar::AbstractString)
+# Record a file through the data pipeline run `track` names and return its record: what
+# `record_provenance` does for a tracked file, given the facts or the DOI and its keywords. The
+# extension of the package using this module supplies the method for its handle; any other
+# handle is refused.
+_trackedrecord(track::Track, path, source; kw...) = error(_nopipeline(track))
+
+# What is still to do before a file of the user's own can be read, as `missingfiles` reports it
+# for a file: nothing while it is there, for an untracked file; for a tracked one, what its run's
+# working config makes of it. `route` is the one the file is recorded with, and `sidecar` where its
+# record is.
+function _inputmissing(::Union{Nothing, Track{Nothing}}, path::AbstractString;
+                       route::AbstractFileRoute, sidecar::AbstractString)
+    todo = @NamedTuple{file::String, reason::String}[]
+    isfile(path) ||
+        push!(todo,
+              (file = String(path),
+               reason = "not there: a file of your own is not fetched, so put it in place"))
+    return todo
+end
+
+function _inputmissing(track::Track, path::AbstractString;
+                       route::AbstractFileRoute, sidecar::AbstractString)
+    return _trackedinputmissing(track, path, route = route, sidecar = sidecar)
+end
+
+# What a tracked file of the user's own has still to do in its run, and why, as `missingfiles`
+# reports it. The extension of the package using this module supplies the method for its handle;
+# any other handle is refused.
+function _trackedinputmissing(track::Track, path::AbstractString; route,
+                              sidecar)
+    return error(_nopipeline(track))
+end
+
+# What a call recording the file at `path` from `source` - facts, or a DOI - under `role` finds
+# before it writes: the file must be there; a record of ours at `sidecar` of that source under
+# that role is returned as it is, no sidecar at all is `nothing`, and a sidecar there that is not
+# a record of ours - another program's, or one that does not read - is refused, since it is
+# neither read nor overwritten. A record of ours saying otherwise is refused too: one carrying a
+# fetch time, since this call fetches nothing and the file's provenance is known already, or one
+# naming another source or another role.
+function _priorrecord(path::AbstractString, sidecar::AbstractString, source,
+                      role::Symbol)
     isfile(path) ||
         throw(ArgumentError("`$path` is not there, so it cannot be recorded: a record carries " *
                             "the file's size and checksum."))
@@ -406,7 +473,45 @@ function _priorrecord(path::AbstractString, sidecar::AbstractString)
         error("`$sidecar` is there but is not a record this machinery wrote and can read, so " *
               "`$(basename(path))` is neither read from it nor recorded over it. Move it, or " *
               "give `sidecar` another path to write the record to.")
+    otherwise = _otherclaim(record, source, role)
+    isnothing(otherwise) ||
+        error("`$(basename(path))` is recorded already $otherwise, so it is not recorded " *
+              "again as given: delete `$sidecar` to record it afresh.")
     return record
+end
+
+# How a record of a file differs from what a call would write of it from `source` under `role`,
+# or `nothing` where it does not: it was fetched, so its provenance is known; or its role, or the
+# source it names - by DOI, by citation key, or failing both by name - is another.
+function _otherclaim(record::ProvenanceRecord, source, role::Symbol)
+    isnothing(record.fetched) ||
+        return "by the fetch that brought it, which recorded where it came from"
+    record.role === role ||
+        return "under the role `$(record.role)` rather than `$role`"
+    _samesource(record, source) ||
+        return "from $(_sourcelabel(record)) rather than $(_sourcelabel(source))"
+    return nothing
+end
+
+# Whether a record names the source a call gives: the same DOI, in any case; or, where the facts
+# have none, the same citation key; or, where they have neither, the same name.
+function _samesource(record::ProvenanceRecord, doi::AbstractString)
+    return lowercase(record.doi) == lowercase(doi)
+end
+
+function _samesource(record::ProvenanceRecord, facts::SourceFacts)
+    isempty(facts.doi) || return _samesource(record, facts.doi)
+    isempty(facts.key) || return record.key == facts.key
+    return record.source == facts.source
+end
+
+# A source as a refusal names it: by its DOI, else its citation key, else its name.
+_sourcelabel(doi::AbstractString) = "the DOI `$doi`"
+
+function _sourcelabel(x::Union{ProvenanceRecord, SourceFacts})
+    isempty(x.doi) || return _sourcelabel(x.doi)
+    isempty(x.key) || return "the citation `$(x.key)`"
+    return "`$(x.source)`"
 end
 
 # The root of the asset cache of the package `mod` belongs to: the directory `set_assetdir!`

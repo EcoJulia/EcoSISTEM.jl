@@ -26,24 +26,26 @@ those records stay with the area, and with a habitat or an ecosystem built on it
 themselves are discarded. The files of a shape or mask that cut the grid are recorded the same way.
 A file with no record of its own - one you handed over rather than one the package fetched - is
 recorded by its name, with the catalogue's facts about its dataset where it is a layer of one;
-[`Provenancer.record_input`](@ref EcoSISTEM.Provenancer.record_input) gives it a record of its
+[`Provenancer.record_provenance`](@ref EcoSISTEM.Provenancer.record_provenance) gives it a record of its
 own, below.
 
-Each input is an [`InputRecord`](@ref), and a record never holds an absolute path, so the file can
+Each input is an [`ProvenanceRecord`](@ref), and a record never holds an absolute path, so the file can
 be shared as it stands.
 
 ## Recording data the package did not fetch
 
 Occurrence records, trait tables and parameters from the literature reach a model through your own
 code, so the package cannot know where they came from. Record such a file once, where it is, with
-[`Provenancer.record_input`](@ref EcoSISTEM.Provenancer.record_input): given the file's path, the
+[`Provenancer.record_provenance`](@ref EcoSISTEM.Provenancer.record_provenance): given the file's path, the
 DOI of its source and the role the data play, it looks the DOI's metadata up, writes beside the
-file the same `.provenance.toml` a fetch would, and returns the [`InputRecord`](@ref). A later call
-finds the record and looks nothing up, so the call can stay in a script that runs every time.
+file the same `.provenance.toml` a fetch would, and returns the [`ProvenanceRecord`](@ref). A later
+call from the same source under the same role finds the record and looks nothing up, so the call
+can stay in a script that runs every time; one saying otherwise - another source, another role, or
+a file the package fetched itself - is refused.
 
 ```julia
 using EcoSISTEM.Provenancer
-envelopes = record_input("envelopes.csv", "10.5285/ca339c86-3674-4030-b891-35326e71141e",
+envelopes = record_provenance("envelopes.csv", "10.5285/ca339c86-3674-4030-b891-35326e71141e",
                          role = :species)
 ```
 
@@ -64,15 +66,18 @@ facts = SourceFacts(source = "GBIF occurrence download", doi = doi,
                     releasedate = "2026-09-12", licence = "cc-by-nc-4.0", identifies = :data,
                     citation = "GBIF.org (12 September 2026) GBIF Occurrence Download " *
                                "https://doi.org/" * doi)
-seeding = record_input(path, facts, role = :abundance, route = ExtractedByService(doi))
+seeding = record_provenance(path, facts, role = :abundance, route = ExtractedByService(doi))
 ```
 
 [`provenance`](@ref) reads the record back from the file's path whenever it is wanted again. A
 file in a place that cannot be written to takes a `sidecar` keyword naming where its record goes,
-which `provenance(path)` takes too.
+which `provenance(path)` takes too. The record says where the file and its sidecar are, so it
+stands in for the file's path in a [`RasterFileSpec`](@ref) or a [`ShapeSpec`](@ref). Under the
+FAIR data pipeline the call takes the run's `track` as well, and does the run's work for the file
+before your code reads it; see [Data pipeline](pipeline.md).
 
 Give the records to what is built from the data with the `provenance` keyword, which takes an
-[`InputRecord`](@ref) or a vector of them: on [`build_species`](@ref) for the species, on
+[`ProvenanceRecord`](@ref) or a vector of them: on [`build_species`](@ref) for the species, on
 [`build_ecosystem`](@ref) for what belongs to the run as a whole, and on an [`Intervention`](@ref)
 for data an intervention is built from - whose records join the ecosystem's once it has acted.
 

@@ -1,23 +1,25 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# The record of where an input came from, and the reader of the sidecars the fetches write.
+# The record of where a file came from, and the reader of the sidecars the fetches write.
 
 """
-    InputRecord(; role, source, code = nothing, path = nothing, url = nothing, request = nothing,
-                region = nothing, job = nothing, fetched = nothing, bytes = nothing,
-                sha256 = nothing, doi = "", licence = "", version = "", citation = "",
-                title = "", primary = nothing, releasedate = "", references = [],
-                notices = [], requestpage = "", modified = nothing, history = nothing)
+    ProvenanceRecord(; role, source, code = nothing, path = nothing, url = nothing,
+                     request = nothing, region = nothing, job = nothing, fetched = nothing,
+                     bytes = nothing, sha256 = nothing, doi = "", licence = "", version = "",
+                     citation = "", title = "", primary = nothing, releasedate = "",
+                     references = [], notices = [], requestpage = "", modified = nothing,
+                     history = nothing, identifies = nothing, key = "", namespace = "",
+                     route = nothing, location = nothing, sidecar = nothing)
 
-The provenance of one input to a result: a file the package fetched, or a dataset the user handed
-it that it never fetched - an occurrence download, a trait table, a phylogeny. One shape for both,
-so that everything a result was built from can be listed together and a paper's references written
-from the list. [`provenance`](@ref) reads the records the fetches wrote; the user writes one for
-anything the package could not have known about.
+The provenance of one file: a file the package fetched, a dataset the user handed it that it never
+fetched - an occurrence download, a trait table, a phylogeny - or a file a run of theirs made. One
+shape for all, so that everything a result was built from can be listed together and a paper's
+references written from the list. [`provenance`](@ref) reads the records the fetches wrote;
+[`record_provenance`](@ref) writes one for anything the package could not have known about.
 
 # Fields
 
-  - `role`: which part of the system the input entered by, a word of the package using the record
+  - `role`: which part of the system the file entered by, a word of the package using the record
     (EcoSISTEM's are `:habitat` for a layer, `:region` for a shape or a named region's outline,
     `:species`, `:phylogeny`, `:dispersal`, `:demography` or `:intervention` for what the user
     attached, `:abundance` for records a starting population was placed from, `:state` for a
@@ -55,8 +57,19 @@ anything the package could not have known about.
     `:requested` or `:optional`) and `text`. `DD-MMM-YYYY` in a text stands for the date the file
     was fetched and `YYYY` for its year, filled in wherever the record is shown or written.
   - `requestpage`: the address of the documentation's section quoting what the provider asks.
+  - `identifies`: what the source's identifier names - `:data`, `:paper` or `:other`, the values
+    of [`IDENTIFIES`](@ref Provenancer.IDENTIFIES) - and `key`, the key of the citation naming a
+    source with no DOI, and `namespace`, the data pipeline namespace its files are registered in,
+    blank where unknown: what a registration needs of the source beyond its entries. Where
+    `identifies` is not given, a file called `primary` identifies the data and any other is
+    `:other`.
+  - `route`: how the file came to be, an [`AbstractFileRoute`](@ref Provenancer.AbstractFileRoute),
+    or `nothing` for a record written before routes were recorded.
+  - `location`: the file's path as it was when the record was read, and `sidecar`, the path the
+    record was read from, or `nothing` for a record built in memory. Neither is written: the
+    sidecar and the account a result writes carry the file's name alone.
 """
-struct InputRecord
+struct ProvenanceRecord
     role::Symbol
     source::String
     code::Union{Nothing, String}
@@ -80,20 +93,35 @@ struct InputRecord
     requestpage::String
     modified::Union{Nothing, Dates.DateTime}
     history::Union{Nothing, String}
+    identifies::Symbol
+    key::String
+    namespace::String
+    route::Union{Nothing, AbstractFileRoute}
+    location::Union{Nothing, String}
+    sidecar::Union{Nothing, String}
 
-    function InputRecord(; role::Symbol, source::AbstractString,
-                         code = nothing, path = nothing, url = nothing,
-                         request = nothing, region = nothing, job = nothing,
-                         fetched = nothing, bytes = nothing, sha256 = nothing,
-                         doi = "", licence = "", version = "", citation = "",
-                         title = "", primary::Union{Nothing, Bool} = nothing,
-                         releasedate = "", references = [], notices = [],
-                         requestpage = "", modified = nothing,
-                         history = nothing)
+    function ProvenanceRecord(; role::Symbol, source::AbstractString,
+                              code = nothing, path = nothing, url = nothing,
+                              request = nothing, region = nothing,
+                              job = nothing, fetched = nothing, bytes = nothing,
+                              sha256 = nothing, doi = "", licence = "",
+                              version = "", citation = "", title = "",
+                              primary::Union{Nothing, Bool} = nothing,
+                              releasedate = "", references = [], notices = [],
+                              requestpage = "", modified = nothing,
+                              history = nothing,
+                              identifies::Union{Nothing, Symbol} = nothing,
+                              key = "", namespace = "",
+                              route::Union{Nothing, AbstractFileRoute} = nothing,
+                              location = nothing, sidecar = nothing)
         isnothing(path) || !isabspath(path) ||
-            throw(ArgumentError("an `InputRecord` holds a file's name or a relative path, never " *
-                                "an absolute one: it is meant to be committed and shared, and " *
-                                "`$path` names a directory on one machine."))
+            throw(ArgumentError("a `ProvenanceRecord` holds a file's name or a relative path, " *
+                                "never an absolute one: it is meant to be committed and " *
+                                "shared, and `$path` names a directory on one machine."))
+        names = something(identifies, primary === true ? :data : :other)
+        names in IDENTIFIES ||
+            throw(ArgumentError("`identifies` must be one of $(join(IDENTIFIES, ", ")); got " *
+                                "`$names`."))
         return new(role, String(source), _optstring(code), _optstring(path),
                    _optstring(url),
                    isnothing(request) ? nothing :
@@ -104,44 +132,47 @@ struct InputRecord
                    String(citation), _optstring(region), String(title), primary,
                    String(releasedate), _references(references),
                    _notices(notices), String(requestpage), _optdate(modified),
-                   _optstring(history))
+                   _optstring(history), names, String(key), String(namespace),
+                   route, _optstring(location), _optstring(sidecar))
     end
 end
 
 # Value equality and hashing, not the `===` fallback: a record's references, notices and request
 # body are containers, which the fallback compares by identity, so two records of one file read on
 # two ranks or twice would differ.
-function Base.:(==)(a::InputRecord, b::InputRecord)
+function Base.:(==)(a::ProvenanceRecord, b::ProvenanceRecord)
     return all(getfield(a, f) == getfield(b, f)
-               for f in fieldnames(InputRecord))
+               for f in fieldnames(ProvenanceRecord))
 end
 
-function Base.isequal(a::InputRecord, b::InputRecord)
+function Base.isequal(a::ProvenanceRecord, b::ProvenanceRecord)
     return all(isequal(getfield(a, f), getfield(b, f))
-               for f in fieldnames(InputRecord))
+               for f in fieldnames(ProvenanceRecord))
 end
 
-function Base.hash(r::InputRecord, h::UInt)
-    return hash(Tuple(getfield(r, f) for f in fieldnames(InputRecord)),
-                hash(InputRecord, h))
+function Base.hash(r::ProvenanceRecord, h::UInt)
+    return hash(Tuple(getfield(r, f) for f in fieldnames(ProvenanceRecord)),
+                hash(ProvenanceRecord, h))
 end
 
-function Base.show(io::IO, r::InputRecord)
-    print(io, "InputRecord(", r.role, ", ", repr(r.source))
+function Base.show(io::IO, r::ProvenanceRecord)
+    print(io, "ProvenanceRecord(", r.role, ", ", repr(r.source))
     isnothing(r.code) || print(io, ", ", repr(r.code))
     isnothing(r.path) || print(io, ", ", repr(r.path))
     isempty(r.doi) || print(io, ", doi = ", repr(r.doi))
     return print(io, ")")
 end
 
-function Base.show(io::IO, ::MIME"text/plain", r::InputRecord)
-    println(io, "InputRecord (", r.role, ")")
+function Base.show(io::IO, ::MIME"text/plain", r::ProvenanceRecord)
+    println(io, "ProvenanceRecord (", r.role, ")")
     for (label, value) in (("source", r.source), ("title", r.title),
-        ("code", r.code), ("file", r.path), ("url", r.url),
+        ("code", r.code), ("file", r.path), ("location", r.location),
+        ("sidecar", r.sidecar), ("route", r.route), ("url", r.url),
         ("region", r.region), ("job", r.job), ("fetched", r.fetched),
         ("bytes", r.bytes), ("sha256", r.sha256), ("primary", r.primary),
         ("doi", r.doi), ("licence", r.licence), ("version", r.version),
         ("released", r.releasedate), ("modified", r.modified),
+        ("namespace", r.namespace),
         ("citation", isempty(r.references) ? r.citation : ""))
         (isnothing(value) || (value isa AbstractString && isempty(value))) &&
             continue
@@ -158,11 +189,12 @@ end
 """
     provenance(path::AbstractString; sidecar = sidecarpath(path))
 
-Return what is known about where a file came from: the [`InputRecord`](@ref) its provenance
+Return what is known about where a file came from: the [`ProvenanceRecord`](@ref) its provenance
 sidecar holds - written beside every file the package fetched or first used, as
-`<file>.provenance.toml`, or where [`record_input`](@ref) was told to put it - or `nothing` for a
-file with none. A sidecar of that name that this machinery did not write is left alone and
-reports `nothing` too, with a warning saying so, since its fields mean whatever its writer meant.
+`<file>.provenance.toml`, or where [`record_provenance`](@ref) was told to put it - with `path`
+and `sidecar` as its `location` and `sidecar`, or `nothing` for a file with none. A sidecar of
+that name that this machinery did not write is left alone and reports `nothing` too, with a
+warning saying so, since its fields mean whatever its writer meant.
 
 # Arguments
 
@@ -172,7 +204,7 @@ reports `nothing` too, with a warning saying so, since its fields mean whatever 
 function provenance(path::AbstractString;
                     sidecar::AbstractString = sidecarpath(path))
     isfile(sidecar) || return nothing
-    return _readsidecar(sidecar)
+    return _readsidecar(path, sidecar)
 end
 
 """
@@ -212,7 +244,7 @@ function recordat(path::AbstractString;
     isfile(sidecar) || return nothing
     t = TOML.tryparsefile(sidecar)
     (t isa AbstractDict && _isourrecord(t)) || return nothing
-    return _recordfromtoml(t)
+    return _recordfromtoml(t, location = path, sidecar = sidecar)
 end
 
 # What this module writes as a record's `writer`: its full name and the version of the package it
@@ -231,10 +263,10 @@ function _isourrecord(t::AbstractDict)
     return endswith(name, "Provenancer") || startswith(writer, "EcoSISTEM")
 end
 
-# A sidecar's TOML as an `InputRecord`. A sidecar another program wrote under the same name is not
-# read: its `role` may be prose and its `source` a sentence, so a record built from it would be
-# wrong in ways no reader could see.
-function _readsidecar(sidecar::AbstractString)
+# The sidecar at `sidecar` of the file at `path` as a `ProvenanceRecord`. A sidecar another program
+# wrote under the same name is not read: its `role` may be prose and its `source` a sentence, so a
+# record built from it would be wrong in ways no reader could see.
+function _readsidecar(path::AbstractString, sidecar::AbstractString)
     t = TOML.parsefile(sidecar)
     _isourrecord(t) || begin
         @warn "`$(basename(sidecar))` was not written by Provenancer (writer: "*
@@ -242,35 +274,44 @@ function _readsidecar(sidecar::AbstractString)
               "delete or rename it to have the file recorded on its next use." maxlog=1 _id=Symbol(sidecar)
         return nothing
     end
-    return _recordfromtoml(t)
+    return _recordfromtoml(t, location = path, sidecar = sidecar)
 end
 
-# A parsed sidecar of ours as an `InputRecord`: the keys the writers use, any it does not know left
-# behind. The source is read from `source`, or from `dataset`, which earlier records called it.
-function _recordfromtoml(t::AbstractDict)
+# A parsed sidecar of ours as a `ProvenanceRecord`, read from `sidecar` for the file at `location`:
+# the keys the writers use, any it does not know left behind. The source is read from `source`, or
+# from `dataset`, which earlier records called it.
+function _recordfromtoml(t::AbstractDict; location, sidecar)
     field(k) = get(t, k, nothing)
-    return InputRecord(role = Symbol(something(field("role"), "habitat")),
-                       source = something(field("source"), field("dataset"),
-                                          "file"),
-                       code = field("code"), path = field("file"),
-                       url = something(field("final_url"), field("url"),
-                                       Some(nothing)),
-                       request = field("request"), job = field("job"),
-                       fetched = field("fetched"), bytes = field("bytes"),
-                       sha256 = field("sha256"),
-                       doi = something(field("doi"), ""),
-                       licence = something(field("licence"), ""),
-                       version = something(field("version"), ""),
-                       citation = something(field("citation"), ""),
-                       region = field("region"),
-                       title = something(field("title"), ""),
-                       primary = field("primary"),
-                       releasedate = something(field("release_date"), ""),
-                       references = something(field("references"), []),
-                       notices = something(field("notices"), []),
-                       requestpage = something(field("request_page"), ""),
-                       modified = field("modified"),
-                       history = field("history"))
+    identifies = field("identifies")
+    return ProvenanceRecord(role = Symbol(something(field("role"), "habitat")),
+                            source = something(field("source"),
+                                               field("dataset"), "file"),
+                            code = field("code"), path = field("file"),
+                            url = something(field("final_url"), field("url"),
+                                            Some(nothing)),
+                            request = field("request"), job = field("job"),
+                            fetched = field("fetched"), bytes = field("bytes"),
+                            sha256 = field("sha256"),
+                            doi = something(field("doi"), ""),
+                            licence = something(field("licence"), ""),
+                            version = something(field("version"), ""),
+                            citation = something(field("citation"), ""),
+                            region = field("region"),
+                            title = something(field("title"), ""),
+                            primary = field("primary"),
+                            releasedate = something(field("release_date"), ""),
+                            references = something(field("references"), []),
+                            notices = something(field("notices"), []),
+                            requestpage = something(field("request_page"), ""),
+                            modified = field("modified"),
+                            history = field("history"),
+                            identifies = isnothing(identifies) ? nothing :
+                                         Symbol(identifies),
+                            key = something(field("key"), ""),
+                            namespace = something(field("namespace"), ""),
+                            route = _routefrom(field("route"),
+                                               field("route_identifier")),
+                            location = location, sidecar = sidecar)
 end
 
 # An optional text field, `nothing` kept, anything else as a `String`.
@@ -326,7 +367,7 @@ end
 # What a record says its provider asks, a line each: the references to cite and the notices to
 # carry, placeholders filled from its fetch time, and where the documentation quotes the request. A
 # record with no references but a citation of its own cites that.
-function _requestlines(r::InputRecord)
+function _requestlines(r::ProvenanceRecord)
     cites = isempty(r.references) ?
             (isempty(r.citation) ? String[] : [r.citation]) :
             [_fillplaceholders(ref.text, r.fetched) for ref in r.references]
@@ -340,7 +381,7 @@ end
 
 # One input's line under its source in a provenance listing: its role, its layer where it has one,
 # and its file, or where it was fetched from where it has no file.
-function _recordline(r::InputRecord)
+function _recordline(r::ProvenanceRecord)
     parts = (string(r.role), something(r.code, ""),
              something(r.path, r.url, ""))
     return join(filter(!isempty, parts), "  ")

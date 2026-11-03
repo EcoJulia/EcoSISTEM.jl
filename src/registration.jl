@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
 # What a tracked spec's files are registered as with a FAIR data pipeline run, the part that knows a
-# spec and the catalogue: each file a spec reads and the route it comes by, the facts the catalogue
-# gives it now, the registration keywords built from those facts and the source's row, and how a
-# spec keeps its track. The data product names, the version stamping and the config lines are
-# `Provenancer`'s (`src/Provenancer/naming.jl`); the calls that ask a registry and register are the
-# DataPipeline extension's.
+# spec and the catalogue: each file a spec reads and the route it comes by, the source its files
+# are registered with - the catalogue row's facts - the facts the catalogue gives a file now, the
+# registration keywords built from those facts, and how a spec keeps its track. The data product names, the version
+# stamping and the config lines are `Provenancer`'s (`src/Provenancer/naming.jl`); the calls that
+# ask a registry and register are the DataPipeline extension's.
 
 # Each file a spec reads, where it is or would be, with the route it comes by - `PublishedByProvider()`
 # for a file fetched as its provider publishes it (by its source's own resolution, or from a URL),
@@ -31,6 +31,11 @@ function _specroutes(spec::RasterSpec, files::AbstractVector)
             for f in files]
 end
 
+function _specroutes(spec::ShapeSpec)
+    return [(path = _localpath(spec.path), route = _fileroute(spec.path),
+             code = nothing, url = _entryurl(spec.path))]
+end
+
 function _specroutes(spec::NaturalEarthSpec)
     url = _nesource(_checklevel(spec.level)).url
     return [(path = p, route = Provenancer.route(spec), code = nothing,
@@ -43,6 +48,10 @@ end
 # source resolving its own files. Anything else is refused by name: implementing `IsFetchable` is
 # the way in.
 _fileroute(::AbstractString) = SuppliedByUser()
+
+# A file given by its record comes by the route the record keeps, or as one the user named where
+# the record predates routes.
+_fileroute(record::ProvenanceRecord) = something(record.route, SuppliedByUser())
 
 @traitfn function _fileroute(entry::E) where {E; IsFetchable{E}}
     return Provenancer.route(entry)
@@ -66,7 +75,32 @@ end
 
 _entryurl(asset::CachedAsset) = asset.url
 
+_entryurl(record::ProvenanceRecord) = record.url
+
 _entryurl(::Any) = nothing
+
+# The source a tracked spec's files are registered with - its facts, and whether its files state
+# their own versions rather than the source giving one (Natural Earth's zips, each naming its
+# own) - from the catalogue row of the spec's source. A spec of a file no row describes is
+# refused: such a file enters a spec through its record, which `Provenancer.record_provenance`
+# writes and, given the run's track, registers.
+function _trackedsource(spec)
+    rec = _catalogued(spec)
+    isnothing(rec) &&
+        error("`$(basename(first(_specpaths(spec))))`, read by $spec, is of no catalogued " *
+              "source, so what it is cannot be registered: a file of your own enters a spec " *
+              "through its record, `Provenancer.record_provenance(path, doi or facts, " *
+              "role = ..., track = ...)`, which registers it with the source the facts name.")
+    return (facts = SourceFacts(rec), fileversioned = _fileversioned(rec))
+end
+
+# The catalogue row of the source a spec reads, or `nothing` for a spec of a file no row
+# describes.
+_catalogued(spec::RasterSpec) = _datasetrecord(spec.source)
+
+_catalogued(::NaturalEarthSpec) = _datasetrecord(NaturalEarthLevel)
+
+_catalogued(::ShapeSpec) = nothing
 
 # What the catalogue says now of one file of a tracked spec, as its record holds it: the catalogue's
 # facts for the route it comes by, where it is fetched from, the release a track gives a file the
@@ -77,13 +111,17 @@ function _currentfacts(spec::RasterSpec, entry)
     facts = _cataloguerecord(spec.source, layer, entry.path,
                              route = entry.route)
     isnothing(entry.url) || (facts["url"] = entry.url)
-    track = spec.track
-    if entry.route isa SuppliedByUser && !isnothing(track)
-        isnothing(track.release_version) ||
-            (facts["version"] = track.release_version)
-        isnothing(track.release_date) ||
-            (facts["release_date"] = track.release_date)
-    end
+    return _trackrelease!(facts, spec.track, entry.route)
+end
+
+# The release a track names for the files the user gives, written over a record's version and
+# release date, which only such a file's track may say.
+function _trackrelease!(facts::AbstractDict, track, route::AbstractFileRoute)
+    (route isa SuppliedByUser && !isnothing(track)) || return facts
+    isnothing(track.release_version) ||
+        (facts["version"] = track.release_version)
+    isnothing(track.release_date) ||
+        (facts["release_date"] = track.release_date)
     return facts
 end
 
@@ -104,6 +142,8 @@ function _fetchspec(spec::NaturalEarthSpec)
     return [assetpath(_nesource(_checklevel(spec.level)))]
 end
 
+_fetchspec(spec::ShapeSpec) = [String(_resolvepath(spec.path))]
+
 # The provenance record of a file the user gave a spec, written beside it where it has none: what
 # the catalogue says of it, the release its track names, and no fetch time, which is not known.
 # `entry` is the file's, one of `_specroutes(spec)`.
@@ -111,11 +151,14 @@ function _recordgiven(spec::RasterSpec, entry)
     isfile(entry.path) ||
         error("`$(entry.path)`, a file given to $spec, is not there, so it cannot be registered.")
     Provenancer.recordpresent(entry.path) do
-        return merge!(Provenancer.baserecord(entry.path, :habitat),
+        return merge!(Provenancer.baserecord(entry.path, _givenrole(spec)),
                       _currentfacts(spec, entry))
     end
     return entry.path
 end
+
+# The role a file the user gave a spec is recorded under: a layer's.
+_givenrole(::RasterSpec) = :habitat
 
 # A source's layer by its code, or `nothing` where the catalogue has none of that code.
 function _layerornothing(source::Type, code)
@@ -131,24 +174,33 @@ end
 _fileversioned(rec::DatasetRecord) = rec.format === :Shapefile
 
 # The release date a file is registered with: a stamped version's day; else its record's, the
-# row's or the one its track gave; else, for a file stating its own version, when its provider last
-# changed it, or failing that when it was fetched; else `nothing`, the citation's date standing.
-function _registereddate(r::InputRecord, rec::DatasetRecord,
+# row's or the one its track gave; else, for a file stating its own version (`fileversioned`),
+# when its provider last changed it, or failing that when it was fetched; else `nothing`, the
+# citation's date standing.
+function _registereddate(r::ProvenanceRecord, fileversioned::Bool,
                          stamp::Union{Nothing, Dates.Date})
     isnothing(stamp) || return string(stamp)
     isempty(r.releasedate) || return r.releasedate
-    if _fileversioned(rec)
+    if fileversioned
         day = something(r.modified, r.fetched, Some(nothing))
         isnothing(day) || return string(Dates.Date(day))
     end
     return nothing
 end
 
+function _registereddate(r::ProvenanceRecord, rec::DatasetRecord,
+                         stamp::Union{Nothing, Dates.Date})
+    return _registereddate(r, _fileversioned(rec), stamp)
+end
+
 # Whether a file's registration needs a date its record does not hold: one stating its own version,
 # whose provider's time was not recorded when it was fetched.
-function _needsdate(r::InputRecord, rec::DatasetRecord)
-    return isempty(r.releasedate) && _fileversioned(rec) &&
-           isnothing(r.modified)
+function _needsdate(r::ProvenanceRecord, fileversioned::Bool)
+    return isempty(r.releasedate) && fileversioned && isnothing(r.modified)
+end
+
+function _needsdate(r::ProvenanceRecord, rec::DatasetRecord)
+    return _needsdate(r, _fileversioned(rec))
 end
 
 # How a source is named to the registry: by its DOI, or, for one identified by its web page, by
@@ -167,12 +219,12 @@ _ornothing(::Nothing) = nothing
 # file's title, whether it is the source's own, the licence, the release, and the documentation's
 # section quoting what the provider asks - for an extract also the request it was made to.
 # `version` and `date` are the release's.
-function _sourcekeywords(r::InputRecord, rec::DatasetRecord,
+function _sourcekeywords(r::ProvenanceRecord, rec::DatasetRecord,
                          route::AbstractFileRoute; kw...)
-    return _sourcekeywords(r, _sourcefacts(rec), route; kw...)
+    return _sourcekeywords(r, SourceFacts(rec), route; kw...)
 end
 
-function _sourcekeywords(r::InputRecord, facts::SourceFacts,
+function _sourcekeywords(r::ProvenanceRecord, facts::SourceFacts,
                          route::AbstractFileRoute;
                          version::AbstractString,
                          date::Union{Nothing, AbstractString})
@@ -187,13 +239,15 @@ function _sourcekeywords(r::InputRecord, facts::SourceFacts,
 end
 
 # What an extract is, for its registration: the service's dataset and the request it was made to,
-# then where the documentation quotes what the provider asks.
-function _extractdescription(r::InputRecord)
-    request = isnothing(r.request) ? "" :
-              join(("$k = $(repr(r.request[k]))"
-                    for k in sort!(collect(keys(r.request)))),
-                   ", ")
-    text = "An extract of $(r.source) made to the request $request."
+# where the record holds one, then where the documentation quotes what the provider asks.
+function _extractdescription(r::ProvenanceRecord)
+    text = if isnothing(r.request)
+        "An extract of $(r.source)."
+    else
+        request = join(("$k = $(repr(r.request[k]))"
+                        for k in sort!(collect(keys(r.request)))), ", ")
+        "An extract of $(r.source) made to the request $request."
+    end
     return isempty(r.requestpage) ? text :
            text * " What its provider asks: " * r.requestpage
 end
@@ -202,7 +256,7 @@ end
 # file-less, its own where its identifier names the data. Its release is the row's, else its
 # citation's in `citations.bib` (Natural Earth's), never a file's: the registry keeps a deposit's
 # first release, so it must not depend on which file is registered first.
-_depositkeywords(rec::DatasetRecord) = _depositkeywords(_sourcefacts(rec))
+_depositkeywords(rec::DatasetRecord) = _depositkeywords(SourceFacts(rec))
 
 function _depositkeywords(facts::SourceFacts)
     return (; _sourcename(facts)..., title = facts.title,

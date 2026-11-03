@@ -34,7 +34,7 @@ being them, so every `AbstractTypes` question is forwarded there; see `src/Diver
   - `params`: the demographic rates, an [`AbstractParams`](@ref).
   - `native`: whether each species is native, one flag each.
   - `susceptible`: optional per-species disease susceptibility, `missing` where unset.
-  - `inputs`: the [`InputRecord`](@ref)s of the published data the species were built from -
+  - `inputs`: the [`ProvenanceRecord`](@ref)s of the published data the species were built from -
     occurrence records, trait tables, parameters from the literature - as given with `provenance`.
 
 # Type parameters
@@ -57,7 +57,7 @@ mutable struct SpeciesList{TL <: AbstractTolerance,
     params::P
     native::Vector{Bool}
     susceptible::Vector{Union{Missing, Float64}}
-    inputs::Vector{InputRecord}
+    inputs::Vector{ProvenanceRecord}
 
     function SpeciesList{TL, DM, MO, T, P}(names::Vector{String},
                                            tolerance::TL,
@@ -67,16 +67,16 @@ mutable struct SpeciesList{TL <: AbstractTolerance,
                                            movement::MO,
                                            params::P,
                                            native::Vector{Bool};
-                                           provenance = InputRecord[]) where {TL <:
-                                                                              AbstractTolerance,
-                                                                              DM <:
-                                                                              AbstractDemand,
-                                                                              MO <:
-                                                                              AbstractMovement,
-                                                                              T <:
-                                                                              AbstractTypes,
-                                                                              P <:
-                                                                              AbstractParams}
+                                           provenance = ProvenanceRecord[]) where {TL <:
+                                                                                   AbstractTolerance,
+                                                                                   DM <:
+                                                                                   AbstractDemand,
+                                                                                   MO <:
+                                                                                   AbstractMovement,
+                                                                                   T <:
+                                                                                   AbstractTypes,
+                                                                                   P <:
+                                                                                   AbstractParams}
         # Check dimensions
         equal_param = equalpop(params, length(names))
         sus = Vector{Union{Missing, Float64}}(undef, length(names))
@@ -206,7 +206,7 @@ end
 
 """
     SpeciesList(numspecies::Int64, tolerance::TL, abun::Vector{Int64}, demand::DM,
-      movement::MO, params::P, native::Vector{Bool}; names = nothing, provenance = InputRecord[])
+      movement::MO, params::P, native::Vector{Bool}; names = nothing, provenance = ProvenanceRecord[])
 
 Create a `SpeciesList` from tolerances supplied directly, rather than evolved along a phylogeny.
 Species are treated as maximally distinct, with a `UniqueTypes` similarity structure.
@@ -223,7 +223,7 @@ Species are treated as maximally distinct, with a `UniqueTypes` similarity struc
   - `names`: one name per species, unique, as a vector of strings. Left unset, the species are
     named `"1"` to `"numspecies"`. The names label the species' Diversity types as well, so a
     diversity measure reports them.
-  - `provenance`: an [`InputRecord`](@ref), or a vector of them, for the published data the
+  - `provenance`: an [`ProvenanceRecord`](@ref), or a vector of them, for the published data the
     species were built from; [`provenance`](@ref) of an ecosystem built from them lists these.
 """
 function SpeciesList(numspecies::Int64,
@@ -234,10 +234,14 @@ function SpeciesList(numspecies::Int64,
                      params::P,
                      native::Vector{Bool};
                      names = nothing,
-                     provenance = InputRecord[]) where {TL <: AbstractTolerance,
-                                                        DM <: AbstractDemand,
-                                                        MO <: AbstractMovement,
-                                                        P <: AbstractParams}
+                     provenance = ProvenanceRecord[]) where {TL <:
+                                                             AbstractTolerance,
+                                                             DM <:
+                                                             AbstractDemand,
+                                                             MO <:
+                                                             AbstractMovement,
+                                                             P <:
+                                                             AbstractParams}
     names = _speciesnames(names, numspecies)
     # Species are maximally distinct, and the types carry the names so that nothing downstream
     # can lose them.

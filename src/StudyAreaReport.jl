@@ -50,16 +50,17 @@ than fetching.
 # Fields
 
   - `reads`: the reads so far, keyed by what determines their content.
-  - `inputs`: the files each read came from, an [`InputRecord`](@ref) per file under the read's
+  - `inputs`: the files each read came from, an [`ProvenanceRecord`](@ref) per file under the read's
     own key - a file's provenance record where it has one, and otherwise its name and the
     catalogue's facts about its dataset.
 """
 struct LayerCache
     reads::Dict{ReadKey, Any}
-    inputs::Dict{ReadKey, Vector{InputRecord}}
+    inputs::Dict{ReadKey, Vector{ProvenanceRecord}}
 
     function LayerCache()
-        return new(Dict{ReadKey, Any}(), Dict{ReadKey, Vector{InputRecord}}())
+        return new(Dict{ReadKey, Any}(),
+                   Dict{ReadKey, Vector{ProvenanceRecord}}())
     end
 end
 
@@ -132,7 +133,7 @@ analysis, so a report can never describe a grid other than the one that would be
     decided from, and the constraints **as given** rather than as resolved.
   - `cache`: the [`LayerCache`](@ref) of reads, or `nothing` on an as-built report, where it has been
     discarded.
-  - `inputs`: the [`InputRecord`](@ref)s of the files read, kept when the cache that held them is
+  - `inputs`: the [`ProvenanceRecord`](@ref)s of the files read, kept when the cache that held them is
     discarded; a report still holding its cache has the rest there.
   - `stage`: which of the two kinds of report this is - see [`AbstractReportStage`](@ref).
 """
@@ -171,7 +172,7 @@ struct StudyAreaReport
     cache::Union{LayerCache, Nothing}
     # The records of what the discarded reads were read from: small, and what `provenance` needs of
     # an area long after the rasters themselves have gone.
-    inputs::Vector{InputRecord}
+    inputs::Vector{ProvenanceRecord}
     # Set internally at the two construction sites and by `_refinedreport`, and deliberately not a
     # constructor keyword: nothing outside the package should be able to claim a report is as-built.
     stage::AbstractReportStage
@@ -244,15 +245,15 @@ _report(::ProblemWarning, message) = @warn message
 function _reportinputs(r::StudyAreaReport)
     isnothing(r.cache) && return r.inputs
     return _uniqueinputs(vcat(r.inputs,
-                              InputRecord[record
-                                          for records in values(r.cache.inputs)
-                                          for record in records]))
+                              ProvenanceRecord[record
+                                               for records in values(r.cache.inputs)
+                                               for record in records]))
 end
 
 # Records with repeats dropped - one file of one dataset, however many reads it served - in a fixed
 # order, since the cache is a `Dict` whose iteration order follows `Base.hash` and so varies between
 # Julia versions.
-function _uniqueinputs(records::AbstractVector{InputRecord})
+function _uniqueinputs(records::AbstractVector{ProvenanceRecord})
     key(r) = (string(r.role), r.source, something(r.code, ""),
               something(r.path, ""), something(r.url, ""))
     return sort!(unique(key, records), by = key)

@@ -5,7 +5,7 @@ from and what the run made of it, in a registry that can be pushed to the online
 [data registry](https://data.fairdatapipeline.org/). EcoSISTEM takes part through
 [DataPipeline.jl](https://github.com/FAIRDataPipeline/DataPipeline.jl), a weak dependency: with it
 loaded, a spec given a [`EcoSISTEM.Track`](@ref) as its `track` keyword has its files go through a
-pipeline run.
+pipeline run, and so does a file of your own, recorded with one.
 
 ## Two runs, the same specs
 
@@ -66,14 +66,44 @@ a new release: a file whose bytes differ from those already registered under its
 registered under that release with build metadata, `2.1.0+20230104`, the day its provider changed
 it, so both stay traceable.
 
+### A file of your own
+
+A file not described by a catalogue - a table your code reads, a raster or a shape file - is
+registered the same way, from its provenance record, which says what it is.
+[`Provenancer.record_provenance`](@ref EcoSISTEM.Provenancer.record_provenance) writes that record
+from the facts of the source the file was taken or cut from, and given the run's `track` does the
+run's work for the file before your code reads it: in a fetch run it records the file and
+registers it, derived from its source's deposit in the facts' `namespace`, the run's default where
+blank; in a model run it puts the run's copy of the file and its record in place from the store.
+The facts must name their source, by a DOI or by the key of a citation the run has read, as the
+catalogue's keys are; a file of your own making is an output of the run that made it, registered
+with DataPipeline's `link_write!`. The record returned stands in for the file's path in a
+[`RasterFileSpec`](@ref) or a [`ShapeSpec`](@ref), which reads the file where the record says it
+is - under a run, the run's copy - so a spec of a file carries no `track` of its own, and
+[`EcoSISTEM.missingfiles`](@ref) answers for the file as it does for a spec:
+
+```julia
+using EcoSISTEM.Provenancer: SourceFacts, SuppliedByUser, record_provenance
+facts = SourceFacts(EcoSISTEM.datasetinfo(EcoSISTEM.NaturalEarthLevel),
+                    title = "A box around Scotland (scotland_box)")
+box = ShapeSpec(record_provenance(path, facts, role = :region, route = SuppliedByUser(),
+                                  track = Track(handle, "box")))
+```
+
+A data product of the pipeline with no source of its own - another run's output - is read by its
+path, `RasterFileSpec(link_read!(handle, name), axis = ...)`: the read is the pipeline's record of
+the run's input, and the file carries no record of EcoSISTEM's.
+
 ## The example
 
 `examples/pipeline/` is a model run over Scotland and the fetch runs it reads from, with an
 environment of its own (`examples/pipeline/Project.toml`), since DataPipeline is a weak dependency:
 `inputs.jl` names the specs, `fetch.jl` fetches one source's files, with a config for each source
-(`fetch-worldclim.yaml`, `fetch-naturalearth.yaml`, `fetch-era5.yaml`), and `model.jl` and
-`model.yaml` are the model run, one species built from WorldClim's annual temperature and rainfall
-within Natural Earth's outline of Scotland. Its environment is instantiated once, with
+(`fetch-worldclim.yaml`, `fetch-naturalearth.yaml`, `fetch-era5.yaml`, and `fetch-box.yaml` for a
+file of your own, a box around Scotland written from the shipped table of regions), and `model.jl`
+and `model.yaml` are the model run, one species built from WorldClim's annual temperature and
+rainfall within Natural Earth's outline of Scotland and that box. Its environment is instantiated
+once, with
 `julia --project=examples/pipeline -e 'using Pkg; Pkg.instantiate()'`; then, in Julia started with
 `julia --project=examples/pipeline` from the root of a clone of this repository:
 
@@ -84,6 +114,7 @@ fair"registry install"           # the first time: the local registry
 fair"init"                       # the first time in this clone: it asks who you are, and more
 fair"run examples/pipeline/fetch-worldclim.yaml"      # fetches and registers WorldClim's files
 fair"run examples/pipeline/fetch-naturalearth.yaml"
+fair"run examples/pipeline/fetch-box.yaml"            # records and registers a file of your own
 fair"run examples/pipeline/fetch-worldclim.yaml"      # stops at once: everything is registered
 fair"pull --local examples/pipeline/model.yaml"
 fair"run examples/pipeline/model.yaml"                # reads them from the store, registers the figure
@@ -142,6 +173,17 @@ end
 nothing # hide
 ```
 
+The box around Scotland is a file of your own, cut from Natural Earth's table of regions. Its run
+writes the file where it is not there, records it with Natural Earth's facts through
+`record_provenance`, and registers it as derived from Natural Earth's deposit, under a root of its own:
+
+```@example pipeline
+run_example && cd(pkgdir(EcoSISTEM)) do
+    fair"run examples/pipeline/fetch-box.yaml"
+end
+nothing # hide
+```
+
 Run again, WorldClim's fetch run finds every file registered as it would register it now, and
 stops in its rehearsal, before a code run exists, registering nothing:
 
@@ -162,7 +204,8 @@ print(read(joinpath(example, "model.yaml"), String))
 ```
 
 `fair pull` finds what the config reads in the registry, and `fair run` runs `model.jl`, which
-builds the habitat from the files in the store, simulates five years and registers the figure:
+takes the box's record from the store with `record_provenance` and builds its spec from it, builds
+the habitat from the files in the store, simulates five years and registers the figure:
 
 ```@example pipeline
 run_example && cd(pkgdir(EcoSISTEM)) do

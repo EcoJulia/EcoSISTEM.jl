@@ -8,15 +8,18 @@
     SourceFacts(; source, doi = "", url = "", title = "", publisher = "", authors = [],
                 identifiers = Dict(), releasedate = "", version = "", description = "",
                 licence = "", identifies = :other, citation = "", references = [],
-                notices = [], requestpage = "", key = "")
+                notices = [], requestpage = "", key = "", namespace = "")
     SourceFacts(facts::SourceFacts; kw...)
+    SourceFacts(record::ProvenanceRecord)
 
 What is known of the source a file comes from, from which the file's provenance record and its
 registration with a data pipeline are written: the facts a catalogue row holds of a dataset, the
 facts the metadata of a DOI gives ([`lookup_doi`](@ref)), or facts the user writes for a source
 that has neither. Blank text and empty lists mean unknown throughout. The second form is `facts`
 with the fields named by keyword replaced and every other as it was: a looked-up source's facts
-with the citation its provider asks for, or the works it asks to be cited, written in.
+with the citation its provider asks for, or the works it asks to be cited, written in. The third
+is what a file's [`ProvenanceRecord`](@ref) keeps of its source, so that the file can be
+registered from its record alone.
 
 # Fields
 
@@ -47,6 +50,8 @@ with the citation its provider asks for, or the works it asks to be cited, writt
     address of the documentation quoting what it asks.
   - `key`: the key its citation is filed under where it has no DOI, for a registry that takes a
     citation by key.
+  - `namespace`: the data pipeline namespace its files are registered in - ASCII letters, digits,
+    `_` and `-` - or blank for the namespace a run gives as its default.
 """
 struct SourceFacts
     source::String
@@ -66,6 +71,7 @@ struct SourceFacts
     notices::Vector{@NamedTuple{strength::Symbol, text::String}}
     requestpage::String
     key::String
+    namespace::String
 
     function SourceFacts(; source::AbstractString, doi = "", url = "",
                          title = "", publisher = "", authors = String[],
@@ -73,10 +79,13 @@ struct SourceFacts
                          version = "", description = "", licence = "",
                          identifies::Symbol = :other, citation = "",
                          references = [], notices = [], requestpage = "",
-                         key = "")
+                         key = "", namespace = "")
         identifies in IDENTIFIES ||
             throw(ArgumentError("`identifies` must be one of $(join(IDENTIFIES, ", ")); got " *
                                 "`$identifies`."))
+        occursin(r"^[A-Za-z0-9_-]*$", namespace) ||
+            throw(ArgumentError("`namespace` names a data pipeline namespace, in ASCII letters, " *
+                                "digits, `_` and `-`; got `$namespace`."))
         return new(String(source), String(doi), String(url), String(title),
                    String(publisher), String[string(a) for a in authors],
                    Dict{String, String}(string(k) => string(v)
@@ -84,7 +93,7 @@ struct SourceFacts
                    String(releasedate), String(version), String(description),
                    String(licence), identifies, String(citation),
                    _references(references), _notices(notices),
-                   String(requestpage), String(key))
+                   String(requestpage), String(key), String(namespace))
     end
 end
 
@@ -93,6 +102,20 @@ function SourceFacts(facts::SourceFacts; kw...)
     fields = NamedTuple{fieldnames(SourceFacts)}(Tuple(getfield(facts, f)
                                                        for f in fieldnames(SourceFacts)))
     return SourceFacts(; merge(fields, NamedTuple(kw))...)
+end
+
+# The facts a record keeps of its source: the entries `sourceentries` wrote and what
+# `_factsentries` kept.
+function SourceFacts(record::ProvenanceRecord)
+    return SourceFacts(source = record.source, doi = record.doi,
+                       url = something(record.url, ""), title = record.title,
+                       releasedate = record.releasedate,
+                       version = record.version, licence = record.licence,
+                       identifies = record.identifies,
+                       citation = record.citation,
+                       references = record.references, notices = record.notices,
+                       requestpage = record.requestpage, key = record.key,
+                       namespace = record.namespace)
 end
 
 # Value equality and hashing: the authors, identifiers, references and notices are containers,
@@ -174,10 +197,11 @@ isprimary(::SourceFacts, ::AbstractFileRoute) = false
                   code = nothing)
 
 Return what a file's provenance record carries of its source, as a dictionary of the sidecar's
-keys, to be merged into the record of the file itself: the `source`, the file's `title`, whether
-it is `primary` for the route it came by ([`isprimary`](@ref Provenancer.isprimary)), and the
-DOI, licence, version, release date, citation, references, notices and request page where known,
-each under the key the sidecar uses. The citation is composed from the authors, date, title,
+keys, to be merged into the record of the file itself: the `source`, the file's `title`, the
+`route` it came by, with the identifier a service gave it where it gave one, whether it is
+`primary` for that route ([`isprimary`](@ref Provenancer.isprimary)), and the DOI, licence,
+version, release date, citation, references, notices and request page where known, each under
+the key the sidecar uses. The citation is composed from the authors, date, title,
 publisher and DOI where the facts give none of their own and have a DOI and authors to compose
 one from.
 
@@ -194,6 +218,7 @@ function sourceentries(facts::SourceFacts, route::AbstractFileRoute;
     record = Dict{String, Any}("source" => facts.source,
                                "title" => String(title),
                                "primary" => isprimary(facts, route))
+    merge!(record, _routeentries(route))
     for (key, value) in (("doi", facts.doi), ("licence", facts.licence),
         ("version", facts.version), ("release_date", facts.releasedate),
         ("citation", _citationtext(facts)),
@@ -226,4 +251,24 @@ function _citationtext(facts::SourceFacts)
     publisher = isempty(facts.publisher) ? "" : " " * facts.publisher * "."
     return join(facts.authors, ", ") * year * "." * title * publisher *
            " https://doi.org/" * facts.doi
+end
+
+# What a record of a file recorded from facts keeps of them beyond its entries, so that the file
+# can be registered later from its record alone: what the identifier identifies, the citation key
+# where there is no DOI, and the namespace, each only where it says something.
+function _factsentries(facts::SourceFacts)
+    record = Dict{String, Any}("identifies" => string(facts.identifies))
+    isempty(facts.key) || (record["key"] = facts.key)
+    isempty(facts.namespace) || (record["namespace"] = facts.namespace)
+    return record
+end
+
+# The facts of a file's source as its record of ours at `sidecar` gives them back, for registering
+# the file from its record, or `nothing` where there is no record of ours there.
+function _factsat(sidecar::AbstractString)
+    isfile(sidecar) || return nothing
+    t = TOML.tryparsefile(sidecar)
+    (t isa AbstractDict && _isourrecord(t)) || return nothing
+    return SourceFacts(_recordfromtoml(t, location = nothing,
+                                       sidecar = sidecar))
 end

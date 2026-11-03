@@ -53,13 +53,13 @@ ecosystems the grid and, for an ecosystem, the run. Shown as a listing and writt
 # Fields
 
   - `software`: a [`SoftwareRecord`](@ref).
-  - `inputs`: an [`InputRecord`](@ref) per input, one per file, in a fixed order.
+  - `inputs`: a [`ProvenanceRecord`](@ref) per input, one per file, in a fixed order.
   - `context`: an [`AbstractProvenanceContext`](@ref Provenancer.AbstractProvenanceContext), the
     package's own; `NoContext()` where there is nothing to add.
 """
 struct Provenance
     software::SoftwareRecord
-    inputs::Vector{InputRecord}
+    inputs::Vector{ProvenanceRecord}
     # Abstract by design: the context is whatever the package using this machinery defines, and
     # nothing reads it on a hot path - a `Provenance` is assembled once per recording - so the
     # field is left abstract rather than making the struct parametric, which would turn every
@@ -67,7 +67,7 @@ struct Provenance
     context::AbstractProvenanceContext
 
     function Provenance(software::SoftwareRecord,
-                        inputs::AbstractVector{InputRecord},
+                        inputs::AbstractVector{ProvenanceRecord},
                         context::AbstractProvenanceContext = NoContext())
         return new(software, collect(inputs), context)
     end
@@ -217,10 +217,12 @@ end
 """
     tomltable(x)
 
-Return the fields of a named tuple, a [`SoftwareRecord`](@ref) or an [`InputRecord`](@ref) as a
-TOML table, leaving out those with nothing to say - `nothing`, empty text or an empty list - each
+Return the fields of a named tuple, a [`SoftwareRecord`](@ref) or a [`ProvenanceRecord`](@ref) as
+a TOML table, leaving out those with nothing to say - `nothing`, empty text or an empty list - each
 value as [`tomlvalue`](@ref Provenancer.tomlvalue) writes it. A record's references and notices
-are written with their placeholders filled from its fetch time.
+are written with their placeholders filled from its fetch time, its route as its sidecar keeps it,
+and where the file and its record were when it was read not at all: the table names the file
+alone, as the sidecar does.
 
 # Arguments
 
@@ -237,16 +239,18 @@ function tomltable(s::SoftwareRecord)
                              if !_tomlblank(getfield(s, k)))
 end
 
-function tomltable(r::InputRecord)
+function tomltable(r::ProvenanceRecord)
     function written(k)
         v = getfield(r, k)
         k in (:references, :notices) || return v
         return [merge(x, (text = _fillplaceholders(x.text, r.fetched),))
                 for x in v]
     end
-    return Dict{String, Any}(string(k) => tomlvalue(written(k))
-                             for k in fieldnames(InputRecord)
-                             if !_tomlblank(getfield(r, k)))
+    table = Dict{String, Any}(string(k) => tomlvalue(written(k))
+                              for k in fieldnames(ProvenanceRecord)
+                              if !(k in (:route, :location, :sidecar)) &&
+        !_tomlblank(getfield(r, k)))
+    return merge!(table, _routeentries(r.route))
 end
 
 """

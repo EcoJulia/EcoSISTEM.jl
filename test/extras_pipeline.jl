@@ -51,11 +51,15 @@ function juliawrapper(dir)
     return bin
 end
 
-# The repository's tracked files as they stand, and its `.git`, copied into `repo`.
+# The repository's tracked files as they stand, the examples' files not yet staged, so that a new
+# example runs here before it is, and its `.git`, copied into `repo`.
 function copyrepository(repo)
     rm(repo, recursive = true, force = true)
     root = pkgdir(EcoSISTEM)
-    for file in readlines(`$(Git.git()) -C $root ls-files`)
+    files = readlines(`$(Git.git()) -C $root ls-files`)
+    append!(files,
+            readlines(`$(Git.git()) -C $root ls-files --others --exclude-standard -- examples`))
+    for file in files
         source = joinpath(root, file)
         isfile(source) || continue
         mkpath(dirname(joinpath(repo, file)))
@@ -189,8 +193,9 @@ else
                     @testset "Fetch runs" begin
                         fair"run --local --dirty examples/pipeline/fetch-worldclim.yaml"
                         fair"run --local --dirty examples/pipeline/fetch-naturalearth.yaml"
+                        fair"run --local --dirty examples/pipeline/fetch-box.yaml"
                         runs = coderuns(endpoint, repo)
-                        @test length(runs) == 2
+                        @test length(runs) == 3
                         # Each source's files and their records, in that source's namespace.
                         @test Set(named.(runs[1].outputs)) ==
                               Set(["WorldClim:worldclim/data/wc2.1_10m_bio_1",
@@ -203,17 +208,23 @@ else
                                       "NaturalEarth:naturalearth/data/ne_10m_admin_0_map_units",
                                       "NaturalEarth:naturalearth/provenance/ne_10m_admin_0_map_units"
                                   ])
+                        # The file of your own, with the source it was cut from.
+                        @test Set(named.(runs[3].outputs)) ==
+                              Set(["NaturalEarth:box/data/scotland_box",
+                                      "NaturalEarth:box/provenance/scotland_box"
+                                  ])
                         # With everything registered, a fetch run stops in its rehearsal.
                         fair"run --local --dirty examples/pipeline/fetch-worldclim.yaml"
-                        @test length(coderuns(endpoint, repo)) == 2
+                        fair"run --local --dirty examples/pipeline/fetch-box.yaml"
+                        @test length(coderuns(endpoint, repo)) == 3
                     end
 
                     @testset "Model run" begin
                         fair"pull --local examples/pipeline/model.yaml"
                         fair"run --local --dirty examples/pipeline/model.yaml"
                         runs = coderuns(endpoint, repo)
-                        @test length(runs) == 3
-                        @test named.(runs[3].outputs) ==
+                        @test length(runs) == 4
+                        @test named.(runs[4].outputs) ==
                               ["EcoSISTEM:Scotland-plot"]
                         trace = D.provenance(endpoint,
                                              "EcoSISTEM:Scotland-plot")
@@ -222,7 +233,8 @@ else
                         inputs = [trace.products[url] for url in model.inputs]
                         @test Set(named.(inputs)) ==
                               Set(vcat(named.(runs[1].outputs),
-                                       named.(runs[2].outputs)))
+                                       named.(runs[2].outputs),
+                                       named.(runs[3].outputs)))
                         # Each derived from its own source's deposit alone, which has no file.
                         @testset "$(named(input))" for input in inputs
                             fetch = trace.runs[input.made_by]
@@ -239,7 +251,7 @@ else
                         fair"pull --local examples/paper/paper.yaml"
                         fair"run --local --dirty examples/paper/paper.yaml"
                         runs = coderuns(endpoint, repo)
-                        @test length(runs) == 4
+                        @test length(runs) == 5
                         outputs = ["EcoSISTEM:Examples/Figures/" .*
                                    ["NicheWidth", "IslandTesting",
                                        "DispersalSD",
@@ -248,7 +260,7 @@ else
                                    "EcoSISTEM:Examples/Tables/" .*
                                    ["IslandParameters", "ContinentParameters"];
                                    "EcoSISTEM:Examples/Config"]
-                        @test Set(named.(runs[4].outputs)) == Set(outputs)
+                        @test Set(named.(runs[5].outputs)) == Set(outputs)
                         # Each derived from the parameters alone.
                         @testset "$output" for output in outputs
                             trace = D.provenance(endpoint, output)

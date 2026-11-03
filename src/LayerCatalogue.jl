@@ -393,6 +393,32 @@ const _OPTIONAL_COLUMNS = Dict(:BioClimPlus => (:Group,),
                                 :PublishedScaleFactor),
                                :BioClim => (:PublishedScaleFactor,))
 
+"""
+    SourceFacts(rec::DatasetRecord; kw...)
+
+Return the facts of a catalogued source as [`EcoSISTEM.Provenancer.SourceFacts`](@ref) carries
+them, from its row: the key the row is written under as the source's name; its identifier,
+licence, release and title; what its provider asks; its request name as the key its citation is
+filed under where it has no DOI; and the namespace its files are registered in. What a file you
+cut or derived from a catalogued source is recorded with, through
+[`Provenancer.record_provenance`](@ref EcoSISTEM.Provenancer.record_provenance), the fields named by
+keyword replaced - the file's own `title`, say - and every other as the row has it.
+
+# Arguments
+
+  - `rec`: the source's row, from [`datasetinfo`](@ref).
+"""
+function Provenancer.SourceFacts(rec::DatasetRecord; kw...)
+    facts = SourceFacts(source = rec.dataset, doi = rec.doi, url = rec.url,
+                        title = rec.title, releasedate = rec.releasedate,
+                        version = rec.version, licence = rec.licence,
+                        identifies = rec.identifies, citation = rec.citation,
+                        references = rec.references, notices = rec.notices,
+                        requestpage = _requestpage(rec), key = rec.request,
+                        namespace = rec.namespace)
+    return isempty(kw) ? facts : SourceFacts(facts; kw...)
+end
+
 # == Functions ==================================================================================
 
 """
@@ -633,18 +659,6 @@ function _datasetrecord(key::AbstractString)
         r.dataset == key && return r
     end
     return nothing
-end
-
-# The facts of a catalogued source as `Provenancer` takes them, from its row: the key the row is
-# written under as the source's name; its identifier, licence, release and title; what its
-# provider asks; and its request name as the key its citation is filed under where it has no DOI.
-function _sourcefacts(rec::DatasetRecord)
-    return SourceFacts(source = rec.dataset, doi = rec.doi, url = rec.url,
-                       title = rec.title, releasedate = rec.releasedate,
-                       version = rec.version, licence = rec.licence,
-                       identifies = rec.identifies, citation = rec.citation,
-                       references = rec.references, notices = rec.notices,
-                       requestpage = _requestpage(rec), key = rec.request)
 end
 
 # A file's title: its release's, the layer's name where the file is one layer, and the file's own

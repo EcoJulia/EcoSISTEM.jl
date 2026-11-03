@@ -24,6 +24,10 @@ end
 
 _depositname(track::Track) = track.root * "/deposit"
 
+# Whether facts name their source as a registry takes one, by a DOI or by the key of a citation;
+# files of a source naming neither cannot be registered with it.
+_namessource(facts::SourceFacts) = !isempty(facts.doi) || !isempty(facts.key)
+
 # Refuse, before anything is fetched, a file whose stem cannot end a data product name: one holding
 # anything but ASCII letters, digits, `_`, `-` and `.`, or beginning or ending with `.`.
 function _checkstems(paths)
@@ -39,12 +43,13 @@ end
 
 # A file's record of ours as it would be with `facts` (sidecar keys and values) in place of what it
 # says of them, read without writing it; `nothing` where the file has no record of ours.
-function _recordwith(path::AbstractString, facts::AbstractDict)
-    sidecar = sidecarpath(path)
+function _recordwith(path::AbstractString, facts::AbstractDict;
+                     sidecar::AbstractString = sidecarpath(path))
     isfile(sidecar) || return nothing
     t = TOML.tryparsefile(sidecar)
     (t isa AbstractDict && _isourrecord(t)) || return nothing
-    return _recordfromtoml(merge(t, facts))
+    return _recordfromtoml(merge(t, facts), location = String(path),
+                           sidecar = sidecar)
 end
 
 # Bring a file's record of ours up to date with `facts`, what is known of it now, before it is
@@ -52,17 +57,17 @@ end
 # facts a registration needs, or hold ones since corrected, and the record and the registration
 # must agree. What the fetch itself recorded - when, the size and checksum, the request, its job -
 # is kept. Returns the record, or `nothing` for a file with no record of ours.
-function _refreshrecord!(path::AbstractString, facts::AbstractDict)
-    sidecar = sidecarpath(path)
+function _refreshrecord!(path::AbstractString, facts::AbstractDict;
+                         sidecar::AbstractString = sidecarpath(path))
     isfile(sidecar) || return nothing
     t = TOML.tryparsefile(sidecar)
     (t isa AbstractDict && _isourrecord(t)) || return nothing
     if any(get(t, k, nothing) != v for (k, v) in facts)
         merge!(t, facts)
         t["writer"] = _writer()
-        writesidecar(path, t)
+        writesidecar(path, t, sidecar = sidecar)
     end
-    return recordat(path)
+    return recordat(path, sidecar = sidecar)
 end
 
 # A release version as the registry writes it, in full: `2.1` as `2.1.0`, and `1.0.0` for none.
@@ -89,7 +94,7 @@ _isstamped(version::AbstractString) = occursin('+', version)
 
 # The day a file's bytes are dated by when they take a stamp: when its provider last changed it,
 # else when it was fetched, else `today`, the registration's day, for a file the user gave.
-function _stampday(r::InputRecord, today::Dates.Date)
+function _stampday(r::ProvenanceRecord, today::Dates.Date)
     return Dates.Date(something(r.modified, r.fetched, today))
 end
 
@@ -99,11 +104,14 @@ _filetype(path::AbstractString) = lstrip(last(splitext(path)), '.')
 
 # What a fetch config needs for a track's files, as the lines to add: its source's namespace as the
 # run's default for inputs and outputs, since the run registers that source's deposit and nothing
-# else, and `write:` entries for the files, of `filetype`, and their provenance records.
+# else, and `write:` entries for the files, of `filetype`, and their provenance records. A source
+# with no namespace of its own is registered in whatever the config's defaults are.
 function _writelines(track::Track, namespace::AbstractString,
                      filetype::AbstractString)
-    return join(["run_metadata:", "  default_input_namespace: $namespace",
-                    "  default_output_namespace: $namespace", "write:",
+    defaults = isempty(namespace) ? String[] :
+               ["run_metadata:", "  default_input_namespace: $namespace",
+        "  default_output_namespace: $namespace"]
+    return join([defaults..., "write:",
                     "- data_product: $(track.root)/data/*",
                     "  description: A file of the source tracked under $(track.root)",
                     "  file_type: $filetype",
@@ -114,10 +122,14 @@ end
 
 # The `read:` entry a model config needs for a track's files and their records, both in their
 # source's namespace: `*` matches one segment of a name, so `<root>/*/*` takes the files and the
-# records and leaves the deposit, which has no file.
+# records and leaves the deposit, which has no file. A source with no namespace of its own was
+# registered in the namespace its fetch run's config gave as the default, which the entry's `use:`
+# block must name.
 function _readentry(track::Track, namespace::AbstractString)
-    return join(["read:", "- data_product: $(track.root)/*/*", "  use:",
-                    "    namespace: $namespace"], "\n")
+    use = isempty(namespace) ?
+          ["  use:", "    namespace: <the fetch run's default namespace>"] :
+          ["  use:", "    namespace: $namespace"]
+    return join(["read:", "- data_product: $(track.root)/*/*", use...], "\n")
 end
 
 # Why a fetch run still has a file to do, from what its registry answered - whether the file is

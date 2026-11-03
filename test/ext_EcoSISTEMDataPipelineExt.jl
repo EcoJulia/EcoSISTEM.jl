@@ -15,7 +15,7 @@ module TestEcoSISTEMDataPipelineExt
 
 using Test
 using EcoSISTEM
-using EcoSISTEM: Track, ERA
+using EcoSISTEM: Track, ERA, Provenancer
 using DataPipeline
 using DataPipeline: DataRegistryHandle, ConfigDataProduct
 using RasterDataSources
@@ -38,29 +38,38 @@ end
 
 @testset "every file is an output of its source's deposit, one source a run" begin
     track = Track(nothing, "era5")
-    rec = EcoSISTEM.datasetinfo(ERA)
     # Each file is named as an output, which the run's `write:` entry resolves.
     name = EXT._registrationname(track, "/x/era5_t2m_1990s.nc")
     @test name isa ConfigDataProduct &&
           name.data_product == "era5/data/era5_t2m_1990s"
     # The deposit is named in its source's namespace, and a run takes one.
     run = Track(Ref(0), "era5")
-    @test EXT._claimdeposit!(run, rec) == "ECMWF:era5/deposit"
-    @test EXT._claimdeposit!(run, rec) == "ECMWF:era5/deposit"
+    @test EXT._claimdeposit!(run, "ECMWF") == "ECMWF:era5/deposit"
+    @test EXT._claimdeposit!(run, "ECMWF") == "ECMWF:era5/deposit"
     other = Track(run.handle, "worldclim")
     @test_throws "derives every output of a run from all of its inputs" EXT._claimdeposit!(other,
-                                                                                           EcoSISTEM.datasetinfo(WorldClim{BioClim}))
-    @test EXT._claimdeposit!(Track(Ref(0), "worldclim"),
-                             EcoSISTEM.datasetinfo(WorldClim{BioClim})) ==
+                                                                                           "WorldClim")
+    @test EXT._claimdeposit!(Track(Ref(0), "worldclim"), "WorldClim") ==
           "WorldClim:worldclim/deposit"
+    # A source with no namespace of its own is registered in the run's default.
+    @test EXT._depositof(Track(Ref(0), "box"), "") == "box/deposit"
 end
 
-@testset "a tracked spec must read a catalogued source" begin
-    @test EXT._sourcerow(SourceSpec(WorldClim{BioClim}, :bio1)).namespace ==
+@testset "a tracked spec's source is its catalogue row's" begin
+    @test EcoSISTEM._trackedsource(SourceSpec(WorldClim{BioClim}, :bio1)).facts.namespace ==
           "WorldClim"
-    @test EXT._sourcerow(NaturalEarthSpec("Scotland")).dataset == "NaturalEarth"
+    ne = EcoSISTEM._trackedsource(NaturalEarthSpec("Scotland"))
+    @test ne.facts.key == "naturalearth" && ne.fileversioned
     file = RasterFileSpec(tempname() * ".tif", axis = EcoSISTEM.NicheAxis)
-    @test_throws "no catalogued source" EXT._sourcerow(file)
+    @test_throws "no catalogued source" EcoSISTEM._trackedsource(file)
+    # The routes for a file of the user's own are the extension's too.
+    tracked = Track{<:DataRegistryHandle}
+    for (hook, args) in ((Provenancer._trackedrecord, (tracked, Any, Any)),
+                         (Provenancer._trackedinputmissing,
+                          (tracked, AbstractString)))
+        @test length(methods(hook)) == 2
+        @test which(hook, Tuple{args...}).module === EXT
+    end
 end
 
 @testset "what is done once a run is remembered by its handle" begin

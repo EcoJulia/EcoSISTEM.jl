@@ -362,7 +362,7 @@ can be large.
 Every file the package fetches gets a provenance record written beside it - where it came from,
 the request that produced it, when, its checksum, and the dataset's DOI, licence and citation -
 and [`provenance`](@ref) reads those records back, for a file or for everything a spec reads, as
-[`InputRecord`](@ref EcoSISTEM.InputRecord)s. [`fetchfiles`](@ref EcoSISTEM.fetchfiles) fetches
+[`ProvenanceRecord`](@ref EcoSISTEM.ProvenanceRecord)s. [`fetchfiles`](@ref EcoSISTEM.fetchfiles) fetches
 a spec's files without reading them, which is how to get data onto a machine whose compute nodes
 have no network, and [`verifyassets`](@ref EcoSISTEM.verifyassets) checks present files against
 their recorded checksums.

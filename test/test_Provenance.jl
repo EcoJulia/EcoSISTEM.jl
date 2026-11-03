@@ -3,7 +3,7 @@
 module TestProvenance
 
 using EcoSISTEM
-using EcoSISTEM: InputRecord
+using EcoSISTEM: ProvenanceRecord
 using Dates: Dates
 using ArchGDAL
 using Test
@@ -19,46 +19,50 @@ function _versionedzip(path, entry, text)
 end
 
 @testset "an input record holds where a published input came from, and nothing personal" begin
-    r = InputRecord(role = :species, source = "GBIF occurrence download",
-                    doi = "10.15468/dl.abc123", licence = "CC BY-NC 4.0",
-                    path = "records.csv", fetched = "2026-09-13T07:21:07Z",
-                    bytes = 12, sha256 = "00")
+    r = ProvenanceRecord(role = :species, source = "GBIF occurrence download",
+                         doi = "10.15468/dl.abc123", licence = "CC BY-NC 4.0",
+                         path = "records.csv", fetched = "2026-09-13T07:21:07Z",
+                         bytes = 12, sha256 = "00")
     @test r.role === :species && r.source == "GBIF occurrence download"
     @test r.fetched == Dates.DateTime(2026, 9, 13, 7, 21, 7)
     @test isnothing(r.url) && isnothing(r.request) && isempty(r.citation)
     @test string(r) ==
-          "InputRecord(species, \"GBIF occurrence download\", \"records.csv\", doi = \"10.15468/dl.abc123\")"
+          "ProvenanceRecord(species, \"GBIF occurrence download\", \"records.csv\", doi = \"10.15468/dl.abc123\")"
     shown = sprint(show, MIME("text/plain"), r)
-    @test occursin("InputRecord (species)", shown) && occursin("doi", shown) &&
+    @test occursin("ProvenanceRecord (species)", shown) &&
+          occursin("doi", shown) &&
           !occursin("url", shown)
     # A record takes any role; this package refuses one outside its set where a record is given
     # to it. The set covers what a run is seeded from and restarted from as well as what it is
     # built from. An absolute path is refused where it was written.
-    @test InputRecord(role = :weather, source = "x").role === :weather
-    @test_throws ArgumentError EcoSISTEM._recordvector(InputRecord(role = :weather,
-                                                                   source = "x"))
-    @test InputRecord(role = :abundance, source = "GBIF").role === :abundance
-    @test InputRecord(role = :state, source = "burn-in.jld2").role === :state
-    @test_throws ArgumentError InputRecord(role = :habitat, source = "x",
-                                           path = joinpath(homedir(), "x.nc"))
+    @test ProvenanceRecord(role = :weather, source = "x").role === :weather
+    @test_throws ArgumentError EcoSISTEM._recordvector(ProvenanceRecord(role = :weather,
+                                                                        source = "x"))
+    @test ProvenanceRecord(role = :abundance, source = "GBIF").role ===
+          :abundance
+    @test ProvenanceRecord(role = :state, source = "burn-in.jld2").role ===
+          :state
+    @test_throws ArgumentError ProvenanceRecord(role = :habitat, source = "x",
+                                                path = joinpath(homedir(),
+                                                                "x.nc"))
     # A request body is kept as sent, keys as strings.
-    q = InputRecord(role = :habitat, source = "ERA",
-                    request = Dict(:variable => ["2m_temperature"]))
+    q = ProvenanceRecord(role = :habitat, source = "ERA",
+                         request = Dict(:variable => ["2m_temperature"]))
     @test q.request == Dict{String, Any}("variable" => ["2m_temperature"])
 end
 
 @testset "an input record carries what its provider asks, filled in when shown" begin
     E = EcoSISTEM
-    r = InputRecord(role = :habitat, source = "ERA",
-                    title = "ERA5, t2m (era5_t2m_1990s)",
-                    primary = false, releasedate = "2019-04-18",
-                    references = [(doi = "10.24381/cds.f17050d7",
-                                   text = "C3S (2023), ERA5. (Accessed on DD-MMM-YYYY)")],
-                    notices = [Dict("strength" => "required",
-                                    "text" => "Contains Copernicus information YYYY.")],
-                    requestpage = "https://example.org/requests/#era5",
-                    region = "NaturalEarthSpec(\"Scotland\", level = \"ADMIN\")",
-                    fetched = "2026-10-25T11:00:00Z")
+    r = ProvenanceRecord(role = :habitat, source = "ERA",
+                         title = "ERA5, t2m (era5_t2m_1990s)",
+                         primary = false, releasedate = "2019-04-18",
+                         references = [(doi = "10.24381/cds.f17050d7",
+                                        text = "C3S (2023), ERA5. (Accessed on DD-MMM-YYYY)")],
+                         notices = [Dict("strength" => "required",
+                                         "text" => "Contains Copernicus information YYYY.")],
+                         requestpage = "https://example.org/requests/#era5",
+                         region = "NaturalEarthSpec(\"Scotland\", level = \"ADMIN\")",
+                         fetched = "2026-10-25T11:00:00Z")
     @test r.primary === false && r.releasedate == "2019-04-18"
     @test only(r.notices) ==
           (strength = :required, text = "Contains Copernicus information YYYY.")
@@ -78,9 +82,9 @@ end
                                           Dates.DateTime(2025, 7, 2)) ==
           "on 02-Jul-2025 in 2025"
     # A strength a provider cannot ask with is refused.
-    @test_throws ArgumentError InputRecord(role = :habitat, source = "x",
-                                           notices = [(strength = :urgent,
-                                                       text = "x")])
+    @test_throws ArgumentError ProvenanceRecord(role = :habitat, source = "x",
+                                                notices = [(strength = :urgent,
+                                                            text = "x")])
     # The new fields survive a sidecar: written by the catalogue's record, read back the same.
     dir = mktempdir()
     path = joinpath(dir, "era5_t2m_1990s.nc")
@@ -113,7 +117,7 @@ end
     # Two records of one file are equal, and hash alike, though their lists are separate objects.
     again = provenance(path)
     @test again == back && isequal(again, back) && hash(again) == hash(back)
-    @test again != InputRecord(role = :habitat, source = "ERA")
+    @test again != ProvenanceRecord(role = :habitat, source = "ERA")
 end
 
 @testset "a file with no record answers nothing; a sidecar reads back as a record" begin
@@ -139,7 +143,27 @@ end
           citation = "Slivinski et al. (2019)"
           """)
     r = provenance(path)
-    @test r isa InputRecord && r.role === :habitat
+    @test r isa ProvenanceRecord && r.role === :habitat
+    # Where the file and its record were read from travel with the record and are never written;
+    # a record from before routes were recorded has none, and one with a route writes it as the
+    # sidecar keeps it.
+    @test r.location == path &&
+          r.sidecar == EcoSISTEM.Provenancer.sidecarpath(path) &&
+          isnothing(r.route) && r.identifies === :other
+    written = EcoSISTEM.Provenancer.tomltable(r)
+    @test !haskey(written, "location") && !haskey(written, "sidecar") &&
+          !haskey(written, "route")
+    routed = ProvenanceRecord(role = :abundance, source = "GBIF",
+                              route = EcoSISTEM.ExtractedByService("10.1/x"),
+                              primary = true)
+    @test routed.identifies === :data && isnothing(routed.location)
+    @test EcoSISTEM.Provenancer.tomltable(routed)["route"] ==
+          "ExtractedByService" &&
+          EcoSISTEM.Provenancer.tomltable(routed)["route_identifier"] ==
+          "10.1/x"
+    @test_throws ArgumentError ProvenanceRecord(role = :abundance,
+                                                source = "GBIF",
+                                                identifies = :dataset)
     @test r.source == "TwentyCR" && r.code == "air" && r.path == "plain.nc"
     @test r.url == "https://mirror.example.org/air.nc"      # the URL answered from
     @test r.fetched == Dates.DateTime(2026, 9, 13, 8, 13, 59) && r.bytes == 1

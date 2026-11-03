@@ -8,7 +8,7 @@
 module TestRegistration
 
 using EcoSISTEM
-using EcoSISTEM: Track, InputRecord, ERA, fetchfiles, missingfiles
+using EcoSISTEM: Track, ProvenanceRecord, ERA, fetchfiles, missingfiles
 using EcoSISTEM.Units
 using Dates: Dates
 using RasterDataSources
@@ -128,16 +128,17 @@ end
     zk = E._sourcekeywords(z, ne, E.PublishedByProvider(), version = "5.1.2",
                            date = nothing)
     @test zk.bibtex == ne.request && !haskey(zk, :doi) && zk.primary === true
-    dated = InputRecord(role = :region, source = "NaturalEarth",
-                        modified = "2022-05-13T05:20:49Z")
+    dated = ProvenanceRecord(role = :region, source = "NaturalEarth",
+                             modified = "2022-05-13T05:20:49Z")
     @test !E._needsdate(dated, ne)
     @test E._registereddate(dated, ne, nothing) == "2022-05-13"
     # Failing that, when it was fetched; with neither, the citation's date stands.
-    fetched = InputRecord(role = :region, source = "NaturalEarth",
-                          fetched = "2026-09-03T00:49:00Z")
+    fetched = ProvenanceRecord(role = :region, source = "NaturalEarth",
+                               fetched = "2026-09-03T00:49:00Z")
     @test E._registereddate(fetched, ne, nothing) == "2026-09-03"
-    @test isnothing(E._registereddate(InputRecord(role = :region,
-                                                  source = "NaturalEarth"), ne,
+    @test isnothing(E._registereddate(ProvenanceRecord(role = :region,
+                                                       source = "NaturalEarth"),
+                                      ne,
                                       nothing))
     # An extract says what it was made to, and its deposit is the dataset's own.
     request = only(E.era5requests("t2m", 1990:1999, dir = dir))
@@ -285,4 +286,97 @@ end
     @test fetchfiles(ShapeCoverage(shape, axis = SurfaceArea)) == [held]
 end
 
+@testset "a shape or raster file of your own enters a spec through its record" begin
+    dir = mktempdir()
+    geojson = joinpath(dir, "box.geojson")
+    write(geojson, "{}")
+    spec = ShapeSpec(geojson)
+    @test sprint(show, spec) == "ShapeSpec($(repr(geojson)))"
+    entry = only(E._specroutes(spec))
+    @test entry == (path = geojson, route = E.SuppliedByUser(), code = nothing,
+           url = nothing)
+    @test E._specpaths(spec) == [geojson] && E._fetchspec(spec) == [geojson]
+    @test fetchfiles(spec) == [geojson] && isempty(missingfiles(spec))
+    # A spec of a file no catalogue row describes has no source to register the file with: the
+    # file enters a spec through its record, which names one.
+    @test_throws "no catalogued source" E._trackedsource(spec)
+    facts = E.Provenancer.SourceFacts(E.datasetinfo(E.NaturalEarthLevel),
+                                      title = "A box")
+    record = E.Provenancer.record_provenance(geojson, facts, role = :region,
+                                             route = E.SuppliedByUser())
+    recorded = ShapeSpec(record)
+    @test recorded.path === record && E._specpaths(recorded) == [geojson] &&
+          isnothing(E._spectrack(recorded))
+    @test sprint(show, recorded) == "ShapeSpec($(repr(record)))"
+    @test only(E._specroutes(recorded)) ==
+          (path = geojson, route = E.SuppliedByUser(), code = nothing,
+           url = nothing)
+    @test only(provenance(recorded)) == record &&
+          provenance(recorded) == provenance(spec) &&
+          E._specinputs(recorded) == [record]
+    # The record carries the route it was written with and where its sidecar is, wherever that is,
+    # so a spec of it takes both from the record.
+    other = joinpath(dir, "other.geojson")
+    write(other, "{}")
+    elsewhere = joinpath(dir, "records", "other.toml")
+    moved = E.Provenancer.record_provenance(other, facts, role = :region,
+                                            sidecar = elsewhere)
+    @test moved.route == E.PublishedByProvider() && moved.sidecar == elsewhere
+    ospec = ShapeSpec(moved)
+    @test only(E._specroutes(ospec)).route == E.PublishedByProvider() &&
+          only(provenance(ospec)) == moved &&
+          isnothing(only(provenance(ShapeSpec(other))))
+    # A record naming no file is refused.
+    @test_throws "names no file" ShapeSpec(ProvenanceRecord(role = :region,
+                                                            source = "x"))
+    # A raster file likewise, as a layer.
+    tif = joinpath(dir, "layer.tif")
+    write(tif, "x")
+    trecord = E.Provenancer.record_provenance(tif, facts, role = :habitat,
+                                              route = E.SuppliedByUser())
+    rspec = RasterFileSpec(trecord, axis = E.NicheAxis)
+    @test only(rspec.files) === trecord && E._specpaths(rspec) == [tif] &&
+          isnothing(rspec.track)
+    @test sprint(show, rspec) ==
+          "RasterFileSpec($(repr(trecord)), axis = NicheAxis)"
+    @test only(E._specroutes(rspec)).route == E.SuppliedByUser() &&
+          only(provenance(rspec)) == trecord &&
+          E._readinputs(rspec) == [trecord] && E.verifyassets(rspec) == 1
+    @test_throws "no catalogued source" E._trackedsource(rspec)
+    @test_throws "names no file" RasterFileSpec(ProvenanceRecord(role = :habitat,
+                                                                 source = "x"),
+                                                axis = E.NicheAxis)
+    # A file the user gives by path is recorded by a fetch run with a layer's role where it has no
+    # record.
+    given = joinpath(dir, "given.tif")
+    write(given, "x")
+    gspec = RasterFileSpec(given, axis = E.NicheAxis)
+    gentry = only(E._specroutes(gspec))
+    @test gentry.route == E.SuppliedByUser() && isnothing(E._catalogued(gspec))
+    @test E._recordgiven(gspec, gentry) == given &&
+          provenance(given).role === :habitat
+    @test E._catalogued(SourceSpec(WorldClim{BioClim}, :bio1)).namespace ==
+          "WorldClim" &&
+          E._catalogued(NaturalEarthSpec("Scotland")).dataset == "NaturalEarth"
+    # The config lines for a source with no namespace of its own leave the run's defaults alone.
+    lines = E.Provenancer._writelines(Track(nothing, "box"), "", "geojson")
+    @test startswith(lines, "write:") && occursin("box/data/*", lines) &&
+          occursin("file_type: geojson", lines)
+    @test startswith(E.Provenancer._writelines(Track(nothing, "box"),
+                                               "NaturalEarth", "geojson"),
+                     "run_metadata:")
+    @test occursin("the fetch run's default namespace",
+                   E.Provenancer._readentry(Track(nothing, "box"), ""))
+    # Whether a file states its own version is asked of the source directly too.
+    r = ProvenanceRecord(role = :region, source = "x",
+                         modified = "2022-05-13T05:20:49Z")
+    @test E._registereddate(r, true, nothing) == "2022-05-13" &&
+          isnothing(E._registereddate(r, false, nothing))
+    @test E._needsdate(ProvenanceRecord(role = :region, source = "x"), true) &&
+          !E._needsdate(r, false)
+    # An extract recorded with no request describes itself without one.
+    @test E._extractdescription(ProvenanceRecord(role = :abundance,
+                                                 source = "Occurrence Download")) ==
+          "An extract of Occurrence Download."
+end
 end

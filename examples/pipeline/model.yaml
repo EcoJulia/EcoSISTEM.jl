@@ -22,6 +22,9 @@ read:
 - data_product: naturalearth/*/*
   use:
     namespace: NaturalEarth
+- data_product: box/*/*
+  use:
+    namespace: NaturalEarth
 
 write:
 - data_product: Scotland-plot

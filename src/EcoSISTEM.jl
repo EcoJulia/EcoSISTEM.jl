@@ -27,7 +27,7 @@ public NicheAxis, AbstractLayer, Role, Condition, Resource, AbstractRegime,
 # resumes and records itself, a pipeline run as the route files take, and the account of what a
 # result was built from. Everything below that fetches or records a file goes through it.
 include("Provenancer/Provenancer.jl")
-using .Provenancer: Provenancer, InputRecord, Provenance, Track,
+using .Provenancer: Provenancer, ProvenanceRecord, Provenance, Track,
                     AbstractProvenanceContext, NoContext, SoftwareRecord,
                     IsFetchable, AbstractFileRoute, PublishedByProvider,
                     ExtractedByService, SuppliedByUser, SourceFacts
@@ -41,7 +41,7 @@ public Provenancer
 include("Asset.jl")
 include("GridContext.jl")
 
-public CachedAsset, CDSRequest, InputRecord, Provenance, Track, GridContext
+public CachedAsset, CDSRequest, ProvenanceRecord, Provenance, Track, GridContext
 
 public assetdir, set_assetdir!
 

@@ -88,20 +88,20 @@ const _INPUT_ROLES = (:habitat, :region, :species, :phylogeny, :dispersal,
 # A `provenance` keyword's value as a vector of records, each with a role this package knows: one
 # record, or a vector of them. Anything else is refused by name - the untyped fallback exists to
 # give a better message than a `MethodError` naming this function.
-_recordvector(record::InputRecord) = [_checkrole(record)]
+_recordvector(record::ProvenanceRecord) = [_checkrole(record)]
 
-function _recordvector(records::AbstractVector{InputRecord})
-    return InputRecord[_checkrole(r) for r in records]
+function _recordvector(records::AbstractVector{ProvenanceRecord})
+    return ProvenanceRecord[_checkrole(r) for r in records]
 end
 
 function _recordvector(x)
-    return throw(ArgumentError("`provenance` takes an `InputRecord` or a vector of them; got a " *
+    return throw(ArgumentError("`provenance` takes an `ProvenanceRecord` or a vector of them; got a " *
                                "$(typeof(x))."))
 end
 
 # Refuse a record whose role is not one of the model's: a record takes any symbol, and this package
 # says which it understands.
-function _checkrole(record::InputRecord)
+function _checkrole(record::ProvenanceRecord)
     record.role in _INPUT_ROLES ||
         throw(ArgumentError("`role` must be one of $(join(_INPUT_ROLES, ", ")); got " *
                             "`$(record.role)`."))

@@ -82,3 +82,25 @@ its own files.
   - `x`: the entry describing the file, or the dataset type.
 """
 function route end
+
+# A route as a record's sidecar keeps it: its name under `route`, and under `route_identifier` the
+# identifier a service gave an extract, where it gave one.
+function _routeentries(route::AbstractFileRoute)
+    entries = Dict{String, Any}("route" => string(nameof(typeof(route))))
+    if route isa ExtractedByService && !isnothing(route.identifier)
+        entries["route_identifier"] = route.identifier
+    end
+    return entries
+end
+
+_routeentries(::Nothing) = Dict{String, Any}()
+
+# The route a sidecar's `route` and `route_identifier` keys name, or `nothing` for a record written
+# before routes were recorded, or one naming a route this version does not know.
+function _routefrom(name, identifier)
+    isnothing(name) && return nothing
+    name == "PublishedByProvider" && return PublishedByProvider()
+    name == "ExtractedByService" && return ExtractedByService(identifier)
+    name == "SuppliedByUser" && return SuppliedByUser()
+    return nothing
+end

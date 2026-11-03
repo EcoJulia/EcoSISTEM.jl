@@ -43,7 +43,7 @@ acted on twice has to be resolved once.
 Pass one, or an [`InterventionSet`](@ref), as `simulate!`'s `intervention` keyword.
 
 An intervention built from published data - a land-use scenario, the occurrence records a
-population is seeded from - says so with `provenance`, an [`InputRecord`](@ref) or a vector of them.
+population is seeded from - says so with `provenance`, an [`ProvenanceRecord`](@ref) or a vector of them.
 The records join the ecosystem's own the first time the intervention acts, so [`provenance`](@ref)
 of the ecosystem lists an intervention that has acted and not one that never fired.
 """
@@ -51,13 +51,13 @@ struct Intervention{S <: AbstractSchedule, RG <: AbstractRegion, O <: Tuple}
     schedule::S
     region::RG
     operations::O
-    inputs::Vector{InputRecord}
+    inputs::Vector{ProvenanceRecord}
 
     # The sole constructor. Varargs, so the one-operation form is unchanged and needs no second
     # spelling; at least one is required, since an intervention that does nothing is not one.
     function Intervention(schedule::AbstractSchedule, region::AbstractRegion,
                           operations::AbstractOperation...;
-                          provenance = InputRecord[])
+                          provenance = ProvenanceRecord[])
         isempty(operations) &&
             error("an `Intervention` needs at least one operation: a schedule and a region with " *
                   "nothing to do are not an intervention. Use `NeverScheduled()` to disable one.")

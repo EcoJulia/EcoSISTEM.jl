@@ -108,34 +108,34 @@ end
 
 function _specinputs(spec::ConstructedRasterSpec)
     return reduce(vcat, (_specinputs(l) for l in spec.layers),
-                  init = InputRecord[])
+                  init = ProvenanceRecord[])
 end
 
 function _specinputs(spec::ShapeSpec; role::Symbol = :region)
     path = _localpath(spec.path)
-    isfile(path) || return InputRecord[]
-    return [something(Provenancer.recordat(path),
-                      InputRecord(role = role, source = "file",
-                                  path = basename(path)))]
+    isfile(path) || return ProvenanceRecord[]
+    return [something(_entryrecord(spec.path),
+                      ProvenanceRecord(role = role, source = "file",
+                                       path = basename(path)))]
 end
 
 function _specinputs(spec::NaturalEarthSpec; role::Symbol = :region)
     path = _localpath(_nesource(_checklevel(spec.level)))
-    isfile(path) || return InputRecord[]
+    isfile(path) || return ProvenanceRecord[]
     record = something(Provenancer.recordat(path),
-                       InputRecord(role = role, source = "file",
-                                   path = basename(path)))
+                       ProvenanceRecord(role = role, source = "file",
+                                        path = basename(path)))
     return [_withcatalogue(record, datasetinfo(NaturalEarthLevel), path)]
 end
 
 function _specinputs(spec::ConstructedShapeSpec; role::Symbol = :region)
     return reduce(vcat, (_specinputs(m, role = role) for m in spec.members),
-                  init = InputRecord[])
+                  init = ProvenanceRecord[])
 end
 
 # Anything else a `within` or a combination member may be - `nothing`, a matrix, a box, a circle, a
 # synthetic layer - names no file. Deliberately untyped, as the fallback for all of them.
-_specinputs(::Any; role::Symbol = :region) = InputRecord[]
+_specinputs(::Any; role::Symbol = :region) = ProvenanceRecord[]
 
 # A shape read as a **layer** rather than as a region: the same files, recorded under the layer's own
 # role, so a habitat built from one says what ground it came from.

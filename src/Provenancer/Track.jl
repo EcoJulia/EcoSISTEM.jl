@@ -59,6 +59,19 @@ function Base.show(io::IO, track::Track)
     return print(io, ")")
 end
 
+# Whether a track follows a run at all: one with no handle tracks nothing, so whatever holds it
+# takes the untracked route.
+_istracked(::Nothing) = false
+
+_istracked(track::Track) = !isnothing(track.handle)
+
+# Why a track cannot be followed: its handle is not a pipeline run the package using this can
+# use. The extension of that package supplies each tracked route's method for its handle.
+function _nopipeline(track::Track)
+    return "A `Track` follows a FAIR data pipeline run, the handle `DataPipeline.initialise()` " *
+           "returns with DataPipeline loaded; a `$(typeof(track.handle))` is not one."
+end
+
 # A release version as a `Track` keeps it, text a registry takes as it stands, or `nothing`.
 _releaseversiontext(::Nothing) = nothing
 

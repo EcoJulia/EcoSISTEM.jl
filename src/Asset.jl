@@ -209,7 +209,7 @@ function _cataloguerecord(owner::Type, layer, path::AbstractString;
                           route::AbstractFileRoute)
     rec = _datasetrecord(owner)
     isnothing(rec) && return Dict{String, Any}()
-    return Provenancer.sourceentries(_sourcefacts(rec), route,
+    return Provenancer.sourceentries(SourceFacts(rec), route,
                                      title = _filetitle(rec, layer, path),
                                      code = isnothing(layer) ? nothing :
                                             first(layer.aliases))

@@ -8,8 +8,8 @@ using DataPipeline: DataRegistryHandle, ConfigDataProduct, ConfigFileException,
                     register_authors!, register_citations!
 
 using EcoSISTEM
-using EcoSISTEM: Track, NaturalEarthSpec, RasterSpec, Provenancer,
-                 PublishedByProvider, SuppliedByUser
+using EcoSISTEM: Track, Provenancer, PublishedByProvider, SuppliedByUser,
+                 SourceFacts
 
 using Dates: Dates
 using TOML: TOML

@@ -87,12 +87,12 @@ end
     @test e["references"] ==
           [Dict("doi" => "10.1002/joc.5086", "text" => "Fick, S.E.")] &&
           e["notices"] == [Dict("strength" => "requested", "text" => "Cite it")]
-    # Blank facts write no key, and the title defaults to the source's.
+    # Blank facts write no key, the title defaults to the source's, and the route is kept.
     bare = P.sourceentries(SourceFacts(source = "s", title = "T"),
                            SuppliedByUser())
-    @test Set(keys(bare)) == Set(["source", "title", "primary"]) &&
+    @test Set(keys(bare)) == Set(["source", "title", "primary", "route"]) &&
           bare["title"] == "T" &&
-          bare["primary"] === false
+          bare["primary"] === false && bare["route"] == "SuppliedByUser"
     # A citation is composed where the source gives none and has a DOI and authors.
     composed = P.sourceentries(SourceFacts(source = "s", doi = "10.1/x",
                                            title = "A set",
@@ -118,7 +118,7 @@ end
           endswith(rec["title"], "(wc2.1_10m_bio_1)")
     @test isempty(EcoSISTEM._cataloguerecord(Int, nothing, "/x/y.tif",
                                              route = PublishedByProvider()))
-    era = EcoSISTEM._sourcefacts(EcoSISTEM.datasetinfo(ERA))
+    era = SourceFacts(EcoSISTEM.datasetinfo(ERA))
     @test era.source == "ERA" && era.identifies === :data &&
           era.key == "era5" &&
           era.doi == "10.24381/cds.f17050d7" && era.licence == "CC-BY-4.0" &&
@@ -256,4 +256,58 @@ end
     end
 end
 
+@testset "the namespace, and the facts a record keeps for a later registration" begin
+    facts = SourceFacts(source = "s", doi = "10.1/x", title = "T",
+                        identifies = :data, namespace = "EIDC")
+    @test facts.namespace == "EIDC" && SourceFacts(source = "s").namespace == ""
+    @test_throws ArgumentError SourceFacts(source = "s", namespace = "a b")
+    @test_throws ArgumentError SourceFacts(source = "s", namespace = "a:b")
+    # A row's facts carry its namespace.
+    @test SourceFacts(EcoSISTEM.datasetinfo(ERA)).namespace == "ECMWF"
+    @test P._factsentries(facts) ==
+          Dict("identifies" => "data", "namespace" => "EIDC")
+    @test P._factsentries(SourceFacts(source = "s", key = "k")) ==
+          Dict("identifies" => "other", "key" => "k")
+    @test P._namessource(facts) &&
+          P._namessource(SourceFacts(source = "s", key = "k")) &&
+          !P._namessource(SourceFacts(source = "s"))
+    # Written into a record, the facts come back from it as far as the record carries them.
+    dir = mktempdir()
+    path = joinpath(dir, "t.csv")
+    write(path, "a\n")
+    full = SourceFacts(source = "A set", doi = "10.1/x", title = "A set",
+                       releasedate = "2022-06-22", version = "2",
+                       licence = "CC0-1.0", identifies = :data,
+                       citation = "Cite",
+                       references = [(doi = "10.1/p", text = "Paper")],
+                       notices = [(strength = :requested, text = "Say so")],
+                       requestpage = "https://docs/#x", namespace = "EIDC")
+    record_provenance(path, full, role = :species, url = "https://x")
+    back = P._factsat(P.sidecarpath(path))
+    @test SourceFacts(provenance(path)) == back
+    @test back.source == "A set" && back.doi == "10.1/x" &&
+          back.url == "https://x" && back.title == "A set" &&
+          back.releasedate == "2022-06-22" && back.version == "2" &&
+          back.licence == "CC0-1.0" && back.identifies === :data &&
+          back.citation == "Cite" && back.references == full.references &&
+          back.notices == full.notices &&
+          back.requestpage == full.requestpage && back.key == "" &&
+          back.namespace == "EIDC"
+    @test isnothing(P._factsat(joinpath(dir, "none.toml")))
+    # A record keeping nothing of what its identifier identifies, as the catalogue's entries alone
+    # write, identifies the data where it calls the file primary.
+    other = joinpath(dir, "o.tif")
+    write(other, "x")
+    P.writesidecar(other,
+                   merge!(P.baserecord(other, :habitat),
+                          P.sourceentries(full, PublishedByProvider())))
+    @test P._factsat(P.sidecarpath(other)).identifies === :data
+    P.writesidecar(other,
+                   merge!(P.baserecord(other, :habitat),
+                          P.sourceentries(full, SuppliedByUser())))
+    @test P._factsat(P.sidecarpath(other)).identifies === :other
+    # Another program's sidecar gives none.
+    write(P.sidecarpath(other), "writer = \"Other 1.0\"\n")
+    @test isnothing(P._factsat(P.sidecarpath(other)))
+end
 end

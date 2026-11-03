@@ -85,11 +85,11 @@ end
 
 @testset "records a caller attaches reach the ecosystem, and an intervention's once it has acted" begin
     E = EcoSISTEM
-    traits = E.InputRecord(role = :species, source = "trait table",
-                           path = "traits.csv")
-    seeding = E.InputRecord(role = :abundance,
-                            source = "GBIF occurrence download",
-                            doi = "10.15468/dl.abc123")
+    traits = E.ProvenanceRecord(role = :species, source = "trait table",
+                                path = "traits.csv")
+    seeding = E.ProvenanceRecord(role = :abundance,
+                                 source = "GBIF occurrence download",
+                                 doi = "10.15468/dl.abc123")
     species = build_species(DefaultEcosystem(), numspecies = 3,
                             verbosity = :silent, provenance = traits)
     @test only(species.inputs).source == "trait table"
@@ -98,8 +98,8 @@ end
     datasets() = [r.source for r in provenance(eco).inputs]
     @test issetequal(datasets(), ["trait table", "GBIF occurrence download"])
     # An intervention's records join once it acts, and never for one that does not.
-    cull = E.InputRecord(role = :intervention, source = "cull plan")
-    idle = E.InputRecord(role = :intervention, source = "never applied")
+    cull = E.ProvenanceRecord(role = :intervention, source = "cull plan")
+    idle = E.ProvenanceRecord(role = :intervention, source = "never applied")
     plan = InterventionSet(Intervention(AtTime(0s), AllCells(),
                                         RemoveAbundance(1, 1),
                                         provenance = cull),
@@ -144,10 +144,10 @@ end
     @test !any(s -> occursin(homedir(), s) || occursin(gethostname(), s) ||
                     occursin(dir, s), tomlstrings(path))
     # An ecosystem adds its run, and writing it gives the same file as writing its provenance.
-    seeding = EcoSISTEM.InputRecord(role = :abundance,
-                                    source = "GBIF occurrence download",
-                                    doi = "10.15468/dl.abc123",
-                                    fetched = "2026-09-13T07:21:07Z")
+    seeding = EcoSISTEM.ProvenanceRecord(role = :abundance,
+                                         source = "GBIF occurrence download",
+                                         doi = "10.15468/dl.abc123",
+                                         fetched = "2026-09-13T07:21:07Z")
     eco = build_ecosystem(DefaultEcosystem(), seed = 7, provenance = seeding)
     whole = write_provenance(joinpath(dir, "eco.toml"), eco)
     parts = write_provenance(joinpath(dir, "parts.toml"), provenance(eco))
@@ -158,13 +158,13 @@ end
           Dates.DateTime(2026, 9, 13, 7, 21, 7)
     # A provider's references and notices are written with their placeholders filled from the
     # fetch time, and an empty list is left out like any other field with nothing to say.
-    asked = EcoSISTEM.InputRecord(role = :abundance,
-                                  source = "GBIF occurrence download",
-                                  fetched = "2026-09-13T07:21:07Z",
-                                  references = [(doi = "10.15468/dl.abc123",
-                                                 text = "GBIF (YYYY). Accessed DD-MMM-YYYY.")],
-                                  notices = [(strength = :requested,
-                                              text = "Thanks, YYYY.")])
+    asked = EcoSISTEM.ProvenanceRecord(role = :abundance,
+                                       source = "GBIF occurrence download",
+                                       fetched = "2026-09-13T07:21:07Z",
+                                       references = [(doi = "10.15468/dl.abc123",
+                                                      text = "GBIF (YYYY). Accessed DD-MMM-YYYY.")],
+                                       notices = [(strength = :requested,
+                                                   text = "Thanks, YYYY.")])
     written = TOML.parsefile(write_provenance(joinpath(dir, "asked.toml"),
                                               build_ecosystem(DefaultEcosystem(),
                                                               seed = 7,
@@ -184,12 +184,12 @@ end
 @testset "a provenance lists its inputs under their datasets, each citation once" begin
     E = EcoSISTEM
     cite = "Smith, A. (2020). A trait table. Journal of Traits, 1, 1-2."
-    traits = [E.InputRecord(role = :species, source = "trait table",
-                            path = file, citation = cite)
+    traits = [E.ProvenanceRecord(role = :species, source = "trait table",
+                                 path = file, citation = cite)
               for file in ("traits.csv", "more.csv")]
-    seeding = E.InputRecord(role = :abundance,
-                            source = "GBIF occurrence download",
-                            doi = "10.15468/dl.abc123")
+    seeding = E.ProvenanceRecord(role = :abundance,
+                                 source = "GBIF occurrence download",
+                                 doi = "10.15468/dl.abc123")
     species = build_species(DefaultEcosystem(), numspecies = 3,
                             verbosity = :silent, provenance = traits)
     habitat = build_habitat(DefaultEcosystem(), verbosity = :silent)

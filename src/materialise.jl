@@ -731,7 +731,7 @@ function _analyselocal(layers::NamedTuple, cons::NamedTuple, cache::LayerCache)
                            isnothing(chosen) ? nothing : chosen.name,
                            _activegrid(covered.grid, covered.active), safely,
                            plans, fp, problems, layers, cons, cache,
-                           InputRecord[], AsInvestigated())
+                           ProvenanceRecord[], AsInvestigated())
 end
 
 # One spec put on the area's grid, by this process alone: the whole of `materialise`'s work on a spec.

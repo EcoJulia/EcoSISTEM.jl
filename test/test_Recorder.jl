@@ -46,8 +46,8 @@ end
     eco = Test1Ecosystem()
     recording = RecordAbundance(eco, 3)
     cull = Intervention(AtTime(STEP), AllCells(), RemoveAbundance(1, 1),
-                        provenance = EcoSISTEM.InputRecord(role = :intervention,
-                                                           source = "cull plan"))
+                        provenance = EcoSISTEM.ProvenanceRecord(role = :intervention,
+                                                                source = "cull plan"))
     simulate!(recording, eco, STEP, STEP, intervention = cull)
     record = provenance(recording)
     @test any(r -> r.source == "cull plan", record.inputs)

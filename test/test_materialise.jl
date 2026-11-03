@@ -414,8 +414,10 @@ end
     @test [r.path for r in StudyArea(h, verbosity = :silent).report.inputs] ==
           built
     # A file read under several windows is one input, and the records come in a fixed order.
-    b = EcoSISTEM.InputRecord(role = :habitat, source = "file", path = "b.tif")
-    a = EcoSISTEM.InputRecord(role = :habitat, source = "file", path = "a.tif")
+    b = EcoSISTEM.ProvenanceRecord(role = :habitat, source = "file",
+                                   path = "b.tif")
+    a = EcoSISTEM.ProvenanceRecord(role = :habitat, source = "file",
+                                   path = "a.tif")
     @test [r.path for r in EcoSISTEM._uniqueinputs([b, a, b])] ==
           ["a.tif", "b.tif"]
 end
