@@ -195,6 +195,14 @@ end
 
 assetpath(relative_path::AbstractString) = joinpath(assetdir(), relative_path)
 
+# A record of a file this package fetched from its catalogue: it carries the fetch's time, which
+# a file the user gives or cuts from a source is recorded without, and names a catalogued dataset
+# as its source, as `_cataloguerecord` writes it.
+function Provenancer.iscatalogued(record::ProvenanceRecord)
+    return !isnothing(record.fetched) &&
+           !isnothing(_datasetrecord(record.source))
+end
+
 # Tell each loaded extension that keeps files under the asset cache that the cache has moved.
 function _repointextensions()
     isnothing(Base.get_extension(EcoSISTEM, :EcoSISTEMRasterDataSourcesExt)) ||

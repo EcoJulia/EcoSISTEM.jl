@@ -183,18 +183,43 @@ end
                           sidecar = joinpath(dir, "ours.toml"))
     @test r.source == "x" && r.primary === false &&
           r.sidecar == joinpath(dir, "ours.toml")
-    # A file the machinery fetched has its record already, and is refused whatever it is given.
+    # A record a downloader of your own wrote, fetch time and all, is returned as any record of the
+    # same source under the same role is.
     fetched = tablefile(dir, "fetched.csv")
     P.writesidecar(fetched,
                    merge!(P.baserecord(fetched, :species),
                           P.sourceentries(facts, PublishedByProvider())))
-    @test !isnothing(provenance(fetched).fetched)
-    @test_throws "by the fetch that brought it" record_provenance(fetched,
-                                                                  facts,
-                                                                  role = :species)
-    @test_throws "by the fetch that brought it" record_provenance(fetched,
-                                                                  "10.1/x",
-                                                                  role = :species)
+    @test !isnothing(provenance(fetched).fetched) &&
+          !P.iscatalogued(provenance(fetched))
+    @test record_provenance(fetched, facts, role = :species) ==
+          provenance(fetched)
+    # A file EcoSISTEM fetched from its catalogue - its record naming a catalogued dataset, with a
+    # fetch time - is refused whatever it is given; a file cut from the same source and recorded
+    # with its facts, which has no fetch time, is not.
+    catalogued = SourceFacts(EcoSISTEM.datasetinfo(EcoSISTEM.NaturalEarthLevel))
+    held = tablefile(dir, "ne.csv")
+    P.writesidecar(held,
+                   merge!(P.baserecord(held, :region),
+                          P.sourceentries(catalogued, PublishedByProvider())))
+    @test P.iscatalogued(provenance(held))
+    @test_throws "which the catalogue describes" record_provenance(held,
+                                                                   catalogued,
+                                                                   role = :region)
+    @test_throws "which the catalogue describes" record_provenance(held,
+                                                                   "10.1/x",
+                                                                   role = :region)
+    cut = tablefile(dir, "cut.csv")
+    r = record_provenance(cut, catalogued, role = :region,
+                          route = SuppliedByUser())
+    @test !P.iscatalogued(r) && isnothing(r.fetched) &&
+          record_provenance(cut, catalogued, role = :region) == r
+    @test !P.iscatalogued(ProvenanceRecord(role = :habitat,
+                                           source = "WorldClim{BioClim}")) &&
+          P.iscatalogued(ProvenanceRecord(role = :habitat,
+                                          source = "WorldClim{BioClim}",
+                                          fetched = "2026-01-01T00:00:00Z")) &&
+          !P.iscatalogued(ProvenanceRecord(role = :habitat, source = "x",
+                                           fetched = "2026-01-01T00:00:00Z"))
     # A record naming its source by a citation key, or by name alone, is compared by that.
     keyed = tablefile(dir, "keyed.csv")
     bykey = SourceFacts(source = "Keyed", key = "keyed", identifies = :data)

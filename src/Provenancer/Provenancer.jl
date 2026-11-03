@@ -59,6 +59,6 @@ public AbstractProvenanceContext, AbstractFileRoute, IsFetchable, route,
 
 public assetdir, set_assetdir!, fetchlocked, download!, fetchfile, sidecarpath,
        recordpresent, writesidecar, verifyfile, recordat, baserecord,
-       downloadrecord
+       downloadrecord, iscatalogued
 
 end

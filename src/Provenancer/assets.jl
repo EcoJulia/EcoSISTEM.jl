@@ -20,9 +20,10 @@ checksum, under `role` - and what `facts` say of its source
 gives ([`lookup_doi`](@ref)). A file recorded already from the same source under the same role is
 left as it is and its record returned, with nothing looked up - a DOI given is compared with the
 record's - so a call repeated on every run costs a read. A record saying otherwise is refused: one
-of a file this machinery fetched, whose provenance it knows, or one naming another source or
-another role; delete the sidecar to record the file afresh. A sidecar another program wrote under
-that name is neither read nor overwritten: name another place with `sidecar`.
+of a file the package fetched from its own catalogue ([`iscatalogued`](@ref Provenancer.iscatalogued)),
+whose facts are the catalogue's, or one naming another source or another role; delete the sidecar
+to record the file afresh. A sidecar another program wrote under that name is neither read nor
+overwritten: name another place with `sidecar`.
 
 No fetch time is recorded, since this call fetched nothing: a file fetched by
 [`fetchfile`](@ref Provenancer.fetchfile) carries one. Offline, a DOI cannot be looked up, and the
@@ -422,6 +423,23 @@ function downloadrecord(path::AbstractString, url::AbstractString, response,
     return record
 end
 
+# The fallback is untyped on purpose: the package using this module supplies the method for its
+# records, and a method here with the same signature would be the one it overwrote.
+"""
+    iscatalogued(record::ProvenanceRecord)
+
+Return whether `record` is of a file the package using this machinery fetched from a catalogue of
+its own, so that the file's facts are the catalogue's and [`record_provenance`](@ref) refuses to
+record it afresh from facts given by hand. `false` unless the package supplies the method that
+asks its catalogue, as EcoSISTEM does for a record with a fetch time whose `source` names one of
+its catalogued datasets.
+
+# Arguments
+
+  - `record`: the record beside the file.
+"""
+iscatalogued(_) = false
+
 # Record a file through the data pipeline run `track` names and return its record: what
 # `record_provenance` does for a tracked file, given the facts or the DOI and its keywords. The
 # extension of the package using this module supplies the method for its handle; any other
@@ -459,9 +477,9 @@ end
 # before it writes: the file must be there; a record of ours at `sidecar` of that source under
 # that role is returned as it is, no sidecar at all is `nothing`, and a sidecar there that is not
 # a record of ours - another program's, or one that does not read - is refused, since it is
-# neither read nor overwritten. A record of ours saying otherwise is refused too: one carrying a
-# fetch time, since this call fetches nothing and the file's provenance is known already, or one
-# naming another source or another role.
+# neither read nor overwritten. A record of ours saying otherwise is refused too: one of a file
+# the package fetched from its catalogue, whose facts are the catalogue's, or one naming another
+# source or another role.
 function _priorrecord(path::AbstractString, sidecar::AbstractString, source,
                       role::Symbol)
     isfile(path) ||
@@ -481,11 +499,13 @@ function _priorrecord(path::AbstractString, sidecar::AbstractString, source,
 end
 
 # How a record of a file differs from what a call would write of it from `source` under `role`,
-# or `nothing` where it does not: it was fetched, so its provenance is known; or its role, or the
-# source it names - by DOI, by citation key, or failing both by name - is another.
+# or `nothing` where it does not: the file is one the package fetched from its catalogue, whose
+# facts the catalogue holds; or its role, or the source it names - by DOI, by citation key, or
+# failing both by name - is another.
 function _otherclaim(record::ProvenanceRecord, source, role::Symbol)
-    isnothing(record.fetched) ||
-        return "by the fetch that brought it, which recorded where it came from"
+    iscatalogued(record) &&
+        return "as a file of `$(record.source)`, which the catalogue describes and a spec of " *
+               "it reads"
     record.role === role ||
         return "under the role `$(record.role)` rather than `$role`"
     _samesource(record, source) ||

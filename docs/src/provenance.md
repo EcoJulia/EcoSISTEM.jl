@@ -41,7 +41,7 @@ DOI of its source and the role the data play, it looks the DOI's metadata up, wr
 file the same `.provenance.toml` a fetch would, and returns the [`ProvenanceRecord`](@ref). A later
 call from the same source under the same role finds the record and looks nothing up, so the call
 can stay in a script that runs every time; one saying otherwise - another source, another role, or
-a file the package fetched itself - is refused.
+a file the package fetched from its own catalogue - is refused.
 
 ```julia
 using EcoSISTEM.Provenancer
