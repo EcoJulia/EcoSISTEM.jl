@@ -14,10 +14,10 @@
       release, licence, what its identifier names and what its provider asks - from which a file's
       record and its registration are written; `Provenancer.lookup_doi` fills one from the metadata
       a DOI resolves to, DataCite's record or the CSL record. JSON.jl is a new dependency for it.
-    - `Provenancer.URLFile` and `Provenancer.fetchfile`: a file fetched from a URL on first use and
-      recorded with its source's facts, for a package with no catalogue of its own;
-      `Provenancer.fetchinto` is the locked, resumable fetch beneath, for a fetcher writing its own
-      record.
+    - `Provenancer.URLFile` and `Provenancer.fetchfile`: a file fetched from a URL on first use,
+      recorded with its source's facts and returned as its record, which a spec takes in place of a
+      path; with a `track`, a pipeline run registers it or puts it in place. `Provenancer.fetchinto`
+      is the locked, resumable fetch beneath, for a fetcher writing its own record.
     - `GeneratedOnRequest` carries the identifier a service gave the file, where it gave one, and
       an extract with a DOI of its own - an occurrence download - is primary by it.
     - `Provenancer.record_provenance(path, doi; role)` records a file you have - a table you downloaded,

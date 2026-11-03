@@ -29,9 +29,15 @@ const P = EcoSISTEM.Provenancer
     @test string(f) ==
           "URLFile($(repr(url)), $(repr(f.path)), facts = " *
           "SourceFacts(\"My table\", doi 10.1234/abc))"
-    path = P.fetchfile(f, role = :species)
-    @test path == f.path && isfile(path) && read(path, String) == "a,b\n1,2\n"
+    # The record is returned, saying where the file and its record are.
+    fetched = P.fetchfile(f, role = :species)
+    @test fetched isa ProvenanceRecord && fetched.location == f.path &&
+          fetched.sidecar == P.sidecarpath(f.path) &&
+          fetched.route == VersionOfRecord()
+    path = fetched.location
+    @test isfile(path) && read(path, String) == "a,b\n1,2\n"
     r = provenance(path)
+    @test r == fetched
     @test r.role === :species && r.source == "My table" &&
           r.doi == "10.1234/abc" &&
           r.url == url && r.primary === true && r.licence == "CC-BY-4.0" &&
@@ -42,7 +48,7 @@ const P = EcoSISTEM.Provenancer
     # A second call fetches nothing and leaves the record alone.
     sidecar = P.sidecarpath(path)
     mtimes = (stat(path).mtime, stat(sidecar).mtime)
-    @test P.fetchfile(f, role = :species, verify = true) == path
+    @test P.fetchfile(f, role = :species, verify = true) == fetched
     @test (stat(path).mtime, stat(sidecar).mtime) == mtimes
     # A file present with no record is recorded without a fetch time, the facts still written.
     rm(sidecar)
@@ -73,11 +79,54 @@ end
     row = SourceFacts(EcoSISTEM.datasetinfo(EcoSISTEM.NaturalEarthLevel))
     f = URLFile("file://" * served, joinpath(dir, "cache", "ne.csv"),
                 facts = row)
-    path = P.fetchfile(f, role = :region)
-    r = provenance(path)
+    r = P.fetchfile(f, role = :region)
+    path = r.location
     @test !isnothing(r.fetched) && r.source == row.source &&
           isnothing(r.catalogue) && !P.iscatalogued(r)
     @test record_provenance(path, row, role = :region) == r
+end
+
+@testset "a URL file's record is what a spec of it takes, and its track a run's" begin
+    dir = mktempdir()
+    served = joinpath(dir, "served")
+    mkpath(served)
+    write(joinpath(served, "region.geojson"), "{}")
+    write(joinpath(served, "layer.tif"), "x")
+    facts = SourceFacts(source = "My region", doi = "10.1234/abc",
+                        identifies = :data)
+    shape = URLFile("file://" * joinpath(served, "region.geojson"),
+                    joinpath(dir, "cache", "region.geojson"), facts = facts)
+    layer = URLFile("file://" * joinpath(served, "layer.tif"),
+                    joinpath(dir, "cache", "layer.tif"), facts = facts)
+    # A spec of a download takes its record in place of a path, as a spec of a recorded file does.
+    r = P.fetchfile(shape, role = :region)
+    spec = ShapeSpec(r)
+    @test spec.path === r && EcoSISTEM._specpaths(spec) == [shape.path]
+    raster = RasterFileSpec(P.fetchfile(layer, role = :habitat),
+                            axis = EcoSISTEM.NicheAxis)
+    @test EcoSISTEM._specpaths(raster) == [layer.path]
+    # A track with no handle is the untracked call; any other handle is no pipeline run's.
+    @test P.fetchfile(shape, role = :region,
+                      track = Track(nothing, "tables")) == r
+    @test_throws "FAIR data pipeline run" P.fetchfile(shape, role = :region,
+                                                      track = Track(Ref(0),
+                                                                    "tables"))
+    # A download has nothing to do untracked, since it is fetched on first use, there or not.
+    absent = URLFile(shape.url, joinpath(dir, "cache", "absent.geojson"),
+                     facts = facts)
+    @test isempty(EcoSISTEM.missingfiles(absent)) &&
+          isempty(EcoSISTEM.missingfiles(absent,
+                                         track = Track(nothing, "tables")))
+    @test_throws "FAIR data pipeline run" EcoSISTEM.missingfiles(absent,
+                                                                 track = Track(Ref(0),
+                                                                               "tables"))
+    # A file beside a same-named sidecar that is not a record of ours has no record to return.
+    foreign = joinpath(dir, "cache", "foreign.geojson")
+    write(foreign, "{}")
+    write(P.sidecarpath(foreign), "writer = \"another program\"\n")
+    @test_throws "has no provenance record of ours" P.fetchfile(URLFile(shape.url,
+                                                                        foreign),
+                                                                role = :region)
 end
 
 end

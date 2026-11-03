@@ -219,6 +219,68 @@ else
                         @test length(coderuns(endpoint, repo)) == 3
                     end
 
+                    @testset "A download of your own, rehearsed" begin
+                        # A table fetched from a URL through a run's track: a run writing it and its
+                        # record fetches and registers it, and a run doing neither is refused.
+                        # Rehearsals register nothing, so the runs on either side are untouched.
+                        served = joinpath(home, "served")
+                        mkpath(served)
+                        cp(joinpath(pkgdir(EcoSISTEM), "data", "NaturalEarth",
+                                    "regions.csv"),
+                           joinpath(served, "regions.csv"), force = true)
+                        downloads = joinpath(home, "downloads")
+                        rm(downloads, recursive = true, force = true)
+                        facts = EcoSISTEM.SourceFacts(EcoSISTEM.datasetinfo(EcoSISTEM.NaturalEarthLevel),
+                                                      title = "Natural Earth's regions (regions)")
+                        table = EcoSISTEM.Provenancer.URLFile("file://" *
+                                                              joinpath(served,
+                                                                       "regions.csv"),
+                                                              joinpath(downloads,
+                                                                       "regions.csv"),
+                                                              facts = facts)
+                        metadata = """
+                        run_metadata:
+                          description: A table of your own downloaded from a URL
+                          default_input_namespace: NaturalEarth
+                          default_output_namespace: NaturalEarth
+                          script: |
+                            true
+                        """
+                        writes = joinpath(repo, "fetch-table.yaml")
+                        write(writes,
+                              metadata * """
+                              write:
+                              - data_product: table/data/*
+                                description: A table of your own
+                                file_type: csv
+                              - data_product: table/provenance/*
+                                description: EcoSISTEM's provenance record of a file under table
+                                file_type: toml
+                              """)
+                        neither = joinpath(repo, "neither-table.yaml")
+                        write(neither, metadata)
+                        D.rehearse(writes, local_only = true) do handle
+                            track = EcoSISTEM.Track(handle, "table")
+                            @test only(EcoSISTEM.missingfiles(table,
+                                                              track = track)).reason ==
+                                  "not held: the fetch run fetches and registers it"
+                            r = EcoSISTEM.Provenancer.fetchfile(table,
+                                                                role = :region,
+                                                                track = track)
+                            @test r.location == table.path &&
+                                  isfile(table.path) &&
+                                  !isnothing(r.fetched) && r.primary === true
+                            return nothing
+                        end
+                        D.rehearse(neither, local_only = true) do handle
+                            @test_throws "neither writes nor reads" EcoSISTEM.Provenancer.fetchfile(table,
+                                                                                                    role = :region,
+                                                                                                    track = EcoSISTEM.Track(handle,
+                                                                                                                            "table"))
+                            return nothing
+                        end
+                    end
+
                     @testset "Model run" begin
                         fair"pull --local examples/pipeline/model.yaml"
                         fair"run --local --dirty examples/pipeline/model.yaml"

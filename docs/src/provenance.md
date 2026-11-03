@@ -76,6 +76,20 @@ stands in for the file's path in a [`RasterFileSpec`](@ref) or a [`ShapeSpec`](@
 FAIR data pipeline the call takes the run's `track` as well, and does the run's work for the file
 before your code reads it; see [Data pipeline](pipeline.md).
 
+A file you download from a URL records itself as it lands. Describe it as a
+[`Provenancer.URLFile`](@ref EcoSISTEM.Provenancer.URLFile) with the facts of its source, and
+[`Provenancer.fetchfile`](@ref EcoSISTEM.Provenancer.fetchfile) fetches it on first use - resuming
+an interrupted download, and waiting for another process fetching the same file - writes its
+record and returns it, so that it goes into a spec as a recorded file does; it takes a `track`
+too:
+
+```julia
+using EcoSISTEM.Provenancer
+table = URLFile("https://example.org/centroids.csv", "centroids.csv",
+                facts = SourceFacts(source = "Centroids", doi = "10.1234/abc", identifies = :data))
+centroids = Provenancer.fetchfile(table, role = :species)
+```
+
 Give the records to what is built from the data with the `provenance` keyword, which takes an
 [`ProvenanceRecord`](@ref) or a vector of them: on [`build_species`](@ref) for the species, on
 [`build_ecosystem`](@ref) for what belongs to the run as a whole, and on an [`Intervention`](@ref)

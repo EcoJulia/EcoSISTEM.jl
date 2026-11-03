@@ -275,27 +275,46 @@ function fetchinto(record::Function, url::AbstractString, path::AbstractString;
 end
 
 """
-    fetchfile(file::URLFile; role::Symbol, verify = false)
+    fetchfile(file::URLFile; role::Symbol, verify = false, track = nothing)
 
-Return the path of `file`, fetched from its URL first where it is not there, as
-[`fetchinto`](@ref Provenancer.fetchinto) fetches, and recorded under `role` with what its
-download says ([`downloadrecord`](@ref Provenancer.downloadrecord)) and what its facts say of the
-source ([`sourceentries`](@ref Provenancer.sourceentries)).
+Return the [`ProvenanceRecord`](@ref) of `file`, which says where the file and its record are,
+the file fetched from its URL first where it is not there, as [`fetchinto`](@ref
+Provenancer.fetchinto) fetches, and recorded under `role` with what its download says
+([`downloadrecord`](@ref Provenancer.downloadrecord)) and what its facts say of the source
+([`sourceentries`](@ref Provenancer.sourceentries)). A spec of the file takes the record in place
+of a path. A file beside a same-named sidecar that is not a record of ours is refused, since that
+sidecar is neither read nor overwritten.
+
+With a `track`, the download goes through a data pipeline run as a file
+[`record_provenance`](@ref) records does: a run whose working config writes the file and its
+record fetches it and registers both with the file's source, which its facts must name by a DOI
+or a citation key; a run whose config reads them puts both in place from the run's store.
 
 # Arguments
 
   - `file`: the file to fetch, as a [`URLFile`](@ref).
   - `role`: which part of the system the file enters by, a word of the package using the record.
   - `verify`: whether to check a file already present against its record's checksum.
+  - `track`: a [`Track`](@ref) naming the data pipeline run the download goes through and the root
+    of its data product names, or `nothing`, the default, for none.
 """
-function fetchfile(file::URLFile; role::Symbol, verify::Bool = false)
-    return fetchinto(file.url, file.path, verify = verify) do response
+function fetchfile(file::URLFile; role::Symbol, verify::Bool = false,
+                   track::Union{Nothing, Track} = nothing)
+    _istracked(track) &&
+        return _trackedfetchfile(track, file, role = role, verify = verify)
+    fetchinto(file.url, file.path, verify = verify) do response
         record = downloadrecord(file.path, file.url, response, role)
         isnothing(file.facts) ||
             merge!(record, sourceentries(file.facts, route(file)),
                    _factsentries(file.facts))
         return record
     end
+    record = recordat(file.path)
+    isnothing(record) &&
+        error("`$(file.path)` has no provenance record of ours: " *
+              "`$(sidecarpath(file.path))` is not one - another program's, or one that does not " *
+              "read - and is neither read nor overwritten.")
+    return record
 end
 
 """
@@ -456,6 +475,13 @@ end
 # handle is refused.
 _trackedrecord(track::Track, path, source; kw...) = error(_nopipeline(track))
 
+# Fetch a URL file through the data pipeline run `track` names and return its record: what
+# `fetchfile` does for a tracked download. The extension of the package using this module supplies
+# the method for its handle; any other handle is refused.
+function _trackedfetchfile(track::Track, file::URLFile; kw...)
+    return error(_nopipeline(track))
+end
+
 # What is still to do before a file of the user's own can be read, as `missingfiles` reports it
 # for a file: nothing while it is there, for an untracked file; for a tracked one, what its run's
 # working config makes of it. `route` is the one the file is recorded with, and `sidecar` where its
@@ -476,10 +502,11 @@ function _inputmissing(track::Track, path::AbstractString;
 end
 
 # What a tracked file of the user's own has still to do in its run, and why, as `missingfiles`
-# reports it. The extension of the package using this module supplies the method for its handle;
+# reports it; `facts` are what is known of its source where no record says yet, a download's before
+# it is fetched. The extension of the package using this module supplies the method for its handle;
 # any other handle is refused.
 function _trackedinputmissing(track::Track, path::AbstractString; route,
-                              sidecar)
+                              sidecar, facts = nothing)
     return error(_nopipeline(track))
 end
 

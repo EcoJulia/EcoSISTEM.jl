@@ -62,11 +62,13 @@ end
     @test ne.facts.key == "naturalearth" && ne.fileversioned
     file = RasterFileSpec(tempname() * ".tif", axis = EcoSISTEM.NicheAxis)
     @test_throws "no catalogued source" EcoSISTEM._trackedsource(file)
-    # The routes for a file of the user's own are the extension's too.
+    # The routes for a file of the user's own, and for a download, are the extension's too.
     tracked = Track{<:DataRegistryHandle}
     for (hook, args) in ((Provenancer._trackedrecord, (tracked, Any, Any)),
-                         (Provenancer._trackedinputmissing,
-                          (tracked, AbstractString)))
+        (Provenancer._trackedinputmissing,
+        (tracked, AbstractString)),
+        (Provenancer._trackedfetchfile,
+        (tracked, Provenancer.URLFile)))
         @test length(methods(hook)) == 2
         @test which(hook, Tuple{args...}).module === EXT
     end

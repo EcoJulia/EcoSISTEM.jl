@@ -91,6 +91,18 @@ box = ShapeSpec(record_provenance(path, facts, role = :region, route = OtherOrig
                                   track = Track(handle, "box")))
 ```
 
+A file you download from a URL goes the same way through
+[`Provenancer.fetchfile`](@ref EcoSISTEM.Provenancer.fetchfile), which takes the `track` too: a
+fetch run downloads the file where it is not held and registers it with its record, the facts the
+[`Provenancer.URLFile`](@ref EcoSISTEM.Provenancer.URLFile) carries naming its source; a model run
+puts the run's copy in place. It returns the record, which the spec takes:
+
+```julia
+using EcoSISTEM.Provenancer: SourceFacts, URLFile, fetchfile
+table = URLFile(url, path, facts = SourceFacts(source = "A table", doi = doi, identifies = :data))
+regions = ShapeSpec(fetchfile(table, role = :region, track = Track(handle, "table")))
+```
+
 A data product of the pipeline with no source of its own - another run's output - is read by its
 path, `RasterFileSpec(link_read!(handle, name), axis = ...)`: the read is the pipeline's record of
 the run's input, and the file carries no record of EcoSISTEM's.

@@ -7,8 +7,9 @@
     URLFile(url::AbstractString, path::AbstractString; facts = nothing)
 
 A file downloaded from `url` to `path` on first use by [`fetchfile`](@ref Provenancer.fetchfile),
-which writes its provenance record beside it: what the download itself says, and what `facts` say
-of the source. Nothing is fetched at construction. It implements
+which writes its provenance record beside it - what the download itself says, and what `facts` say
+of the source - and returns the record, which a spec of the file takes in place of a path; with a
+`track` the download goes through a data pipeline run. Nothing is fetched at construction. It implements
 [`IsFetchable`](@ref Provenancer.IsFetchable), and its file comes by [`VersionOfRecord`](@ref),
 as the provider serves it.
 

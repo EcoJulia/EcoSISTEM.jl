@@ -177,6 +177,7 @@ end
     missingfiles(x)
     missingfiles(path::AbstractString; track = nothing, route = VersionOfRecord(),
                  sidecar = Provenancer.sidecarpath(path))
+    missingfiles(file::Provenancer.URLFile; track = nothing)
 
 Return what is still to do before `x` can be built, fetching nothing: an entry per file still to
 do, a named tuple of the `file` - where it is or would be - and the `reason` it is not done, in
@@ -194,14 +195,19 @@ source's name.
 The second form asks the same of a file of your own, one your code reads and
 [`Provenancer.record_provenance`](@ref EcoSISTEM.Provenancer.record_provenance) records: untracked, it is
 to do while it is not there; tracked, it is what its run's working config makes of it, as above,
-a fetch run having the recording and registering to do and a model run the reading.
+a fetch run having the recording and registering to do and a model run the reading. The third asks
+it of a download, a [`Provenancer.URLFile`](@ref EcoSISTEM.Provenancer.URLFile): untracked, there is
+nothing to do, since it is fetched on first use; tracked, it is what its run's working config makes
+of it, a fetch run having the fetching and registering to do.
 
 # Arguments
 
   - `x`: what to ask about, anything [`fetchfiles`](@ref EcoSISTEM.fetchfiles) takes.
   - `path`: the file of your own.
+  - `file`: the download.
   - `track`, `route`, `sidecar`: as given to `record_provenance` for it - the run it goes through, the
-    route it is recorded with, and where its record is.
+    route it is recorded with, and where its record is; for a download, `track` as given to
+    [`Provenancer.fetchfile`](@ref EcoSISTEM.Provenancer.fetchfile).
 """
 function missingfiles(x)
     return reduce(vcat, (_missing(_spectrack(s), s) for s in _filespecs(x)),
@@ -214,6 +220,16 @@ function missingfiles(path::AbstractString;
                       sidecar::AbstractString = Provenancer.sidecarpath(path))
     return Provenancer._inputmissing(track, path, route = route,
                                      sidecar = sidecar)
+end
+
+function missingfiles(file::Provenancer.URLFile;
+                      track::Union{Nothing, Track} = nothing)
+    Provenancer._istracked(track) ||
+        return @NamedTuple{file::String, reason::String}[]
+    return Provenancer._trackedinputmissing(track, file.path,
+                                            route = Provenancer.route(file),
+                                            sidecar = Provenancer.sidecarpath(file.path),
+                                            facts = file.facts)
 end
 
 # The specs among `x` that read files - a raster spec, a named region, a shape - in order, through

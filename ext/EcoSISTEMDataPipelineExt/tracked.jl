@@ -383,6 +383,49 @@ function EcoSISTEM._trackedmissing(track::Track{<:DataRegistryHandle}, spec)
     return todo
 end
 
+# Register a file recorded already - by `record_provenance`, or by a download - from its record `r`,
+# as an output of the fetch run derived from its source's deposit, unless it is registered already as
+# it would be now; return its record as it then stands. `route` is the one it was recorded with,
+# `code` the layer it holds and `url` where it was fetched from, where known.
+function _registerrecorded!(track, r, route; code = nothing, url = nothing)
+    path, sidecar = r.location, r.sidecar
+    facts = SourceFacts(r)
+    Provenancer._namessource(facts) || error(_nosource(facts))
+    src = (facts = facts, fileversioned = false)
+    entry = (path = path, route = route, code = code, url = url)
+    item = _item(entry,
+                 EcoSISTEM._trackrelease!(Dict{String, Any}(), track, route),
+                 sidecar = sidecar)
+    _claimdeposit!(track, facts.namespace)
+    _readcitations!(track.handle)
+    _isregistered(track, src, item) && return r
+    _register!(track, src, item)
+    return Provenancer.recordat(path, sidecar = sidecar)
+end
+
+# Put the run's copy of a recorded file and its record in place from the store, once a run, and
+# return the record.
+function _providerecorded!(track, path, sidecar)
+    key = "provided:" * path
+    if !_isdone(track.handle, key)
+        _providefile!(track, nothing, path, sidecar)
+        _markdone!(track.handle, key)
+    end
+    return Provenancer.recordat(path, sidecar = sidecar)
+end
+
+# Why a run cannot take a recorded file: its working config neither writes nor reads the file and
+# its record, with the lines a fetch run and a model run each need.
+function _neitherrun(track, path, namespace)
+    return "This run's working config neither writes nor reads " *
+           "`$(Provenancer._dataname(track, path))` and its provenance record. A fetch " *
+           "run, which records and registers the file, needs:\n" *
+           Provenancer._writelines(track, namespace,
+                                   Provenancer._filetype(path)) *
+           "\nand a model run, which reads them from the run's store, needs:\n" *
+           Provenancer._readentry(track, namespace)
+end
+
 # What `record_provenance` does for a file of the user's own given a run's track: in a fetch run - one
 # whose working config writes the file's record - the file is recorded as an untracked call records
 # it, once, and registered from its record's facts; in a model run - one whose config reads the
@@ -394,7 +437,6 @@ function Provenancer._trackedrecord(track::Track{<:DataRegistryHandle}, path,
                                     sidecar::AbstractString,
                                     route::EcoSISTEM.AbstractFileRoute = VersionOfRecord(),
                                     kw...)
-    handle = track.handle
     path = String(path)
     Provenancer._checkstems([path])
     if _writable(track, path)
@@ -404,47 +446,50 @@ function Provenancer._trackedrecord(track::Track{<:DataRegistryHandle}, path,
         r = Provenancer.record_provenance(path, source; role = role,
                                           route = route, sidecar = sidecar,
                                           kw...)
-        facts = SourceFacts(r)
-        Provenancer._namessource(facts) || error(_nosource(facts))
-        src = (facts = facts, fileversioned = false)
-        entry = (path = path, route = route, code = get(kw, :code, nothing),
-                 url = get(kw, :url, nothing))
-        item = _item(entry,
-                     EcoSISTEM._trackrelease!(Dict{String, Any}(), track,
-                                              route), sidecar = sidecar)
-        _claimdeposit!(track, facts.namespace)
-        _readcitations!(handle)
-        _isregistered(track, src, item) && return r
-        _register!(track, src, item)
-        return Provenancer.recordat(path, sidecar = sidecar)
+        return _registerrecorded!(track, r, route,
+                                  code = get(kw, :code, nothing),
+                                  url = get(kw, :url, nothing))
     end
-    if _readable(track, path)
-        key = "provided:" * path
-        if !_isdone(handle, key)
-            _providefile!(track, nothing, path, sidecar)
-            _markdone!(handle, key)
-        end
-        return Provenancer.recordat(path, sidecar = sidecar)
-    end
+    _readable(track, path) && return _providerecorded!(track, path, sidecar)
     namespace = source isa SourceFacts ? source.namespace : nothing
-    return error("This run's working config neither writes nor reads " *
-                 "`$(Provenancer._dataname(track, path))` and its provenance record. A fetch " *
-                 "run, which records and registers the file, needs:\n" *
-                 Provenancer._writelines(track, namespace,
-                                         Provenancer._filetype(path)) *
-                 "\nand a model run, which reads them from the run's store, needs:\n" *
-                 Provenancer._readentry(track, namespace))
+    return error(_neitherrun(track, path, namespace))
 end
 
-# What `missingfiles` reports of a tracked file of the user's own: what its run's working config
-# makes of it, from the record beside it where there is one. The citations are read first, as for a
-# spec, since a registered file's facts are compared by its citation key where it has no DOI.
+# What `fetchfile` does for a download given a run's track, as `_trackedrecord` does for a file of
+# the user's own: in a fetch run the file is fetched as an untracked call fetches it and registered
+# from its record's facts, which must name its source; in a model run the run's copy of the file and
+# its record are put in place from the store; a run whose config does neither is refused.
+function Provenancer._trackedfetchfile(track::Track{<:DataRegistryHandle},
+                                       file::Provenancer.URLFile; role::Symbol,
+                                       verify::Bool = false)
+    path = file.path
+    Provenancer._checkstems([path])
+    facts = file.facts
+    isnothing(facts) &&
+        error("`$(basename(path))` has no facts of its source, so the registry cannot be told " *
+              "where it comes from: give the `URLFile` its `facts`.")
+    Provenancer._namessource(facts) || error(_nosource(facts))
+    if _writable(track, path)
+        r = Provenancer.fetchfile(file, role = role, verify = verify)
+        return _registerrecorded!(track, r, Provenancer.route(file),
+                                  url = file.url)
+    end
+    _readable(track, path) &&
+        return _providerecorded!(track, path, Provenancer.sidecarpath(path))
+    return error(_neitherrun(track, path, facts.namespace))
+end
+
+# What `missingfiles` reports of a tracked file of the user's own, or of a download: what its run's
+# working config makes of it, from the record beside it where there is one, else from the `facts`
+# given, a download's. The citations are read first, as for a spec, since a registered file's facts
+# are compared by its citation key where it has no DOI.
 function Provenancer._trackedinputmissing(track::Track{<:DataRegistryHandle},
                                           path::AbstractString;
                                           route::EcoSISTEM.AbstractFileRoute,
-                                          sidecar::AbstractString)
-    facts = Provenancer._factsat(sidecar)
-    src = isnothing(facts) ? nothing : (facts = facts, fileversioned = false)
+                                          sidecar::AbstractString,
+                                          facts::Union{Nothing, SourceFacts} = nothing)
+    known = something(Provenancer._factsat(sidecar), facts, Some(nothing))
+    src = isnothing(known) ? nothing : (facts = known, fileversioned = false)
     entry = (path = String(path), route = route, code = nothing, url = nothing)
     item = _item(entry,
                  EcoSISTEM._trackrelease!(Dict{String, Any}(), track, route),
