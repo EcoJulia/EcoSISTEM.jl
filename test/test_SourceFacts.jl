@@ -116,7 +116,8 @@ end
     @test rec["source"] == "WorldClim{BioClim}" &&
           rec["code"] == first(layer.aliases) &&
           rec["primary"] === false && rec["doi"] == "10.1002/joc.5086" &&
-          endswith(rec["title"], "(wc2.1_10m_bio_1)")
+          endswith(rec["title"], "(wc2.1_10m_bio_1)") &&
+          rec["catalogue"] == "EcoSISTEM"
     @test isempty(EcoSISTEM._cataloguerecord(Int, nothing, "/x/y.tif",
                                              route = PublishedByProvider()))
     era = SourceFacts(EcoSISTEM.datasetinfo(ERA))
@@ -294,15 +295,15 @@ end
           back.citation == "Cite" && back.references == full.references &&
           back.notices == full.notices &&
           back.requestpage == full.requestpage && isnothing(back.key) &&
-          back.namespace == "EIDC" && isnothing(back.catalogue)
-    # A row's facts name this package as their catalogue, which a record written from them keeps;
-    # the name is checked as a namespace is.
+          back.namespace == "EIDC"
+    # The catalogue a file was fetched from is given by the fetch, not carried by the facts, so a
+    # row's facts written for a file of your own name none; the name is checked as a namespace is.
     row = SourceFacts(EcoSISTEM.datasetinfo(EcoSISTEM.NaturalEarthLevel))
-    @test row.catalogue == "EcoSISTEM" &&
-          SourceFacts(row, title = "cut").catalogue == "EcoSISTEM" &&
-          P.sourceentries(row, PublishedByProvider())["catalogue"] ==
-          "EcoSISTEM"
-    @test_throws ArgumentError SourceFacts(source = "s", catalogue = "a b")
+    @test !haskey(P.sourceentries(row, PublishedByProvider()), "catalogue") &&
+          P.sourceentries(row, PublishedByProvider(),
+                          catalogue = "EcoSISTEM")["catalogue"] == "EcoSISTEM"
+    @test_throws ArgumentError P.sourceentries(row, PublishedByProvider(),
+                                               catalogue = "a b")
     @test isnothing(P._factsat(joinpath(dir, "none.toml")))
     # A record keeping nothing of what its identifier identifies, as the catalogue's entries alone
     # write, identifies the data where it calls the file primary.

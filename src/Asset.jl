@@ -164,7 +164,7 @@ function assetpath(asset::CachedAsset; verify::Bool = false)
     path = something(asset.path,
                      joinpath(assetdir(owner = asset.owner),
                               basename(asset.url)))
-    return Provenancer.fetchfile(asset.url, path, verify = verify) do response
+    return Provenancer.fetchinto(asset.url, path, verify = verify) do response
         return _assetrecord(asset, path, response)
     end
 end
@@ -203,8 +203,9 @@ function _repointextensions()
 end
 
 # The catalogue's facts about a file of a catalogued source, as the record of every file of it
-# carries them: `Provenancer`'s entries for the row's facts, with the file's own title and the layer
-# it holds where it is one. Empty where the owner is no source.
+# carries them: `Provenancer`'s entries for the row's facts, with the file's own title, the layer it
+# holds where it is one, and this package's name as the catalogue, which with a fetch time marks
+# the file as one a spec of it reads. Empty where the owner is no source.
 function _cataloguerecord(owner::Type, layer, path::AbstractString;
                           route::AbstractFileRoute)
     rec = _datasetrecord(owner)
@@ -212,7 +213,8 @@ function _cataloguerecord(owner::Type, layer, path::AbstractString;
     return Provenancer.sourceentries(SourceFacts(rec), route,
                                      title = _filetitle(rec, layer, path),
                                      code = isnothing(layer) ? nothing :
-                                            first(layer.aliases))
+                                            first(layer.aliases),
+                                     catalogue = string(nameof(@__MODULE__)))
 end
 
 # The provenance record of a file fetched over https: what `Provenancer` records of any download

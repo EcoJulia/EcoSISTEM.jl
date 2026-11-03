@@ -193,14 +193,16 @@ end
           !P.iscatalogued(provenance(fetched))
     @test record_provenance(fetched, facts, role = :species) ==
           provenance(fetched)
-    # A file EcoSISTEM fetched from its catalogue - its record naming a catalogued dataset, with a
-    # fetch time - is refused whatever it is given; a file cut from the same source and recorded
-    # with its facts, which has no fetch time, is not.
+    # A file EcoSISTEM fetched from its catalogue - its record written by the catalogue's fetch,
+    # with a fetch time - is refused whatever it is given; a file cut from the same source and
+    # recorded with its facts is not.
     catalogued = SourceFacts(EcoSISTEM.datasetinfo(EcoSISTEM.NaturalEarthLevel))
     held = tablefile(dir, "ne.csv")
     P.writesidecar(held,
                    merge!(P.baserecord(held, :region),
-                          P.sourceentries(catalogued, PublishedByProvider())))
+                          EcoSISTEM._cataloguerecord(EcoSISTEM.NaturalEarthLevel,
+                                                     nothing, held,
+                                                     route = PublishedByProvider())))
     @test P.iscatalogued(provenance(held))
     @test_throws "fetched from the `EcoSISTEM` catalogue" record_provenance(held,
                                                                             catalogued,
@@ -213,10 +215,9 @@ end
                           route = SuppliedByUser())
     @test !P.iscatalogued(r) && isnothing(r.fetched) &&
           record_provenance(cut, catalogued, role = :region) == r
-    # The mark is the catalogue's name with a fetch time, read from the record alone: a sidecar
-    # from before carries no name, and is not refused.
-    @test r.catalogue == "EcoSISTEM" &&
-          provenance(held).catalogue == "EcoSISTEM"
+    # The mark is the name the catalogue's fetch writes, with a fetch time, read from the record
+    # alone: the facts do not carry it, and a sidecar from before names none and is not refused.
+    @test isnothing(r.catalogue) && provenance(held).catalogue == "EcoSISTEM"
     @test !P.iscatalogued(ProvenanceRecord(role = :habitat, source = "x",
                                            catalogue = "EcoSISTEM")) &&
           P.iscatalogued(ProvenanceRecord(role = :habitat, source = "x",

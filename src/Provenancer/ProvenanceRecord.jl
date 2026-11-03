@@ -66,7 +66,7 @@ references written from the list. [`provenance`](@ref) reads the records the fet
     `nothing` where unknown: what a registration needs of the source beyond its entries. Where
     `identifies` is not given, a file called `primary` identifies the data and any other is
     `:other`.
-  - `catalogue`: the name of the catalogue the file's facts came from, `nothing` for none: with a
+  - `catalogue`: the name of the catalogue the file was fetched from, `nothing` for none: with a
     fetch time, the mark of a file the package fetched from its catalogue
     ([`iscatalogued`](@ref Provenancer.iscatalogued)).
   - `route`: how the file came to be, an [`AbstractFileRoute`](@ref Provenancer.AbstractFileRoute),

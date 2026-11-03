@@ -64,4 +64,20 @@ const P = EcoSISTEM.Provenancer
                                                            verify = true)
 end
 
+@testset "a URL file given a catalogued source's facts is not the catalogue's" begin
+    # The catalogue's name in a record comes from the catalogue's own fetch, so a download of your
+    # own recorded with a row's facts is a file of yours, which `record_provenance` returns.
+    dir = mktempdir()
+    served = joinpath(dir, "served.csv")
+    write(served, "a,b\n1,2\n")
+    row = SourceFacts(EcoSISTEM.datasetinfo(EcoSISTEM.NaturalEarthLevel))
+    f = URLFile("file://" * served, joinpath(dir, "cache", "ne.csv"),
+                facts = row)
+    path = P.fetchfile(f, role = :region)
+    r = provenance(path)
+    @test !isnothing(r.fetched) && r.source == row.source &&
+          isnothing(r.catalogue) && !P.iscatalogued(r)
+    @test record_provenance(path, row, role = :region) == r
+end
+
 end

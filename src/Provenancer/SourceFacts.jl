@@ -9,7 +9,7 @@
                 authors = [], identifiers = Dict(), releasedate = nothing, version = nothing,
                 description = nothing, licence = nothing, identifies = :other,
                 citation = nothing, references = [], notices = [], requestpage = nothing,
-                key = nothing, namespace = nothing, catalogue = nothing)
+                key = nothing, namespace = nothing)
     SourceFacts(facts::SourceFacts; kw...)
     SourceFacts(record::ProvenanceRecord)
 
@@ -54,10 +54,6 @@ registered from its record alone.
     citation by key.
   - `namespace`: the data pipeline namespace its files are registered in - ASCII letters, digits,
     `_` and `-` - or `nothing` for the namespace a run gives as its default.
-  - `catalogue`: the name of the catalogue the facts were read from - a package's, in the same
-    characters - or `nothing` for facts looked up or written by hand. A record written from them
-    carries it, which is how a file the package fetched from its catalogue is told from a file of
-    the user's own ([`iscatalogued`](@ref Provenancer.iscatalogued)).
 """
 struct SourceFacts
     source::String
@@ -78,7 +74,6 @@ struct SourceFacts
     requestpage::Union{Nothing, String}
     key::Union{Nothing, String}
     namespace::Union{Nothing, String}
-    catalogue::Union{Nothing, String}
 
     function SourceFacts(; source::AbstractString, doi = nothing, url = nothing,
                          title = nothing, publisher = nothing,
@@ -88,18 +83,14 @@ struct SourceFacts
                          description = nothing, licence = nothing,
                          identifies::Symbol = :other, citation = nothing,
                          references = [], notices = [], requestpage = nothing,
-                         key = nothing, namespace = nothing,
-                         catalogue = nothing)
+                         key = nothing, namespace = nothing)
         identifies in IDENTIFIES ||
             throw(ArgumentError("`identifies` must be one of $(join(IDENTIFIES, ", ")); got " *
                                 "`$identifies`."))
-        ns, cat = _opttext(namespace), _opttext(catalogue)
+        ns = _opttext(namespace)
         isnothing(ns) || occursin(r"^[A-Za-z0-9_-]+$", ns) ||
             throw(ArgumentError("`namespace` names a data pipeline namespace, in ASCII letters, " *
                                 "digits, `_` and `-`; got `$ns`."))
-        isnothing(cat) || occursin(r"^[A-Za-z0-9_-]+$", cat) ||
-            throw(ArgumentError("`catalogue` names the catalogue the facts came from, in ASCII " *
-                                "letters, digits, `_` and `-`; got `$cat`."))
         return new(String(source), _opttext(doi), _opttext(url),
                    _opttext(title), _opttext(publisher),
                    String[string(a) for a in authors],
@@ -108,8 +99,7 @@ struct SourceFacts
                    _opttext(releasedate), _opttext(version),
                    _opttext(description), _opttext(licence), identifies,
                    _opttext(citation), _references(references),
-                   _notices(notices), _opttext(requestpage), _opttext(key), ns,
-                   cat)
+                   _notices(notices), _opttext(requestpage), _opttext(key), ns)
     end
 end
 
@@ -131,8 +121,7 @@ function SourceFacts(record::ProvenanceRecord)
                        citation = record.citation,
                        references = record.references, notices = record.notices,
                        requestpage = record.requestpage, key = record.key,
-                       namespace = record.namespace,
-                       catalogue = record.catalogue)
+                       namespace = record.namespace)
 end
 
 # Value equality and hashing: the authors, identifiers, references and notices are containers,
@@ -158,7 +147,7 @@ end
 function Base.show(io::IO, ::MIME"text/plain", f::SourceFacts)
     println(io, "SourceFacts ", repr(f.source), " (", f.identifies, ")")
     for name in (:title, :doi, :url, :publisher, :releasedate, :version,
-        :licence, :citation, :key, :namespace, :catalogue)
+        :licence, :citation, :key, :namespace)
         value = getfield(f, name)
         isnothing(value) || println(io, "  ", rpad(string(name), 12), value)
     end
@@ -211,13 +200,12 @@ isprimary(::SourceFacts, ::AbstractFileRoute) = false
 
 """
     sourceentries(facts::SourceFacts, route::AbstractFileRoute; title = facts.title,
-                  code = nothing)
+                  code = nothing, catalogue = nothing)
 
 Return what a file's provenance record carries of its source, as a dictionary of the sidecar's
 keys, to be merged into the record of the file itself: the `source`, the file's `title`, the
-`route` it came by, with the identifier a service gave it where it gave one, the `catalogue` the
-facts came from where they came from one, whether it is
-`primary` for that route ([`isprimary`](@ref Provenancer.isprimary)), and the DOI, licence,
+`route` it came by, with the identifier a service gave it where it gave one, the `catalogue`
+fetching it where one is, whether it is `primary` for that route ([`isprimary`](@ref Provenancer.isprimary)), and the DOI, licence,
 version, release date, citation, references, notices and request page where known, each under
 the key the sidecar uses. The citation is composed from the authors, date, title,
 publisher and DOI where the facts give none of their own and have a DOI and authors to compose
@@ -230,14 +218,23 @@ one from.
   - `title`: the file's own title, the source's by default; a source of several files gives
     each its own.
   - `code`: which layer of the source the file holds, where it is one.
+  - `catalogue`: the name of the catalogue the file is fetched from, given by a package's fetch
+    from a catalogue of its own - the package's name, in ASCII letters, digits, `_` and `-` - and
+    `nothing` for any other file: with a fetch time, the mark of a file the package fetched from
+    its catalogue ([`iscatalogued`](@ref Provenancer.iscatalogued)).
 """
 function sourceentries(facts::SourceFacts, route::AbstractFileRoute;
                        title::Union{Nothing, AbstractString} = facts.title,
-                       code = nothing)
+                       code = nothing,
+                       catalogue::Union{Nothing, AbstractString} = nothing)
+    catalogue = _opttext(catalogue)
+    isnothing(catalogue) || occursin(r"^[A-Za-z0-9_-]+$", catalogue) ||
+        throw(ArgumentError("`catalogue` names the catalogue the file is fetched from, in ASCII " *
+                            "letters, digits, `_` and `-`; got `$catalogue`."))
     record = Dict{String, Any}("source" => facts.source,
                                "primary" => isprimary(facts, route))
     merge!(record, _routeentries(route))
-    for (key, value) in (("title", title), ("catalogue", facts.catalogue),
+    for (key, value) in (("title", title), ("catalogue", catalogue),
         ("doi", facts.doi), ("licence", facts.licence),
         ("version", facts.version), ("release_date", facts.releasedate),
         ("citation", _citationtext(facts)),

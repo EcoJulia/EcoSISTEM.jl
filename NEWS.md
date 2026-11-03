@@ -15,7 +15,9 @@
       record and its registration are written; `Provenancer.lookup_doi` fills one from the metadata
       a DOI resolves to, DataCite's record or the CSL record. JSON.jl is a new dependency for it.
     - `Provenancer.URLFile` and `Provenancer.fetchfile`: a file fetched from a URL on first use and
-      recorded with its source's facts, for a package with no catalogue of its own.
+      recorded with its source's facts, for a package with no catalogue of its own;
+      `Provenancer.fetchinto` is the locked, resumable fetch beneath, for a fetcher writing its own
+      record.
     - `ExtractedByService` carries the identifier a service gave the file, where it gave one, and
       an extract with a DOI of its own - an occurrence download - is primary by it.
     - `Provenancer.record_provenance(path, doi; role)` records a file you have - a table you downloaded,
@@ -45,10 +47,10 @@
       field and keyword are now `source`, the word the sidecar and the data pipeline already use.
       A record takes any role; EcoSISTEM refuses one outside its set where a record is given to it.
     - `record_provenance` refuses a record already there that says otherwise - of a file the package
-      fetched from its catalogue (`Provenancer.iscatalogued`: a record with a fetch time whose facts
-      name the `catalogue` they came from, which `SourceFacts` now carries and a catalogue's record
-      writes), or naming another source or another role - and returns one of the same source under
-      the same role with nothing looked up.
+      fetched from its catalogue (`Provenancer.iscatalogued`: a record with a fetch time naming the
+      `catalogue` it was fetched from, which a catalogue's own fetch writes), or naming another
+      source or another role - and returns one of the same source under the same role with nothing
+      looked up.
     - A sidecar's `writer` names the module, `EcoSISTEM.Provenancer <version>`; sidecars written by
       earlier versions are still read.
     - Unknown text in `SourceFacts` and `ProvenanceRecord` is `nothing`, never blank: every text

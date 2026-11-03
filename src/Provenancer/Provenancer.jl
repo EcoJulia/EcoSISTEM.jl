@@ -57,7 +57,8 @@ public AbstractProvenanceContext, AbstractFileRoute, IsFetchable, route,
        contextlines, contexttables, modification, softwarerecord, tomltable,
        tomlvalue
 
-public assetdir, set_assetdir!, fetchlocked, download!, fetchfile, sidecarpath,
+public assetdir, set_assetdir!, fetchlocked, download!, fetchinto, fetchfile,
+       sidecarpath,
        recordpresent, writesidecar, verifyfile, recordat, baserecord,
        downloadrecord, iscatalogued
 

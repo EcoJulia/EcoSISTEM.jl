@@ -117,6 +117,8 @@ The records, the sidecar, the download that records itself and the DOI lookup ar
 package can record its own inputs the same way: it implements
 [`Provenancer.IsFetchable`](@ref EcoSISTEM.Provenancer.IsFetchable) for each kind of thing it
 fetches, saying which route the files come by; fetches a file from a URL with
-[`Provenancer.fetchfile`](@ref EcoSISTEM.Provenancer.fetchfile), which records it as it lands; and
+[`Provenancer.fetchinto`](@ref EcoSISTEM.Provenancer.fetchinto), which records it as it lands with
+the record the package builds, or a [`Provenancer.URLFile`](@ref EcoSISTEM.Provenancer.URLFile)
+with [`Provenancer.fetchfile`](@ref EcoSISTEM.Provenancer.fetchfile), recorded from its facts; and
 subtypes [`Provenancer.AbstractProvenanceContext`](@ref EcoSISTEM.Provenancer.AbstractProvenanceContext)
 for what it adds to a result's account. Its names are on the [API](api.md) page.

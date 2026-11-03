@@ -235,8 +235,7 @@ function download!(url::AbstractString, path::AbstractString;
 end
 
 """
-    fetchfile(record::Function, url::AbstractString, path::AbstractString; verify = false)
-    fetchfile(file::URLFile; role::Symbol, verify = false)
+    fetchinto(record::Function, url::AbstractString, path::AbstractString; verify = false)
 
 Return `path`, the file fetched from `url` into it first where it is not there, with its
 provenance record written beside it when it is: `record(response)` gives the record, as a
@@ -249,20 +248,14 @@ present file is taken as whole, so a half-written one there would be served as v
 part file per destination, under a lock, so a second process wanting the same file waits and then
 finds it present, and the part file of an interrupted run is what the next run resumes from.
 
-A [`URLFile`](@ref) is recorded with what its download says ([`downloadrecord`](@ref
-Provenancer.downloadrecord)) and what its facts say of the source ([`sourceentries`](@ref
-Provenancer.sourceentries)), under `role`.
-
 # Arguments
 
   - `record`: what builds the record, called with the download's last response, or `nothing`.
   - `url`: where to fetch from.
   - `path`: where the file lives.
-  - `file`: the file to fetch, as a `URLFile`.
-  - `role`: which part of the system the file enters by, a word of the package using the record.
   - `verify`: whether to check a file already present against its record's checksum.
 """
-function fetchfile(record::Function, url::AbstractString, path::AbstractString;
+function fetchinto(record::Function, url::AbstractString, path::AbstractString;
                    verify::Bool = false)
     if isfile(path)
         recordpresent(path) do
@@ -281,8 +274,22 @@ function fetchfile(record::Function, url::AbstractString, path::AbstractString;
     return path
 end
 
+"""
+    fetchfile(file::URLFile; role::Symbol, verify = false)
+
+Return the path of `file`, fetched from its URL first where it is not there, as
+[`fetchinto`](@ref Provenancer.fetchinto) fetches, and recorded under `role` with what its
+download says ([`downloadrecord`](@ref Provenancer.downloadrecord)) and what its facts say of the
+source ([`sourceentries`](@ref Provenancer.sourceentries)).
+
+# Arguments
+
+  - `file`: the file to fetch, as a [`URLFile`](@ref).
+  - `role`: which part of the system the file enters by, a word of the package using the record.
+  - `verify`: whether to check a file already present against its record's checksum.
+"""
 function fetchfile(file::URLFile; role::Symbol, verify::Bool = false)
-    return fetchfile(file.url, file.path, verify = verify) do response
+    return fetchinto(file.url, file.path, verify = verify) do response
         record = downloadrecord(file.path, file.url, response, role)
         isnothing(file.facts) ||
             merge!(record, sourceentries(file.facts, route(file)),
@@ -429,11 +436,11 @@ end
 
 Return whether `record` is of a file the package using this machinery fetched from a catalogue of
 its own, so that the file's facts are the catalogue's and [`record_provenance`](@ref) refuses to
-record it afresh from facts given by hand: a record with a fetch time whose facts name the
-`catalogue` they came from, as a fetch from a catalogue writes them. A file cut from a catalogued
-source and recorded with its facts names the catalogue without a fetch time, a download of the
-user's own has a fetch time and names no catalogue, and a record written before the catalogue
-was recorded names none, so none of those is.
+record it afresh from facts given by hand: a record with a fetch time naming the `catalogue` the
+file was fetched from, which only such a fetch gives ([`sourceentries`](@ref
+Provenancer.sourceentries)). A file cut from a catalogued source and recorded with its facts and a
+download of the user's own name no catalogue, whatever their facts, and a record written before
+the catalogue was recorded names none, so none of those is.
 
 # Arguments
 
