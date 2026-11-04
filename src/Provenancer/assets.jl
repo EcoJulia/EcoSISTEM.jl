@@ -502,11 +502,11 @@ function _inputmissing(track::Track, path::AbstractString;
 end
 
 # What a tracked file of the user's own has still to do in its run, and why, as `missingfiles`
-# reports it; `facts` are what is known of its source where no record says yet, a download's before
-# it is fetched. The extension of the package using this module supplies the method for its handle;
-# any other handle is refused.
+# reports it; `facts` are what is known of its source where no record says yet, and `url` where it
+# is downloaded from - a download's, before it is fetched. The extension of the package using this
+# module supplies the method for its handle; any other handle is refused.
 function _trackedinputmissing(track::Track, path::AbstractString; route,
-                              sidecar, facts = nothing)
+                              sidecar, facts = nothing, url = nothing)
     return error(_nopipeline(track))
 end
 

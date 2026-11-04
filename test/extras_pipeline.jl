@@ -332,6 +332,164 @@ else
                                   ["EcoSISTEM:Examples/Parameters"]
                         end
                     end
+                    @testset "A file given by hand, and a deposit cited apart" begin
+                        # Written into the copy: a script recording a table given by hand, and one
+                        # made for a paper, each in a fetch run of its own, and reading the first
+                        # back in a model run; the configs; and the citations their facts name by
+                        # key, so nothing is looked up.
+                        given = joinpath(repo, "given")
+                        mkpath(given)
+                        write(joinpath(given, "citations.bib"),
+                              """
+                              @misc{giventable,
+                                author = {Test, Interface},
+                                title = {A table given by hand},
+                                publisher = {EcoSISTEM tests},
+                                date = {2026-01-01},
+                                url = {https://example.org/given-table}
+                              }
+                              @misc{citedtable,
+                                author = {Test, Interface},
+                                title = {A table made for a paper},
+                                publisher = {EcoSISTEM tests},
+                                date = {2026-01-01},
+                                url = {https://example.org/cited-table}
+                              }
+                              @misc{citedpaper,
+                                author = {Test, Interface},
+                                title = {The paper the table was made for},
+                                publisher = {EcoSISTEM tests},
+                                date = {2026-01-01},
+                                url = {https://example.org/cited-paper}
+                              }
+                              """)
+                        write(joinpath(given, "given.jl"),
+                              raw"""
+                              using DataPipeline
+                              using EcoSISTEM
+                              using EcoSISTEM.Provenancer: SourceFacts, DepositIsFile,
+                                                          DepositCitedApart, record_provenance
+
+                              handle = DataPipeline.initialise()
+                              DataPipeline.register_citations!(handle,
+                                                               joinpath(@__DIR__, "citations.bib"))
+                              kind = only(ARGS)
+                              given = SourceFacts(source = "A table given by hand", key = "giventable",
+                                                  title = "A table given by hand", identifies = :data,
+                                                  releasedate = "2026-01-01", namespace = "Given",
+                                                  deposit = DepositIsFile())
+                              if kind == "cited"
+                                  path = joinpath(@__DIR__, "made.csv")
+                                  write(path, "a,b\n3,4\n")
+                                  paper = SourceFacts(source = "The paper", key = "citedpaper",
+                                                      identifies = :paper, releasedate = "2026-01-01")
+                                  facts = SourceFacts(source = "A table made for a paper",
+                                                      key = "citedtable",
+                                                      title = "A table made for a paper",
+                                                      identifies = :data, releasedate = "2026-01-01",
+                                                      namespace = "Given",
+                                                      deposit = DepositCitedApart(paper))
+                                  record_provenance(path, facts, role = :species,
+                                                    track = EcoSISTEM.Track(handle, "cited"))
+                              else
+                                  path = joinpath(@__DIR__, "table.csv")
+                                  isfile(path) || write(path, "a,b\n1,2\n")
+                                  r = record_provenance(path, given, role = :species,
+                                                        track = EcoSISTEM.Track(handle, "given"))
+                                  kind == "model" &&
+                                      write(DataPipeline.link_write!(handle, "given-read"),
+                                            string(countlines(r.location)))
+                              end
+                              DataPipeline.finalise(handle)
+                              """)
+                        metadata(description, argument) = """
+                        run_metadata:
+                          description: $description
+                          default_input_namespace: Given
+                          default_output_namespace: Given
+                          script: |
+                            julia --project=examples/pipeline given/given.jl $argument
+                        register:
+                        - namespace: Given
+                          full_name: Given by hand
+                          website: https://example.org/
+                        """
+                        record(root) = """
+                        - data_product: $root/provenance/*
+                          description: EcoSISTEM's provenance record of a file under $root
+                          file_type: toml
+                        """
+                        write(joinpath(given, "fetch-given.yaml"),
+                              metadata("A table given by hand, registered as its source itself",
+                                       "given") * "write:\n" * record("given"))
+                        write(joinpath(given, "fetch-cited.yaml"),
+                              metadata("A table made for a paper, its deposit the paper",
+                                       "cited") *
+                              """
+                              write:
+                              - data_product: cited/data/*
+                                description: A table made for a paper
+                                file_type: csv
+                              """ * record("cited"))
+                        write(joinpath(given, "model-given.yaml"),
+                              metadata("The table given by hand, read back",
+                                       "model") *
+                              """
+                              read:
+                              - data_product: given/*/*
+                                use:
+                                  namespace: Given
+                              write:
+                              - data_product: given-read
+                                description: The number of lines in the table given by hand
+                                file_type: txt
+                              """)
+                        fair"run --local --dirty given/fetch-given.yaml"
+                        fair"run --local --dirty given/fetch-cited.yaml"
+                        fair"pull --local given/model-given.yaml"
+                        fair"run --local --dirty given/model-given.yaml"
+                        runs = coderuns(endpoint, repo)
+                        @test length(runs) == 8
+                        # The file given by hand is its run's one input, registered as its source
+                        # and primary, with no deposit; its record is the one output, derived from
+                        # it.
+                        @test named.(runs[6].outputs) ==
+                              ["Given:given/provenance/table"]
+                        trace = D.provenance(endpoint,
+                                             "Given:given/provenance/table")
+                        fetch = trace.runs[trace.products[only(trace.roots)].made_by]
+                        table = trace.products[only(fetch.inputs)]
+                        @test named(table) == "Given:given/data/table" &&
+                              isnothing(table.made_by) && !isnothing(table.hash)
+                        @test occursin("given-table",
+                                       table.source.identifier) &&
+                              table.source.primary
+                        # A table made for a paper is derived from a deposit with no file, the
+                        # paper, and keeps its own source.
+                        @test Set(named.(runs[7].outputs)) ==
+                              Set([
+                                      "Given:cited/data/made",
+                                      "Given:cited/provenance/made"
+                                  ])
+                        trace = D.provenance(endpoint, "Given:cited/data/made")
+                        made = trace.products[only(trace.roots)]
+                        deposit = trace.products[only(trace.runs[made.made_by].inputs)]
+                        @test named(deposit) == "Given:cited/deposit" &&
+                              isnothing(deposit.hash) &&
+                              occursin("cited-paper",
+                                       deposit.source.identifier) &&
+                              !deposit.source.primary
+                        @test occursin("cited-table", made.source.identifier) &&
+                              made.source.primary
+                        # A model run reads the file registered as its source, and its record.
+                        @test named.(runs[8].outputs) == ["Given:given-read"]
+                        trace = D.provenance(endpoint, "Given:given-read")
+                        read = trace.runs[trace.products[only(trace.roots)].made_by]
+                        @test Set(named(trace.products[url])
+                                  for url in read.inputs) ==
+                              Set(["Given:given/data/table",
+                                      "Given:given/provenance/table"])
+                    end
                 finally
                     fair"registry stop"
                 end

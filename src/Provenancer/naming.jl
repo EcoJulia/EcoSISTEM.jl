@@ -104,22 +104,31 @@ end
 _filetype(path::AbstractString) = lstrip(last(splitext(path)), '.')
 
 # What a fetch config needs for a track's files, as the lines to add: its source's namespace as the
-# run's default for inputs and outputs, since the run registers that source's deposit and nothing
-# else, and `write:` entries for the files, of `filetype`, and their provenance records. A source
-# with no namespace of its own is registered in whatever the config's defaults are.
+# run's default for inputs and outputs, since the run registers that one source and nothing else,
+# and `write:` entries for the files, of `filetype`, and their provenance records - the records
+# alone for a file registered as its source itself, which no `write:` entry names. A source with no
+# namespace of its own is registered in whatever the config's defaults are.
 function _writelines(track::Track, namespace::Union{Nothing, AbstractString},
-                     filetype::AbstractString)
+                     filetype::AbstractString,
+                     deposit::AbstractDeposit = DepositSharesIdentifier())
     defaults = isnothing(namespace) ? String[] :
                ["run_metadata:", "  default_input_namespace: $namespace",
         "  default_output_namespace: $namespace"]
     return join([defaults..., "write:",
-                    "- data_product: $(track.root)/data/*",
-                    "  description: A file of the source tracked under $(track.root)",
-                    "  file_type: $filetype",
+                    _datalines(deposit, track, filetype)...,
                     "- data_product: $(track.root)/provenance/*",
                     "  description: The provenance record of a file under $(track.root)",
                     "  file_type: toml"], "\n")
 end
+
+# The `write:` entry for a track's files themselves: none for a file registered as its source.
+function _datalines(::AbstractDeposit, track::Track, filetype::AbstractString)
+    return ["- data_product: $(track.root)/data/*",
+        "  description: A file of the source tracked under $(track.root)",
+        "  file_type: $filetype"]
+end
+
+_datalines(::DepositIsFile, ::Track, ::AbstractString) = String[]
 
 # The `read:` entry a model config needs for a track's files and their records, both in their
 # source's namespace: `*` matches one segment of a name, so `<root>/*/*` takes the files and the
@@ -136,15 +145,22 @@ end
 # Why a fetch run still has a file to do, from what its registry answered - whether the file is
 # `present`, the version its bytes are `held` under its name, whether that version records the
 # `same` facts as known now, whether its record's bytes are `recorded`, and whether its name is
-# registered (`named`) at all - or `nothing` where it has none.
+# registered (`named`) at all - or `nothing` where it has none. `deposit` says how its source is
+# registered, and `fetched` whether the run fetches the file or it is given by hand.
 function _fetchreason(; present::Bool, held::Union{Nothing, AbstractString},
-                      same::Bool, recorded::Bool, named::Bool)
-    present || return "not held: the fetch run fetches and registers it"
+                      same::Bool, recorded::Bool, named::Bool,
+                      deposit::AbstractDeposit = DepositSharesIdentifier(),
+                      fetched::Bool = true)
+    registers = _registers(deposit)
+    present ||
+        return fetched ? "not held: the fetch run fetches and " * registers :
+               "not there: a file given by hand is not fetched, so put it in place; the " *
+               "fetch run " * registers
     if isnothing(held)
         named &&
             return "registered with other bytes, its provider having changed it: the fetch " *
                    "run registers these under a stamped version"
-        return "not registered: the fetch run registers it"
+        return "not registered: the fetch run " * registers
     end
     same ||
         return "registered with other facts, a change in what is known of it: the fetch run " *
@@ -153,6 +169,12 @@ function _fetchreason(; present::Bool, held::Union{Nothing, AbstractString},
         return "its provenance record is not registered: the fetch run registers it"
     return nothing
 end
+
+# How a fetch run registers a file, as its reasons say: as an output of its source's deposit, or as
+# its source itself.
+_registers(::AbstractDeposit) = "registers it"
+
+_registers(::DepositIsFile) = "registers it as its source itself"
 
 # Why a model run cannot read a file, from whether its registry holds it: `nothing` where no
 # `read:` entry covers its name, so the registry could not be asked.
@@ -166,3 +188,9 @@ function _modelreason(registered::Union{Nothing, Bool}, track::Track,
     return "not registered in namespace " *
            "`$(something(namespace, "<the fetch run's default>"))`: run the fetch run first"
 end
+
+# The facts a source's deposit is registered from: the source's own, or those of a deposit cited
+# apart.
+_depositfacts(::AbstractDeposit, facts::SourceFacts) = facts
+
+_depositfacts(deposit::DepositCitedApart, ::SourceFacts) = deposit.facts

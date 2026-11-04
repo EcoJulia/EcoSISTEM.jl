@@ -253,6 +253,44 @@ end
                    E.Provenancer._modelreason(true, track, "ECMWF"))
     @test occursin("run the fetch run first",
                    E.Provenancer._modelreason(false, track, "ECMWF"))
+    # A file registered as its source itself is the run's input, which no `write:` entry names:
+    # its config writes the record alone, and its reasons say how it is registered, and whether the
+    # run fetches it or it is given by hand.
+    given = E.Provenancer._writelines(Track(nothing, "given"), "Mine", "csv",
+                                      E.DepositIsFile())
+    @test !occursin("given/data/*", given) &&
+          occursin("- data_product: given/provenance/*", given) &&
+          count("description: ", given) == 1
+    @test E.Provenancer._writelines(track, "ECMWF", "nc",
+                                    E.DepositSharesIdentifier()) == lines
+    asitself(; present, held = nothing,
+             fetched = true) = E.Provenancer._fetchreason(present = present,
+                                                          held = held,
+                                                          same = true,
+                                                          recorded = true,
+                                                          named = false,
+                                                          deposit = E.DepositIsFile(),
+                                                          fetched = fetched)
+    @test asitself(present = false) ==
+          "not held: the fetch run fetches and registers it as its source itself"
+    @test asitself(present = false, fetched = false) ==
+          "not there: a file given by hand is not fetched, so put it in place; the fetch run " *
+          "registers it as its source itself"
+    @test asitself(present = true) ==
+          "not registered: the fetch run registers it as its source itself"
+    @test reason(present = false) ==
+          "not held: the fetch run fetches and registers it"
+    # Primary is the route's and the identifier's, as for any file: the version of record of such
+    # a source is the cited item, a copy of other origin is not.
+    file = E.SourceFacts(source = "Given", key = "given", identifies = :data,
+                         deposit = E.DepositIsFile())
+    @test E.Provenancer.isprimary(file, E.VersionOfRecord()) &&
+          !E.Provenancer.isprimary(file, E.OtherOrigin())
+    # A deposit is registered from the source's facts, or from its own where it is cited apart.
+    paper = E.SourceFacts(source = "Paper", doi = "10.1/p", identifies = :paper)
+    apart = E.SourceFacts(file, deposit = E.DepositCitedApart(paper))
+    @test E.Provenancer._depositfacts(file.deposit, file) === file &&
+          E.Provenancer._depositfacts(apart.deposit, apart) === paper
 end
 
 @testset "fetchfiles and missingfiles take whatever a habitat is built from" begin

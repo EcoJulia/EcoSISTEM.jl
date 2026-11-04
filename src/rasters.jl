@@ -229,7 +229,7 @@ function missingfiles(file::Provenancer.URLFile;
     return Provenancer._trackedinputmissing(track, file.path,
                                             route = Provenancer.route(file),
                                             sidecar = Provenancer.sidecarpath(file.path),
-                                            facts = file.facts)
+                                            facts = file.facts, url = file.url)
 end
 
 # The specs among `x` that read files - a raster spec, a named region, a shape - in order, through

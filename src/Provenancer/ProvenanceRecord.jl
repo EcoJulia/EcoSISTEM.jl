@@ -10,7 +10,7 @@
                      releasedate = nothing, references = [], notices = [],
                      requestpage = nothing, modified = nothing, history = nothing,
                      identifies = nothing, key = nothing, namespace = nothing,
-                     catalogue = nothing,
+                     catalogue = nothing, deposit = DepositSharesIdentifier(),
                      route = nothing, location = nothing, sidecar = nothing)
 
 The provenance of one file: a file the package fetched, a dataset the user handed it that it never
@@ -55,8 +55,8 @@ references written from the list. [`provenance`](@ref) reads the records the fet
     file the Climate Data Store converts says there when and in which temporary directory it did
     so, which would make two fetches of the same data differ; `nothing` where nothing was
     replaced.
-  - `references`: the works the source's provider asks to be cited, each its `doi` and `text`,
-    and `notices`: the statements it asks to accompany the data, each its `strength` (`:required`,
+  - `references`: the works to cite with the source - its provider's request, or works cited
+    alongside it - each its `doi` and `text`, and `notices`: the statements it asks to accompany the data, each its `strength` (`:required`,
     `:requested` or `:optional`) and `text`. `DD-MMM-YYYY` in a text stands for the date the file
     was fetched and `YYYY` for its year, filled in wherever the record is shown or written.
   - `requestpage`: the address of the documentation's section quoting what the provider asks.
@@ -69,6 +69,9 @@ references written from the list. [`provenance`](@ref) reads the records the fet
   - `catalogue`: the name of the catalogue the file was fetched from, `nothing` for none: with a
     fetch time, the mark of a file the package fetched from its catalogue
     ([`iscatalogued`](@ref Provenancer.iscatalogued)).
+  - `deposit`: what the source's identifier stands for in a data pipeline's registry, an
+    [`AbstractDeposit`](@ref Provenancer.AbstractDeposit); [`DepositSharesIdentifier`](@ref) by
+    default, and for a record written before deposits were recorded.
   - `route`: how the file came to be, an [`AbstractFileRoute`](@ref Provenancer.AbstractFileRoute),
     or `nothing` for a record written before routes were recorded.
   - `location`: the file's path as it was when the record was read, and `sidecar`, the path the
@@ -103,6 +106,7 @@ struct ProvenanceRecord
     key::Union{Nothing, String}
     namespace::Union{Nothing, String}
     catalogue::Union{Nothing, String}
+    deposit::AbstractDeposit
     route::Union{Nothing, AbstractFileRoute}
     location::Union{Nothing, String}
     sidecar::Union{Nothing, String}
@@ -122,6 +126,7 @@ struct ProvenanceRecord
                               identifies::Union{Nothing, Symbol} = nothing,
                               key = nothing, namespace = nothing,
                               catalogue = nothing,
+                              deposit::AbstractDeposit = DepositSharesIdentifier(),
                               route::Union{Nothing, AbstractFileRoute} = nothing,
                               location = nothing, sidecar = nothing)
         isnothing(path) || !isabspath(path) ||
@@ -144,7 +149,7 @@ struct ProvenanceRecord
                    _notices(notices), _opttext(requestpage), _optdate(modified),
                    _optstring(history), names, _opttext(key),
                    _opttext(namespace),
-                   _opttext(catalogue), route, _optstring(location),
+                   _opttext(catalogue), deposit, route, _optstring(location),
                    _optstring(sidecar))
     end
 end
@@ -185,7 +190,9 @@ function Base.show(io::IO, ::MIME"text/plain", r::ProvenanceRecord)
         ("doi", r.doi), ("licence", r.licence), ("version", r.version),
         ("released", r.releasedate), ("modified", r.modified),
         ("namespace", r.namespace), ("catalogue", r.catalogue),
-        ("citation", isempty(r.references) ? r.citation : nothing))
+        ("deposit",
+        r.deposit isa DepositSharesIdentifier ? nothing : r.deposit),
+        ("citation", _citesown(r) ? r.citation : nothing))
         (isnothing(value) || (value isa AbstractString && isempty(value))) &&
             continue
         println(io, "  ", rpad(label, 9), value)
@@ -319,6 +326,8 @@ function _recordfromtoml(t::AbstractDict; location, sidecar)
                                          Symbol(identifies),
                             key = field("key"), namespace = field("namespace"),
                             catalogue = field("catalogue"),
+                            deposit = _depositfrom(field("deposit"),
+                                                   field("deposit_source")),
                             route = _routefrom(field("route"),
                                                field("route_identifier")),
                             location = location, sidecar = sidecar)
@@ -342,13 +351,14 @@ _optdate(t::Dates.DateTime) = t
 
 _optdate(s::AbstractString) = Dates.DateTime(chopsuffix(String(s), "Z"))
 
-# References in the one shape a record holds them, from named tuples or a sidecar's tables.
+# References in the one shape a record holds them, from named tuples, a sidecar's tables or the
+# facts of the works themselves.
 function _references(refs::AbstractVector)
-    return @NamedTuple{doi::String, text::String}[(doi = String(_entry(r, :doi)),
-                                                   text = String(_entry(r,
-                                                                        :text)))
-                                                  for r in refs]
+    return @NamedTuple{doi::String, text::String}[_reference(r) for r in refs]
 end
+
+# One reference in the shape a record holds it, from a named tuple or a sidecar's table.
+_reference(r) = (doi = String(_entry(r, :doi)), text = String(_entry(r, :text)))
 
 # Notices likewise.
 function _notices(notices::AbstractVector)
@@ -382,13 +392,26 @@ function _fillplaceholders(text::AbstractString, fetched::Dates.DateTime)
     return replace(dated, "YYYY" => string(Dates.year(fetched)))
 end
 
-# What a record says its provider asks, a line each: the references to cite and the notices to
-# carry, placeholders filled from its fetch time, and where the documentation quotes the request. A
-# record with no references but a citation of its own cites that.
+# Whether a record's own citation is cited: not where it has none; not where it is composed from its
+# references - their texts joined with a space, as a catalogue row's is, in sidecars old and new -
+# nor where a reference carries the record's own DOI, that reference being the source's citation;
+# otherwise yes, before the references, which are cited alongside it.
+function _citesown(r::ProvenanceRecord)
+    isnothing(r.citation) && return false
+    isempty(r.references) && return true
+    r.citation == join((ref.text for ref in r.references), " ") && return false
+    isnothing(r.doi) && return true
+    return !any(ref -> lowercase(ref.doi) == lowercase(r.doi), r.references)
+end
+
+# What a record says is to be cited and carried, a line each: its own citation where `_citesown`
+# says so, its deposit's where that is cited apart, the references, the notices, placeholders filled
+# from its fetch time, and where the documentation quotes the request.
 function _requestlines(r::ProvenanceRecord)
-    cites = isempty(r.references) ?
-            (isnothing(r.citation) ? String[] : [r.citation]) :
-            [_fillplaceholders(ref.text, r.fetched) for ref in r.references]
+    cites = _citesown(r) ? [r.citation] : String[]
+    append!(cites, _depositcitations(r.deposit))
+    append!(cites,
+            [_fillplaceholders(ref.text, r.fetched) for ref in r.references])
     lines = ["cite    " * c for c in cites]
     append!(lines,
             ["notice  ($(n.strength)) " * _fillplaceholders(n.text, r.fetched)

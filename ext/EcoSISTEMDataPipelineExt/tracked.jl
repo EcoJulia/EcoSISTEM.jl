@@ -48,17 +48,35 @@ function _depositof(track, namespace::Union{Nothing, AbstractString})
     return isnothing(namespace) ? name : namespace * ":" * name
 end
 
-# Claim a fetch run for one deposit, refusing a second: every output of a run is derived from every
-# input, so a second source's deposit would be shown as what the first's files came from.
-function _claimdeposit!(track, namespace::Union{Nothing, AbstractString})
-    deposit = _depositof(track, namespace)
-    claimed = get!(_DEPOSIT, track.handle, deposit)
-    claimed == deposit ||
-        error("This fetch run registers the files of `$claimed`, so it cannot register " *
-              "`$deposit`'s too: the registry derives every output of a run from all of its " *
+# The name a file registered as its source itself is registered under, in its source's namespace,
+# or the run's default input namespace for a source naming none: no `write:` entry resolves it.
+function _fileof(track, namespace::Union{Nothing, AbstractString}, path)
+    name = Provenancer._dataname(track, path)
+    return isnothing(namespace) ? name : namespace * ":" * name
+end
+
+# Claim a fetch run for one source, refusing a second: every output of a run is derived from every
+# input, so a second source - another deposit, or another file registered as its source - would be
+# shown as what the first's files came from. A source is claimed by its deposit's name, or by the
+# file's own where the file is the deposit.
+function _claimsource!(track, facts::SourceFacts, path)
+    source = _sourceclaim(facts.deposit, track, facts.namespace, path)
+    claimed = get!(_DEPOSIT, track.handle, source)
+    claimed == source ||
+        error("This fetch run registers `$claimed` as its source, so it cannot register " *
+              "`$source` too: the registry derives every output of a run from all of its " *
               "inputs, so each file would be shown as derived from both. Fetch them in a run of " *
               "their own.")
-    return deposit
+    return source
+end
+
+# What a run claims for a source: its deposit's name, or the file's own where the file is the deposit.
+function _sourceclaim(::AbstractDeposit, track, namespace, path)
+    return _depositof(track, namespace)
+end
+
+function _sourceclaim(::DepositIsFile, track, namespace, path)
+    return _fileof(track, namespace, path)
 end
 
 # Why a source's files cannot be registered with it: its facts name it neither by a DOI nor by a
@@ -88,6 +106,20 @@ end
 # `write:` entry resolves in the namespace it gives.
 function _registrationname(track, path)
     return ConfigDataProduct(Provenancer._dataname(track, path))
+end
+
+# The same for a file whose source's `facts` are known: the label of an output, or the file's own
+# name where it is registered as its source itself, which no `write:` entry resolves.
+function _registrationname(track, path, facts::SourceFacts)
+    return _registrationname(facts.deposit, track, path, facts.namespace)
+end
+
+function _registrationname(::AbstractDeposit, track, path, namespace)
+    return _registrationname(track, path)
+end
+
+function _registrationname(::DepositIsFile, track, path, namespace)
+    return _fileof(track, namespace, path)
 end
 
 # The data products the bytes at `path` are registered as under the name `name`, in whatever
@@ -126,7 +158,8 @@ function _samefacts(track, src, r, path, route, held)
                                                                     src.fileversioned,
                                                                     nothing))
     return DataPipeline.isregistered(track.handle,
-                                     _registrationname(track, path); kw...)
+                                     _registrationname(track, path, src.facts);
+                                     kw...)
 end
 
 # Whether a file is registered already as it would be now, with its record: here, with a record of
@@ -146,13 +179,22 @@ function _isregistered(track, src, item)
                        Provenancer._sidecarname(track, path))
 end
 
-# Whether the run's working config writes both of a file's outputs, the file and its record.
+# Whether the run's working config writes a file's record: what marks a fetch run, however the
+# file's source is registered.
 function _writable(track, path)
     return DataPipeline.canwrite(track.handle,
-                                 Provenancer._dataname(track, path)) &&
-           DataPipeline.canwrite(track.handle,
                                  Provenancer._sidecarname(track, path))
 end
+
+# Whether it writes everything registering the file writes: the file and its record, or the record
+# alone for a file registered as its source itself, which is the run's input.
+function _writesall(::AbstractDeposit, track, path)
+    return _writable(track, path) &&
+           DataPipeline.canwrite(track.handle,
+                                 Provenancer._dataname(track, path))
+end
+
+_writesall(::DepositIsFile, track, path) = _writable(track, path)
 
 # Whether the run's working config reads both, the file and its record.
 function _readable(track, path)
@@ -164,14 +206,14 @@ end
 
 # Refuse, before anything is fetched, a fetch run whose working config does not write what it would
 # register for these files, writing out the entries to add.
-function _checkwritable(track, namespace::Union{Nothing, AbstractString},
-                        items)
-    lacking = filter(i -> !_writable(track, i.path), items)
+function _checkwritable(track, facts::SourceFacts, items)
+    lacking = filter(i -> !_writesall(facts.deposit, track, i.path), items)
     isempty(lacking) && return nothing
     return error("This run's working config does not write what fetching " *
                  "$(join((basename(i.path) for i in lacking), ", ")) registers. Give it:\n" *
-                 Provenancer._writelines(track, namespace,
-                                         Provenancer._filetype(first(lacking).path)))
+                 Provenancer._writelines(track, facts.namespace,
+                                         Provenancer._filetype(first(lacking).path),
+                                         facts.deposit))
 end
 
 # The version and release date a file is registered under, and its record rewritten where they or
@@ -192,7 +234,8 @@ function _versionfor!(track, src, r, path, route, sidecar)
                                    date = EcoSISTEM._registereddate(r,
                                                                     src.fileversioned,
                                                                     nothing))
-    taken = DataPipeline.isregistered(handle, _registrationname(track, path);
+    taken = DataPipeline.isregistered(handle,
+                                      _registrationname(track, path, src.facts);
                                       kw...)
     taken || return (version = full,
             date = EcoSISTEM._registereddate(r, src.fileversioned, nothing),
@@ -221,9 +264,8 @@ function _rerecord!(path, facts::Pair...; sidecar::AbstractString)
     return Provenancer.recordat(path, sidecar = sidecar)
 end
 
-# Register one tracked file with its run as an output, derived from its source's deposit - the
-# deposit registered first, once a run - its record first brought up to date with what is known of
-# it now; then that record, an output too.
+# Register one tracked file with its run as its source's deposit says, its record first brought up
+# to date with what is known of it now; then that record, an output of the run.
 function _register!(track, src, item)
     handle = track.handle
     path, route, sidecar = item.path, item.route, item.sidecar
@@ -243,18 +285,34 @@ function _register!(track, src, item)
     kw = EcoSISTEM._sourcekeywords(release.record, src.facts, route,
                                    version = release.version,
                                    date = release.date)
-    deposit = _claimdeposit!(track, src.facts.namespace)
-    if !_isdone(handle, "deposit")
-        link_register!(handle, deposit;
-                       EcoSISTEM._depositkeywords(src.facts)...)
-        _markdone!(handle, "deposit")
-    end
-    # Where the file was fetched from, as its record says: a provider's address for a download, the
-    # one the user gave for a file they fetched themselves, none for an extract or a file with none.
-    link_write!(handle, Provenancer._dataname(track, path); path = path,
-                original_store = release.record.url, kw...)
+    _registerfile!(src.facts.deposit, track, src, path, release.record.url, kw)
     link_write!(handle, Provenancer._sidecarname(track, path), path = sidecar)
     return path
+end
+
+# Register a file, its source's keywords `kw` given: as an output of the run derived from its
+# source's deposit, the deposit registered first, once a run, from the source's facts or those of a
+# deposit cited apart; or, where the file is the deposit, the file itself as the run's one input.
+# `url` is where the file was fetched from, as its record says: a provider's address for a
+# download, the one the user gave for a file they fetched themselves, none for an extract or a file
+# given by hand.
+function _registerfile!(deposit::AbstractDeposit, track, src, path, url, kw)
+    handle = track.handle
+    name = _claimsource!(track, src.facts, path)
+    if !_isdone(handle, "deposit")
+        facts = Provenancer._depositfacts(deposit, src.facts)
+        link_register!(handle, name; EcoSISTEM._depositkeywords(facts)...)
+        _markdone!(handle, "deposit")
+    end
+    link_write!(handle, Provenancer._dataname(track, path); path = path,
+                original_store = url, kw...)
+    return nothing
+end
+
+function _registerfile!(::DepositIsFile, track, src, path, url, kw)
+    name = _claimsource!(track, src.facts, path)
+    link_register!(track.handle, name; path = path, original_store = url, kw...)
+    return nothing
 end
 
 # A fetch run's call for a tracked spec: refuse a source the registry cannot be told of, a second
@@ -267,8 +325,8 @@ function EcoSISTEM._trackedfetch(track::Track{<:DataRegistryHandle}, spec)
     items = _items(spec)
     paths = [i.path for i in items]
     Provenancer._checkstems(paths)
-    _claimdeposit!(track, src.facts.namespace)
-    _checkwritable(track, src.facts.namespace, items)
+    foreach(i -> _claimsource!(track, src.facts, i.path), items)
+    _checkwritable(track, src.facts, items)
     _readcitations!(track.handle)
     all(i -> _isregistered(track, src, i), items) && return paths
     EcoSISTEM._fetchspec(spec)
@@ -334,7 +392,7 @@ end
 # in a fetch run, what the registry holds of it; in a model run, why the config cannot. `src` is the
 # source as `EcoSISTEM._trackedsource` gives it for a spec's file, or a file of the user's own
 # record's facts, `nothing` for one with no record of ours yet.
-function _missingreason(track, src, item)
+function _missingreason(track, src, item; fetched::Bool = true)
     handle = track.handle
     path, route, sidecar = item.path, item.route, item.sidecar
     name = Provenancer._dataname(track, path)
@@ -356,10 +414,13 @@ function _missingreason(track, src, item)
         same = !isnothing(held) && _samefacts(track, src, r, path, route, held)
         recorded = present && _isrecorded(handle, sidecar, sidecarname)
         named = DataPipeline.isregistered(handle,
-                                          _registrationname(track, path))
+                                          _registrationname(track, path,
+                                                            src.facts))
         return Provenancer._fetchreason(present = present, held = held,
                                         same = same,
-                                        recorded = recorded, named = named)
+                                        recorded = recorded, named = named,
+                                        deposit = src.facts.deposit,
+                                        fetched = fetched)
     end
     registered = try
         DataPipeline.isregistered(handle, ConfigDataProduct(name))
@@ -396,7 +457,8 @@ function _registerrecorded!(track, r, route; code = nothing, url = nothing)
     item = _item(entry,
                  EcoSISTEM._trackrelease!(Dict{String, Any}(), track, route),
                  sidecar = sidecar)
-    _claimdeposit!(track, facts.namespace)
+    _claimsource!(track, facts, path)
+    _checkwritable(track, facts, [item])
     _readcitations!(track.handle)
     _isregistered(track, src, item) && return r
     _register!(track, src, item)
@@ -415,13 +477,14 @@ function _providerecorded!(track, path, sidecar)
 end
 
 # Why a run cannot take a recorded file: its working config neither writes nor reads the file and
-# its record, with the lines a fetch run and a model run each need.
-function _neitherrun(track, path, namespace)
+# its record, with the lines a fetch run and a model run each need, the first as the source's
+# `deposit` has it registered.
+function _neitherrun(track, path, namespace, deposit)
     return "This run's working config neither writes nor reads " *
            "`$(Provenancer._dataname(track, path))` and its provenance record. A fetch " *
            "run, which records and registers the file, needs:\n" *
            Provenancer._writelines(track, namespace,
-                                   Provenancer._filetype(path)) *
+                                   Provenancer._filetype(path), deposit) *
            "\nand a model run, which reads them from the run's store, needs:\n" *
            Provenancer._readentry(track, namespace)
 end
@@ -451,8 +514,11 @@ function Provenancer._trackedrecord(track::Track{<:DataRegistryHandle}, path,
                                   url = get(kw, :url, nothing))
     end
     _readable(track, path) && return _providerecorded!(track, path, sidecar)
-    namespace = source isa SourceFacts ? source.namespace : nothing
-    return error(_neitherrun(track, path, namespace))
+    known = source isa SourceFacts ? source : Provenancer._factsat(sidecar)
+    isnothing(known) &&
+        return error(_neitherrun(track, path, nothing,
+                                 DepositSharesIdentifier()))
+    return error(_neitherrun(track, path, known.namespace, known.deposit))
 end
 
 # What `fetchfile` does for a download given a run's track, as `_trackedrecord` does for a file of
@@ -470,24 +536,27 @@ function Provenancer._trackedfetchfile(track::Track{<:DataRegistryHandle},
               "where it comes from: give the `URLFile` its `facts`.")
     Provenancer._namessource(facts) || error(_nosource(facts))
     if _writable(track, path)
+        _claimsource!(track, facts, path)
+        _checkwritable(track, facts, [(path = path,)])
         r = Provenancer.fetchfile(file, role = role, verify = verify)
         return _registerrecorded!(track, r, Provenancer.route(file),
                                   url = file.url)
     end
     _readable(track, path) &&
         return _providerecorded!(track, path, Provenancer.sidecarpath(path))
-    return error(_neitherrun(track, path, facts.namespace))
+    return error(_neitherrun(track, path, facts.namespace, facts.deposit))
 end
 
 # What `missingfiles` reports of a tracked file of the user's own, or of a download: what its run's
 # working config makes of it, from the record beside it where there is one, else from the `facts`
-# given, a download's. The citations are read first, as for a spec, since a registered file's facts
+# given, a download's, which is fetched where it has a `url` and given by hand where it has none. The citations are read first, as for a spec, since a registered file's facts
 # are compared by its citation key where it has no DOI.
 function Provenancer._trackedinputmissing(track::Track{<:DataRegistryHandle},
                                           path::AbstractString;
                                           route::EcoSISTEM.AbstractFileRoute,
                                           sidecar::AbstractString,
-                                          facts::Union{Nothing, SourceFacts} = nothing)
+                                          facts::Union{Nothing, SourceFacts} = nothing,
+                                          url::Union{Nothing, AbstractString} = nothing)
     known = something(Provenancer._factsat(sidecar), facts, Some(nothing))
     src = isnothing(known) ? nothing : (facts = known, fileversioned = false)
     entry = (path = String(path), route = route, code = nothing, url = nothing)
@@ -496,7 +565,7 @@ function Provenancer._trackedinputmissing(track::Track{<:DataRegistryHandle},
                  sidecar = sidecar)
     _readcitations!(track.handle)
     todo = @NamedTuple{file::String, reason::String}[]
-    reason = _missingreason(track, src, item)
+    reason = _missingreason(track, src, item, fetched = !isnothing(url))
     isnothing(reason) || push!(todo, (file = String(path), reason = reason))
     return todo
 end

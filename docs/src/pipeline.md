@@ -103,6 +103,39 @@ table = URLFile(url, path, facts = SourceFacts(source = "A table", doi = doi, id
 regions = ShapeSpec(fetchfile(table, role = :region, track = Track(handle, "table")))
 ```
 
+The facts' `deposit` says what their identifier stands for in the registry. By default it names a
+deposit the files share the identifier with - a dataset of several files, or a paper describing them
+- registered without a file, each file an output derived from it. A source whose identifier names
+one file and nothing else - a table someone sent you, or a dataset of a single file - is
+[`Provenancer.DepositIsFile`](@ref EcoSISTEM.Provenancer.DepositIsFile): the fetch run registers the
+file itself, with its source, as the run's one input, and its record as the output derived from it,
+so the run's config writes the record alone:
+
+```julia
+using EcoSISTEM.Provenancer: SourceFacts, DepositIsFile, record_provenance
+facts = SourceFacts(source = "A table", doi = doi, identifies = :data, deposit = DepositIsFile())
+table = record_provenance(path, facts, role = :species, track = Track(handle, "table"))
+```
+
+A source whose files carry an identifier of their own while the deposit they come from is cited
+apart is [`Provenancer.DepositCitedApart`](@ref EcoSISTEM.Provenancer.DepositCitedApart): the
+deposit is registered from facts of its own, and each file, derived from it, keeps its source's. A
+dataset made for a paper, both to be cited, is one, as is an occurrence download from GBIF:
+
+```julia
+using EcoSISTEM.Provenancer: SourceFacts, DepositCitedApart, lookup_doi
+paper = SourceFacts(lookup_doi("10.1371/journal.pcbi.1010885"))
+dataset = SourceFacts(lookup_doi("10.5525/gla.researchdata.1405"),
+                      deposit = DepositCitedApart(paper))
+```
+
+Where a paper only uses a dataset that stands on its own, the paper is not its deposit but a work
+to cite alongside it, in the dataset's `references`:
+`SourceFacts(lookup_doi(doi), references = [paper])`. The account then cites the dataset and the
+paper after it, and the registry knows the dataset alone. Whatever its kind, a run registers one
+source: a second deposit, or a second file registered as its source, is refused, since the registry
+derives every output of a run from all of the run's inputs.
+
 A data product of the pipeline with no source of its own - another run's output - is read by its
 path, `RasterFileSpec(link_read!(handle, name), axis = ...)`: the read is the pipeline's record of
 the run's input, and the file carries no record of EcoSISTEM's.

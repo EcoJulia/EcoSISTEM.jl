@@ -9,7 +9,8 @@ using DataPipeline: DataRegistryHandle, ConfigDataProduct, ConfigFileException,
 
 using EcoSISTEM
 using EcoSISTEM: Track, Provenancer, VersionOfRecord, OtherOrigin,
-                 SourceFacts
+                 SourceFacts, AbstractDeposit, DepositSharesIdentifier,
+                 DepositIsFile
 
 using Dates: Dates
 using TOML: TOML

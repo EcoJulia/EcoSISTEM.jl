@@ -220,9 +220,9 @@ end
 Return the fields of a named tuple, a [`SoftwareRecord`](@ref) or a [`ProvenanceRecord`](@ref) as
 a TOML table, leaving out those with nothing to say - `nothing`, empty text or an empty list - each
 value as [`tomlvalue`](@ref Provenancer.tomlvalue) writes it. A record's references and notices
-are written with their placeholders filled from its fetch time, its route as its sidecar keeps it,
-and where the file and its record were when it was read not at all: the table names the file
-alone, as the sidecar does.
+are written with their placeholders filled from its fetch time, its deposit and route as its
+sidecar keeps them, and where the file and its record were when it was read not at all: the table
+names the file alone, as the sidecar does.
 
 # Arguments
 
@@ -248,9 +248,9 @@ function tomltable(r::ProvenanceRecord)
     end
     table = Dict{String, Any}(string(k) => tomlvalue(written(k))
                               for k in fieldnames(ProvenanceRecord)
-                              if !(k in (:route, :location, :sidecar)) &&
+                              if !(k in (:deposit, :route, :location, :sidecar)) &&
         !_tomlblank(getfield(r, k)))
-    return merge!(table, _routeentries(r.route))
+    return merge!(table, _depositentries(r.deposit), _routeentries(r.route))
 end
 
 """

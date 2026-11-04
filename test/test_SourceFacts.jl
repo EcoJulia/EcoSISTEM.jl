@@ -321,4 +321,62 @@ end
     write(P.sidecarpath(other), "writer = \"Other 1.0\"\n")
     @test isnothing(P._factsat(P.sidecarpath(other)))
 end
+@testset "a source's deposit: its identifier, its one file, or cited apart" begin
+    dir = mktempdir()
+    plain = SourceFacts(source = "A set", doi = "10.1/x", identifies = :data)
+    @test plain.deposit == DepositSharesIdentifier() &&
+          !haskey(P.sourceentries(plain, VersionOfRecord()), "deposit")
+    # A source registered as its one file identifies the data, and its record says so.
+    file = SourceFacts(plain, deposit = DepositIsFile())
+    @test P.sourceentries(file, VersionOfRecord())["deposit"] == "DepositIsFile"
+    @test_throws "give `identifies = :data`" SourceFacts(source = "Paper",
+                                                         doi = "10.1/p",
+                                                         identifies = :paper,
+                                                         deposit = DepositIsFile())
+    path = joinpath(dir, "file.csv")
+    write(path, "a\n1\n")
+    r = record_provenance(path, file, role = :species)
+    @test r.deposit == DepositIsFile() &&
+          SourceFacts(r).deposit == DepositIsFile() &&
+          P._factsat(P.sidecarpath(path)).deposit == DepositIsFile()
+    # Interpolated, since how a type's name prints depends on what the printing module sees.
+    @test occursin("deposit     $(DepositIsFile())",
+                   sprint(show, MIME("text/plain"), file))
+    # A deposit cited apart carries facts of its own, which name it and no deposit of theirs, and
+    # it is registered in its files' namespace.
+    paper = SourceFacts(source = "A paper", doi = "10.1/p",
+                        title = "On the set",
+                        authors = ["A. Author"], releasedate = "2023",
+                        identifies = :paper)
+    apart = DepositCitedApart(paper)
+    @test apart == DepositCitedApart(SourceFacts(paper)) &&
+          hash(apart) == hash(DepositCitedApart(SourceFacts(paper)))
+    @test sprint(show, apart) ==
+          "DepositCitedApart(SourceFacts(\"A paper\", doi 10.1/p))"
+    @test_throws "name no deposit of theirs" DepositCitedApart(file)
+    @test_throws "neither a DOI nor a citation key" DepositCitedApart(SourceFacts(source = "Nameless"))
+    @test_throws "registered in its files' namespace" SourceFacts(plain,
+                                                                  namespace = "Mine",
+                                                                  deposit = DepositCitedApart(SourceFacts(paper,
+                                                                                                          namespace = "Other")))
+    made = SourceFacts(plain, title = "The set", authors = ["B. Author"],
+                       releasedate = "2023", deposit = apart)
+    entries = P.sourceentries(made, VersionOfRecord())
+    @test entries["deposit"] == "DepositCitedApart" &&
+          entries["deposit_source"]["doi"] == "10.1/p"
+    cited = joinpath(dir, "cited.csv")
+    write(cited, "a\n1\n")
+    r = record_provenance(cited, made, role = :species)
+    @test r.deposit == apart && SourceFacts(r).deposit == apart &&
+          P._factsat(P.sidecarpath(cited)).deposit == apart
+    # A work cited alongside a source may be given by its facts, as its DOI and its citation.
+    alongside = SourceFacts(plain, references = [paper])
+    @test only(alongside.references) ==
+          (doi = "10.1/p",
+           text = "A. Author (2023). On the set. https://doi.org/10.1/p")
+    @test_throws "give no DOI" SourceFacts(plain,
+                                           references = [SourceFacts(source = "Undated",
+                                                                     key = "undated")])
+end
+
 end

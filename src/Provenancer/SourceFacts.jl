@@ -9,7 +9,7 @@
                 authors = [], identifiers = Dict(), releasedate = nothing, version = nothing,
                 description = nothing, licence = nothing, identifies = :other,
                 citation = nothing, references = [], notices = [], requestpage = nothing,
-                key = nothing, namespace = nothing)
+                key = nothing, namespace = nothing, deposit = DepositSharesIdentifier())
     SourceFacts(facts::SourceFacts; kw...)
     SourceFacts(record::ProvenanceRecord)
 
@@ -46,7 +46,9 @@ registered from its record alone.
     `:other`.
   - `citation`: the text a paper prints for it, where the source gives one; composed from the
     authors, date, title, publisher and DOI where it does not.
-  - `references`: the works its provider asks to be cited, each its `doi` and `text`; `notices`:
+  - `references`: the works to cite with the source - its provider's request, or works cited
+    alongside it - each its `doi` and `text`, or given as their own `SourceFacts`, taken as their
+    DOI and citation; `notices`:
     the statements it asks to accompany the data, each its `strength` (one of
     [`NOTICE_STRENGTHS`](@ref Provenancer.NOTICE_STRENGTHS)) and `text`; and `requestpage`: the
     address of the documentation quoting what it asks.
@@ -54,6 +56,11 @@ registered from its record alone.
     citation by key.
   - `namespace`: the data pipeline namespace its files are registered in - ASCII letters, digits,
     `_` and `-` - or `nothing` for the namespace a run gives as its default.
+  - `deposit`: what its identifier stands for in a data pipeline's registry, an
+    [`AbstractDeposit`](@ref Provenancer.AbstractDeposit): [`DepositSharesIdentifier`](@ref), the
+    default; [`DepositIsFile`](@ref), for a source whose identifier names one file, which must then
+    identify the data; or [`DepositCitedApart`](@ref), whose facts' `namespace`, where they give
+    one, must be this one, the deposit being registered beside the files.
 """
 struct SourceFacts
     source::String
@@ -74,6 +81,7 @@ struct SourceFacts
     requestpage::Union{Nothing, String}
     key::Union{Nothing, String}
     namespace::Union{Nothing, String}
+    deposit::AbstractDeposit
 
     function SourceFacts(; source::AbstractString, doi = nothing, url = nothing,
                          title = nothing, publisher = nothing,
@@ -83,7 +91,8 @@ struct SourceFacts
                          description = nothing, licence = nothing,
                          identifies::Symbol = :other, citation = nothing,
                          references = [], notices = [], requestpage = nothing,
-                         key = nothing, namespace = nothing)
+                         key = nothing, namespace = nothing,
+                         deposit::AbstractDeposit = DepositSharesIdentifier())
         identifies in IDENTIFIES ||
             throw(ArgumentError("`identifies` must be one of $(join(IDENTIFIES, ", ")); got " *
                                 "`$identifies`."))
@@ -91,6 +100,13 @@ struct SourceFacts
         isnothing(ns) || occursin(r"^[A-Za-z0-9_-]+$", ns) ||
             throw(ArgumentError("`namespace` names a data pipeline namespace, in ASCII letters, " *
                                 "digits, `_` and `-`; got `$ns`."))
+        deposit isa DepositIsFile && identifies !== :data &&
+            throw(ArgumentError("a source registered as its one file is the data its identifier " *
+                                "names: give `identifies = :data`; got `$identifies`."))
+        _otherdepositspace(deposit, ns) &&
+            throw(ArgumentError("a deposit cited apart is registered in its files' namespace, " *
+                                "`$(something(ns, "the run's default"))`; its facts give " *
+                                "`$(deposit.facts.namespace)`."))
         return new(String(source), _opttext(doi), _opttext(url),
                    _opttext(title), _opttext(publisher),
                    String[string(a) for a in authors],
@@ -99,7 +115,8 @@ struct SourceFacts
                    _opttext(releasedate), _opttext(version),
                    _opttext(description), _opttext(licence), identifies,
                    _opttext(citation), _references(references),
-                   _notices(notices), _opttext(requestpage), _opttext(key), ns)
+                   _notices(notices), _opttext(requestpage), _opttext(key), ns,
+                   deposit)
     end
 end
 
@@ -121,7 +138,7 @@ function SourceFacts(record::ProvenanceRecord)
                        citation = record.citation,
                        references = record.references, notices = record.notices,
                        requestpage = record.requestpage, key = record.key,
-                       namespace = record.namespace)
+                       namespace = record.namespace, deposit = record.deposit)
 end
 
 # Value equality and hashing: the authors, identifiers, references and notices are containers,
@@ -160,7 +177,48 @@ function Base.show(io::IO, ::MIME"text/plain", f::SourceFacts)
     for (name, list) in ((:references, f.references), (:notices, f.notices))
         isempty(list) || println(io, "  ", rpad(string(name), 12), length(list))
     end
+    f.deposit isa DepositSharesIdentifier ||
+        println(io, "  ", rpad("deposit", 12), f.deposit)
     return nothing
+end
+
+"""
+    DepositCitedApart(facts::SourceFacts)
+
+The deposit of a source whose files carry an identifier of their own while the deposit they come
+from is cited apart - GBIF's occurrence downloads, each with its DOI, from GBIF itself; a dataset
+made for a paper, its files carrying the dataset's DOI and the paper the deposit: a data pipeline
+run registers the deposit without a file, from `facts`, and each file as an output derived from it
+with its source's own facts, and an account of the files cites both.
+
+# Fields
+
+  - `facts`: what is known of the deposit, naming it by a DOI or a citation key, with no deposit of
+    its own.
+"""
+struct DepositCitedApart <: AbstractDeposit
+    facts::SourceFacts
+
+    function DepositCitedApart(facts::SourceFacts)
+        facts.deposit isa DepositSharesIdentifier ||
+            throw(ArgumentError("a deposit cited apart is cited by facts of its own, which name " *
+                                "no deposit of theirs; got `$(facts.deposit)`."))
+        _namessource(facts) ||
+            throw(ArgumentError("the deposit's facts name neither a DOI nor a citation key, so " *
+                                "it cannot be cited: give them a `doi` or a `key`."))
+        return new(facts)
+    end
+end
+
+# Value equality and hashing: the facts are compared by value, which the fallback would not do.
+Base.:(==)(a::DepositCitedApart, b::DepositCitedApart) = a.facts == b.facts
+
+function Base.hash(d::DepositCitedApart, h::UInt)
+    return hash(d.facts, hash(DepositCitedApart, h))
+end
+
+function Base.show(io::IO, d::DepositCitedApart)
+    return print(io, "DepositCitedApart(", d.facts, ")")
 end
 
 """
@@ -204,8 +262,9 @@ isprimary(::SourceFacts, ::AbstractFileRoute) = false
 
 Return what a file's provenance record carries of its source, as a dictionary of the sidecar's
 keys, to be merged into the record of the file itself: the `source`, the file's `title`, the
-`route` it came by, with the identifier a service gave it where it gave one, the `catalogue`
-fetching it where one is, whether it is `primary` for that route ([`isprimary`](@ref Provenancer.isprimary)), and the DOI, licence,
+`route` it came by, with the identifier a service gave it where it gave one, what the source's
+identifier stands for where that is not the default (its `deposit`), the `catalogue` fetching it
+where one is, whether it is `primary` for that route ([`isprimary`](@ref Provenancer.isprimary)), and the DOI, licence,
 version, release date, citation, references, notices and request page where known, each under
 the key the sidecar uses. The citation is composed from the authors, date, title,
 publisher and DOI where the facts give none of their own and have a DOI and authors to compose
@@ -233,7 +292,7 @@ function sourceentries(facts::SourceFacts, route::AbstractFileRoute;
                             "letters, digits, `_` and `-`; got `$catalogue`."))
     record = Dict{String, Any}("source" => facts.source,
                                "primary" => isprimary(facts, route))
-    merge!(record, _routeentries(route))
+    merge!(record, _routeentries(route), _depositentries(facts.deposit))
     for (key, value) in (("title", title), ("catalogue", catalogue),
         ("doi", facts.doi), ("licence", facts.licence),
         ("version", facts.version), ("release_date", facts.releasedate),
@@ -288,4 +347,72 @@ function _factsat(sidecar::AbstractString)
     (t isa AbstractDict && _isourrecord(t)) || return nothing
     return SourceFacts(_recordfromtoml(t, location = nothing,
                                        sidecar = sidecar))
+end
+
+# Whether a deposit cited apart names a namespace other than its files' source's, which it is
+# registered in.
+_otherdepositspace(::AbstractDeposit, namespace) = false
+
+function _otherdepositspace(d::DepositCitedApart, namespace)
+    return !isnothing(d.facts.namespace) && d.facts.namespace != namespace
+end
+
+# A deposit cited apart as a record's sidecar keeps it, its facts as a table of their own.
+function _depositentries(d::DepositCitedApart)
+    return Dict{String, Any}("deposit" => "DepositCitedApart",
+                             "deposit_source" => _factstable(d.facts))
+end
+
+# The citation an account gives a deposit cited apart, beside its source's own.
+function _depositcitations(d::DepositCitedApart)
+    text = _citationtext(d.facts)
+    return isnothing(text) ? String[] : [text]
+end
+
+# The deposit a sidecar's `deposit` and `deposit_source` keys name: the default for a record written
+# before deposits were recorded, or one naming a deposit this version does not know.
+function _depositfrom(name, source)
+    name == "DepositIsFile" && return DepositIsFile()
+    name == "DepositCitedApart" && source isa AbstractDict &&
+        return DepositCitedApart(_factsfromtable(source))
+    return DepositSharesIdentifier()
+end
+
+# What a sidecar keeps of a deposit's facts: its name, identifier and what a citation and a
+# registration of it need, read back the same by `_factsfromtable`.
+function _factstable(facts::SourceFacts)
+    table = Dict{String, Any}("source" => facts.source,
+                              "identifies" => string(facts.identifies))
+    for (key, value) in (("doi", facts.doi), ("url", facts.url),
+        ("title", facts.title), ("publisher", facts.publisher),
+        ("release_date", facts.releasedate), ("version", facts.version),
+        ("licence", facts.licence), ("citation", facts.citation),
+        ("key", facts.key))
+        isnothing(value) || (table[key] = String(value))
+    end
+    isempty(facts.authors) || (table["authors"] = facts.authors)
+    return table
+end
+
+function _factsfromtable(table::AbstractDict)
+    field(k) = get(table, k, nothing)
+    return SourceFacts(source = something(field("source"), "deposit"),
+                       doi = field("doi"), url = field("url"),
+                       title = field("title"), publisher = field("publisher"),
+                       authors = something(field("authors"), String[]),
+                       releasedate = field("release_date"),
+                       version = field("version"), licence = field("licence"),
+                       identifies = Symbol(something(field("identifies"),
+                                                     "other")),
+                       citation = field("citation"), key = field("key"))
+end
+
+# A work cited alongside a source, given by its facts: its DOI and the text that cites it.
+function _reference(facts::SourceFacts)
+    text = _citationtext(facts)
+    (isnothing(facts.doi) || isnothing(text)) &&
+        throw(ArgumentError("a work cited alongside a source is given by its DOI and the text " *
+                            "citing it, and `$(facts.source)`'s facts give no " *
+                            (isnothing(facts.doi) ? "DOI" : "citation") * "."))
+    return (doi = facts.doi, text = text)
 end

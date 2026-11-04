@@ -38,6 +38,12 @@
       it. A record keeps what the identifier identifies, the citation key, the namespace and the
       route the file came by, so the file can be registered from the record alone, and says where
       the file and its sidecar are, which is never written.
+    - `SourceFacts` say what their identifier stands for in a pipeline's registry (`deposit`): by
+      default a deposit their files share it with; `DepositIsFile()`, one file - sent to you, or a
+      single-file dataset - registered as the run's input; or `DepositCitedApart(facts)`, a deposit
+      cited by facts of its own, as GBIF's downloads are, or a dataset made for a paper.
+    - A source's `references` may be given as `SourceFacts`, and the account cites a source's own
+      citation with the works given alongside it, rather than in their place.
   - Changed
     - `Provenance` holds `software`, `inputs` and a `context`: for EcoSISTEM's results a
       `GridContext` of the grid and the run, which were its `grid` and `run` fields. The file

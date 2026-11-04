@@ -15,7 +15,7 @@ module TestEcoSISTEMDataPipelineExt
 
 using Test
 using EcoSISTEM
-using EcoSISTEM: Track, ERA, Provenancer
+using EcoSISTEM: Track, ERA, Provenancer, SourceFacts, DepositIsFile
 using DataPipeline
 using DataPipeline: DataRegistryHandle, ConfigDataProduct
 using RasterDataSources
@@ -42,15 +42,39 @@ end
     name = EXT._registrationname(track, "/x/era5_t2m_1990s.nc")
     @test name isa ConfigDataProduct &&
           name.data_product == "era5/data/era5_t2m_1990s"
-    # The deposit is named in its source's namespace, and a run takes one.
+    # The deposit is named in its source's namespace, and a run takes one source.
     run = Track(Ref(0), "era5")
-    @test EXT._claimdeposit!(run, "ECMWF") == "ECMWF:era5/deposit"
-    @test EXT._claimdeposit!(run, "ECMWF") == "ECMWF:era5/deposit"
+    era5 = SourceFacts(source = "ERA5", doi = "10.24381/cds.f17050d7",
+                       namespace = "ECMWF")
+    @test EXT._claimsource!(run, era5, "/x/a.nc") == "ECMWF:era5/deposit"
+    @test EXT._claimsource!(run, era5, "/x/b.nc") == "ECMWF:era5/deposit"
     other = Track(run.handle, "worldclim")
-    @test_throws "derives every output of a run from all of its inputs" EXT._claimdeposit!(other,
-                                                                                           "WorldClim")
-    @test EXT._claimdeposit!(Track(Ref(0), "worldclim"), "WorldClim") ==
+    worldclim = SourceFacts(source = "WorldClim", doi = "10.1002/joc.5086",
+                            namespace = "WorldClim")
+    @test_throws "derives every output of a run from all of its inputs" EXT._claimsource!(other,
+                                                                                          worldclim,
+                                                                                          "/x/c.tif")
+    @test EXT._claimsource!(Track(Ref(0), "worldclim"), worldclim,
+                            "/x/c.tif") ==
           "WorldClim:worldclim/deposit"
+    # A file registered as its source itself is its run's one source, named as the file, which no
+    # `write:` entry resolves; a second file, or a deposit after it, is refused.
+    given = SourceFacts(source = "Given", key = "given", identifies = :data,
+                        namespace = "Mine", deposit = DepositIsFile())
+    one = Track(Ref(0), "given")
+    @test EXT._claimsource!(one, given, "/x/table.csv") ==
+          "Mine:given/data/table"
+    @test EXT._claimsource!(one, given, "/x/table.csv") ==
+          "Mine:given/data/table"
+    @test_throws "derives every output" EXT._claimsource!(one, given,
+                                                          "/x/other.csv")
+    @test_throws "derives every output" EXT._claimsource!(Track(one.handle,
+                                                                "era5"),
+                                                          era5, "/x/a.nc")
+    @test EXT._registrationname(one, "/x/table.csv", given) ==
+          "Mine:given/data/table"
+    @test EXT._registrationname(run, "/x/a.nc", era5) ==
+          EXT._registrationname(run, "/x/a.nc")
     # A source with no namespace of its own is registered in the run's default.
     @test EXT._depositof(Track(Ref(0), "box"), nothing) == "box/deposit"
 end

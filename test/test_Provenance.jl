@@ -3,7 +3,8 @@
 module TestProvenance
 
 using EcoSISTEM
-using EcoSISTEM: ProvenanceRecord
+using EcoSISTEM: ProvenanceRecord, provenance, VersionOfRecord, SourceFacts,
+                 DepositCitedApart, DepositSharesIdentifier
 using Dates: Dates
 using ArchGDAL
 using Test
@@ -287,6 +288,64 @@ end
     named = provenance(E.NaturalEarthSpec("Scotland"))
     @test length(named) == 1 &&
           (isnothing(only(named)) || only(named).source == "NaturalEarth")
+end
+
+@testset "a record cites its source, its deposit cited apart and the works given alongside it" begin
+    P = EcoSISTEM.Provenancer
+    cites(r) = [l[9:end]
+                for l in P._requestlines(r) if startswith(l, "cite    ")]
+    dataset = "B. Author (2023). The set. https://doi.org/10.1/d"
+    paper = "A. Author (2023). On the set. https://doi.org/10.1/p"
+    # A citation of its own is cited before the works cited alongside it.
+    alongside = ProvenanceRecord(role = :species, source = "The set",
+                                 doi = "10.1/d",
+                                 citation = dataset,
+                                 references = [(doi = "10.1/p", text = paper)])
+    @test cites(alongside) == [dataset, paper]
+    @test occursin("citation " * dataset,
+                   sprint(show, MIME("text/plain"), alongside))
+    # A reference carrying the record's own DOI is the source's citation, cited once.
+    own = ProvenanceRecord(role = :species, source = "The set", doi = "10.1/D",
+                           citation = "the set, composed",
+                           references = [(doi = "10.1/d", text = dataset)])
+    @test cites(own) == [dataset] &&
+          !occursin("citation", sprint(show, MIME("text/plain"), own))
+    # A catalogue row's citation is its references' texts joined, which it cites one by one as
+    # before, whichever DOI it has.
+    path = joinpath(mktempdir(), "era5_t2m_1990s.nc")
+    write(path, "x")
+    row = P.baserecord(path, :habitat)
+    merge!(row,
+           EcoSISTEM._cataloguerecord(EcoSISTEM.ERA,
+                                      EcoSISTEM.layerinfo(EcoSISTEM.ERA, "t2m"),
+                                      path,
+                                      route = EcoSISTEM.GeneratedOnRequest()))
+    P.writesidecar(path, row)
+    era = provenance(path)
+    @test length(era.references) == 2 &&
+          cites(era) == [P._fillplaceholders(ref.text, era.fetched)
+           for ref in era.references]
+    # A deposit cited apart is cited after its source.
+    apart = ProvenanceRecord(role = :species, source = "The set",
+                             doi = "10.1/d",
+                             citation = dataset,
+                             deposit = DepositCitedApart(SourceFacts(source = "A paper",
+                                                                     doi = "10.1/p",
+                                                                     citation = paper)))
+    @test cites(apart) == [dataset, paper]
+    # The deposit is written as the sidecar keeps it, the default not at all.
+    @test P.tomltable(apart)["deposit"] == "DepositCitedApart" &&
+          P.tomltable(apart)["deposit_source"]["doi"] == "10.1/p"
+    @test !haskey(P.tomltable(alongside), "deposit")
+    # A record from before deposits, or naming one this version does not know, has the default.
+    t = Dict{String, Any}("writer" => "EcoSISTEM.Provenancer 0.10.0",
+                          "role" => "species",
+                          "source" => "s")
+    @test P._recordfromtoml(t, location = nothing, sidecar = nothing).deposit ==
+          DepositSharesIdentifier()
+    t["deposit"] = "SomeLaterDeposit"
+    @test P._recordfromtoml(t, location = nothing, sidecar = nothing).deposit ==
+          DepositSharesIdentifier()
 end
 
 end

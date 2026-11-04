@@ -49,10 +49,12 @@ include("naming.jl")
 include("doi.jl")
 
 export ProvenanceRecord, Provenance, Track, NoContext, SoftwareRecord,
-       VersionOfRecord, GeneratedOnRequest, OtherOrigin, SourceFacts,
+       VersionOfRecord, GeneratedOnRequest, OtherOrigin,
+       DepositSharesIdentifier, DepositIsFile, DepositCitedApart, SourceFacts,
        URLFile, provenance, write_provenance, lookup_doi, record_provenance
 
-public AbstractProvenanceContext, AbstractFileRoute, IsFetchable, route,
+public AbstractProvenanceContext, AbstractFileRoute, AbstractDeposit,
+       IsFetchable, route,
        NOTICE_STRENGTHS, IDENTIFIES, isprimary, sourceentries, contextsummary,
        contextlines, contexttables, modification, softwarerecord, tomltable,
        tomlvalue

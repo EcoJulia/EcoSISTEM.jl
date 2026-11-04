@@ -30,7 +30,9 @@ include("Provenancer/Provenancer.jl")
 using .Provenancer: Provenancer, ProvenanceRecord, Provenance, Track,
                     AbstractProvenanceContext, NoContext, SoftwareRecord,
                     IsFetchable, AbstractFileRoute, VersionOfRecord,
-                    GeneratedOnRequest, OtherOrigin, SourceFacts
+                    GeneratedOnRequest, OtherOrigin, AbstractDeposit,
+                    DepositSharesIdentifier, DepositIsFile, DepositCitedApart,
+                    SourceFacts
 # Imported, not merely used, so that this package's methods extend them.
 import .Provenancer: provenance, write_provenance
 

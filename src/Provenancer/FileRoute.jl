@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# The routes a file comes by, and the trait a thing that fetches or finds a file implements.
+# The routes a file comes by, what a source's identifier stands for in a registry, and the trait a
+# thing that fetches or finds a file implements.
 
 """
     AbstractFileRoute
@@ -58,6 +59,33 @@ it is not taken as the cited item ([`isprimary`](@ref Provenancer.isprimary)).
 """
 struct OtherOrigin <: AbstractFileRoute end
 
+"""
+    AbstractDeposit
+
+What a source's identifier stands for in a data pipeline's registry, which decides how the source's
+files are registered: [`DepositSharesIdentifier`](@ref), the default, [`DepositIsFile`](@ref) or
+[`DepositCitedApart`](@ref). [`SourceFacts`](@ref) carry one as their `deposit`.
+"""
+abstract type AbstractDeposit end
+
+"""
+    DepositSharesIdentifier()
+
+The deposit of a source whose files share its identifier, which names what they come from - a
+dataset of several files, or a paper describing them: a data pipeline run registers the deposit
+without a file, and each file as an output of the run derived from it.
+"""
+struct DepositSharesIdentifier <: AbstractDeposit end
+
+"""
+    DepositIsFile()
+
+The deposit of a source whose identifier names one file and nothing else - a dataset of a single
+file, downloaded or sent to you: the file itself, which a data pipeline run registers as its input,
+with the source, rather than as an output derived from a deposit.
+"""
+struct DepositIsFile <: AbstractDeposit end
+
 @traitdef IsFetchable{X}
 
 @doc """
@@ -107,3 +135,14 @@ function _routefrom(name, identifier)
     name == "OtherOrigin" && return OtherOrigin()
     return nothing
 end
+
+# A deposit as a record's sidecar keeps it: nothing for the default, its name under `deposit`
+# otherwise, with what is known of a deposit cited apart under `deposit_source`.
+_depositentries(::DepositSharesIdentifier) = Dict{String, Any}()
+
+function _depositentries(::DepositIsFile)
+    return Dict{String, Any}("deposit" => "DepositIsFile")
+end
+
+# The citations an account gives a deposit beside its source's own: none, unless it is cited apart.
+_depositcitations(::AbstractDeposit) = String[]
