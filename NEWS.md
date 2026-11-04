@@ -16,6 +16,12 @@
       constructor is documented as what it is: the mean time between trait changes as a fraction of the
       root-to-tip length, so a larger value means fewer changes.
 
+- v0.10.1
+  - Fixed
+    - A paper's citation is composed from its DOI's metadata or from facts written for it, names its
+      journal with the volume, issue and pages rather than its publisher: `SourceFacts` gains
+      `journal`, `volume`, `issue` and `pages`, which `lookup_doi` fills from the CSL record.
+
 - v0.10.0
   - Added
     - `EcoSISTEM.Provenancer`, a submodule holding the provenance machinery behind a public API and

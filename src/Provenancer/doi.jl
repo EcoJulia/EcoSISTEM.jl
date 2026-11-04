@@ -15,7 +15,8 @@ each is given; its publisher; the first of its Issued, Available, Created and Su
 else its year; its version; its abstract; its licence, as the SPDX identifier a right gives,
 else the address of the first right that has one; and what the DOI identifies, from its resource
 type. Where there is none, the Citation Style Language record every DOI has is read, a paper's
-usually: title, authors with their ORCIDs, publisher, the date issued, version and abstract; a
+usually: title, authors with their ORCIDs, publisher, the journal with its volume, issue and
+pages where it is in one, the date issued, version and abstract; a
 CSL record's licence is the publisher's terms for the work, not for data, and is not taken. The
 facts' `source` is the title.
 
@@ -310,6 +311,9 @@ function _cslfacts(record::AbstractDict, doi::AbstractString)
     title isa AbstractVector &&
         (title = isempty(title) ? nothing : first(title))
     title = _text(title)
+    journal = get(record, "container-title", nothing)
+    journal isa AbstractVector &&
+        (journal = isempty(journal) ? nothing : first(journal))
     issued = get(record, "issued", nothing)
     parts = issued isa AbstractDict ? _items(issued, "date-parts") : Any[]
     date = isempty(parts) || !(first(parts) isa AbstractVector) ? "" :
@@ -317,6 +321,10 @@ function _cslfacts(record::AbstractDict, doi::AbstractString)
     return SourceFacts(source = isempty(title) ? doi : title, doi = doi,
                        url = _text(get(record, "URL", nothing)), title = title,
                        publisher = _text(get(record, "publisher", nothing)),
+                       journal = _text(journal),
+                       volume = _text(get(record, "volume", nothing)),
+                       issue = _text(get(record, "issue", nothing)),
+                       pages = _text(get(record, "page", nothing)),
                        authors = authors, identifiers = identifiers,
                        releasedate = date,
                        version = _text(get(record, "version", nothing)),

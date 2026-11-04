@@ -6,6 +6,7 @@
 
 """
     SourceFacts(; source, doi = nothing, url = nothing, title = nothing, publisher = nothing,
+                journal = nothing, volume = nothing, issue = nothing, pages = nothing,
                 authors = [], identifiers = Dict(), releasedate = nothing, version = nothing,
                 description = nothing, licence = nothing, identifies = :other,
                 citation = nothing, references = [], notices = [], requestpage = nothing,
@@ -31,6 +32,9 @@ registered from its record alone.
   - `url`: its address: a landing page, or where its files are described.
   - `title`: its title.
   - `publisher`: who published it.
+  - `journal`, `volume`, `issue` and `pages`: for a work published in a journal, the journal's name
+    and the volume, issue and page range it is in; `nothing` for anything else. A citation composed
+    for it names the journal and these in place of the publisher.
   - `authors`: its authors in order, a person as given names then family name, an organisation as
     it is written; and `identifiers`: the ORCID or ROR identifier of each author that has one, as a
     URL, by the author's name.
@@ -45,7 +49,8 @@ registered from its record alone.
     the cited item or one of its files; `:paper`, a work describing them; `:software`; or
     `:other`.
   - `citation`: the text a paper prints for it, where the source gives one; composed from the
-    authors, date, title, publisher and DOI where it does not.
+    authors, date, title, journal with its volume, issue and pages or else publisher, and DOI where
+    it does not.
   - `references`: the works to cite with the source - its provider's request, or works cited
     alongside it - each its `doi` and `text`, or given as their own `SourceFacts`, taken as their
     DOI and citation; `notices`:
@@ -68,6 +73,10 @@ struct SourceFacts
     url::Union{Nothing, String}
     title::Union{Nothing, String}
     publisher::Union{Nothing, String}
+    journal::Union{Nothing, String}
+    volume::Union{Nothing, String}
+    issue::Union{Nothing, String}
+    pages::Union{Nothing, String}
     authors::Vector{String}
     identifiers::Dict{String, String}
     releasedate::Union{Nothing, String}
@@ -85,7 +94,8 @@ struct SourceFacts
 
     function SourceFacts(; source::AbstractString, doi = nothing, url = nothing,
                          title = nothing, publisher = nothing,
-                         authors = String[],
+                         journal = nothing, volume = nothing, issue = nothing,
+                         pages = nothing, authors = String[],
                          identifiers = Dict{String, String}(),
                          releasedate = nothing, version = nothing,
                          description = nothing, licence = nothing,
@@ -108,7 +118,8 @@ struct SourceFacts
                                 "`$(something(ns, "the run's default"))`; its facts give " *
                                 "`$(deposit.facts.namespace)`."))
         return new(String(source), _opttext(doi), _opttext(url),
-                   _opttext(title), _opttext(publisher),
+                   _opttext(title), _opttext(publisher), _opttext(journal),
+                   _opttext(volume), _opttext(issue), _opttext(pages),
                    String[string(a) for a in authors],
                    Dict{String, String}(string(k) => string(v)
                                         for (k, v) in identifiers),
@@ -163,7 +174,7 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", f::SourceFacts)
     println(io, "SourceFacts ", repr(f.source), " (", f.identifies, ")")
-    for name in (:title, :doi, :url, :publisher, :releasedate, :version,
+    for name in (:title, :doi, :url, :publisher, :journal, :releasedate, :version,
         :licence, :citation, :key, :namespace)
         value = getfield(f, name)
         isnothing(value) || println(io, "  ", rpad(string(name), 12), value)
@@ -266,9 +277,9 @@ keys, to be merged into the record of the file itself: the `source`, the file's 
 identifier stands for where that is not the default (its `deposit`), the `catalogue` fetching it
 where one is, whether it is `primary` for that route ([`isprimary`](@ref Provenancer.isprimary)), and the DOI, licence,
 version, release date, citation, references, notices and request page where known, each under
-the key the sidecar uses. The citation is composed from the authors, date, title,
-publisher and DOI where the facts give none of their own and have a DOI and authors to compose
-one from.
+the key the sidecar uses. The citation is composed from the authors, date, title, the journal
+with its volume, issue and pages or else the publisher, and the DOI where the facts give none of
+their own and have a DOI and authors to compose one from.
 
 # Arguments
 
@@ -311,9 +322,9 @@ function sourceentries(facts::SourceFacts, route::AbstractFileRoute;
     return record
 end
 
-# The citation a record carries: the source's own, else one composed as a reference list writes a
-# dataset - authors, year, title with its version, publisher, DOI - where there is a DOI and there
-# are authors to compose it from, else none.
+# The citation a record carries: the source's own, else one composed as a reference list writes
+# it - authors, year, title with its version, where it was published, DOI - where there is a DOI
+# and there are authors to compose it from, else none.
 function _citationtext(facts::SourceFacts)
     isnothing(facts.citation) || return facts.citation
     (isnothing(facts.doi) || isempty(facts.authors)) && return nothing
@@ -324,9 +335,20 @@ function _citationtext(facts::SourceFacts)
             (isnothing(facts.version) ? "" :
              " (version " * facts.version * ")") *
             "."
-    publisher = isnothing(facts.publisher) ? "" : " " * facts.publisher * "."
-    return join(facts.authors, ", ") * year * "." * title * publisher *
+    return join(facts.authors, ", ") * year * "." * title *
+           _publishedin(facts) *
            " https://doi.org/" * facts.doi
+end
+
+# Where a cited source was published, as a citation names it: a journal with its volume, issue and
+# pages, as `Journal 31(11), 2191-2203.`, else the publisher; empty where neither is known.
+function _publishedin(facts::SourceFacts)
+    isnothing(facts.journal) &&
+        return isnothing(facts.publisher) ? "" : " " * facts.publisher * "."
+    volume = isnothing(facts.volume) ? "" : " " * facts.volume
+    issue = isnothing(facts.issue) ? "" : "(" * facts.issue * ")"
+    pages = isnothing(facts.pages) ? "" : ", " * facts.pages
+    return " " * facts.journal * volume * issue * pages * "."
 end
 
 # What a record of a file recorded from facts keeps of them beyond its entries, so that the file
@@ -385,6 +407,8 @@ function _factstable(facts::SourceFacts)
                               "identifies" => string(facts.identifies))
     for (key, value) in (("doi", facts.doi), ("url", facts.url),
         ("title", facts.title), ("publisher", facts.publisher),
+        ("journal", facts.journal), ("volume", facts.volume),
+        ("issue", facts.issue), ("pages", facts.pages),
         ("release_date", facts.releasedate), ("version", facts.version),
         ("licence", facts.licence), ("citation", facts.citation),
         ("key", facts.key))
@@ -399,6 +423,8 @@ function _factsfromtable(table::AbstractDict)
     return SourceFacts(source = something(field("source"), "deposit"),
                        doi = field("doi"), url = field("url"),
                        title = field("title"), publisher = field("publisher"),
+                       journal = field("journal"), volume = field("volume"),
+                       issue = field("issue"), pages = field("pages"),
                        authors = something(field("authors"), String[]),
                        releasedate = field("release_date"),
                        version = field("version"), licence = field("licence"),

@@ -189,6 +189,24 @@ end
     @test startswith(e["citation"], "Claire Harris, ") &&
           endswith(e["citation"], "https://doi.org/10.1111/geb.13564") &&
           occursin("(2022). Strong phylogenetic", e["citation"])
+    # A paper in a journal is cited by the journal, its volume, issue and pages, not its publisher.
+    @test p.journal == "Global Ecology and Biogeography" && p.volume == "31" &&
+          p.issue == "11" && p.pages == "2191-2203"
+    @test e["citation"] ==
+          "Claire Harris, Neil Brummitt, Christina A. Cobbold, Richard Reeve (2022). Strong " *
+          "phylogenetic signals in global plant bioclimatic envelopes. Global Ecology and " *
+          "Biogeography 31(11), 2191-2203. https://doi.org/10.1111/geb.13564"
+    # Facts written by hand for a paper cite the same way, whatever of the four they give; with no
+    # journal the publisher stands, as for a dataset.
+    byhand = SourceFacts(source = "A paper", doi = "10.1/p", title = "On sets",
+                         authors = ["A. Author"], releasedate = "2020",
+                         publisher = "Pub",
+                         journal = "Journal of Sets", volume = "4",
+                         pages = "10-20")
+    @test P._citationtext(byhand) ==
+          "A. Author (2020). On sets. Journal of Sets 4, 10-20. https://doi.org/10.1/p"
+    @test P._citationtext(SourceFacts(byhand, journal = nothing)) ==
+          "A. Author (2020). On sets. Pub. https://doi.org/10.1/p"
 end
 
 @testset "what is no DOI, or has no metadata, is refused by name" begin
@@ -347,7 +365,8 @@ end
     paper = SourceFacts(source = "A paper", doi = "10.1/p",
                         title = "On the set",
                         authors = ["A. Author"], releasedate = "2023",
-                        identifies = :paper)
+                        identifies = :paper, journal = "Journal of Sets",
+                        volume = "4", issue = "2", pages = "10-20")
     apart = DepositCitedApart(paper)
     @test apart == DepositCitedApart(SourceFacts(paper)) &&
           hash(apart) == hash(DepositCitedApart(SourceFacts(paper)))
@@ -373,7 +392,8 @@ end
     alongside = SourceFacts(plain, references = [paper])
     @test only(alongside.references) ==
           (doi = "10.1/p",
-           text = "A. Author (2023). On the set. https://doi.org/10.1/p")
+           text = "A. Author (2023). On the set. Journal of Sets 4(2), 10-20. " *
+                  "https://doi.org/10.1/p")
     @test_throws "give no DOI" SourceFacts(plain,
                                            references = [SourceFacts(source = "Undated",
                                                                      key = "undated")])
