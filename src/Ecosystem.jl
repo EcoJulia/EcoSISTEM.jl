@@ -19,6 +19,8 @@ using DimensionalData: Ti, At
 
 using HCubature
 
+using Distributions: ContinuousUnivariateDistribution, InverseGaussian, pdf
+
 using DataFrames
 
 using EcoSISTEM.Units
@@ -595,7 +597,7 @@ end
     speciesdispersal(eco::AbstractEcosystem, sp)
     speciesdispersal(spplist::SpeciesList, sp)
 
-Return species `sp`'s dispersal **kernel** - a `GaussianKernel` or `LongTailKernel`. `sp` may be an
+Return species `sp`'s dispersal **kernel**, an [`AbstractKernel`](@ref). `sp` may be an
 index or a name.
 
 **The exception to the `NamedTuple` shape** of the other four: a species has one dispersal kernel,
@@ -971,6 +973,15 @@ function _2Dtdisperse(r, b)
     return ((b - 1) / (π)) * (1 + ((r[3] - r[1])^2 + (r[4] - r[2])^2))^-b
 end
 
+# The density of landing at a point, per unit area, for a kernel stated as the distribution of the
+# distance travelled: the distance density spread round the circle at that distance, `pdf(dist, d)
+# / (2pi d)`. The point `d = 0` has measure zero and is given zero rather than the limit, since the
+# cubature samples it at the centre of the source cell.
+function _distancedisperse(r, dist::ContinuousUnivariateDistribution)
+    d = sqrt((r[3] - r[1])^2 + (r[4] - r[2])^2)
+    return d > 0 ? pdf(dist, d) / (2π * d) : 0.0
+end
+
 """
     genlookups(regime::AbstractRegime, kernel::AbstractKernel)
 
@@ -991,6 +1002,17 @@ function genlookups(regime::AbstractRegime, kernel::LongTailKernel)
     b = kernel.shape
     return EcoSISTEM.Lookup(EcoSISTEM._lookup(relsize, m, p, b,
                                               EcoSISTEM._2Dtdisperse))
+end
+
+# Distances in units of the mean, so the inverse Gaussian is `InverseGaussian(1, scale / meandist)`.
+function genlookups(regime::AbstractRegime, kernel::WaldKernel)
+    relsize = uconvert(NoUnits, _uniformcellside(regime) / kernel.meandist)
+    m = maximum(getgridshape(regime))
+    distance = InverseGaussian(1.0,
+                               uconvert(NoUnits,
+                                        kernel.scale / kernel.meandist))
+    return Lookup(_lookup(relsize, m, kernel.thresh,
+                          r -> _distancedisperse(r, distance)))
 end
 
 # Build one species' dispersal neighbourhood: every offset the kernel reaches with probability above

@@ -920,6 +920,7 @@ classDiagram
     AbstractMovement  <|-- NoMovement
     AbstractKernel    <|-- GaussianKernel
     AbstractKernel    <|-- LongTailKernel
+    AbstractKernel    <|-- WaldKernel
     AbstractTopology <|-- EdgeTopology
     EdgeTopology <|-- Torus
     EdgeTopology <|-- Cylinder

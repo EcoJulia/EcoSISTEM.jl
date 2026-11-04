@@ -5,6 +5,8 @@
     - The phylogeny-building `SpeciesList` constructors take a `seed`, which fixes the tree and the
       tolerances evolved along it from a stream of their own. `assigntraits!`, `discrete_evolve`,
       `continuous_evolve` and `brownian_motion` take a random number generator as a first argument.
+    - `WaldKernel(; meandist, scale)`, a dispersal kernel whose distance travelled follows the
+      inverse Gaussian distribution, Katul et al.'s WALD kernel for seeds dispersed by wind.
   - Changed
     - `GaussianKernel` and `LongTailKernel` take their distances by keyword, each named for what it
       is: a Gaussian kernel's mean distance (`meandist`) or the standard deviation of its

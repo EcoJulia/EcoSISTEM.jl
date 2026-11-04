@@ -247,7 +247,7 @@ adding one changes the partition itself, and unlike the abundance operations thi
     argument.
   - `tolerance`, `demand`: the arrival's niche and its resource requirements. Cloned from the last
     species if omitted.
-  - `dispersal`: a dispersal **kernel** - a `GaussianKernel` or a `LongTailKernel` - matching
+  - `dispersal`: a dispersal **kernel**, an [`AbstractKernel`](@ref), matching
     `build_species`' keyword of the same name. Not an `AbstractMovement`: the movement type and the
     grid's edges belong to the whole assemblage, and only the kernel is per species.
   - `birth`, `death`: the arrival's demographic rates.

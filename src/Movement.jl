@@ -13,7 +13,8 @@ using SpecialFunctions: loggamma
     AbstractKernel
 
 The shape of the probability distribution over where an individual's offspring lands, relative to its
-own cell. [`GaussianKernel`](@ref) and [`LongTailKernel`](@ref) are the concrete kernels.
+own cell. [`GaussianKernel`](@ref), [`LongTailKernel`](@ref) (2Dt) and [`WaldKernel`](@ref) (Inverse
+Gaussian) are the concrete kernels.
 
 A kernel says only *how far and how likely*. What happens when a draw crosses an edge is the grid's
 [`AbstractTopology`](@ref), and what becomes of one aimed at a dead cell is `disperse_safely` on the
@@ -124,6 +125,45 @@ end
 function Base.show(io::IO, k::LongTailKernel)
     return print(io, "LongTailKernel(shape = ", k.shape, ", scale = ",
                  _kernelphrase(k.scale), ", thresh = ", k.thresh, ")")
+end
+
+"""
+    WaldKernel(; meandist, scale, thresh = 1.0e-9)
+
+A dispersal kernel whose distance travelled follows the inverse Gaussian distribution, the "WALD"
+kernel that Katul et al. (2005, American Naturalist 166: 368-381) derived for seeds dispersed by
+wind. The density of the distance travelled is `sqrt(scale / (2 * pi * r^3)) * exp(-scale * (r -
+meandist)^2 / (2 * meandist^2 * r))`, and its variance is `meandist^3 / scale`, so the larger
+`scale` is beside `meandist`, the more tightly the distances gather round their mean.
+
+# Keywords
+
+  - `meandist`: the mean distance travelled.
+  - `scale`: the distance scale in the density above, Katul et al.'s lambda.
+  - `thresh`: the probability below which a destination is dropped, which is what bounds the lookup
+    table to a finite neighbourhood.
+
+# Fields
+
+  - `meandist`, `scale`: as above, in kilometres.
+  - `thresh`: as above.
+"""
+struct WaldKernel <: AbstractKernel
+    meandist::typeof(1.0km)
+    scale::typeof(1.0km)
+    thresh::Float64
+
+    function WaldKernel(; meandist::Unitful.Length, scale::Unitful.Length,
+                        thresh::Real = 1.0e-9)
+        return new(_kilometres(meandist, :meandist), _kilometres(scale, :scale),
+                   Float64(thresh))
+    end
+end
+
+function Base.show(io::IO, k::WaldKernel)
+    return print(io, "WaldKernel(meandist = ", _kernelphrase(k.meandist),
+                 ", scale = ", _kernelphrase(k.scale), ", thresh = ", k.thresh,
+                 ")")
 end
 
 """
@@ -319,12 +359,13 @@ function _roundphrase(x::Unitful.Quantity)
 end
 _roundphrase(x::Real) = string(round(x, digits = 3))
 
-# How far a movement's kernels reach, for its display: a Gaussian kernel's mean distance, and a
-# long-tailed kernel's scale, since its mean may be infinite.
+# How far a movement's kernels reach, for its display: a Gaussian or WALD kernel's mean distance,
+# and a long-tailed kernel's scale, since its mean may be infinite.
 function _dispersalphrase(kernels::AbstractVector)
     return isempty(kernels) ? "none" : _reachphrase(kernels)
 end
-function _reachphrase(kernels::AbstractVector{GaussianKernel})
+function _reachphrase(kernels::AbstractVector{<:Union{GaussianKernel,
+                                                      WaldKernel}})
     return "mean " * _rangephrase(map(_meandist, kernels))
 end
 function _reachphrase(kernels::AbstractVector)
@@ -337,8 +378,9 @@ function _kernelphrase(d::Unitful.Length)
     return string(round(typeof(1.0km), d, sigdigits = 6))
 end
 
-# A Gaussian kernel's mean distance, from its stored scale.
+# A kernel's mean distance: a Gaussian kernel's from its stored scale, a WALD kernel's as stored.
 _meandist(k::GaussianKernel) = k.scale * sqrt(pi) / 2
+_meandist(k::WaldKernel) = k.meandist
 
 # The ratio `gamma(shape - 3/2) / gamma(shape - 1)` in a long-tailed kernel's mean distance, through
 # the log-gamma function so that a large shape cannot overflow.

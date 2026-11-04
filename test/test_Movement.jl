@@ -245,6 +245,37 @@ end
     @test repr(g) == "GaussianKernel(meandist = 2.4 km, thresh = 1.0e-9)"
     @test repr(LongTailKernel(scale = 2.0km, shape = 2.0, thresh = 1e-3)) ==
           "LongTailKernel(shape = 2.0, scale = 2.0 km, thresh = 0.001)"
+
+    w = WaldKernel(meandist = 5000.0m, scale = 10.0km)
+    @test w.meandist == 5.0km && w.scale == 10.0km && w.thresh == 1.0e-9
+    @test_throws UndefKeywordError WaldKernel(meandist = 5.0km)
+    @test_throws "must be positive" WaldKernel(meandist = 5.0km, scale = 0.0km)
+    @test repr(w) ==
+          "WaldKernel(meandist = 5.0 km, scale = 10.0 km, thresh = 1.0e-9)"
+    @test occursin("WaldKernel mean 5.0 km",
+                   repr(BirthOnlyMovement(fill(w, 3))))
+end
+
+# A lookup must put individuals at the distances its kernel was given: the mean displacement from
+# cell centres, on 1 km cells and a grid wide enough not to truncate, is the kernel's mean to within
+# the cells' discreteness, about half a percent for every kernel alike. A WALD lookup built from its
+# distance density without dividing by `2pi d` puts its mean at 7.5 km instead, and fails.
+@testset "a lookup puts individuals at the distances its kernel was given" begin
+    area = StudyArea(extent = (81.0km, 81.0km), cellsize = 1.0km,
+                     verbosity = :silent)
+    regime = build_habitat(area = area, verbosity = :silent).regime
+    lookup(k) = EcoSISTEM.genlookups(regime, k)
+    meanof(l) = sum(p * sqrt(y^2 + x^2) for (y, x, p) in zip(l.y, l.x, l.p))
+    spreadof(l) = sqrt(sum(p * (sqrt(y^2 + x^2) - meanof(l))^2
+                           for (y, x, p) in zip(l.y, l.x, l.p)))
+    loose = lookup(WaldKernel(meandist = 5.0km, scale = 10.0km))
+    tight = lookup(WaldKernel(meandist = 5.0km, scale = 50.0km))
+    @test meanof(lookup(GaussianKernel(meandist = 5.0km))) ≈ 5.0 rtol = 0.02
+    @test meanof(loose) ≈ 5.0 rtol = 0.02
+    @test meanof(tight) ≈ 5.0 rtol = 0.02
+    # The variance is `meandist^3 / scale`, so the larger scale gathers the distances closer.
+    @test spreadof(loose) ≈ sqrt(5.0^3 / 10.0) rtol = 0.05
+    @test spreadof(tight) < spreadof(loose)
 end
 
 end
