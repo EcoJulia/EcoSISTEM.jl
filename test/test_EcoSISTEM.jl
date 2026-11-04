@@ -222,7 +222,7 @@ _documented_control_() = nothing
     # so handing it a variable documents the variable and reports every name as undocumented. That
     # mistake made this very test claim the whole package was undocumented.
     hasdoc(m, n) = haskey(Base.Docs.meta(m), Base.Docs.Binding(m, n))
-    mods = (EcoSISTEM, EcoSISTEM.Units)
+    mods = (EcoSISTEM, EcoSISTEM.Units, EcoSISTEM.Provenancer)
 
     undocumented = Symbol[]
     for m in mods, n in names(m, all = false)
@@ -305,11 +305,11 @@ end
 # this is where the asymmetry bites, and where the check is worth its exception list.
 @testset "every public function documents its keywords" begin
     hasdoc(m, n) = haskey(Base.Docs.meta(m), Base.Docs.Binding(m, n))
-    mods = (EcoSISTEM, EcoSISTEM.Units)
+    mods = (EcoSISTEM, EcoSISTEM.Units, EcoSISTEM.Provenancer)
 
     # Every keyword any of `f`'s **own** methods declares. Methods from elsewhere are skipped: a
     # `@deprecate` shim is generated into `Base`, and its redirect is its documentation.
-    ours = ("EcoSISTEM", "Units")
+    ours = ("EcoSISTEM", "Units", "Provenancer")
     function keywords(f)
         ks = Symbol[]
         for m in methods(f)

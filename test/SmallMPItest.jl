@@ -569,8 +569,8 @@ simulate!(receco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
 end
 # Each holds the run as it stood at its last write: the last multiple of the interval, a step before
 # the run ends.
-@test provenance(recdiv).run == provenance(recab).run
-@test provenance(recdiv).run.elapsed ≈ uconvert(u"s", MPIFIXTURE_BURNIN)
+@test provenance(recdiv).context.run == provenance(recab).context.run
+@test provenance(recdiv).context.run.elapsed ≈ uconvert(u"s", MPIFIXTURE_BURNIN)
 recserial = mpifixture_ecosystem()
 if rank == 0
     serialab = RecordAbundance(zeros(Int, numSpecies, ncells, nrec))

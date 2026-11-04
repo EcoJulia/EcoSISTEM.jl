@@ -30,7 +30,7 @@ const DOC = joinpath(pkgdir(EcoSISTEM), "data", "architecture.md")
 # The modules whose own declarations the doc is expected to cover. ⭐ Extensions are included when
 # loaded and skipped when not, so a run without the weak deps under-reports rather than lying.
 function ourmodules()
-    mods = Module[EcoSISTEM, EcoSISTEM.Units]
+    mods = Module[EcoSISTEM, EcoSISTEM.Units, EcoSISTEM.Provenancer]
     for ext in (:EcoSISTEMMPIExt, :EcoSISTEMPhyloExt, :EcoSISTEMRasterDataSourcesExt,
         :EcoSISTEMDataPipelineExt, :EcoSISTEMERAExt)
         m = Base.get_extension(EcoSISTEM, ext)

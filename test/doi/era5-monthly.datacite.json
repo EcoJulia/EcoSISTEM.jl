@@ -1,0 +1,51 @@
+{
+  "id": "https://doi.org/10.24381/cds.f17050d7",
+  "doi": "10.24381/CDS.F17050D7",
+  "url": "https://cds.climate.copernicus.eu/doi/10.24381/cds.f17050d7",
+  "types": {
+    "ris": "DATA",
+    "bibtex": "misc",
+    "citeproc": "dataset",
+    "schemaOrg": "Dataset",
+    "resourceTypeGeneral": "Dataset"
+  },
+  "creators": [
+    {
+      "name": "Copernicus Climate Change Service",
+      "affiliation": [],
+      "nameIdentifiers": []
+    }
+  ],
+  "titles": [
+    {
+      "title": "ERA5 monthly averaged data on single levels from 1940 to present"
+    }
+  ],
+  "publisher": {
+    "name": "Copernicus Climate Change Service (C3S) Climate Data Store (CDS)"
+  },
+  "container": {},
+  "subjects": [],
+  "contributors": [],
+  "dates": [
+    {
+      "date": "2019",
+      "dateType": "Issued"
+    }
+  ],
+  "publicationYear": 2019,
+  "identifiers": [],
+  "sizes": [],
+  "formats": [],
+  "rightsList": [],
+  "descriptions": [],
+  "geoLocations": [],
+  "fundingReferences": [],
+  "relatedIdentifiers": [],
+  "relatedItems": [],
+  "schemaVersion": "http://datacite.org/schema/kernel-4",
+  "providerId": "uymd",
+  "clientId": "bl.ecmwf",
+  "agency": "datacite",
+  "state": "findable"
+}

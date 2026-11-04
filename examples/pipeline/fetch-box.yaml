@@ -1,0 +1,21 @@
+run_metadata:
+  description: A box around Scotland, a file of your own cut from Natural Earth's table, recorded and registered
+  default_input_namespace: NaturalEarth
+  default_output_namespace: NaturalEarth
+  script: |
+    julia --project=examples/pipeline examples/pipeline/fetch.jl box
+
+# A file of your own is registered with the source it was cut from, in that source's namespace, which
+# its record names: its one input is that source's deposit, and its outputs the file and its record.
+register:
+- namespace: NaturalEarth
+  full_name: Natural Earth
+  website: https://www.naturalearthdata.com/
+
+write:
+- data_product: box/data/*
+  description: A box around Scotland, a GeoJSON file of your own
+  file_type: geojson
+- data_product: box/provenance/*
+  description: EcoSISTEM's provenance record of a file under box
+  file_type: toml

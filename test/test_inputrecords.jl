@@ -45,12 +45,13 @@ end
                                  axis = EcoSISTEM.NicheAxis)
     area = StudyArea(regime = spec, within = mask, verbosity = :silent)
     p = provenance(area)
-    @test p isa Provenance && isnothing(p.run)
+    @test p isa Provenance && isnothing(p.context.run)
     field = only(r for r in p.inputs if r.path == "field.tif")
-    @test field.role === :habitat && field.dataset == "file"
+    @test field.role === :habitat && field.source == "file"
     @test any(r -> r.path == "mask.tif" && r.role === :region, p.inputs)
-    @test p.grid.cellsize == 1.0° && p.grid.cells == 35 && p.grid.active == 35
-    @test p.grid.extent == EcoSISTEM.Extents.Extent(Y = (50.0°, 55.0°),
+    @test p.context.grid.cellsize == 1.0° && p.context.grid.cells == 35 &&
+          p.context.grid.active == 35
+    @test p.context.grid.extent == EcoSISTEM.Extents.Extent(Y = (50.0°, 55.0°),
                                    X = (10.0°, 17.0°))
     @test p.software.package == "EcoSISTEM"
     @test p.software.version == string(pkgversion(EcoSISTEM))
@@ -64,7 +65,7 @@ end
     q = provenance(habitat)
     @test isnothing(habitat.area.report.cache)
     @test [r.path for r in q.inputs] == [r.path for r in p.inputs]
-    @test q.grid == p.grid && isnothing(q.run)
+    @test q.context.grid == p.context.grid && isnothing(q.context.run)
     # A combination of layers lists its data members' records and none for a synthetic one.
     both = ConstructedRasterSpec((a, b) -> a, spec,
                                  UniformSpec(290.0K, axis = Temperature),
@@ -75,30 +76,30 @@ end
 @testset "an ecosystem adds its run, and a synthetic one reads nothing" begin
     eco = build_ecosystem(DefaultEcosystem(), seed = 7)
     p = provenance(eco)
-    @test isempty(p.inputs) && isnothing(p.grid.crs)
-    @test p.run.seed == eco.seed && p.run.epoch === eco.epoch &&
-          p.run.elapsed == eco.elapsed
-    @test p.run.calendar == ExactDates()
-    @test p.grid == provenance(eco.habitat).grid
+    @test isempty(p.inputs) && isnothing(p.context.grid.crs)
+    @test p.context.run.seed == eco.seed && p.context.run.epoch === eco.epoch &&
+          p.context.run.elapsed == eco.elapsed
+    @test p.context.run.calendar == ExactDates()
+    @test p.context.grid == provenance(eco.habitat).context.grid
 end
 
 @testset "records a caller attaches reach the ecosystem, and an intervention's once it has acted" begin
     E = EcoSISTEM
-    traits = E.InputRecord(role = :species, dataset = "trait table",
-                           path = "traits.csv")
-    seeding = E.InputRecord(role = :abundance,
-                            dataset = "GBIF occurrence download",
-                            doi = "10.15468/dl.abc123")
+    traits = E.ProvenanceRecord(role = :species, source = "trait table",
+                                path = "traits.csv")
+    seeding = E.ProvenanceRecord(role = :abundance,
+                                 source = "GBIF occurrence download",
+                                 doi = "10.15468/dl.abc123")
     species = build_species(DefaultEcosystem(), numspecies = 3,
                             verbosity = :silent, provenance = traits)
-    @test only(species.inputs).dataset == "trait table"
+    @test only(species.inputs).source == "trait table"
     habitat = build_habitat(DefaultEcosystem(), verbosity = :silent)
     eco = build_ecosystem(species, habitat, seed = 1, provenance = [seeding])
-    datasets() = [r.dataset for r in provenance(eco).inputs]
+    datasets() = [r.source for r in provenance(eco).inputs]
     @test issetequal(datasets(), ["trait table", "GBIF occurrence download"])
     # An intervention's records join once it acts, and never for one that does not.
-    cull = E.InputRecord(role = :intervention, dataset = "cull plan")
-    idle = E.InputRecord(role = :intervention, dataset = "never applied")
+    cull = E.ProvenanceRecord(role = :intervention, source = "cull plan")
+    idle = E.ProvenanceRecord(role = :intervention, source = "never applied")
     plan = InterventionSet(Intervention(AtTime(0s), AllCells(),
                                         RemoveAbundance(1, 1),
                                         provenance = cull),
@@ -111,9 +112,9 @@ end
     @test "cull plan" in datasets() && !("never applied" in datasets())
     # Stripping the similarity keeps both the species' and the run's records.
     uniqueeco = EcoSISTEM.makeunique(eco)
-    @test [r.dataset for r in uniqueeco.spplist.inputs] == ["trait table"]
-    @test [r.dataset for r in uniqueeco.inputs] ==
-          [r.dataset for r in eco.inputs]
+    @test [r.source for r in uniqueeco.spplist.inputs] == ["trait table"]
+    @test [r.source for r in uniqueeco.inputs] ==
+          [r.source for r in eco.inputs]
     # Anything but a record, or a vector of them, is refused naming the keyword.
     @test_throws "`provenance` takes" build_ecosystem(species, habitat,
                                                       provenance = "GBIF")
@@ -143,10 +144,10 @@ end
     @test !any(s -> occursin(homedir(), s) || occursin(gethostname(), s) ||
                     occursin(dir, s), tomlstrings(path))
     # An ecosystem adds its run, and writing it gives the same file as writing its provenance.
-    seeding = EcoSISTEM.InputRecord(role = :abundance,
-                                    dataset = "GBIF occurrence download",
-                                    doi = "10.15468/dl.abc123",
-                                    fetched = "2026-09-13T07:21:07Z")
+    seeding = EcoSISTEM.ProvenanceRecord(role = :abundance,
+                                         source = "GBIF occurrence download",
+                                         doi = "10.15468/dl.abc123",
+                                         fetched = "2026-09-13T07:21:07Z")
     eco = build_ecosystem(DefaultEcosystem(), seed = 7, provenance = seeding)
     whole = write_provenance(joinpath(dir, "eco.toml"), eco)
     parts = write_provenance(joinpath(dir, "parts.toml"), provenance(eco))
@@ -157,13 +158,13 @@ end
           Dates.DateTime(2026, 9, 13, 7, 21, 7)
     # A provider's references and notices are written with their placeholders filled from the
     # fetch time, and an empty list is left out like any other field with nothing to say.
-    asked = EcoSISTEM.InputRecord(role = :abundance,
-                                  dataset = "GBIF occurrence download",
-                                  fetched = "2026-09-13T07:21:07Z",
-                                  references = [(doi = "10.15468/dl.abc123",
-                                                 text = "GBIF (YYYY). Accessed DD-MMM-YYYY.")],
-                                  notices = [(strength = :requested,
-                                              text = "Thanks, YYYY.")])
+    asked = EcoSISTEM.ProvenanceRecord(role = :abundance,
+                                       source = "GBIF occurrence download",
+                                       fetched = "2026-09-13T07:21:07Z",
+                                       references = [(doi = "10.15468/dl.abc123",
+                                                      text = "GBIF (YYYY). Accessed DD-MMM-YYYY.")],
+                                       notices = [(strength = :requested,
+                                                   text = "Thanks, YYYY.")])
     written = TOML.parsefile(write_provenance(joinpath(dir, "asked.toml"),
                                               build_ecosystem(DefaultEcosystem(),
                                                               seed = 7,
@@ -175,18 +176,20 @@ end
           Dict("strength" => "requested", "text" => "Thanks, 2026.")
     @test !haskey(only(run["inputs"]), "references")
     # A CRS is written as its name, not as the type's own display.
-    @test EcoSISTEM._tomlvalue(EcoSISTEM.Rasters.EPSG(27700)) == "EPSG:27700"
+    grid = (crs = EcoSISTEM.Rasters.EPSG(27700), cellsize = 1.0,
+            extent = EcoSISTEM.Extents.Extent(X = (0.0, 1.0), Y = (0.0, 1.0)))
+    @test EcoSISTEM._tomlgrid(grid)["crs"] == "EPSG:27700"
 end
 
 @testset "a provenance lists its inputs under their datasets, each citation once" begin
     E = EcoSISTEM
     cite = "Smith, A. (2020). A trait table. Journal of Traits, 1, 1-2."
-    traits = [E.InputRecord(role = :species, dataset = "trait table",
-                            path = file, citation = cite)
+    traits = [E.ProvenanceRecord(role = :species, source = "trait table",
+                                 path = file, citation = cite)
               for file in ("traits.csv", "more.csv")]
-    seeding = E.InputRecord(role = :abundance,
-                            dataset = "GBIF occurrence download",
-                            doi = "10.15468/dl.abc123")
+    seeding = E.ProvenanceRecord(role = :abundance,
+                                 source = "GBIF occurrence download",
+                                 doi = "10.15468/dl.abc123")
     species = build_species(DefaultEcosystem(), numspecies = 3,
                             verbosity = :silent, provenance = traits)
     habitat = build_habitat(DefaultEcosystem(), verbosity = :silent)

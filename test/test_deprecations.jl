@@ -8,8 +8,20 @@ using Test
 using Unitful
 
 # Coverage for `src/deprecations.jl` and the dataset-typed shims in the RasterDataSources
-# extension, which hold none at present. A shim is checked on both halves: it warns
-# (`@test_deprecated`) and its result matches the current API it forwards to.
+# extension, which holds none at present. A shim is checked on both halves: it warns and its
+# result matches the current API it forwards to. A method's warning is a log record
+# (`@test_deprecated`); a deprecated binding's is printed by the runtime to stderr, so it is caught
+# with `@test_warn`, and the access is evaluated inside it rather than written in the test's own
+# code, which on Julia 1.11 would warn when that code is compiled, before anything is captured.
+
+@testset "InputRecord is ProvenanceRecord" begin
+    @test Base.isdeprecated(EcoSISTEM, :InputRecord)
+    @test (@test_warn "deprecated" Core.eval(@__MODULE__,
+                                             :(EcoSISTEM.InputRecord))) ===
+          EcoSISTEM.ProvenanceRecord
+    @test Base.ispublic(EcoSISTEM, :InputRecord) &&
+          !Base.isexported(EcoSISTEM, :InputRecord)
+end
 
 # Shims removed at a breaking release must leave nothing behind: a stale `export` or `public` of a
 # deleted binding is only a precompile warning, and a method left on a function that stays is

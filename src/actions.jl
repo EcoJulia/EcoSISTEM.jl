@@ -154,7 +154,7 @@ end
         pthresh = 1.0e-9, movement = BirthOnlyMovement, disperse_safely = true, birth = 0.6/year,
         death = 0.6/year, longevity = 1.0, survival = 0.2,
         abundance = 1000 * numspecies, native = true, names = nothing, seed = nothing,
-        provenance = InputRecord[])
+        provenance = ProvenanceRecord[])
 
 Build a `SpeciesList` of `numspecies` species. `tolerance` (the environmental **Condition** a
 species is matched to) and `demand` (the **Resource** it consumes) are **required**, and so is the
@@ -201,7 +201,7 @@ mismatch):
 species (seedable via `seed`) or an explicit per-species vector. `native` marks
 species as native (default all `true`). `names` gives the species their names, one unique string
 each - binomials, say - which also label their Diversity types; left unset they are `"1"` to
-`"numspecies"`. `provenance` is an [`InputRecord`](@ref), or a vector of them, for the published
+`"numspecies"`. `provenance` is an [`ProvenanceRecord`](@ref), or a vector of them, for the published
 data the species were built from - an occurrence download, a trait table - which
 [`provenance`](@ref) of the ecosystem then lists.
 """
@@ -225,7 +225,7 @@ function build_species(numspecies::Integer;
                        native = true,
                        names = nothing,
                        seed = nothing,
-                       provenance = InputRecord[])
+                       provenance = ProvenanceRecord[])
     n = Int64(numspecies)
     _prebuilt = tolerance isa AbstractTolerance ||
                 (tolerance isa Union{Tuple, NamedTuple} &&
@@ -327,7 +327,7 @@ end
 """
     build_ecosystem(species::SpeciesList, environment::GridHabitat;
         nichefit = nothing, seed = nothing, distributed = :auto, epoch = nothing,
-        calendar = ExactDates(), provenance = InputRecord[])
+        calendar = ExactDates(), provenance = ProvenanceRecord[])
 
 Assemble an ecosystem from a `species` list and an `environment`. When
 `nichefit` is not given it is inferred from the trait type (`NicheTolerance` ->
@@ -363,7 +363,7 @@ every month current once. Under `ExactDates` such a run is refused by [`simulate
 real months are 28 to 31 days long and the step skips some. The calendar also decides the date
 [`simulationdate`](@ref) reports.
 
-`provenance` is an [`InputRecord`](@ref), or a vector of them, for published data that belongs to
+`provenance` is an [`ProvenanceRecord`](@ref), or a vector of them, for published data that belongs to
 the run as a whole rather than to its species or its environment - the records a starting
 population was seeded from, say, or the study's own DOI. [`provenance`](@ref) of the ecosystem lists
 them beside everything else it was built from.
@@ -373,7 +373,7 @@ function build_ecosystem(species::SpeciesList, environment::GridHabitat;
                          distributed = :auto,
                          epoch::Union{Nothing, Dates.TimeType} = nothing,
                          calendar::AbstractRunCalendar = ExactDates(),
-                         provenance = InputRecord[])
+                         provenance = ProvenanceRecord[])
     records = _recordvector(provenance)
     _checksimulatable(environment)
     # Checked here as well as in the `Ecosystem` constructor, and *before* the nichefit is inferred:
@@ -421,7 +421,7 @@ function build_ecosystem(::DefaultEcosystem; seed = nothing,
                          distributed = :auto,
                          epoch::Union{Nothing, Dates.TimeType} = nothing,
                          calendar::AbstractRunCalendar = ExactDates(),
-                         provenance = InputRecord[])
+                         provenance = ProvenanceRecord[])
     environment = build_habitat()
     species = build_species(DefaultEcosystem())
     return build_ecosystem(species, environment, seed = seed,

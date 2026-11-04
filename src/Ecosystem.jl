@@ -80,7 +80,7 @@ between the environment and the characteristics of the species, `nichefit`.
 seed the per-species RNG streams were derived from. `epoch` is the real date elapsed time zero
 corresponds to, or `nothing` for a run with no calendar - see [`simulationdate`](@ref) - and
 `calendar` the [`AbstractRunCalendar`](@ref) its dates are placed by. `inputs`
-holds the [`InputRecord`](@ref)s of published data belonging to the run as a whole - those given to
+holds the [`ProvenanceRecord`](@ref)s of published data belonging to the run as a whole - those given to
 [`build_ecosystem`](@ref), and those of every intervention that has acted - which
 [`provenance`](@ref) lists.
 """
@@ -104,7 +104,7 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
     # How dates map to elapsed time - set by `build_ecosystem`, and like the epoch never read in the
     # hot path.
     calendar::AbstractRunCalendar
-    inputs::Vector{InputRecord}
+    inputs::Vector{ProvenanceRecord}
 
     function Ecosystem{Part, SL, NF}(abundances::GridLandscape,
                                      spplist::SL,
@@ -149,7 +149,7 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
                                  seed,
                                  epoch,
                                  ExactDates(),
-                                 InputRecord[])
+                                 ProvenanceRecord[])
     end
 end
 
@@ -244,7 +244,7 @@ mutable struct CachedEcosystem{Part <: AbstractHabitat,
     seed::UInt64
     epoch::Union{Nothing, Dates.TimeType}
     calendar::AbstractRunCalendar
-    inputs::Vector{InputRecord}
+    inputs::Vector{ProvenanceRecord}
 end
 
 """
@@ -1178,8 +1178,8 @@ function loadfile(cache::CachedEcosystem, file::String, idx::Int,
     # Restore the per-species RNG streams for a reproducible resumed run
     cache.rngs .= copy.(abuns.rngs)
     # The saved state the run resumes from is among what it was built from.
-    state = InputRecord(role = :state, dataset = "saved state",
-                        path = string(idx, ".jld2"))
+    state = ProvenanceRecord(role = :state, source = "saved state",
+                             path = string(idx, ".jld2"))
     state in cache.inputs || push!(cache.inputs, state)
     return GridLandscape(abuns, names, grid)
 end

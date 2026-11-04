@@ -25,26 +25,77 @@ modified dataset's licence often asks to be said. When a study area reads a laye
 those records stay with the area, and with a habitat or an ecosystem built on it, after the reads
 themselves are discarded. The files of a shape or mask that cut the grid are recorded the same way.
 A file with no record of its own - one you handed over rather than one the package fetched - is
-recorded by its name, with the catalogue's facts about its dataset where it is a layer of one.
+recorded by its name, with the catalogue's facts about its dataset where it is a layer of one;
+[`Provenancer.record_provenance`](@ref EcoSISTEM.Provenancer.record_provenance) gives it a record of its
+own, below.
 
-Each input is an [`InputRecord`](@ref), and a record never holds an absolute path, so the file can
+Each input is an [`ProvenanceRecord`](@ref), and a record never holds an absolute path, so the file can
 be shared as it stands.
 
 ## Recording data the package did not fetch
 
 Occurrence records, trait tables and parameters from the literature reach a model through your own
-code, so the package cannot know where they came from. Say so with the `provenance` keyword, which
-takes an [`InputRecord`](@ref) or a vector of them: on [`build_species`](@ref) for the species, on
+code, so the package cannot know where they came from. Record such a file once, where it is, with
+[`Provenancer.record_provenance`](@ref EcoSISTEM.Provenancer.record_provenance): given the file's path, the
+DOI of its source and the role the data play, it looks the DOI's metadata up, writes beside the
+file the same `.provenance.toml` a fetch would, and returns the [`ProvenanceRecord`](@ref). A later
+call from the same source under the same role finds the record and looks nothing up, so the call
+can stay in a script that runs every time; one saying otherwise - another source, another role, or
+a file the package fetched from its own catalogue - is refused.
+
+```julia
+using EcoSISTEM.Provenancer
+envelopes = record_provenance("envelopes.csv", "10.5285/ca339c86-3674-4030-b891-35326e71141e",
+                         role = :species)
+```
+
+Where a source has no DOI, or you know more than its metadata says, write the facts yourself as a
+[`Provenancer.SourceFacts`](@ref EcoSISTEM.Provenancer.SourceFacts). `route` says how the file came
+to be, since a download a service cut to your request is an extract rather than the published
+dataset:
+
+```@example provenance
+using EcoSISTEM
+using EcoSISTEM.Provenancer
+
+path = joinpath(mktempdir(), "records_africa.csv")
+write(path, "species,decimalLatitude,decimalLongitude\nAcacia tortilis,-3.1,36.7\n")
+doi = "10.15468/dl.abc123"
+facts = SourceFacts(source = "GBIF occurrence download", doi = doi,
+                    publisher = "The Global Biodiversity Information Facility",
+                    releasedate = "2026-09-12", licence = "cc-by-nc-4.0", identifies = :data,
+                    citation = "GBIF.org (12 September 2026) GBIF Occurrence Download " *
+                               "https://doi.org/" * doi)
+seeding = record_provenance(path, facts, role = :abundance, route = GeneratedOnRequest(doi))
+```
+
+[`provenance`](@ref) reads the record back from the file's path whenever it is wanted again. A
+file in a place that cannot be written to takes a `sidecar` keyword naming where its record goes,
+which `provenance(path)` takes too. The record says where the file and its sidecar are, so it
+stands in for the file's path in a [`RasterFileSpec`](@ref) or a [`ShapeSpec`](@ref). Under the
+FAIR data pipeline the call takes the run's `track` as well, and does the run's work for the file
+before your code reads it; see [Data pipeline](pipeline.md).
+
+A file you download from a URL records itself as it lands. Describe it as a
+[`Provenancer.URLFile`](@ref EcoSISTEM.Provenancer.URLFile) with the facts of its source, and
+[`Provenancer.fetchfile`](@ref EcoSISTEM.Provenancer.fetchfile) fetches it on first use - resuming
+an interrupted download, and waiting for another process fetching the same file - writes its
+record and returns it, so that it goes into a spec as a recorded file does; it takes a `track`
+too:
+
+```julia
+using EcoSISTEM.Provenancer
+table = URLFile("https://example.org/centroids.csv", "centroids.csv",
+                facts = SourceFacts(source = "Centroids", doi = "10.1234/abc", identifies = :data))
+centroids = Provenancer.fetchfile(table, role = :species)
+```
+
+Give the records to what is built from the data with the `provenance` keyword, which takes an
+[`ProvenanceRecord`](@ref) or a vector of them: on [`build_species`](@ref) for the species, on
 [`build_ecosystem`](@ref) for what belongs to the run as a whole, and on an [`Intervention`](@ref)
 for data an intervention is built from - whose records join the ecosystem's once it has acted.
 
 ```@example provenance
-using EcoSISTEM
-
-seeding = EcoSISTEM.InputRecord(role = :abundance,
-                                dataset = "GBIF occurrence download",
-                                doi = "10.15468/dl.abc123",
-                                licence = "CC BY-NC 4.0")
 species = build_species(DefaultEcosystem(), numspecies = 3, verbosity = :silent)
 habitat = build_habitat(DefaultEcosystem(), verbosity = :silent)
 eco = build_ecosystem(species, habitat, seed = 1, provenance = seeding)
@@ -72,3 +123,16 @@ no record; ask the spec or the study area it came from. A recorder - [`RecordAbu
 last write, so `write_provenance(path, recorder)` writes it; `SaveAbundance` writes it beside every
 file it saves. An array you fill yourself from a callback carries none, so write the ecosystem's
 provenance beside it.
+
+## The machinery, for another package
+
+The records, the sidecar, the download that records itself and the DOI lookup are
+`EcoSISTEM.Provenancer`'s, a submodule depending on nothing of EcoSISTEM's, so that another
+package can record its own inputs the same way: it implements
+[`Provenancer.IsFetchable`](@ref EcoSISTEM.Provenancer.IsFetchable) for each kind of thing it
+fetches, saying which route the files come by; fetches a file from a URL with
+[`Provenancer.fetchinto`](@ref EcoSISTEM.Provenancer.fetchinto), which records it as it lands with
+the record the package builds, or a [`Provenancer.URLFile`](@ref EcoSISTEM.Provenancer.URLFile)
+with [`Provenancer.fetchfile`](@ref EcoSISTEM.Provenancer.fetchfile), recorded from its facts; and
+subtypes [`Provenancer.AbstractProvenanceContext`](@ref EcoSISTEM.Provenancer.AbstractProvenanceContext)
+for what it adds to a result's account. Its names are on the [API](api.md) page.

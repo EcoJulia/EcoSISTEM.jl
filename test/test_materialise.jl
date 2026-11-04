@@ -121,13 +121,13 @@ end
     # its name alone, never hashed, and as the user's own file rather than a dataset's.
     @test !isempty(area.report.cache.inputs)
     for inputs in values(area.report.cache.inputs)
-        @test only(inputs).role === :habitat && only(inputs).dataset == "file"
+        @test only(inputs).role === :habitat && only(inputs).source == "file"
         @test only(inputs).path == "field.tif" && isnothing(only(inputs).sha256)
     end
     # A file with a record of ours beside it is recorded by that record.
     recorded = joinpath(dir, "recorded.tif")
     cp(path, recorded)
-    write(EcoSISTEM._sidecarpath(recorded),
+    write(EcoSISTEM.Provenancer.sidecarpath(recorded),
           """
           writer = "EcoSISTEM 0.8.0"
           role = "habitat"
@@ -414,8 +414,10 @@ end
     @test [r.path for r in StudyArea(h, verbosity = :silent).report.inputs] ==
           built
     # A file read under several windows is one input, and the records come in a fixed order.
-    b = EcoSISTEM.InputRecord(role = :habitat, dataset = "file", path = "b.tif")
-    a = EcoSISTEM.InputRecord(role = :habitat, dataset = "file", path = "a.tif")
+    b = EcoSISTEM.ProvenanceRecord(role = :habitat, source = "file",
+                                   path = "b.tif")
+    a = EcoSISTEM.ProvenanceRecord(role = :habitat, source = "file",
+                                   path = "a.tif")
     @test [r.path for r in EcoSISTEM._uniqueinputs([b, a, b])] ==
           ["a.tif", "b.tif"]
 end
