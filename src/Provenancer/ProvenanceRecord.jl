@@ -288,8 +288,8 @@ end
 function _readsidecar(path::AbstractString, sidecar::AbstractString)
     t = TOML.parsefile(sidecar)
     _isourrecord(t) || begin
-        @warn "`$(basename(sidecar))` was not written by Provenancer (writer: "*
-              "$(repr(get(t, "writer", nothing)))), so it is left alone and reports nothing; "*
+        @warn "`$(basename(sidecar))` was not written by Provenancer (writer: " *
+              "$(repr(get(t, "writer", nothing)))), so it is left alone and reports nothing; " *
               "delete or rename it to have the file recorded on its next use." maxlog=1 _id=Symbol(sidecar)
         return nothing
     end
