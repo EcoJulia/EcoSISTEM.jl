@@ -127,6 +127,24 @@ end
     @test_throws "has no provenance record of ours" P.fetchfile(URLFile(shape.url,
                                                                         foreign),
                                                                 role = :region)
+    # Nor is such a sidecar overwritten by a download: the file is not fetched beside it.
+    unfetched = joinpath(dir, "cache", "unfetched.geojson")
+    write(P.sidecarpath(unfetched), "writer = \"another program\"\n")
+    @test_throws "neither read nor overwritten" P.fetchfile(URLFile(shape.url,
+                                                                    unfetched),
+                                                            role = :region)
+    @test !isfile(unfetched) &&
+          read(P.sidecarpath(unfetched), String) ==
+          "writer = \"another program\"\n"
+    # A stale record of ours beside a file not there is replaced by the download's.
+    stale = joinpath(dir, "cache", "stale.geojson")
+    P.writesidecar(stale,
+                   Dict{String, Any}("writer" => P._writer(),
+                                     "role" => "region",
+                                     "source" => "stale"))
+    @test P.fetchfile(URLFile(shape.url, stale, facts = facts),
+                      role = :region).source ==
+          "My region"
 end
 
 end

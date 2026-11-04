@@ -241,7 +241,9 @@ Return `path`, the file fetched from `url` into it first where it is not there, 
 provenance record written beside it when it is: `record(response)` gives the record, as a
 dictionary of the sidecar's keys, from the last response of the download, or from `nothing` for a
 file found present with no record, which is recorded without a fetch time. A file present with a
-record is left as it is, and checked against the record's checksum where `verify` is `true`.
+record is left as it is, and checked against the record's checksum where `verify` is `true`. A file
+not there beside a same-named sidecar that is not a record of ours - another program's, or one that
+does not read - is refused rather than fetched, since that sidecar is neither read nor overwritten.
 
 The download goes to a sibling part file and is renamed in, never written straight to `path`: a
 present file is taken as whole, so a half-written one there would be served as valid forever. One
@@ -264,6 +266,11 @@ function fetchinto(record::Function, url::AbstractString, path::AbstractString;
         verify && verifyfile(path)
         return path
     end
+    sidecar = sidecarpath(path)
+    isfile(sidecar) && isnothing(recordat(path, sidecar = sidecar)) &&
+        error("`$sidecar` is not a provenance record of ours - another program's, or one that " *
+              "does not read - and is neither read nor overwritten, so `$(basename(path))` is " *
+              "not fetched beside it: move that file, or fetch to another path.")
     mkpath(dirname(abspath(path)))
     part = path * ".part"
     fetchlocked(path) do
