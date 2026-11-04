@@ -40,7 +40,7 @@ using Phylo
     individuals = 100
 
     # Create ecosystem
-    kernel = GaussianKernel.(fill(2.0km, numSpecies), 10e-4)
+    kernel = fill(GaussianKernel(meandist = 2.0km, thresh = 10e-4), numSpecies)
     movement = AlwaysMovement(kernel)
 
     opts = fill(5.0°C, numSpecies)
@@ -111,7 +111,8 @@ end
 
     # The tree-growing constructors: the tree, and the tolerances evolved along it, from one stream.
     demand = Demand{SolarRadiation}(fill(2.0kJ / day, n))
-    movement = BirthOnlyMovement(GaussianKernel.(fill(2.0km, n), 10e-4))
+    movement = BirthOnlyMovement(fill(GaussianKernel(meandist = 2.0km,
+                                                     thresh = 10e-4), n))
     param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2)
     grow(abun = fill(10, n); kw...) = SpeciesList(n, 2, abun, demand, movement,
                                                   param, fill(true, n); kw...)
@@ -149,7 +150,8 @@ end
     tolerance = NicheTolerance(Temperature, Normal, fill(298.0K, n),
                                fill(2.0K, n))
     demand = Demand{SolarRadiation}(fill(2.0kJ / day, n))
-    movement = AlwaysMovement(GaussianKernel.(fill(2.0km, n), 10e-4))
+    movement = AlwaysMovement(fill(GaussianKernel(meandist = 2.0km,
+                                                  thresh = 10e-4), n))
     param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2)
     build(;
           kw...) = SpeciesList(n, tolerance, fill(100, n), demand, movement,

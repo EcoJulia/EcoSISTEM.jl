@@ -14,16 +14,16 @@ using EcoSISTEM.Units
 @testset "Movement" begin
     numSpecies = 10
 
-    @test_nowarn GaussianKernel.(fill(0.2km, numSpecies), 10e-4)
-    @test_nowarn LongTailKernel.(fill(0.2km, numSpecies), 1.0, 10e-4)
-    kernel = GaussianKernel.(fill(0.2m, numSpecies), 10e-4)
+    @test_nowarn GaussianKernel(meandist = 0.2km, thresh = 10e-4)
+    @test_nowarn LongTailKernel(scale = 0.2km, shape = 2.0, thresh = 10e-4)
+    kernel = fill(GaussianKernel(meandist = 0.2m, thresh = 10e-4), numSpecies)
     @test_nowarn AlwaysMovement(kernel)
     @test_nowarn AlwaysMovement(kernel)
     @test_nowarn AlwaysMovement(kernel)
     @test_nowarn BirthOnlyMovement(kernel)
     @test_nowarn NoMovement(kernel)
 
-    kernel = GaussianKernel.(fill(0.2m, numSpecies), 10e-4)
+    kernel = fill(GaussianKernel(meandist = 0.2m, thresh = 10e-4), numSpecies)
     mov = AlwaysMovement(kernel)
     @test EcoSISTEM.getkernels(mov) == mov.kernels
     @test EcoSISTEM.dispersesafely(mov, 1) == mov.disperse_safely[1]
@@ -32,7 +32,8 @@ using EcoSISTEM.Units
     @test EcoSISTEM.dispersesafely(mov, 1) == mov.disperse_safely[1]
     mov = NoMovement(kernel)
     @test EcoSISTEM.getkernels(mov) == mov.kernels
-    kernel = LongTailKernel.(fill(0.2m, numSpecies), 1.0, 10e-4)
+    kernel = fill(LongTailKernel(scale = 0.2m, shape = 2.0, thresh = 10e-4),
+                  numSpecies)
     mov = AlwaysMovement(kernel)
     @test EcoSISTEM.getkernels(mov) == mov.kernels
     @test EcoSISTEM.dispersesafely(mov, 1) == mov.disperse_safely[1]
@@ -106,13 +107,12 @@ end
         @test isempty(fieldnames(T))          # topologies carry no per-species state at all
     end
     # The flag defaults to the safe (redistributing) behaviour, one entry per species.
-    mov = BirthOnlyMovement(GaussianKernel.(fill(0.2km, 3), 10e-4))
+    kernels = fill(GaussianKernel(meandist = 0.2km, thresh = 10e-4), 3)
+    mov = BirthOnlyMovement(kernels)
     @test mov.disperse_safely == fill(true, 3)
     @test all(sp -> EcoSISTEM.dispersesafely(mov, sp), 1:3)
     # One flag per species, or two vectors would silently describe different species.
-    @test_throws "one entry per species" BirthOnlyMovement(GaussianKernel.(fill(0.2km,
-                                                                                3),
-                                                                           10e-4),
+    @test_throws "one entry per species" BirthOnlyMovement(kernels,
                                                            [true, false])
 
     # One landscape, one seed, one species set - only the topology and the flag vary.
@@ -190,11 +190,14 @@ end
 # A struct dump would print every kernel. What is pinned is that the size is bounded and the
 # identifying facts are present, not the exact text, which is free to improve.
 @testset "movements print bounded, whatever the species count" begin
-    small = BirthOnlyMovement(fill(GaussianKernel(1.0km, 1e-3), 10))
-    big = AlwaysMovement(GaussianKernel.(range(0.5km, 4.0km, length = 1000),
-                                         1e-3),
+    small = BirthOnlyMovement(fill(GaussianKernel(meandist = 1.0km,
+                                                  thresh = 1e-3), 10))
+    big = AlwaysMovement([GaussianKernel(meandist = d, thresh = 1e-3)
+                          for d in range(0.5km, 4.0km, length = 1000)],
                          [i > 3 for i in 1:1000])
-    none = NoMovement(fill(LongTailKernel(2.0km, 2.0, 1e-3), 1000))
+    none = NoMovement(fill(LongTailKernel(scale = 2.0km, shape = 2.0,
+                                          thresh = 1e-3),
+                           1000))
     for m in (small, big, none)
         @test length(repr(m)) < 120
         @test length(repr("text/plain", m)) < 200
@@ -203,16 +206,45 @@ end
         # Five lines: the type name and four facts.
         @test count(==('\n'), repr("text/plain", m)) == 4
     end
-    @test occursin("GaussianKernel 1.0 km", repr(small))
+    @test occursin("GaussianKernel mean 1.0 km", repr(small))
     @test !occursin("disperse_safely", repr(small))          # all safe: nothing to say
     @test occursin("0.5 km to 4.0 km", repr(big))
     @test occursin("3 not disperse_safely", repr(big))
     @test occursin("997 of 1000 species", repr("text/plain", big))
-    @test occursin("LongTailKernel 2.0 km", repr(none))
+    @test occursin("LongTailKernel scale 2.0 km", repr(none))
     @test occursin("nothing disperses", repr("text/plain", none))
     # A movement with no species at all still prints.
     @test occursin("0 species, no kernels",
                    repr(BirthOnlyMovement(GaussianKernel[])))
+end
+
+# A kernel's distances are named for what they are. A Gaussian kernel's mean distance and per-axis
+# standard deviation describe it alike; a long-tailed kernel's scale and mean distance do not, and
+# its mean exists only for a shape above 3/2.
+@testset "kernels take their distances by name" begin
+    g = GaussianKernel(meandist = 2.4km)
+    @test g.thresh == 1.0e-9
+    @test EcoSISTEM._meandist(g) ≈ 2.4km
+    @test GaussianKernel(sd = 2.4km / sqrt(pi / 2)).scale ≈ g.scale
+    @test GaussianKernel(meandist = 2400.0m) == g
+    # The 2Dt's mean is `scale * sqrt(pi) / 2 * gamma(shape - 3/2) / gamma(shape - 1)`: at shape 5/2
+    # the gamma ratio is 2 / sqrt(pi), so mean and scale coincide, and at shape 3 it is sqrt(pi) / 2.
+    @test LongTailKernel(meandist = 3.0km, shape = 2.5).scale ≈ 3.0km
+    @test LongTailKernel(meandist = 3.0km, shape = 3.0).scale ≈ 12 / pi * km
+    @test LongTailKernel(scale = 1.0km, shape = 1.5).shape == 1.5
+
+    @test_throws "exactly one of `meandist` and `sd`; got neither" GaussianKernel()
+    @test_throws "got both" GaussianKernel(meandist = 1.0km, sd = 1.0km)
+    @test_throws "must be positive" GaussianKernel(meandist = 0.0km)
+    @test_throws "must exceed 1" LongTailKernel(scale = 1.0km, shape = 1.0)
+    @test_throws "no finite mean distance" LongTailKernel(meandist = 1.0km,
+                                                          shape = 1.5)
+    @test_throws "exactly one of `scale` and `meandist`" LongTailKernel(shape = 2.0)
+    @test_throws UndefKeywordError LongTailKernel(scale = 1.0km)
+
+    @test repr(g) == "GaussianKernel(meandist = 2.4 km, thresh = 1.0e-9)"
+    @test repr(LongTailKernel(scale = 2.0km, shape = 2.0, thresh = 1e-3)) ==
+          "LongTailKernel(shape = 2.0, scale = 2.0 km, thresh = 0.001)"
 end
 
 end

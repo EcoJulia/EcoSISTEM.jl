@@ -972,22 +972,20 @@ function _2Dtdisperse(r, b)
 end
 
 """
-    genlookups(regime::AbstractRegime, kernel::GaussianMovement)
+    genlookups(regime::AbstractRegime, kernel::AbstractKernel)
 
 Generate lookup tables, which hold information on the probability of moving to
 neighbouring squares.
 """
 function genlookups(regime::AbstractRegime, kernel::GaussianKernel)
-    sd = (2 * kernel.dist) / sqrt(pi)
-    relsize = uconvert(NoUnits, _uniformcellside(regime) / sd)
+    relsize = uconvert(NoUnits, _uniformcellside(regime) / kernel.scale)
     m = maximum(getgridshape(regime))
     p = kernel.thresh
     return Lookup(_lookup(relsize, m, p, _gaussiandisperse))
 end
 
 function genlookups(regime::AbstractRegime, kernel::LongTailKernel)
-    sd = (2 * kernel.dist) / sqrt(pi)
-    relsize = uconvert(NoUnits, _uniformcellside(regime) / sd)
+    relsize = uconvert(NoUnits, _uniformcellside(regime) / kernel.scale)
     m = maximum(getgridshape(regime))
     p = kernel.thresh
     b = kernel.shape

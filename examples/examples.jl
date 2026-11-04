@@ -55,7 +55,7 @@ vars = fill(2.0K, numSpecies)
 opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
 
 av_dist = fill(2.4km, numSpecies)
-kernel = GaussianKernel.(av_dist, 10e-10)
+kernel = [GaussianKernel(meandist = d, thresh = 10e-10) for d in av_dist]
 
 death = 0.15 / year
 birth = death

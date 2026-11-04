@@ -7,6 +7,8 @@ using Unitful
 
 using DataFrames: DataFrame, nrow
 
+using SpecialFunctions: loggamma
+
 """
     AbstractKernel
 
@@ -20,52 +22,108 @@ movement - three separate questions, answered by three separate things.
 abstract type AbstractKernel end
 
 """
-    GaussianKernel(dist::Unitful.Length, thresh::Float64)
+    GaussianKernel(; meandist, sd, thresh = 1.0e-9)
 
-A dispersal kernel whose distances are Rayleigh distributed - the two-dimensional case of dispersing
-a Gaussian displacement in each direction independently.
+A dispersal kernel whose displacement is Gaussian along each axis independently, so that the
+distance travelled is Rayleigh distributed. The density of landing at distance `r` is
+`exp(-(r / scale)^2) / (pi * scale^2)` per unit area.
+
+Give exactly one of `meandist` and `sd`. They describe the same kernel: `meandist = sd *
+sqrt(pi / 2)`.
+
+# Keywords
+
+  - `meandist`: the mean distance travelled.
+  - `sd`: the standard deviation of the displacement along each axis.
+  - `thresh`: the probability below which a destination is dropped, which is what bounds the lookup
+    table to a finite neighbourhood.
 
 # Fields
 
-  - `dist`: the species' dispersal distance, converted to kilometres on construction.
-  - `thresh`: the probability below which a destination is dropped, which is what bounds the lookup
-    table to a finite neighbourhood.
+  - `scale`: the distance scale in the density above, in kilometres: `sqrt(2) * sd`, the
+    root-mean-square distance travelled.
+  - `thresh`: as above.
 """
 struct GaussianKernel <: AbstractKernel
-    dist::Unitful.Length{Float64}
+    scale::typeof(1.0km)
     thresh::Float64
 
-    function GaussianKernel(dispersaldist::Unitful.Length{Float64},
-                            pthresh::Float64)
-        dist = uconvert(km, dispersaldist)
-        return new(dist, pthresh)
+    function GaussianKernel(;
+                            meandist::Union{Nothing, Unitful.Length} = nothing,
+                            sd::Union{Nothing, Unitful.Length} = nothing,
+                            thresh::Real = 1.0e-9)
+        _onedistance(GaussianKernel, (meandist = meandist, sd = sd))
+        # Do not rearrange the mean's conversion: a kernel given its mean distance must build the
+        # positional form's lookup to the bit, or the canonical references move.
+        scale = isnothing(sd) ?
+                (2 * _kilometres(meandist, :meandist)) / sqrt(pi) :
+                sqrt(2) * _kilometres(sd, :sd)
+        return new(scale, Float64(thresh))
     end
 end
 
-"""
-    LongTailKernel(dist::Unitful.Length, shape::Float64, thresh::Float64)
+function Base.show(io::IO, k::GaussianKernel)
+    return print(io, "GaussianKernel(meandist = ", _kernelphrase(_meandist(k)),
+                 ", thresh = ", k.thresh, ")")
+end
 
-A dispersal kernel with a heavier tail than [`GaussianKernel`](@ref)'s, so that rare long-distance
-dispersal is not effectively impossible.
+"""
+    LongTailKernel(; shape, scale, meandist, thresh = 1.0e-9)
+
+A dispersal kernel following the two-dimensional Student's t distribution, the "2Dt" of Clark et
+al. (1999, Ecology 80: 1475-1494), whose tail falls off as a power of distance rather than
+exponentially, so that rare long-distance dispersal is not effectively impossible. The density of
+landing at distance `r` is `(shape - 1) / (pi * scale^2) * (1 + (r / scale)^2)^-shape` per unit
+area.
+
+Give `shape` and exactly one of `scale` and `meandist`, which are not equivalent: the mean distance
+travelled is `scale * sqrt(pi) / 2 * gamma(shape - 3/2) / gamma(shape - 1)`, which is finite only for
+`shape > 3/2`, and its variance is finite only for `shape > 2`. The same `scale` with a smaller
+`shape` reaches further.
+
+# Keywords
+
+  - `shape`: how heavy the tail is, greater than 1, without which the density does not integrate.
+  - `scale`: the distance scale in the density above.
+  - `meandist`: the mean distance travelled, refused for `shape <= 3/2`, where it is infinite.
+  - `thresh`: the probability below which a destination is dropped, which is what bounds the lookup
+    table to a finite neighbourhood.
 
 # Fields
 
-  - `dist`: the species' dispersal distance, converted to kilometres on construction.
-  - `shape`: how heavy the tail is. Smaller values reach further.
-  - `thresh`: the probability below which a destination is dropped, which is what bounds the lookup
-    table to a finite neighbourhood.
+  - `scale`: as above, in kilometres.
+  - `shape`, `thresh`: as above.
 """
 struct LongTailKernel <: AbstractKernel
-    dist::Unitful.Length{Float64}
+    scale::typeof(1.0km)
     shape::Float64
     thresh::Float64
 
-    function LongTailKernel(dispersaldist::Unitful.Length{Float64},
-                            shape::Float64,
-                            pthresh::Float64)
-        dist = uconvert(km, dispersaldist)
-        return new(dist, shape, pthresh)
+    function LongTailKernel(; shape::Real,
+                            scale::Union{Nothing, Unitful.Length} = nothing,
+                            meandist::Union{Nothing, Unitful.Length} = nothing,
+                            thresh::Real = 1.0e-9)
+        shape > 1 ||
+            throw(ArgumentError("a `LongTailKernel`'s `shape` must exceed 1, or its density " *
+                                "does not integrate; got $shape."))
+        _onedistance(LongTailKernel, (scale = scale, meandist = meandist))
+        if isnothing(meandist)
+            a = _kilometres(scale, :scale)
+        else
+            shape > 3 / 2 ||
+                throw(ArgumentError("a `LongTailKernel` of `shape` $shape has no finite mean " *
+                                    "distance, which needs `shape` above 3/2; give its " *
+                                    "`scale` instead."))
+            a = 2 * _kilometres(meandist, :meandist) /
+                (sqrt(pi) * _gammaratio(shape))
+        end
+        return new(a, Float64(shape), Float64(thresh))
     end
+end
+
+function Base.show(io::IO, k::LongTailKernel)
+    return print(io, "LongTailKernel(shape = ", k.shape, ", scale = ",
+                 _kernelphrase(k.scale), ", thresh = ", k.thresh, ")")
 end
 
 """
@@ -212,7 +270,7 @@ function Base.show(io::IO, m::AbstractMovement)
     kernels = getkernels(m)
     return print(io, nameof(typeof(m)), "(", length(kernels), " species, ",
                  isempty(kernels) ? "no kernels" :
-                 "$(nameof(eltype(kernels))) $(_rangephrase([k.dist for k in kernels]))",
+                 "$(nameof(eltype(kernels))) $(_dispersalphrase(kernels))",
                  _unsafephrase(m), ")")
 end
 
@@ -222,7 +280,7 @@ function Base.show(io::IO, ::MIME"text/plain", m::AbstractMovement)
     println(io, "  species          ", length(kernels))
     println(io, "  kernel           ",
             isempty(kernels) ? "none" : nameof(eltype(kernels)))
-    println(io, "  dispersal        ", _rangephrase([k.dist for k in kernels]))
+    println(io, "  dispersal        ", _dispersalphrase(kernels))
     print(io, "  disperse_safely  ", _safephrase(m))
     return nothing
 end
@@ -260,6 +318,46 @@ function _roundphrase(x::Unitful.Quantity)
     return string(round(typeof(1.0 * unit(x)), x, digits = 3))
 end
 _roundphrase(x::Real) = string(round(x, digits = 3))
+
+# How far a movement's kernels reach, for its display: a Gaussian kernel's mean distance, and a
+# long-tailed kernel's scale, since its mean may be infinite.
+function _dispersalphrase(kernels::AbstractVector)
+    return isempty(kernels) ? "none" : _reachphrase(kernels)
+end
+function _reachphrase(kernels::AbstractVector{GaussianKernel})
+    return "mean " * _rangephrase(map(_meandist, kernels))
+end
+function _reachphrase(kernels::AbstractVector)
+    return "scale " * _rangephrase(map(k -> k.scale, kernels))
+end
+
+# A kernel's distance in its own display, to six significant figures, since the mean is recovered
+# from the stored scale and may differ from the distance given in its last bit.
+function _kernelphrase(d::Unitful.Length)
+    return string(round(typeof(1.0km), d, sigdigits = 6))
+end
+
+# A Gaussian kernel's mean distance, from its stored scale.
+_meandist(k::GaussianKernel) = k.scale * sqrt(pi) / 2
+
+# The ratio `gamma(shape - 3/2) / gamma(shape - 1)` in a long-tailed kernel's mean distance, through
+# the log-gamma function so that a large shape cannot overflow.
+_gammaratio(shape::Real) = exp(loggamma(shape - 3 / 2) - loggamma(shape - 1))
+
+# Refuse a kernel given other than exactly one of its alternative distances, naming them.
+function _onedistance(::Type{K}, given::NamedTuple) where {K <: AbstractKernel}
+    count(!isnothing, values(given)) == 1 && return nothing
+    names = join(("`$k`" for k in keys(given)), " and ")
+    got = all(isnothing, values(given)) ? "neither" : "both"
+    return throw(ArgumentError("a `$(nameof(K))` takes exactly one of $names; got $got."))
+end
+
+# A kernel's distance keyword in kilometres, refused unless positive.
+function _kilometres(d::Unitful.Length, name::Symbol)
+    d > zero(d) ||
+        throw(ArgumentError("a kernel's `$name` must be positive; got $d."))
+    return uconvert(km, d)
+end
 
 # How many species disperse unsafely, for the compact form: nothing when none do. `NoMovement`
 # carries no flags, so it has nothing to say.

@@ -66,7 +66,7 @@ function Test1Ecosystem(; seed = nothing, grid = (5, 7), numspecies = 15)
     isnothing(seed) || Random.seed!(seed)
     abun = rand(Multinomial(individuals, numSpecies))
 
-    kernel = GaussianKernel.(fill(1.0km, numSpecies), 10e-04)
+    kernel = fill(GaussianKernel(meandist = 1.0km, thresh = 10e-04), numSpecies)
     movement = BirthOnlyMovement(kernel)
     native = fill(true, numSpecies)
     resource = Demand{SolarRadiation}(fill(2.0kJ / day, numSpecies))
@@ -108,7 +108,7 @@ function TestMultiEcosystem()
 
     abun = rand(Multinomial(individuals, numSpecies))
 
-    kernel = GaussianKernel.(fill(1.0km, numSpecies), 10e-04)
+    kernel = fill(GaussianKernel(meandist = 1.0km, thresh = 10e-04), numSpecies)
     movement = BirthOnlyMovement(kernel)
     native = fill(true, numSpecies)
     resource1 = Demand{SolarRadiation}(fill(2.0kJ / day, numSpecies))

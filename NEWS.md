@@ -5,6 +5,18 @@
     - The phylogeny-building `SpeciesList` constructors take a `seed`, which fixes the tree and the
       tolerances evolved along it from a stream of their own. `assigntraits!`, `discrete_evolve`,
       `continuous_evolve` and `brownian_motion` take a random number generator as a first argument.
+  - Changed
+    - `GaussianKernel` and `LongTailKernel` take their distances by keyword, each named for what it
+      is: a Gaussian kernel's mean distance (`meandist`) or the standard deviation of its
+      displacement along each axis (`sd`); a long-tailed kernel's `shape` with its `scale` or
+      `meandist`. Both store a `scale` in place of `dist`, and print what they were given.
+    - `LongTailKernel` is documented as the two-dimensional Student's t (Clark et al.'s 2Dt). A
+      `shape` of 1 or less, whose density does not integrate, is refused when the kernel is built
+      rather than failing in its lookup; a `meandist` needs a `shape` above 3/2.
+  - Deprecated
+    - The positional `GaussianKernel(dist, thresh)` and `LongTailKernel(dist, shape, thresh)`: their
+      distance was a Gaussian kernel's mean but neither the mean nor the scale of a long-tailed one.
+      Their kernels and lookups are unchanged.
   - Fixed
     - `build_species` splits an integer `abundance` across species from a stream of its own, keyed
       on `seed`, instead of reseeding Julia's global generator; an unseeded split still draws from

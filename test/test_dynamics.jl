@@ -97,7 +97,8 @@ end
                                              1.0, 0.0)
     tolerance = NicheTolerance(Temperature, Normal, fill(274.0K, N),
                                fill(0.5K, N))
-    movement = BirthOnlyMovement(fill(GaussianKernel(1.0km, 1.0e-3), N))
+    movement = BirthOnlyMovement(fill(GaussianKernel(meandist = 1.0km,
+                                                     thresh = 1.0e-3), N))
     native = fill(true, N)
     abun = fill(10, N)
     nichefit = NicheSuitability{Temperature, typeof(1.0K)}()
@@ -287,7 +288,7 @@ end
                                fill(0.5K, N))
     param = EqualPop(0.6 / month_mean_duration, 0.6 / month_mean_duration, 1.0,
                      0.0)
-    kernel = GaussianKernel.(fill(1.0km, N), 1.0e-3)
+    kernel = fill(GaussianKernel(meandist = 1.0km, thresh = 1.0e-3), N)
     movement = BirthOnlyMovement(kernel)
     native = fill(true, N)
     abun = fill(10, N)

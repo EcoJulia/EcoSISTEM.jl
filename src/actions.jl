@@ -263,8 +263,9 @@ function build_species(numspecies::Integer;
         _nichetolerance(toleranceaxis, tolerance, n)
     end
 
-    kernels = GaussianKernel.(_tofield(dispersal, n, "dispersal"),
-                              Float64(pthresh))
+    kernels = map(_tofield(dispersal, n, "dispersal")) do d
+        return GaussianKernel(meandist = d, thresh = pthresh)
+    end
     move = movement(kernels, _tofield(disperse_safely, n, "disperse_safely"))
 
     # A tuple `demand` gives one demand per resource -> a collection; the backing is put back

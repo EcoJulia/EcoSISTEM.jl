@@ -26,6 +26,21 @@
 # ===========================================================================
 
 # ---------------------------------------------------------------------------
+# The kernels take their distances by keyword, each named for what it is, since the positional
+# distance is a Gaussian kernel's mean but neither the mean nor the scale of a long-tailed one. Each
+# shim must build the kernel its positional form denotes to the bit, or every lookup and canonical
+# reference built from one moves: the long-tailed distance is the scale `(2 * dist) / sqrt(pi)`.
+#
+# Deprecated in v0.11.0.
+# ---------------------------------------------------------------------------
+@deprecate(GaussianKernel(dist::Unitful.Length{Float64}, thresh::Float64),
+           GaussianKernel(meandist = dist, thresh = thresh), false)
+@deprecate(LongTailKernel(dist::Unitful.Length{Float64}, shape::Float64,
+                          thresh::Float64),
+           LongTailKernel(scale = (2 * uconvert(km, dist)) / sqrt(pi),
+                          shape = shape, thresh = thresh), false)
+
+# ---------------------------------------------------------------------------
 # `InputRecord` is `ProvenanceRecord`: a record describes a file however it enters a run, an
 # output of the run that made it included, so its name no longer calls it an input. The binding
 # stays `public`, as the old name was.

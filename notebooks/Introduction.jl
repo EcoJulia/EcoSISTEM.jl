@@ -86,7 +86,7 @@ begin
 
     # Dispersal
     av_dist = fill(2.4, numSpecies) .* km
-    kernel = GaussianKernel.(av_dist, 10e-10)
+    kernel = [GaussianKernel(meandist = d, thresh = 10e-10) for d in av_dist]
     movement = BirthOnlyMovement(kernel)
 
     # Resource demands
@@ -307,7 +307,8 @@ begin
     # Now we have to consider movement - let's say the species move an average of 
     # 2.4km according to a Gaussian kernel
     average_dist = fill(2.4, numSpp) .* km
-    gauss_kernel = GaussianKernel.(average_dist, 10e-10)
+    gauss_kernel = [GaussianKernel(meandist = d, thresh = 10e-10)
+                    for d in average_dist]
 
     # Because we are considering plants, let's assume the seed production is combined 
     # with dispersal, so only new seeds move

@@ -123,7 +123,9 @@ function build(nregimes::Int, nsupplies::Int)
 
     Random.seed!(SEED)
     abun = rand(Multinomial(2000 * NSPP, NSPP))
-    movement = BirthOnlyMovement(GaussianKernel.(fill(1.0km, NSPP), 1.0e-3))
+    movement = BirthOnlyMovement(fill(GaussianKernel(meandist = 1.0km,
+                                                     thresh = 1.0e-3),
+                                      NSPP))
     # `build_species`' own defaults - see the warning in the header about `survival = 0.0`.
     param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2, 1.0)
     species = SpeciesList(NSPP, tolerance, abun, demand, movement, param,

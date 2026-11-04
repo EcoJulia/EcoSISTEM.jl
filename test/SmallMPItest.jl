@@ -836,7 +836,7 @@ end
           sum(shared.spplist.abun)
 
     # A random phylogeny, and the tolerances evolved on it, travel whole.
-    kernels = GaussianKernel.(fill(1.0km, numSpecies), 1e-4)
+    kernels = fill(GaussianKernel(meandist = 1.0km, thresh = 1e-4), numSpecies)
     treed = SpeciesList(numSpecies, 2, fill(10, numSpecies),
                         Demand{SolarRadiation}(fill(1.0kJ / day, numSpecies)),
                         BirthOnlyMovement(kernels),

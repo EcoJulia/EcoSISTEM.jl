@@ -14,6 +14,25 @@ using Unitful
 # with `@test_warn`, and the access is evaluated inside it rather than written in the test's own
 # code, which on Julia 1.11 would warn when that code is compiled, before anything is captured.
 
+# A kernel's positional form builds the very kernel its keyword form does, and so the same lookup.
+# That both match the released code to the bit is for the canonical tests, which still build their
+# kernels positionally.
+@testset "kernels' positional forms forward to their keyword forms" begin
+    regime = build_habitat(DefaultEcosystem(), verbosity = :silent).regime
+    function samelookup(a, b)
+        la, lb = EcoSISTEM.genlookups(regime, a),
+                 EcoSISTEM.genlookups(regime, b)
+        return (la.y, la.x, la.p) == (lb.y, lb.x, lb.p)
+    end
+    old = @test_deprecated GaussianKernel(2.4u"km", 1.0e-9)
+    new = GaussianKernel(meandist = 2.4u"km", thresh = 1.0e-9)
+    @test old == new && samelookup(old, new)
+    old = @test_deprecated LongTailKernel(2.4u"km", 2.0, 1.0e-6)
+    new = LongTailKernel(scale = (2 * 2.4u"km") / sqrt(pi), shape = 2.0,
+                         thresh = 1.0e-6)
+    @test old == new && samelookup(old, new)
+end
+
 @testset "InputRecord is ProvenanceRecord" begin
     @test Base.isdeprecated(EcoSISTEM, :InputRecord)
     @test (@test_warn "deprecated" Core.eval(@__MODULE__,

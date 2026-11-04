@@ -95,7 +95,8 @@ begin
     param = EqualPop(birth, death, longevity, survival)
 
     # Create kernel for movement
-    kernel = fill(GaussianKernel(15.0km, 10e-10), numSpecies)
+    kernel = fill(GaussianKernel(meandist = 15.0km, thresh = 10e-10),
+                  numSpecies)
     movement = AlwaysMovement(kernel)
 
     # Create species list, including their temperature preferences, seed abundance and native status
@@ -213,7 +214,8 @@ begin
     param_new = EqualPop(birth, death, longevity, survival)
 
     # Create kernel for movement
-    kernel_new = fill(GaussianKernel(15.0km, 10e-10), numSpecies)
+    kernel_new = fill(GaussianKernel(meandist = 15.0km, thresh = 10e-10),
+                      numSpecies)
     movement_new = AlwaysMovement(kernel)
 
     # Create species list, including their temperature preferences, seed abundance and native status
