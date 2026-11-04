@@ -96,7 +96,7 @@ function build_model(mode::AbstractString)
                             toleranceaxis = Temperature,
                             demand = 1.0kJ / day, demandaxis = SolarRadiation,
                             dispersal = 1.0km, pthresh = 10e-10,
-                            movement = BirthOnlyMovement,
+                            movement = InsectDispersal(),
                             birth = 0.6 / year, death = 0.6 / year,
                             longevity = 1.0, survival = 0.2,
                             abundance = fill(div(INDIVIDUALS, NUM_SPECIES),

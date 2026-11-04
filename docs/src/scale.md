@@ -94,10 +94,10 @@ and identically everywhere.
 
 ### Movement
 
-All three movement types work distributed. Each rank owns a block of species across the *whole*
-grid while the dynamics run, so an individual dispersing between cells stays rank-local whether it
-is a newborn under [`BirthOnlyMovement`](@ref) or an established individual under
-[`AlwaysMovement`](@ref); [`NoMovement`](@ref) disperses nothing at all.
+Every dispersal mode works distributed. Each rank owns a block of species across the *whole* grid
+while the dynamics run, so an individual dispersing between cells stays rank-local whether it is a
+newborn under [`SeedDispersal`](@ref) and the other modes dispersing at birth, or an established
+individual under [`AlwaysDispersal`](@ref); [`NoDispersal`](@ref) disperses nothing at all.
 
 ### What is not supported
 

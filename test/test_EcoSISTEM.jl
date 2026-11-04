@@ -250,7 +250,9 @@ _documented_control_() = nothing
         :july_duration, :august_duration, :september_duration,
         :october_duration, :november_duration, :december_duration,
         :month_mean_duration, :quarter_mean_duration,
-        :arcminute, :arcsecond, :day, :week, :year, :percent]
+        :arcminute, :arcsecond, :day, :week, :year, :percent,
+        # Deprecation shims written as functions, each documented by its redirect.
+        :BirthOnlyMovement, :AlwaysMovement, :NoMovement]
     # Every name on the list is a generated constant or a deprecation shim, so the package has
     # **no undocumented public name at all**. A
     # genuine gap appearing here would have to be added deliberately, which is the point.

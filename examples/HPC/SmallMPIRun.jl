@@ -79,15 +79,15 @@ const ENVIRONMENT = GridHabitat(regime = UniformSpec(274.0K,
                                                      axis = SolarRadiation),
                                 area = AREA)
 
-# `BirthOnlyMovement` is a modelling choice - plant-like species, dispersing only as seed.
-# Every movement type runs distributed, so it is not forced by the MPI run.
+# `InsectDispersal()` is a modelling choice - plant-like species, their seed carried by insects.
+# Every dispersal mode runs distributed, so it is not forced by the MPI run.
 const SPECIES = build_species(NUMSPECIES,
                               tolerance = (274.0K, 0.5K),
                               toleranceaxis = Temperature,
                               demand = 10.0kJ / day,
                               demandaxis = SolarRadiation,
                               dispersal = 1.0km,
-                              movement = BirthOnlyMovement,
+                              movement = InsectDispersal(),
                               survival = 0.2,
                               abundance = INDIVIDUALS,
                               seed = 1)

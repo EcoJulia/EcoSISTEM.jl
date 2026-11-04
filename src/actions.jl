@@ -151,8 +151,8 @@ end
 
 """
     build_species(numspecies::Integer; tolerance, toleranceaxis, demand, demandaxis, dispersal = 10.0km,
-        pthresh = 1.0e-9, movement = BirthOnlyMovement, disperse_safely = true, birth = 0.6/year,
-        death = 0.6/year, longevity = 1.0, survival = 0.2,
+        pthresh = 1.0e-9, movement = InsectDispersal(),
+        disperse_safely = nothing, birth = 0.6/year, death = 0.6/year, longevity = 1.0, survival = 0.2,
         abundance = 1000 * numspecies, native = true, names = nothing, seed = nothing,
         provenance = ProvenanceRecord[])
 
@@ -185,15 +185,17 @@ mismatch):
     what a value *means* - `m/s` and `mm/day` share a dimension, which is how a wind-speed layer
     once became a water supply - so the axis is the single declaration, on both sides, and it is
     required.
-  - `dispersal` - mean Gaussian dispersal distance, cut off below `pthresh`.
-  - `movement` - the movement type: [`BirthOnlyMovement`](@ref) (default), [`AlwaysMovement`](@ref)
-    or [`NoMovement`](@ref).
+  - `dispersal` - each species' mean dispersal distance, from which its kernel is built, cut off
+    below `pthresh`.
+  - `movement` - the dispersal mode, an [`AbstractMovement`](@ref), by default
+    [`InsectDispersal`](@ref); its family must be built from a mean distance alone. Or the species' movements themselves, one [`SpeciesDispersal`](@ref) each,
+    where it needs more, in which case `dispersal`, `pthresh` and `disperse_safely` are not read.
   - `disperse_safely` - per species, what becomes of an individual whose dispersal is aimed at a
-    **dead cell** (off the grid, or an inactive one): `true` (the default) redistributes it among
-    the reachable destinations, `false` loses it. A property of the *disperser*, so it may differ
-    between species - a wind-dispersed seed blown out to sea is gone, an animal-dispersed one is
-    not. The **grid's** topology (whether the world wraps) is a different question, answered by
-    `GridHabitat(..., topology = ...)`.
+    **dead cell** (off the grid, or an inactive one): `true` redistributes it among the reachable
+    destinations, `false` loses it. By default the mode's own. A property of the *disperser*, so
+    it may differ between species - a wind-dispersed seed blown out to sea is gone, an
+    animal-dispersed one is not. The **grid's** topology (whether the world wraps) is a different
+    question, answered by `GridHabitat(..., topology = ...)`.
   - `birth`, `death`, `longevity`, `survival` - demographic rates
     (scalar rates give an [`EqualPop`](@ref), vectors a [`PopGrowth`](@ref)).
 
@@ -216,8 +218,8 @@ function build_species(numspecies::Integer;
                        demandaxis = _require(:demandaxis),
                        dispersal = 10.0km,
                        pthresh::Real = 1.0e-9,
-                       movement::Type{<:AbstractMovement} = BirthOnlyMovement,
-                       disperse_safely = true,
+                       movement = InsectDispersal(),
+                       disperse_safely = nothing,
                        birth = 0.6 / year,
                        death = 0.6 / year,
                        longevity::Real = 1.0,
@@ -263,10 +265,7 @@ function build_species(numspecies::Integer;
         _nichetolerance(toleranceaxis, tolerance, n)
     end
 
-    kernels = map(_tofield(dispersal, n, "dispersal")) do d
-        return GaussianKernel(meandist = d, thresh = pthresh)
-    end
-    move = movement(kernels, _tofield(disperse_safely, n, "disperse_safely"))
+    move = _speciesmovement(movement, dispersal, disperse_safely, pthresh, n)
 
     # A tuple `demand` gives one demand per resource -> a collection; the backing is put back
     # so a named `demand` gives a named collection. `demandaxis` is zipped against it exactly as

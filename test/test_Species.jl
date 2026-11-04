@@ -41,7 +41,7 @@ using Phylo
 
     # Create ecosystem
     kernel = fill(GaussianKernel(meandist = 2.0km, thresh = 10e-4), numSpecies)
-    movement = AlwaysMovement(kernel)
+    movement = AlwaysDispersal().(kernel)
 
     opts = fill(5.0°C, numSpecies)
     vars = rand(Uniform(0, 25 / 9), numSpecies) * °C
@@ -111,8 +111,9 @@ end
 
     # The tree-growing constructors: the tree, and the tolerances evolved along it, from one stream.
     demand = Demand{SolarRadiation}(fill(2.0kJ / day, n))
-    movement = BirthOnlyMovement(fill(GaussianKernel(meandist = 2.0km,
-                                                     thresh = 10e-4), n))
+    movement = fill(InsectDispersal()(meandist = 2.0km,
+                                      thresh = 10e-4),
+                    n)
     param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2)
     grow(abun = fill(10, n); kw...) = SpeciesList(n, 2, abun, demand, movement,
                                                   param, fill(true, n); kw...)
@@ -150,8 +151,8 @@ end
     tolerance = NicheTolerance(Temperature, Normal, fill(298.0K, n),
                                fill(2.0K, n))
     demand = Demand{SolarRadiation}(fill(2.0kJ / day, n))
-    movement = AlwaysMovement(fill(GaussianKernel(meandist = 2.0km,
-                                                  thresh = 10e-4), n))
+    movement = fill(AlwaysDispersal()(meandist = 2.0km,
+                                      thresh = 10e-4), n)
     param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2)
     build(;
           kw...) = SpeciesList(n, tolerance, fill(100, n), demand, movement,

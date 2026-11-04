@@ -7,6 +7,10 @@
       `continuous_evolve` and `brownian_motion` take a random number generator as a first argument.
     - `WaldKernel(; meandist, scale)`, a dispersal kernel whose distance travelled follows the
       inverse Gaussian distribution, Katul et al.'s WALD kernel for seeds dispersed by wind.
+    - Dispersal modes, saying which individuals disperse, the kernel's family and what becomes of
+      one aimed at a dead cell: `SeedDispersal(family; disperse_safely)`, and `WindDispersal`,
+      `InsectDispersal`, `VertebrateDispersal`, `AlwaysDispersal` and `NoDispersal` with defaults.
+      A mode called with its kernel's keywords, or a kernel, gives one species' `SpeciesDispersal`.
   - Changed
     - `GaussianKernel` and `LongTailKernel` take their distances by keyword, each named for what it
       is: a Gaussian kernel's mean distance (`meandist`) or the standard deviation of its
@@ -15,10 +19,17 @@
     - `LongTailKernel` is documented as the two-dimensional Student's t (Clark et al.'s 2Dt). A
       `shape` of 1 or less, whose density does not integrate, is refused when the kernel is built
       rather than failing in its lookup; a `meandist` needs a `shape` above 3/2.
+    - A species list's `movement` is one `SpeciesDispersal` per species, of at most four kinds, so
+      species in one list may disperse differently. `build_species`' `movement` takes a mode, by
+      default `InsectDispersal()`, which disperses as the old default did, or the species'
+      movements; `disperse_safely` defaults to the mode's own.
   - Deprecated
     - The positional `GaussianKernel(dist, thresh)` and `LongTailKernel(dist, shape, thresh)`: their
       distance was a Gaussian kernel's mean but neither the mean nor the scale of a long-tailed one.
       Their kernels and lookups are unchanged.
+    - `BirthOnlyMovement`, `AlwaysMovement` and `NoMovement`, now functions returning each species'
+      movement; given to `build_species` as `movement`, each stands for its mode. Code reading their
+      `kernels` or `disperse_safely` fields, or dispatching on them, needs the new form.
   - Fixed
     - `build_species` splits an integer `abundance` across species from a stream of its own, keyed
       on `seed`, instead of reseeding Julia's global generator; an unseeded split still draws from

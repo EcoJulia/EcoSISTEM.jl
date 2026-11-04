@@ -53,10 +53,11 @@ classDiagram
 
     SpeciesList "1" *-- "1" AbstractTolerance : tolerance
     SpeciesList "1" *-- "1" AbstractDemand : demand
-    SpeciesList "1" *-- "1" AbstractMovement : movement
+    SpeciesList "1" *-- "*" SpeciesDispersal : movement
     SpeciesList "1" *-- "1" AbstractParams : params
 
-    AbstractMovement "1" *-- "*" AbstractKernel : kernels
+    SpeciesDispersal "1" *-- "1" AbstractMovement : mode
+    SpeciesDispersal "1" *-- "0..1" AbstractKernel : kernel
     GridHabitat "1" *-- "1" AbstractTopology : topology
     GridHabitat "1" *-- "1" StudyArea : area
     StudyArea "1" *-- "1" StudyAreaReport : report
@@ -912,12 +913,20 @@ ignored *there*, and only there.
 
 ```mermaid
 classDiagram
-    class BirthOnlyMovement~K, B~
-    class AlwaysMovement~K, B~
-    class NoMovement~K~
-    AbstractMovement  <|-- BirthOnlyMovement
-    AbstractMovement  <|-- AlwaysMovement
-    AbstractMovement  <|-- NoMovement
+    class SeedDispersal~K~
+    class WindDispersal~K~
+    class InsectDispersal~K~
+    class VertebrateDispersal~K~
+    class AlwaysDispersal~K~
+    class SpeciesDispersal~M, K~
+    AbstractMovement  <|-- SeedDispersal
+    AbstractMovement  <|-- WindDispersal
+    AbstractMovement  <|-- InsectDispersal
+    AbstractMovement  <|-- VertebrateDispersal
+    AbstractMovement  <|-- AlwaysDispersal
+    AbstractMovement  <|-- NoDispersal
+    SpeciesDispersal "1" *-- "1" AbstractMovement : mode
+    SpeciesDispersal "1" *-- "0..1" AbstractKernel : kernel
     AbstractKernel    <|-- GaussianKernel
     AbstractKernel    <|-- LongTailKernel
     AbstractKernel    <|-- WaldKernel
@@ -928,6 +937,14 @@ classDiagram
     AbstractBoundaryCondition <|-- Periodic
     AbstractBoundaryCondition <|-- Bounded
 ```
+
+A species' movement is a [`SpeciesDispersal`](@ref): a **dispersal mode** and a kernel of the mode's
+family, the mode called with the kernel's parameters. The mode says which individuals disperse - the
+newly born under the four seed modes, any individual under `AlwaysDispersal`, none under
+`NoDispersal` - and what becomes of one aimed at a dead cell, so species sharing a mode differ only in
+their kernels. Each species has its own, and a species list may mix at most four kinds, mode and
+kernel together: the step loop picks each species' `move!` from that union, which the compiler
+splits at the call rather than dispatching dynamically.
 
 A grid's topology is one [`AbstractBoundaryCondition`](@ref) **per axis** - `EdgeTopology{BCY, BCX}`,
 each axis `Periodic` (its edges join) or `Bounded` (they do not). `Torus`, `Cylinder` and `Island` are
@@ -941,8 +958,8 @@ topology on a study area with a real-world position warns that it misstates the 
 `Cylinder` on a grid spanning the whole longitude sweep, where east-west wrapping is exactly right.
 
 What becomes of an individual whose dispersal is aimed at a **dead cell** - off the grid, or an
-inactive one - is a separate question and a property of the **disperser**, so `disperse_safely` is one
-entry per species on the movement rather than a field of the topology. `true` (the default)
+inactive one - is a separate question and a property of the **disperser**, so `disperse_safely` is part
+of each species' mode rather than a field of the topology. `true` (the default)
 redistributes it among the destinations it can reach, making `Island()` a *reflecting* edge rather
 than a lossy one; `false` loses it. That is a real ecological distinction - a wind-dispersed seed
 blown out to sea is gone, an animal-dispersed one is carried somewhere reachable - and it applies to a

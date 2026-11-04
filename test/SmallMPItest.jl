@@ -436,7 +436,7 @@ end
 
 rank == 0 && checkblessed(true_abuns, "mpi")
 
-# **`AlwaysMovement` disperses the standing population, and only a multi-rank run can check it.**
+# **`AlwaysDispersal` disperses the standing population, and only a multi-rank run can check it.**
 # It reads that population back out of the landscape through `EcoSISTEM._standingpopulation`, which
 # maps the global species index onto this rank's local row - and at **one** rank that map is the
 # identity, so a run there passes whether or not the mapping is right. Measured: replacing the
@@ -460,6 +460,31 @@ if MPI.Comm_size(comm) == 1
     simulate!(alwaysserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
     @test alwaysserial.abundances.matrix == always_abuns
 end
+
+# **Four kinds of movement in one species list**, the most the step loop splits: dispersing at birth
+# in two modes, one of them losing what it aims at a dead cell, always, and not at all. Compared with
+# the serial twin at every rank count, not only at one, since the distributed step body has its own
+# copy of the per-species `move!` call and a rank-mapping fault is invisible at one rank.
+function mpifixture_mixed(numspecies = VARYING_SPECIES)
+    kernels = fill(GaussianKernel(meandist = 3.0km, thresh = 10e-10),
+                   numspecies)
+    modes = (InsectDispersal(), AlwaysDispersal(),
+             WindDispersal(GaussianKernel))
+    return map(enumerate(kernels)) do (sp, k)
+        return sp % 4 == 0 ? NoDispersal()() : modes[mod1(sp, 3)](k)
+    end
+end
+mixedsppl, _ = mpifixture_species(movement = mpifixture_mixed())
+@test length(Base.uniontypes(eltype(mixedsppl.movement))) == 4
+mixedeco = MPIEcosystem(mixedsppl, varying_environment(), nichefit, seed = 0)
+mixedeco.abundances.rows_matrix .= MPIFIXTURE_FILL
+MPI.Barrier(comm)
+@test_nowarn simulate!(mixedeco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+mixed_abuns = gatherabundance(mixedeco)
+# Every rank builds the serial reference, since building a habitat is collective.
+mixedserial = mpifixture_ecosystem(movement = mpifixture_mixed())
+simulate!(mixedserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+rank == 0 && @test mixedserial.abundances.matrix == mixed_abuns
 
 # **An intervention is the only thing that can leave the two landscape layouts out of step**, and so
 # the only thing that exercises where `synchronise_from_rows!` sits in the timestep. It writes
@@ -750,8 +775,8 @@ function _allocreport(numspecies, steps)
                  for (k, s) in enumerate(steps)), "\n")
 end
 
-function _mpiecosystem(numspecies)
-    sppl, _ = mpifixture_species(numspecies = numspecies)
+function _mpiecosystem(numspecies; movement = mpifixture_movement(numspecies))
+    sppl, _ = mpifixture_species(numspecies = numspecies, movement = movement)
     built = MPIEcosystem(sppl, varying_environment(), nichefit, seed = 0)
     built.abundances.rows_matrix .= MPIFIXTURE_FILL
     return built
@@ -759,6 +784,14 @@ end
 
 fewsteps = _mpiupdatealloc(_mpiecosystem(VARYING_SPECIES), MPIFIXTURE_TIMESTEP)
 manysteps = _mpiupdatealloc(_mpiecosystem(8 * VARYING_SPECIES),
+                            MPIFIXTURE_TIMESTEP)
+# The same with four kinds of movement, whose `move!` the loop picks per species from a split union.
+mixedfew = _mpiupdatealloc(_mpiecosystem(VARYING_SPECIES,
+                                         movement = mpifixture_mixed(VARYING_SPECIES)),
+                           MPIFIXTURE_TIMESTEP)
+mixedmany = _mpiupdatealloc(_mpiecosystem(8 * VARYING_SPECIES,
+                                          movement = mpifixture_mixed(8 *
+                                                                      VARYING_SPECIES)),
                             MPIFIXTURE_TIMESTEP)
 
 if rank == 0
@@ -782,6 +815,14 @@ if rank == 0
                _allocreport(VARYING_SPECIES, fewsteps) * "\n" *
                _allocreport(8 * VARYING_SPECIES, manysteps)
     @test slope < bound
+    mixedslope = minimum(s.bytes for s in mixedmany) -
+                 minimum(s.bytes for s in mixedfew)
+    mixedslope < bound ||
+        @error "A distributed timestep with four kinds of movement allocated $mixedslope " *
+               "more bytes for $extraspecies more species, against a bound of $bound:\n" *
+               _allocreport(VARYING_SPECIES, mixedfew) * "\n" *
+               _allocreport(8 * VARYING_SPECIES, mixedmany)
+    @test mixedslope < bound
 
     # The same sweep `test_dynamics.jl` runs, over the distributed types. `epoch`, `calendar` and
     # `active` are abstract by design and are explained there; anything else must be looked at.
@@ -839,7 +880,7 @@ end
     kernels = fill(GaussianKernel(meandist = 1.0km, thresh = 1e-4), numSpecies)
     treed = SpeciesList(numSpecies, 2, fill(10, numSpecies),
                         Demand{SolarRadiation}(fill(1.0kJ / day, numSpecies)),
-                        BirthOnlyMovement(kernels),
+                        InsectDispersal().(kernels),
                         EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2),
                         fill(true, numSpecies))
     ext = Base.get_extension(EcoSISTEM, :EcoSISTEMMPIExt)

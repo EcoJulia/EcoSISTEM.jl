@@ -169,97 +169,240 @@ end
 """
     AbstractMovement
 
-Which individuals disperse at all: [`BirthOnlyMovement`](@ref) (only the newly born, plant-like),
-[`AlwaysMovement`](@ref) (any individual, animal-like) or [`NoMovement`](@ref) (none).
+A dispersal mode: which individuals disperse at all, the family of kernel saying how far, and what
+becomes of an individual dispersing into a dead cell. Calling a mode with its kernel's keywords gives
+one species' movement, a [`SpeciesDispersal`](@ref), so species sharing a mode differ only in their
+parameters; called with a kernel of its family, it gives that species' movement too:
 
-A movement carries the per-species part of dispersal - one [`AbstractKernel`](@ref) per species, and
-one `disperse_safely` flag per species. The grid's own edges are not part of it: they belong to the
-[`GridHabitat`](@ref), because two species on one grid cannot be on different topologies.
+```julia
+insect = InsectDispersal()
+insect(meandist = 2.0km)
+insect(GaussianKernel(meandist = 2.0km))
+```
+
+[`SeedDispersal`](@ref), [`WindDispersal`](@ref), [`InsectDispersal`](@ref) and
+[`VertebrateDispersal`](@ref) disperse only the newly born: the first states its family and
+`disperse_safely`, and the other three default them for their agent. [`AlwaysDispersal`](@ref)
+disperses any individual, and [`NoDispersal`](@ref) none. The grid's own edges are not part of a mode: they belong to the [`GridHabitat`](@ref), because
+two species on one grid cannot be on different topologies.
 
 `disperse_safely` says what becomes of an individual dispersing into a **dead cell** - one off the
 grid, or an inactive one. `true` redistributes it among the reachable destinations as though it had
 never aimed there; `false` loses it, so the share of the kernel pointing at dead cells becomes
 mortality.
 
-**It is per species because it is a fact about the disperser**, not about the map. A wind-dispersed
-seed blown out to sea is gone; an animal-dispersed one is carried to somewhere the animal can
-actually reach, so two species on one grid may legitimately differ. It cannot empty a cell outright:
-staying put is one of the kernel's own destinations, and a cell only disperses while it is active, so
-some share always survives.
+**It belongs to the mode because it is a fact about the disperser**, not about the map. A
+wind-dispersed seed blown out to sea is gone; an animal-dispersed one is carried to somewhere the
+animal can actually reach, so two species on one grid may legitimately differ. It cannot empty a cell
+outright: staying put is one of the kernel's own destinations, and a cell only disperses while it is
+active, so some share always survives.
 """
 abstract type AbstractMovement end
 
 """
-    BirthOnlyMovement{K <: AbstractKernel} <: AbstractMovement
+    SeedDispersal(family; disperse_safely)
 
-Only individuals that have just been born disperse - plant-like.
+A dispersal mode in which only the newly born disperse, as seeds do, with no particular agent named.
+The generic mode, so both its family and its dead-cell fate are stated rather than defaulted.
+
+# Arguments
+
+  - `family`: the type of kernel each species' movement is built from, a concrete
+    [`AbstractKernel`](@ref).
+  - `disperse_safely`: whether an individual dispersing into a dead cell is redistributed (`true`)
+    or lost, as described on [`AbstractMovement`](@ref).
 
 # Fields
 
-  - `kernels`: one [`AbstractKernel`](@ref) per species.
-  - `disperse_safely`: one flag per species, as described on [`AbstractMovement`](@ref). Defaults to
-    `true` for every species.
+  - `disperse_safely`: as above.
 """
-struct BirthOnlyMovement{K <: AbstractKernel} <: AbstractMovement
-    kernels::Vector{K}
-    disperse_safely::Vector{Bool}
+struct SeedDispersal{K <: AbstractKernel} <: AbstractMovement
+    disperse_safely::Bool
 
-    function BirthOnlyMovement(kernels::Vector{K},
-                               disperse_safely::AbstractVector{Bool} = fill(true,
-                                                                            length(kernels))) where {K <:
-                                                                                                     AbstractKernel}
-        _checkdispersesafely(kernels, disperse_safely)
-        return new{K}(kernels, collect(disperse_safely))
+    function SeedDispersal(family::Type{K};
+                           disperse_safely::Bool) where {K <: AbstractKernel}
+        return new{_concretefamily(family)}(disperse_safely)
     end
 end
 
 """
-    AlwaysMovement{K <: AbstractKernel} <: AbstractMovement
+    WindDispersal(family = WaldKernel; disperse_safely = false)
 
-Any individual may disperse, not only the newly born - animal-like.
+A dispersal mode in which only the newly born disperse, carried by the wind. A seed blown into a
+dead cell is lost by default, as one blown out to sea is.
+
+# Arguments
+
+  - `family`: the type of kernel each species' movement is built from, a concrete
+    [`AbstractKernel`](@ref); by default the [`WaldKernel`](@ref) derived for wind dispersal.
+  - `disperse_safely`: whether an individual dispersing into a dead cell is redistributed (`true`)
+    or lost, as described on [`AbstractMovement`](@ref).
 
 # Fields
 
-  - `kernels`: one [`AbstractKernel`](@ref) per species.
-  - `disperse_safely`: one flag per species, as described on [`AbstractMovement`](@ref). Defaults to
-    `true` for every species.
+  - `disperse_safely`: as above.
 """
-struct AlwaysMovement{K <: AbstractKernel} <: AbstractMovement
-    kernels::Vector{K}
-    disperse_safely::Vector{Bool}
+struct WindDispersal{K <: AbstractKernel} <: AbstractMovement
+    disperse_safely::Bool
 
-    function AlwaysMovement(kernels::Vector{K},
-                            disperse_safely::AbstractVector{Bool} = fill(true,
-                                                                         length(kernels))) where {K <:
-                                                                                                  AbstractKernel}
-        _checkdispersesafely(kernels, disperse_safely)
-        return new{K}(kernels, collect(disperse_safely))
+    function WindDispersal(family::Type{K} = WaldKernel;
+                           disperse_safely::Bool = false) where {K <:
+                                                                 AbstractKernel}
+        return new{_concretefamily(family)}(disperse_safely)
     end
 end
 
 """
-    NoMovement{K <: AbstractKernel} <: AbstractMovement
+    InsectDispersal(family = GaussianKernel; disperse_safely = true)
 
-Nothing disperses: every individual stays in the cell it was born in.
+A dispersal mode in which only the newly born disperse, carried by insects.
+
+# Arguments
+
+  - `family`: the type of kernel each species' movement is built from, a concrete
+    [`AbstractKernel`](@ref).
+  - `disperse_safely`: whether an individual dispersing into a dead cell is redistributed (`true`)
+    or lost, as described on [`AbstractMovement`](@ref).
 
 # Fields
 
-  - `kernels`: one [`AbstractKernel`](@ref) per species, carried but never drawn from, so that a
-    model can be switched between movements without rebuilding its species.
+  - `disperse_safely`: as above.
 """
-struct NoMovement{K <: AbstractKernel} <: AbstractMovement
-    kernels::Vector{K}
+struct InsectDispersal{K <: AbstractKernel} <: AbstractMovement
+    disperse_safely::Bool
+
+    function InsectDispersal(family::Type{K} = GaussianKernel;
+                             disperse_safely::Bool = true) where {K <:
+                                                                  AbstractKernel}
+        return new{_concretefamily(family)}(disperse_safely)
+    end
 end
 
-# Accepts (and ignores) a `disperse_safely` vector, so `NoMovement` can be constructed the same way
-# as `BirthOnlyMovement`/`AlwaysMovement` when the movement type is chosen as a value and called
-# uniformly (`movement(kernels, disperse_safely)`). Nothing disperses, so nothing can be lost.
-function NoMovement(kernels::Vector{K},
-                    ::AbstractVector{Bool}) where {K <: AbstractKernel}
-    return NoMovement(kernels)
+"""
+    VertebrateDispersal(family = LongTailKernel; disperse_safely = true)
+
+A dispersal mode in which only the newly born disperse, carried by vertebrates, whose occasional long
+journeys the long-tailed kernel's power-law tail allows for.
+
+# Arguments
+
+  - `family`: the type of kernel each species' movement is built from, a concrete
+    [`AbstractKernel`](@ref).
+  - `disperse_safely`: whether an individual dispersing into a dead cell is redistributed (`true`)
+    or lost, as described on [`AbstractMovement`](@ref).
+
+# Fields
+
+  - `disperse_safely`: as above.
+"""
+struct VertebrateDispersal{K <: AbstractKernel} <: AbstractMovement
+    disperse_safely::Bool
+
+    function VertebrateDispersal(family::Type{K} = LongTailKernel;
+                                 disperse_safely::Bool = true) where {K <:
+                                                                      AbstractKernel}
+        return new{_concretefamily(family)}(disperse_safely)
+    end
 end
-@doc (@doc NoMovement) NoMovement(::Vector{K} where {K <: AbstractKernel},
-                                  ::AbstractVector{Bool})
+
+"""
+    AlwaysDispersal(family = GaussianKernel; disperse_safely = true)
+
+A dispersal mode in which any individual may disperse, not only the newly born, as animals do.
+
+# Arguments
+
+  - `family`: the type of kernel each species' movement is built from, a concrete
+    [`AbstractKernel`](@ref).
+  - `disperse_safely`: whether an individual dispersing into a dead cell is redistributed (`true`)
+    or lost, as described on [`AbstractMovement`](@ref).
+
+# Fields
+
+  - `disperse_safely`: as above.
+"""
+struct AlwaysDispersal{K <: AbstractKernel} <: AbstractMovement
+    disperse_safely::Bool
+
+    function AlwaysDispersal(family::Type{K} = GaussianKernel;
+                             disperse_safely::Bool = true) where {K <:
+                                                                  AbstractKernel}
+        return new{_concretefamily(family)}(disperse_safely)
+    end
+end
+
+"""
+    NoDispersal()
+
+A dispersal mode in which nothing disperses: every individual stays in the cell it was born in, so a
+species' movement in this mode has no kernel.
+"""
+struct NoDispersal <: AbstractMovement end
+
+# The modes whose species' movements carry a kernel of the mode's family `K`, and the ones among them
+# that disperse only the newly born.
+const _KernelDispersal{K} = Union{SeedDispersal{K}, WindDispersal{K},
+                                  InsectDispersal{K}, VertebrateDispersal{K},
+                                  AlwaysDispersal{K}}
+const _BirthDispersal = Union{SeedDispersal, WindDispersal, InsectDispersal,
+                              VertebrateDispersal}
+
+# One species' movement: the mode, and a kernel of its family, given built or as its keywords.
+function (mode::_KernelDispersal{K})(kernel::K) where {K}
+    return SpeciesDispersal(mode, kernel)
+end
+function (mode::_KernelDispersal{K})(; kernel...) where {K}
+    return SpeciesDispersal(mode, K(; kernel...))
+end
+(mode::NoDispersal)() = SpeciesDispersal(mode, nothing)
+
+# A mode prints its name unqualified, as the modes with a family do.
+Base.show(io::IO, ::NoDispersal) = print(io, nameof(NoDispersal), "()")
+
+function Base.show(io::IO, m::_KernelDispersal{K}) where {K}
+    return print(io, nameof(typeof(m)), "(", nameof(K), ", disperse_safely = ",
+                 m.disperse_safely, ")")
+end
+
+"""
+    SpeciesDispersal(mode::AbstractMovement, kernel)
+
+One species' movement: its dispersal mode and its kernel, of the mode's family. Calling a mode with
+the kernel's keywords builds one, as `InsectDispersal()(meandist = 2.0km)`, and a species list holds
+one for each species.
+
+# Arguments
+
+  - `mode`: the [`AbstractMovement`](@ref), saying which individuals disperse and what becomes of one
+    aimed at a dead cell.
+  - `kernel`: the species' [`AbstractKernel`](@ref), of the mode's family, saying how far; `nothing`
+    for [`NoDispersal`](@ref).
+
+# Fields
+
+  - `mode`, `kernel`: as above.
+"""
+struct SpeciesDispersal{M <: AbstractMovement,
+                        K <: Union{Nothing, AbstractKernel}}
+    mode::M
+    kernel::K
+
+    function SpeciesDispersal(mode::M,
+                              kernel::K) where {M <: AbstractMovement,
+                                                K <: Union{Nothing,
+                                                      AbstractKernel}}
+        _family(mode) === K ||
+            throw(ArgumentError("a species dispersing by `$(sprint(show, mode))` takes " *
+                                "a kernel of its family, `$(_family(mode))`; got a " *
+                                "`$K`."))
+        return new{M, K}(mode, kernel)
+    end
+end
+
+function Base.show(io::IO, d::SpeciesDispersal)
+    return print(io, "SpeciesDispersal(", sprint(show, d.mode), ", ",
+                 sprint(show, d.kernel), ")")
+end
 
 """
     Lookup
@@ -303,48 +446,28 @@ function Base.show(io::IO, l::Lookup)
     return print(io, "Lookup($(length(l.y)) destinations)")
 end
 
-# One line, because the default prints every kernel, tens of thousands of characters at a thousand
-# species. What identifies a movement is its kind, how many species it covers and how far they reach.
-# Written once on the supertype, since `getkernels` is the whole interface.
-function Base.show(io::IO, m::AbstractMovement)
-    kernels = getkernels(m)
-    return print(io, nameof(typeof(m)), "(", length(kernels), " species, ",
-                 isempty(kernels) ? "no kernels" :
-                 "$(nameof(eltype(kernels))) $(_dispersalphrase(kernels))",
-                 _unsafephrase(m), ")")
-end
-
-function Base.show(io::IO, ::MIME"text/plain", m::AbstractMovement)
-    kernels = getkernels(m)
-    println(io, nameof(typeof(m)))
-    println(io, "  species          ", length(kernels))
-    println(io, "  kernel           ",
-            isempty(kernels) ? "none" : nameof(eltype(kernels)))
-    println(io, "  dispersal        ", _dispersalphrase(kernels))
-    print(io, "  disperse_safely  ", _safephrase(m))
-    return nothing
-end
-
 # == Functions ==================================================================================
 
 """
-    getkernels(m::AbstractMovement)
+    getkernels(movement::AbstractVector{<:SpeciesDispersal})
 
-Return the vector of dispersal kernels a movement holds, one per species.
+Return the dispersal kernel of each species' movement, in species order: `nothing` for a species
+that does not disperse.
 """
-getkernels(m::BirthOnlyMovement) = m.kernels
-getkernels(m::AlwaysMovement) = m.kernels
-getkernels(m::NoMovement) = m.kernels
+function getkernels(movement::AbstractVector{<:SpeciesDispersal})
+    return [d.kernel for d in movement]
+end
 
 """
-    dispersesafely(m::AbstractMovement, sp::Integer)
+    dispersesafely(movement::AbstractVector{<:SpeciesDispersal}, sp::Integer)
 
 Return whether species `sp` is redistributed (`true`) or lost (`false`) when its dispersal is aimed
-at a dead cell. `NoMovement` answers `true`, since nothing disperses and so nothing can be lost.
+at a dead cell. A species that does not disperse answers `true`, since nothing can be lost.
 """
-dispersesafely(m::BirthOnlyMovement, sp::Integer) = m.disperse_safely[sp]
-dispersesafely(m::AlwaysMovement, sp::Integer) = m.disperse_safely[sp]
-dispersesafely(::NoMovement, ::Integer) = true
+function dispersesafely(movement::AbstractVector{<:SpeciesDispersal},
+                        sp::Integer)
+    return _safely(movement[sp].mode)
+end
 
 # A vector's values as one phrase: the single value where all agree, else `lo to hi`. Quantities
 # and floats are rounded to three digits, so a 2.4 km kernel reads as `2.4 km`.
@@ -401,28 +524,84 @@ function _kilometres(d::Unitful.Length, name::Symbol)
     return uconvert(km, d)
 end
 
-# How many species disperse unsafely, for the compact form: nothing when none do. `NoMovement`
-# carries no flags, so it has nothing to say.
-_unsafephrase(::NoMovement) = ""
-function _unsafephrase(m::AbstractMovement)
-    n = count(!, m.disperse_safely)
-    return n == 0 ? "" : ", $n not disperse_safely"
+# A mode's dead-cell fate; one that disperses nothing loses nothing.
+_safely(mode::AbstractMovement) = mode.disperse_safely
+_safely(::NoDispersal) = true
+
+# The kernel family a mode's species' movements carry: `Nothing` for one that disperses nothing.
+_family(::_KernelDispersal{K}) where {K} = K
+_family(::NoDispersal) = Nothing
+
+# A mode's kernel family, refused unless concrete, since every species' kernel is built from it.
+function _concretefamily(family::Type{K}) where {K <: AbstractKernel}
+    isconcretetype(family) ||
+        throw(ArgumentError("a dispersal mode's family must be a concrete kernel type, " *
+                            "such as `GaussianKernel`; got `$family`."))
+    return family
 end
 
-# The `disperse_safely` line of the display form.
-_safephrase(::NoMovement) = "not applicable, nothing disperses"
-function _safephrase(m::AbstractMovement)
-    n = count(m.disperse_safely)
-    return n == length(m.disperse_safely) ? "all" :
-           "$n of $(length(m.disperse_safely)) species"
+# A species list's movements as a vector the step loop reads without allocating: its element type
+# the union of the movements' own types, of which there may be at most four, the most Julia splits
+# at a call rather than dispatching dynamically.
+function _dispersalvector(movement::AbstractVector{<:SpeciesDispersal})
+    isempty(movement) && return movement
+    types = unique(map(typeof, movement))
+    length(types) <= 4 ||
+        throw(ArgumentError("a species list's movements may be of at most four kinds, mode " *
+                            "and kernel together, so the step loop can split them; got " *
+                            "$(length(types)): " *
+                            join(("`$(sprint(show, t))`" for t in types),
+                                 ", ") * "."))
+    return convert(Vector{Union{types...}}, movement)
 end
 
-# One flag per kernel, or the two vectors silently describe different species - `zip` would truncate
-# and the last species would take a neighbour's setting.
-function _checkdispersesafely(kernels, disperse_safely)
-    length(disperse_safely) == length(kernels) ||
-        error("`disperse_safely` has $(length(disperse_safely)) entries but there are " *
-              "$(length(kernels)) dispersal kernels: it is a per-species setting, so it needs one " *
-              "entry per species (or a single value applied to all).")
-    return nothing
+# A species list's movement in one phrase, for its display: the mode and how far its species reach
+# where they share one, else each mode and how many species take it.
+function _movementphrase(movement::AbstractVector{<:SpeciesDispersal})
+    isempty(movement) && return "none"
+    modes = unique(d.mode for d in movement)
+    if length(modes) == 1
+        mode = only(modes)
+        mode isa NoDispersal && return sprint(show, mode)
+        kernels = [d.kernel for d in movement]
+        return sprint(show, mode) * ", " * string(nameof(eltype(kernels))) *
+               " " *
+               _dispersalphrase(kernels)
+    end
+    return join(("$(sprint(show, m)) for $(count(d -> d.mode == m, movement))"
+                 for m in modes), ", ")
+end
+
+# A species list's movements from `build_species`' keywords. Given a mode, each species' kernel is
+# built from its mean distance, with the species' own `disperse_safely` where given and the mode's
+# otherwise; given the movements themselves, they are taken as they are, and the species list's
+# constructor checks their number.
+function _speciesmovement(mode::_KernelDispersal{K}, dispersal, disperse_safely,
+                          pthresh, n::Int64) where {K}
+    _builtfrommean(K) ||
+        throw(ArgumentError("`build_species` builds each species' kernel from its mean " *
+                            "`dispersal` distance alone, and a `$(nameof(K))` needs more: " *
+                            "give `movement` as the species' movements themselves, one " *
+                            "`SpeciesDispersal` each."))
+    distances = _tofield(dispersal, n, "dispersal")
+    safely = isnothing(disperse_safely) ? fill(mode.disperse_safely, n) :
+             _tofield(disperse_safely, n, "disperse_safely")
+    return map(distances, safely) do d, s
+        return _withsafely(mode, s)(meandist = d, thresh = pthresh)
+    end
+end
+_speciesmovement(mode::NoDispersal, _, _, _, n::Int64) = fill(mode(), n)
+function _speciesmovement(movement::AbstractVector{<:SpeciesDispersal}, _, _, _,
+                          ::Int64)
+    return movement
+end
+
+# Whether a kernel family is built from a mean distance alone, as `build_species` builds one.
+_builtfrommean(::Type{GaussianKernel}) = true
+_builtfrommean(::Type{<:AbstractKernel}) = false
+
+# A mode with another dead-cell fate, the same mode where it already has that one.
+function _withsafely(mode::_KernelDispersal{K}, safely::Bool) where {K}
+    safely == mode.disperse_safely && return mode
+    return Base.typename(typeof(mode)).wrapper(K, disperse_safely = safely)
 end

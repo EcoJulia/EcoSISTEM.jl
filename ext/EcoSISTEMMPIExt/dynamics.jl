@@ -136,7 +136,7 @@ function EcoSISTEM._step!(eco::MPIEcosystem, timestep::Unitful.Time,
 
                 # Calculate moves and write to cache
                 EcoSISTEM.move!(eco,
-                                eco.spplist.movement,
+                                eco.spplist.movement[truesp],
                                 sc,
                                 truesp,
                                 eco.cache.netmigration,
@@ -276,7 +276,7 @@ end
 # onto a local row of `rows_matrix` and of `netmigration`.
 EcoSISTEM._landscaperow(eco::MPIEcosystem, sp::Int64) = sp - eco.firstsp + 1
 
-# And the population `AlwaysMovement` disperses is read from that same rank-local row, where the
+# And the population `AlwaysDispersal` disperses is read from that same rank-local row, where the
 # serial landscape offers a whole `matrix`. Because the row and `netmigration` are both this rank's,
 # moving an established individual between cells needs no more communication than moving a newborn:
 # only the field name differs, never the reach.

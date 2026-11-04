@@ -74,7 +74,7 @@ end
 
 Ecosystem houses information on species and their interaction with their
 environment. For species, it holds abundances and locations, as well as
-properties such as trait information, `spplist`, and movement types, `lookup`.
+properties such as trait information, `spplist`, and dispersal neighbourhoods, `lookup`.
 For environments, it provides information on environmental conditions and
 available resources,`habitat`. Finally, there is a slot for the nichefit
 between the environment and the characteristics of the species, `nichefit`.
@@ -597,7 +597,8 @@ end
     speciesdispersal(eco::AbstractEcosystem, sp)
     speciesdispersal(spplist::SpeciesList, sp)
 
-Return species `sp`'s dispersal **kernel**, an [`AbstractKernel`](@ref). `sp` may be an
+Return species `sp`'s dispersal **kernel**, an [`AbstractKernel`](@ref), or `nothing` for a species
+that does not disperse. `sp` may be an
 index or a name.
 
 **The exception to the `NamedTuple` shape** of the other four: a species has one dispersal kernel,
@@ -613,7 +614,7 @@ AddSpecies(dispersal = speciesdispersal(eco, 3), abundance = 500)
 ```
 """
 function speciesdispersal(spplist::SpeciesList, sp::Int64)
-    return getkernels(spplist.movement)[sp]
+    return spplist.movement[sp].kernel
 end
 
 function speciesdispersal(spplist::SpeciesList, sp::AbstractString)
@@ -794,7 +795,7 @@ function _addspecies!(eco::AbstractEcosystem, abun::Integer;
     # A `Lookup` for the new species, or the first `move!` is a `BoundsError`. Built the same way
     # the constructor builds them, from the species' own movement kernel.
     push!(eco.lookup,
-          genlookups(eco.habitat.regime, getkernels(eco.spplist.movement)[end]))
+          genlookups(eco.habitat.regime, eco.spplist.movement[end].kernel))
     # ...and the migration cache has to match the new landscape, or applying net migration is a
     # `DimensionMismatch`.
     eco.cache.netmigration = zeros(Int64, size(eco.abundances.matrix))
@@ -819,20 +820,14 @@ function _addtolerance!(tolerance::SimpleCategoricalTolerance, val = nothing)
                  _categoryset(val))
 end
 
-# Takes a dispersal **kernel**, not an `AbstractMovement`: the movement *type* belongs to the whole
-# assemblage, while the kernel and `disperse_safely` are per-species. That is why `AddSpecies`'
-# keyword is `dispersal`, matching `build_species`, rather than `movement`.
-#
-# **`disperse_safely` must grow with `kernels`, or the first `move!` after `addspecies!` is a
-# `BoundsError`** - the same trap the `Lookup` push above already documents, and it bit for the same
-# reason: two per-species vectors that must stay the same length, only one of which was being
-# extended. Caught by `extras_examples` (the invasion intervention adds a species mid-run), not by
-# any unit test. The new species inherits the last one's setting, as its kernel and rates do.
-function _addmovement!(mv::AbstractMovement, kernel = nothing)
-    push!(mv.kernels, isnothing(kernel) ? mv.kernels[end] : kernel)
-    hasproperty(mv, :disperse_safely) &&
-        push!(mv.disperse_safely, mv.disperse_safely[end])
-    return mv.kernels
+# Takes a dispersal **kernel**, matching `build_species`' `dispersal`: the new species disperses in the
+# last species' mode, with this kernel or, given none, with the last species' too.
+function _addmovement!(movement::AbstractVector{<:SpeciesDispersal},
+                       kernel = nothing)
+    last = movement[end]
+    push!(movement,
+          isnothing(kernel) ? last : SpeciesDispersal(last.mode, kernel))
+    return movement
 end
 
 # **Two vectors, and both must grow** - `birth` and `death` are separate per-species vectors on the
@@ -1013,6 +1008,11 @@ function genlookups(regime::AbstractRegime, kernel::WaldKernel)
                                         kernel.scale / kernel.meandist))
     return Lookup(_lookup(relsize, m, kernel.thresh,
                           r -> _distancedisperse(r, distance)))
+end
+
+# A species that does not disperse has no neighbourhood, and its movement never reads one.
+function genlookups(::AbstractRegime, ::Nothing)
+    return Lookup(Int64[], Int64[], Float64[], Float64[], Int64[])
 end
 
 # Build one species' dispersal neighbourhood: every offset the kernel reaches with probability above

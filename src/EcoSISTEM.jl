@@ -326,10 +326,11 @@ export CombiningFit, MultiplicativeFit, CategoricalSuitability, NoFitContinuous,
 # environment, so they sit here rather than beside the habitat that carries the topology.
 include("Movement.jl")
 
-export GaussianKernel, LongTailKernel, WaldKernel, BirthOnlyMovement,
-       AlwaysMovement, NoMovement
+export GaussianKernel, LongTailKernel, WaldKernel
+export SeedDispersal, WindDispersal, InsectDispersal, VertebrateDispersal,
+       AlwaysDispersal, NoDispersal, SpeciesDispersal
 
-# `getkernels` reaches inside a movement type, which is what writing a new one needs.
+# `getkernels` reads each species' kernel out of a species list's movements.
 public AbstractMovement, AbstractKernel, getkernels
 include("Demographics.jl")
 

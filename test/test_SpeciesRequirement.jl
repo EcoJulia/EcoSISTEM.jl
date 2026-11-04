@@ -106,8 +106,9 @@ end
 @testset "SpeciesList still refuses the two sides swapped" begin
     tol, dem = _tol(), _dem()
     abun = fill(10, NSP)
-    movement = BirthOnlyMovement(fill(GaussianKernel(meandist = 1.0km,
-                                                     thresh = 10e-4), NSP))
+    movement = fill(InsectDispersal()(meandist = 1.0km,
+                                      thresh = 10e-4),
+                    NSP)
     param = EqualPop(0.1 / year, 0.1 / year, 1.0, 0.1)
     native = fill(true, NSP)
     @test_nowarn SpeciesList(NSP, tol, abun, dem, movement, param, native)

@@ -97,7 +97,7 @@ begin
     # Create kernel for movement
     kernel = fill(GaussianKernel(meandist = 15.0km, thresh = 10e-10),
                   numSpecies)
-    movement = AlwaysMovement(kernel)
+    movement = AlwaysDispersal().(kernel)
 
     # Create species list, including their temperature preferences, seed abundance and native status
     opts = fill(274.0K, numSpecies)
@@ -216,7 +216,7 @@ begin
     # Create kernel for movement
     kernel_new = fill(GaussianKernel(meandist = 15.0km, thresh = 10e-10),
                       numSpecies)
-    movement_new = AlwaysMovement(kernel)
+    movement_new = AlwaysDispersal().(kernel)
 
     # Create species list, including their temperature preferences, seed abundance and native status
     opts_new = fill(meantemp * 1.0K, numSpecies)

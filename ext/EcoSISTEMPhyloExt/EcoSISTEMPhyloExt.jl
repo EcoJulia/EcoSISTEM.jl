@@ -27,8 +27,8 @@ module EcoSISTEMPhyloExt
 using EcoSISTEM
 # Named explicitly: every abstract type in this package is `public` rather than exported, so
 # `using EcoSISTEM` does not bring them in - and the constructors moved here name several.
-using EcoSISTEM: AbstractDemand, AbstractMovement, AbstractParams,
-                 SimpleCategoricalTolerance, SpeciesList
+using EcoSISTEM: AbstractDemand, AbstractParams, SimpleCategoricalTolerance,
+                 SpeciesDispersal, SpeciesList
 # The private helpers too: the moved bodies call each other by bare name, and a method defined as
 # `EcoSISTEM.foo(...)` does not bind `foo` inside this module.
 using EcoSISTEM: arenoderecordsempty, pair, root_to_tips, brownian_motion
@@ -42,8 +42,8 @@ using EcoSISTEM: arenoderecordsempty, pair, root_to_tips, brownian_motion
 using EcoSISTEM: gettraits, assigntraits!, varcovar
 # The stream the tree-growing constructors draw from, keyed on their `seed`; the tag it carries
 # lives beside the abundance split's in `src/Species.jl`, so every tagged stream is declared in
-# the parent.
-using EcoSISTEM: _phylogenyrng
+# the parent. And the narrowing of their movements to the union the step loop splits.
+using EcoSISTEM: _dispersalvector, _phylogenyrng
 using Random: AbstractRNG, default_rng
 using Phylo
 using Phylo: NodeNameIterator

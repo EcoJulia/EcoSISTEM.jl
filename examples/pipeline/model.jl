@@ -43,7 +43,7 @@ const SPECIES = build_species(1, tolerance = (281.0K, 3.0K),
                               toleranceaxis = Temperature,
                               demand = 0.1Unitful.L / day,
                               demandaxis = Precipitation, dispersal = 10.0km,
-                              movement = AlwaysMovement, abundance = 10_000,
+                              movement = AlwaysDispersal(), abundance = 10_000,
                               seed = 1)
 const ECO = build_ecosystem(SPECIES, HABITAT, seed = 1)
 

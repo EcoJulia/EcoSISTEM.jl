@@ -87,7 +87,7 @@ begin
     # Dispersal
     av_dist = fill(2.4, numSpecies) .* km
     kernel = [GaussianKernel(meandist = d, thresh = 10e-10) for d in av_dist]
-    movement = BirthOnlyMovement(kernel)
+    movement = InsectDispersal().(kernel)
 
     # Resource demands
     demand = (450000.0kJ / m^2 / month_mean_duration,
@@ -312,7 +312,7 @@ begin
 
     # Because we are considering plants, let's assume the seed production is combined 
     # with dispersal, so only new seeds move
-    move = BirthOnlyMovement(gauss_kernel)
+    move = InsectDispersal().(gauss_kernel)
 
     # We must also decide how much water each species needs per timestep
     water_req = (100.0Unitful.L / m^2 / day)

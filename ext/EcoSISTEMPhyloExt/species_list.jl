@@ -18,9 +18,11 @@ function EcoSISTEM.SpeciesList(numspecies::Int64,
                                native::Vector{Bool},
                                switch::Vector{Float64};
                                seed = nothing) where {DM <: AbstractDemand,
-                                                      MO <: AbstractMovement,
+                                                      MO <:
+                                                      AbstractVector{<:SpeciesDispersal},
                                                       P <: AbstractParams}
     names = map(x -> "$x", 1:numspecies)
+    movement = _dispersalvector(movement)
     rng = _phylogenyrng(seed)
     # Create tree
     tree = rand(rng,
@@ -71,10 +73,12 @@ function EcoSISTEM.SpeciesList(numspecies::Int64,
                                params::P,
                                native::Vector{Bool};
                                seed = nothing) where {DM <: AbstractDemand,
-                                                      MO <: AbstractMovement,
+                                                      MO <:
+                                                      AbstractVector{<:SpeciesDispersal},
                                                       T <: AbstractTypes,
                                                       P <: AbstractParams}
     names = map(x -> "$x", 1:numspecies)
+    movement = _dispersalvector(movement)
     rng = _phylogenyrng(seed)
     # Create tree
     tree = rand(rng,
@@ -157,7 +161,7 @@ end
 #                      movement::MO,
 #                      params::P,
 #                      native::Vector{Bool},
-#                      switch::Vector{Float64}) where {MO <: AbstractMovement,
+#                      switch::Vector{Float64}) where {MO <: AbstractVector{<:SpeciesDispersal},
 #                                                      P <: AbstractParams}
 #     names = map(x -> "$x", 1:numspecies)
 #     # Create tree

@@ -83,7 +83,7 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
         # `build_species` returned, by index or by name.
         @test_nowarn EcoSISTEM.speciesdispersal(eco, 1)
         @test EcoSISTEM.speciesdispersal(eco, 1) ===
-              eco.spplist.movement.kernels[1]
+              eco.spplist.movement[1].kernel
         @test EcoSISTEM.speciesdispersal(eco, "1") ===
               EcoSISTEM.speciesdispersal(eco, 1)
         @test EcoSISTEM.speciesdispersal(eco.spplist, 1) ===
@@ -91,7 +91,7 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
         # The round trip the return type buys: it is exactly `AddSpecies`' `dispersal` keyword.
         @test AddSpecies(dispersal = EcoSISTEM.speciesdispersal(eco, 1),
                          abundance = 10).dispersal ===
-              eco.spplist.movement.kernels[1]
+              eco.spplist.movement[1].kernel
         @test EcoSISTEM.getlookup(eco, "1") == eco.lookup[1]
         @test EcoSISTEM.getlookup(eco, 1) == eco.lookup[1]
         # `setchange!` installs a steady increment, checked against the regime's own unit per
@@ -117,9 +117,9 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
         # Test other movement types
         eco = Test1Ecosystem()
         # No topology here since step 19 - it belongs to the habitat, not the movement.
-        mov = AlwaysMovement(fill(LongTailKernel(scale = 10.0km, shape = 10.0,
-                                                 thresh = 1e-10),
-                                  length(eco.spplist.names)))
+        mov = fill(AlwaysDispersal(LongTailKernel)(scale = 10.0km, shape = 10.0,
+                                                   thresh = 1e-10),
+                   length(eco.spplist.names))
         sppl = SpeciesList{typeof(eco.spplist.tolerance),
                            typeof(eco.spplist.demand), typeof(mov),
                            typeof(eco.spplist.types),
@@ -187,9 +187,9 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
                                                                       day,
                                                                       numSpecies))))
         abun = rand(Multinomial(1000, numSpecies))
-        movement = BirthOnlyMovement(fill(GaussianKernel(meandist = 1.0km,
-                                                         thresh = 10e-4),
-                                          numSpecies))
+        movement = fill(InsectDispersal()(meandist = 1.0km,
+                                          thresh = 10e-4),
+                        numSpecies)
         native = fill(true, numSpecies)
         resource = SpeciesRequirementCollection((Demand{SolarRadiation}(fill(2.0kJ /
                                                                              day,
@@ -297,7 +297,7 @@ function cache_test_eco(seed)
     resource = Demand{SolarRadiation}(fill(10.0kJ / day, numSpecies))
     param = EqualPop(0.2 / year, 0.2 / year, 1.0, 0.0)
     kernel = fill(GaussianKernel(meandist = 2.0km, thresh = 1.0e-3), numSpecies)
-    movement = BirthOnlyMovement(kernel)
+    movement = InsectDispersal().(kernel)
     tolerance = NicheTolerance(Temperature, Normal,
                                fill(274.0K, numSpecies),
                                fill(0.5K, numSpecies))

@@ -187,7 +187,7 @@ function landscape_species(disperse_safely; numspecies = 20,
                          toleranceaxis = Temperature,
                          demand = SOLARDEMAND,
                          demandaxis = SolarRadiation,
-                         movement = BirthOnlyMovement,
+                         movement = InsectDispersal(),
                          disperse_safely = disperse_safely,
                          abundance = individuals, seed = seed)
 end

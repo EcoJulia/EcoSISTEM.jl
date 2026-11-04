@@ -97,8 +97,9 @@ end
                                              1.0, 0.0)
     tolerance = NicheTolerance(Temperature, Normal, fill(274.0K, N),
                                fill(0.5K, N))
-    movement = BirthOnlyMovement(fill(GaussianKernel(meandist = 1.0km,
-                                                     thresh = 1.0e-3), N))
+    movement = fill(InsectDispersal()(meandist = 1.0km,
+                                      thresh = 1.0e-3),
+                    N)
     native = fill(true, N)
     abun = fill(10, N)
     nichefit = NicheSuitability{Temperature, typeof(1.0K)}()
@@ -289,7 +290,7 @@ end
     param = EqualPop(0.6 / month_mean_duration, 0.6 / month_mean_duration, 1.0,
                      0.0)
     kernel = fill(GaussianKernel(meandist = 1.0km, thresh = 1.0e-3), N)
-    movement = BirthOnlyMovement(kernel)
+    movement = InsectDispersal().(kernel)
     native = fill(true, N)
     abun = fill(10, N)
     resource = Demand{SolarRadiation}(fill(2.0kJ / day, N))
@@ -419,6 +420,7 @@ _readgrid(eco) = eco.abundances.grid
 _readtotaldemand(eco) = eco.cache.totaldemand
 _readnetmigration(eco) = eco.cache.netmigration
 _readtopology(eco) = eco.habitat.topology
+_readmovement(eco) = eco.spplist.movement
 
 # Behind a function barrier, as `test_collections.jl`'s allocation checks are: `eco` arrives as a
 # typed argument, so the test's own necessarily-unstable local cannot land on the measurement, and
@@ -447,6 +449,16 @@ end
     # `AbstractTopology` it did not infer, so the `calc_lookup_moves!` call in `_move!` dispatched
     # dynamically and boxed its `Int64` arguments once per species per cell per timestep.
     @test isconcretetype(Base.return_types(_readtopology, (T,))[1])
+    # Each species' movement is read per species per cell: the vector must infer concretely, its
+    # element a concrete movement or a union of at most four that the call to `move!` splits.
+    for eco in (eco, Test1Ecosystem(seed = 1, mixed = true))
+        M = Base.return_types(_readmovement, (typeof(eco),))[1]
+        @test isconcretetype(M)
+        @test length(Base.uniontypes(eltype(M))) <= 4
+    end
+    @test length(Base.uniontypes(eltype(Test1Ecosystem(seed = 1,
+                                                       mixed = true).spplist.movement))) ==
+          4
 end
 
 # **A sweep, because the checks above are a LIST and a list cannot catch a field it does not name.**
@@ -552,6 +564,23 @@ end
     # And under a byte per added species, where it was about 560.
     @test _updatealloc(manyspecies, timestep) -
           _updatealloc(fewspecies, timestep) < extraspecies
+end
+
+# The same with four kinds of movement, the most a species list may mix: each species' `move!` is
+# chosen from a union the compiler splits, which must cost nothing per cell or species, as it would
+# not were the union abstract or larger.
+@testset "a timestep with four kinds of movement allocates nothing per cell or species" begin
+    timestep = 1.0month_mean_duration
+    smallgrid = Test1Ecosystem(seed = 1, grid = (5, 7), mixed = true)
+    largegrid = Test1Ecosystem(seed = 1, grid = (20, 28), mixed = true)
+    extracells = size(largegrid.abundances.matrix, 2) -
+                 size(smallgrid.abundances.matrix, 2)
+    @test _updatealloc(largegrid, timestep) -
+          _updatealloc(smallgrid, timestep) < extracells
+    fewspecies = Test1Ecosystem(seed = 1, numspecies = 12, mixed = true)
+    manyspecies = Test1Ecosystem(seed = 1, numspecies = 80, mixed = true)
+    @test _updatealloc(manyspecies, timestep) -
+          _updatealloc(fewspecies, timestep) < 80 - 12
 end
 
 end

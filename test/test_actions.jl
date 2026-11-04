@@ -313,35 +313,37 @@ end
         @test s_vec.params.birth == [0.6, 0.5] ./ year
     end
 
-    @testset "movement type selection" begin
-        @test build_species(2, tolerance = TOL, toleranceaxis = Temperature,
-                            demand = DEM, demandaxis = SolarRadiation).movement isa
-              BirthOnlyMovement
-        @test build_species(2, tolerance = TOL, toleranceaxis = Temperature,
-                            demand = DEM,
-                            demandaxis = SolarRadiation,
-                            movement = AlwaysMovement).movement isa
-              AlwaysMovement
+    @testset "movement mode selection" begin
+        species(; kw...) = build_species(2, tolerance = TOL,
+                                         toleranceaxis = Temperature,
+                                         demand = DEM,
+                                         demandaxis = SolarRadiation; kw...)
+        safely(sl) = [EcoSISTEM.dispersesafely(sl.movement, sp) for sp in 1:2]
+        @test all(d -> d.mode ==
+                       InsectDispersal(),
+                  species().movement)
+        @test all(d -> d.mode isa AlwaysDispersal,
+                  species(movement = AlwaysDispersal()).movement)
         # The topology is a property of the **habitat**, not of a species, so what `build_species`
-        # decides here is only the movement *type* and the per-species `disperse_safely` flag.
-        # Whether the world wraps belongs to the map; whether a disperser survives aiming off it
-        # belongs to the disperser.
-        safe = build_species(2, tolerance = TOL, toleranceaxis = Temperature,
-                             demand = DEM, demandaxis = SolarRadiation,
-                             movement = AlwaysMovement,
-                             disperse_safely = [true, false])
-        @test safe.movement.disperse_safely == [true, false]
-        # NoMovement accepts and ignores it - nothing disperses, so nothing can be lost
-        nomove = build_species(2, tolerance = TOL, toleranceaxis = Temperature,
-                               demand = DEM,
-                               demandaxis = SolarRadiation,
-                               movement = NoMovement)
-        @test nomove.movement isa NoMovement
-        @test_throws TypeError build_species(2, tolerance = TOL,
-                                             toleranceaxis = Temperature,
-                                             demand = DEM,
-                                             demandaxis = SolarRadiation,
-                                             movement = :birth)
+        # decides here is only each species' mode and its `disperse_safely` flag. Whether the world
+        # wraps belongs to the map; whether a disperser survives aiming off it belongs to the
+        # disperser.
+        @test safely(species(movement = AlwaysDispersal(),
+                             disperse_safely = [true, false])) == [true, false]
+        # Left unset, the flag is the mode's own: a wind-blown seed aimed at a dead cell is lost.
+        @test safely(species(movement = WindDispersal(GaussianKernel))) ==
+              [false, false]
+        # Nothing disperses, so the distances and the flag are not read and nothing can be lost.
+        @test species(movement = NoDispersal(),
+                      disperse_safely = [true, false]).movement ==
+              fill(NoDispersal()(), 2)
+        # A family needing more than a mean distance is refused, naming the way round it: the
+        # species' movements given whole.
+        @test_throws "needs more" species(movement = WindDispersal())
+        given = [WindDispersal()(meandist = 1.0km, scale = 2.0km),
+            WindDispersal()(meandist = 3.0km, scale = 2.0km)]
+        @test species(movement = given).movement == given
+        @test_throws MethodError species(movement = :birth)
     end
 end
 @testset "build_ecosystem" begin

@@ -10,7 +10,7 @@ using DataFrames
 
 """
     SpeciesList{TL <: AbstractTolerance, DM <: AbstractDemand,
-                MO <: AbstractMovement, T <: AbstractTypes,
+                MO <: AbstractVector{<:SpeciesDispersal}, T <: AbstractTypes,
                 P <: AbstractParams} <: AbstractTypes
 
 Everything the simulation knows about the species themselves - the species-side counterpart of a
@@ -30,7 +30,8 @@ being them, so every `AbstractTypes` question is forwarded there; see `src/Diver
   - `abun`: the abundances a run starts from, before `populate!` scatters them.
   - `types`: the similarity structure - a `UniqueTypes` where species are maximally distinct, or a
     `PhyloBranches` derived from a phylogeny.
-  - `movement`: which individuals disperse and how far, an [`AbstractMovement`](@ref).
+  - `movement`: one [`SpeciesDispersal`](@ref) per species, saying which individuals disperse and
+    how far.
   - `params`: the demographic rates, an [`AbstractParams`](@ref).
   - `native`: whether each species is native, one flag each.
   - `susceptible`: optional per-species disease susceptibility, `missing` where unset.
@@ -45,7 +46,7 @@ being them, so every `AbstractTypes` question is forwarded there; see `src/Diver
 """
 mutable struct SpeciesList{TL <: AbstractTolerance,
                            DM <: AbstractDemand,
-                           MO <: AbstractMovement,
+                           MO <: AbstractVector{<:SpeciesDispersal},
                            T <: AbstractTypes,
                            P <: AbstractParams} <: AbstractSpecies
     names::Vector{String}
@@ -72,7 +73,7 @@ mutable struct SpeciesList{TL <: AbstractTolerance,
                                                                                    DM <:
                                                                                    AbstractDemand,
                                                                                    MO <:
-                                                                                   AbstractMovement,
+                                                                                   AbstractVector{<:SpeciesDispersal},
                                                                                    T <:
                                                                                    AbstractTypes,
                                                                                    P <:
@@ -113,7 +114,7 @@ function Base.show(io::IO, ::MIME"text/plain", sl::SpeciesList)
     println(io, "  species   ", length(sl.names))
     println(io, "  tolerance ", sprint(show, sl.tolerance))
     println(io, "  demand    ", sprint(show, sl.demand))
-    println(io, "  movement  ", nameof(typeof(sl.movement)))
+    println(io, "  movement  ", _movementphrase(sl.movement))
     println(io, "  params    ", nameof(typeof(sl.params)))
     print(io, "  types     ", nameof(typeof(sl.types)))
     return nothing
@@ -133,7 +134,7 @@ function SpeciesList{TL, DM, MO, T, P}(tolerance::TL,
                                                                     DM <:
                                                                     AbstractDemand,
                                                                     MO <:
-                                                                    AbstractMovement,
+                                                                    AbstractVector{<:SpeciesDispersal},
                                                                     T <:
                                                                     AbstractTypes,
                                                                     P <:
@@ -180,7 +181,8 @@ tolerances are still evolved along a random ultrametric tree.
   - `numtraits`: how many categorical niche classes the tolerances are drawn from.
   - `abun`: the starting abundances. Padded with zeros if shorter than `numspecies`.
   - `demand`: what each species takes from the shared pool.
-  - `movement`: which individuals disperse and how far.
+  - `movement`: one [`SpeciesDispersal`](@ref) per species, saying which individuals disperse and
+    how far.
   - `params`: the demographic rates.
   - `native`: whether each species is native.
   - `switch`: the mean time between changes of the niche class along a root-to-tip path, as a
@@ -198,7 +200,8 @@ function SpeciesList(numspecies::Int64,
                      params::P,
                      native::Vector{Bool};
                      seed = nothing) where {DM <: AbstractDemand,
-                                            MO <: AbstractMovement,
+                                            MO <:
+                                            AbstractVector{<:SpeciesDispersal},
                                             P <: AbstractParams}
     return SpeciesList(numspecies, numtraits, abun, demand, movement, params,
                        native, [0.5], seed = seed)
@@ -222,7 +225,8 @@ Species are treated as maximally distinct, with a `UniqueTypes` similarity struc
   - `tolerance`: their niches, as an [`AbstractTolerance`](@ref).
   - `abun`: the starting abundances. Padded with zeros if shorter than `numspecies`.
   - `demand`: what each species takes from the shared pool.
-  - `movement`: which individuals disperse and how far.
+  - `movement`: one [`SpeciesDispersal`](@ref) per species, saying which individuals disperse and
+    how far. At most four kinds, mode and kernel together, so the step loop can split them.
   - `params`: the demographic rates.
   - `native`: whether each species is native.
   - `names`: one name per species, unique, as a vector of strings. Left unset, the species are
@@ -244,7 +248,7 @@ function SpeciesList(numspecies::Int64,
                                                              DM <:
                                                              AbstractDemand,
                                                              MO <:
-                                                             AbstractMovement,
+                                                             AbstractVector{<:SpeciesDispersal},
                                                              P <:
                                                              AbstractParams}
     names = _speciesnames(names, numspecies)
@@ -260,6 +264,10 @@ function SpeciesList(numspecies::Int64,
                                             doesn't match number species"))
     counttypes(demand) == numspecies || throw(DimensionMismatch("Demand vector
                                             doesn't match number species"))
+    length(movement) == numspecies ||
+        throw(DimensionMismatch("$(length(movement)) movements for $numspecies species: " *
+                                "give one `SpeciesDispersal` per species."))
+    movement = _dispersalvector(movement)
     return SpeciesList{typeof(tolerance),
                        typeof(demand),
                        typeof(movement),

@@ -72,7 +72,7 @@ param = EqualPop(birth, death, long, surv)
 
 # Create ecosystem
 
-movement = BirthOnlyMovement(kernel)
+movement = InsectDispersal().(kernel)
 
 tolerance = NicheTolerance(Temperature, Normal, opts, vars)
 native = fill(true, numSpecies)

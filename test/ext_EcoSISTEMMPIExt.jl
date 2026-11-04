@@ -41,7 +41,7 @@ end
 
     # Create kernel for movement
     kernel = fill(GaussianKernel(meandist = 1.0km, thresh = 10e-10), numSpecies)
-    movement = BirthOnlyMovement(kernel)
+    movement = InsectDispersal().(kernel)
 
     # Create species list, including their temperature preferences, seed abundance and native status
     opts = fill(274.0K, numSpecies)

@@ -50,7 +50,7 @@ function continent_environment(continent)
 end
 
 # `n` species of the given niche widths about the continent's own temperature, with the abundances
-# given per species, so an invader can start absent: `BirthOnlyMovement`, with the continent's
+# given per species, so an invader can start absent: dispersing at birth, with the continent's
 # dispersal, demand and demographic values.
 function continent_species(widths, abundances)
     n = length(widths)
@@ -59,7 +59,8 @@ function continent_species(widths, abundances)
                          demand = CONTINENT.demand,
                          demandaxis = SolarRadiation,
                          dispersal = CONTINENT.dispersal,
-                         movement = BirthOnlyMovement, birth = CONTINENT.birth,
+                         movement = InsectDispersal(),
+                         birth = CONTINENT.birth,
                          death = CONTINENT.death,
                          longevity = CONTINENT.longevity,
                          survival = CONTINENT.survival,

@@ -33,6 +33,36 @@ using Unitful
     @test old == new && samelookup(old, new)
 end
 
+# A list-wide movement is the vector of its species' movements, each in the mode the old type
+# named, with its own kernel, the kernel's type as the family and its own flag as the dead-cell
+# fate; given to `build_species`, each old name stands for its mode.
+@testset "list-wide movements forward to each species' movement" begin
+    kernels = [GaussianKernel(meandist = 1.0u"km"),
+        GaussianKernel(meandist = 2.0u"km")]
+    @test (@test_deprecated BirthOnlyMovement(kernels)) ==
+          SeedDispersal(GaussianKernel, disperse_safely = true).(kernels)
+    @test (@test_deprecated BirthOnlyMovement(kernels, [true, false])) ==
+          [SeedDispersal(GaussianKernel, disperse_safely = true)(kernels[1]),
+        SeedDispersal(GaussianKernel, disperse_safely = false)(kernels[2])]
+    @test (@test_deprecated AlwaysMovement(kernels)) ==
+          AlwaysDispersal().(kernels)
+    @test (@test_deprecated NoMovement(kernels)) == fill(NoDispersal()(), 2)
+    long = [LongTailKernel(scale = 1.0u"km", shape = 2.0)]
+    @test (@test_deprecated BirthOnlyMovement(long)) ==
+          SeedDispersal(LongTailKernel, disperse_safely = true).(long)
+    @test_throws "one entry per species" EcoSISTEM._listmovement(SeedDispersal,
+                                                                 kernels,
+                                                                 [true])
+    species(movement) = build_species(DefaultEcosystem(), numspecies = 2,
+                                      movement = movement, verbosity = :silent)
+    for (old, mode) in ((BirthOnlyMovement, InsectDispersal()),
+        (AlwaysMovement, AlwaysDispersal()),
+        (NoMovement, NoDispersal()))
+        @test (@test_deprecated species(old)).movement ==
+              species(mode).movement
+    end
+end
+
 @testset "InputRecord is ProvenanceRecord" begin
     @test Base.isdeprecated(EcoSISTEM, :InputRecord)
     @test (@test_warn "deprecated" Core.eval(@__MODULE__,
