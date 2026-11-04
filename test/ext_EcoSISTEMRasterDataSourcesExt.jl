@@ -143,6 +143,11 @@ include("rasterfixtures.jl")
         @test istrait(EcoSISTEM.IsRasterData{EarthEnv{LandCover}})
         @test !istrait(EcoSISTEM.IsRasterData{Int})
 
+        # Every dataset says, as a type, that its files come as their provider publishes them.
+        @test istrait(EcoSISTEM.IsFetchable{WorldClim{BioClim}})
+        @test EcoSISTEM.Provenancer.route(EarthEnv{LandCover}) ==
+              EcoSISTEM.VersionOfRecord()
+
         # Derived from `RasterDataSources.layers`, so it cannot drift from it: `Int` for BioClim and
         # land cover, `Symbol` for the rest.
         @test EcoSISTEM._codetype(WorldClim{BioClim}) === Int

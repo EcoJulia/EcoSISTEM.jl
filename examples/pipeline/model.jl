@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
 # The model run of the data pipeline example: one species over Scotland, built from WorldClim's
-# temperature and rainfall within Natural Earth's outline, as their fetch runs registered them.
+# temperature and rainfall within Natural Earth's outline and the box of your own around it, as
+# their fetch runs registered them.
 # Launched by `fair run` from `model.yaml`, which runs
 #
 #     julia --threads=${JULIA_NUM_THREADS:-auto} --project=examples/pipeline examples/pipeline/model.jl
@@ -26,10 +27,13 @@ const INPUTS = inputs(handle)
 
 # --- decide the grid, before anything is built on it ------------------------------------
 
-# British National Grid, which simulating needs a projected CRS for, within Scotland's outline.
+# British National Grid, which simulating needs a projected CRS for, within Scotland's outline
+# and the box around it, which is the outline itself.
 const AREA = StudyArea(regime = INPUTS.temperature, supply = INPUTS.rainfall,
-                       within = INPUTS.region, crs = EPSG(27700),
-                       cellsize = 10.0km)
+                       within = ConstructedShapeSpec(ShapeIntersection(),
+                                                     INPUTS.region,
+                                                     INPUTS.box),
+                       crs = EPSG(27700), cellsize = 10.0km)
 const HABITAT = GridHabitat(regime = INPUTS.temperature,
                             supply = INPUTS.rainfall, area = AREA)
 

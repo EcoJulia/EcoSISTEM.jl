@@ -43,8 +43,8 @@ end
 @testset "Deprecation sections are labelled by release" begin
     # The releases whose shims the files carry, named rather than counted, so a release appearing
     # here has to be looked at and one disappearing shrinks the list instead of passing silently.
-    # Empty, as there are no shims at present: a new deprecation adds its release here.
-    known = String[]
+    # A new deprecation adds its release here.
+    known = ["Deprecated in v0.10.0"]
     version(label) = VersionNumber(label[(length("Deprecated in v") + 1):end])
     labelsin(secs) = [m.match
                       for (_, text) in secs

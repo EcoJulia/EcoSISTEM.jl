@@ -3,7 +3,8 @@
 module TestProvenance
 
 using EcoSISTEM
-using EcoSISTEM: InputRecord
+using EcoSISTEM: ProvenanceRecord, provenance, VersionOfRecord, SourceFacts,
+                 DepositCitedApart, DepositSharesIdentifier
 using Dates: Dates
 using ArchGDAL
 using Test
@@ -19,43 +20,50 @@ function _versionedzip(path, entry, text)
 end
 
 @testset "an input record holds where a published input came from, and nothing personal" begin
-    r = InputRecord(role = :species, dataset = "GBIF occurrence download",
-                    doi = "10.15468/dl.abc123", licence = "CC BY-NC 4.0",
-                    path = "records.csv", fetched = "2026-09-13T07:21:07Z",
-                    bytes = 12, sha256 = "00")
-    @test r.role === :species && r.dataset == "GBIF occurrence download"
+    r = ProvenanceRecord(role = :species, source = "GBIF occurrence download",
+                         doi = "10.15468/dl.abc123", licence = "CC BY-NC 4.0",
+                         path = "records.csv", fetched = "2026-09-13T07:21:07Z",
+                         bytes = 12, sha256 = "00")
+    @test r.role === :species && r.source == "GBIF occurrence download"
     @test r.fetched == Dates.DateTime(2026, 9, 13, 7, 21, 7)
-    @test isnothing(r.url) && isnothing(r.request) && isempty(r.citation)
+    @test isnothing(r.url) && isnothing(r.request) && isnothing(r.citation)
     @test string(r) ==
-          "InputRecord(species, \"GBIF occurrence download\", \"records.csv\", doi = \"10.15468/dl.abc123\")"
+          "ProvenanceRecord(species, \"GBIF occurrence download\", \"records.csv\", doi = \"10.15468/dl.abc123\")"
     shown = sprint(show, MIME("text/plain"), r)
-    @test occursin("InputRecord (species)", shown) && occursin("doi", shown) &&
+    @test occursin("ProvenanceRecord (species)", shown) &&
+          occursin("doi", shown) &&
           !occursin("url", shown)
-    # A role outside the closed set, or an absolute path, is refused where it was written; the
-    # set covers what a run is seeded from and restarted from as well as what it is built from.
-    @test_throws ArgumentError InputRecord(role = :weather, dataset = "x")
-    @test InputRecord(role = :abundance, dataset = "GBIF").role === :abundance
-    @test InputRecord(role = :state, dataset = "burn-in.jld2").role === :state
-    @test_throws ArgumentError InputRecord(role = :habitat, dataset = "x",
-                                           path = joinpath(homedir(), "x.nc"))
+    # A record takes any role; this package refuses one outside its set where a record is given
+    # to it. The set covers what a run is seeded from and restarted from as well as what it is
+    # built from. An absolute path is refused where it was written.
+    @test ProvenanceRecord(role = :weather, source = "x").role === :weather
+    @test_throws ArgumentError EcoSISTEM._recordvector(ProvenanceRecord(role = :weather,
+                                                                        source = "x"))
+    @test ProvenanceRecord(role = :abundance, source = "GBIF").role ===
+          :abundance
+    @test ProvenanceRecord(role = :state, source = "burn-in.jld2").role ===
+          :state
+    @test_throws ArgumentError ProvenanceRecord(role = :habitat, source = "x",
+                                                path = joinpath(homedir(),
+                                                                "x.nc"))
     # A request body is kept as sent, keys as strings.
-    q = InputRecord(role = :habitat, dataset = "ERA",
-                    request = Dict(:variable => ["2m_temperature"]))
+    q = ProvenanceRecord(role = :habitat, source = "ERA",
+                         request = Dict(:variable => ["2m_temperature"]))
     @test q.request == Dict{String, Any}("variable" => ["2m_temperature"])
 end
 
 @testset "an input record carries what its provider asks, filled in when shown" begin
     E = EcoSISTEM
-    r = InputRecord(role = :habitat, dataset = "ERA",
-                    title = "ERA5, t2m (era5_t2m_1990s)",
-                    primary = false, releasedate = "2019-04-18",
-                    references = [(doi = "10.24381/cds.f17050d7",
-                                   text = "C3S (2023), ERA5. (Accessed on DD-MMM-YYYY)")],
-                    notices = [Dict("strength" => "required",
-                                    "text" => "Contains Copernicus information YYYY.")],
-                    requestpage = "https://example.org/requests/#era5",
-                    region = "NaturalEarthSpec(\"Scotland\", level = \"ADMIN\")",
-                    fetched = "2026-10-25T11:00:00Z")
+    r = ProvenanceRecord(role = :habitat, source = "ERA",
+                         title = "ERA5, t2m (era5_t2m_1990s)",
+                         primary = false, releasedate = "2019-04-18",
+                         references = [(doi = "10.24381/cds.f17050d7",
+                                        text = "C3S (2023), ERA5. (Accessed on DD-MMM-YYYY)")],
+                         notices = [Dict("strength" => "required",
+                                         "text" => "Contains Copernicus information YYYY.")],
+                         requestpage = "https://example.org/requests/#era5",
+                         region = "NaturalEarthSpec(\"Scotland\", level = \"ADMIN\")",
+                         fetched = "2026-10-25T11:00:00Z")
     @test r.primary === false && r.releasedate == "2019-04-18"
     @test only(r.notices) ==
           (strength = :required, text = "Contains Copernicus information YYYY.")
@@ -69,25 +77,25 @@ end
     @test occursin("asks    https://example.org/requests/#era5", shown)
     @test occursin("Scotland", shown) && occursin("primary  false", shown)
     # With no fetch time the placeholders stay, so nothing is claimed that is not known.
-    @test E._fillplaceholders("on DD-MMM-YYYY in YYYY", nothing) ==
+    @test E.Provenancer._fillplaceholders("on DD-MMM-YYYY in YYYY", nothing) ==
           "on DD-MMM-YYYY in YYYY"
-    @test E._fillplaceholders("on DD-MMM-YYYY in YYYY",
-                              Dates.DateTime(2025, 7, 2)) ==
+    @test E.Provenancer._fillplaceholders("on DD-MMM-YYYY in YYYY",
+                                          Dates.DateTime(2025, 7, 2)) ==
           "on 02-Jul-2025 in 2025"
     # A strength a provider cannot ask with is refused.
-    @test_throws ArgumentError InputRecord(role = :habitat, dataset = "x",
-                                           notices = [(strength = :urgent,
-                                                       text = "x")])
+    @test_throws ArgumentError ProvenanceRecord(role = :habitat, source = "x",
+                                                notices = [(strength = :urgent,
+                                                            text = "x")])
     # The new fields survive a sidecar: written by the catalogue's record, read back the same.
     dir = mktempdir()
     path = joinpath(dir, "era5_t2m_1990s.nc")
     write(path, "x")
-    record = E._baserecord(path, :habitat)
+    record = E.Provenancer.baserecord(path, :habitat)
     merge!(record,
            E._cataloguerecord(E.ERA, E.layerinfo(E.ERA, "t2m"), path,
-                              route = :extract))
+                              route = EcoSISTEM.GeneratedOnRequest()))
     record["region"] = r.region
-    E._writesidecar(path, record)
+    E.Provenancer.writesidecar(path, record)
     back = provenance(path)
     rec = E.datasetinfo(E.ERA)
     @test back.title == "$(rec.title), 2 metre temperature (era5_t2m_1990s)"
@@ -99,17 +107,18 @@ end
     @test isnothing(back.modified) && isnothing(back.history)
     record["modified"] = "2023-01-04T00:00:00Z"
     record["history"] = "2026-10-27T13:37 GRIB to CDM+CF via cfgrib-0.9.15.1"
-    E._writesidecar(path, record)
+    E.Provenancer.writesidecar(path, record)
     changed = provenance(path)
     @test changed.modified == Dates.DateTime(2023, 1, 4)
     @test changed.history == record["history"]
     @test occursin("modified 2023-01-04",
                    sprint(show, MIME("text/plain"), changed))
-    E._writesidecar(path, delete!(delete!(record, "modified"), "history"))
+    E.Provenancer.writesidecar(path,
+                               delete!(delete!(record, "modified"), "history"))
     # Two records of one file are equal, and hash alike, though their lists are separate objects.
     again = provenance(path)
     @test again == back && isequal(again, back) && hash(again) == hash(back)
-    @test again != InputRecord(role = :habitat, dataset = "ERA")
+    @test again != ProvenanceRecord(role = :habitat, source = "ERA")
 end
 
 @testset "a file with no record answers nothing; a sidecar reads back as a record" begin
@@ -117,7 +126,7 @@ end
     path = joinpath(dir, "plain.nc")
     write(path, "x")
     @test isnothing(provenance(path))
-    write(EcoSISTEM._sidecarpath(path),
+    write(EcoSISTEM.Provenancer.sidecarpath(path),
           """
           writer = "EcoSISTEM 0.8.0"
           role = "habitat"
@@ -135,15 +144,40 @@ end
           citation = "Slivinski et al. (2019)"
           """)
     r = provenance(path)
-    @test r isa InputRecord && r.role === :habitat
-    @test r.dataset == "TwentyCR" && r.code == "air" && r.path == "plain.nc"
+    @test r isa ProvenanceRecord && r.role === :habitat
+    # Where the file and its record were read from travel with the record and are never written;
+    # a record from before routes were recorded has none, and one with a route writes it as the
+    # sidecar keeps it.
+    @test r.location == path &&
+          r.sidecar == EcoSISTEM.Provenancer.sidecarpath(path) &&
+          isnothing(r.route) && r.identifies === :other
+    written = EcoSISTEM.Provenancer.tomltable(r)
+    @test !haskey(written, "location") && !haskey(written, "sidecar") &&
+          !haskey(written, "route")
+    routed = ProvenanceRecord(role = :abundance, source = "GBIF",
+                              route = EcoSISTEM.GeneratedOnRequest("10.1/x"),
+                              primary = true)
+    @test routed.identifies === :data && isnothing(routed.location) &&
+          isnothing(routed.catalogue) && isnothing(r.catalogue)
+    marked = ProvenanceRecord(role = :habitat, source = "WorldClim{BioClim}",
+                              catalogue = "EcoSISTEM")
+    @test EcoSISTEM.Provenancer.tomltable(marked)["catalogue"] == "EcoSISTEM" &&
+          !haskey(EcoSISTEM.Provenancer.tomltable(routed), "catalogue")
+    @test EcoSISTEM.Provenancer.tomltable(routed)["route"] ==
+          "GeneratedOnRequest" &&
+          EcoSISTEM.Provenancer.tomltable(routed)["route_identifier"] ==
+          "10.1/x"
+    @test_throws ArgumentError ProvenanceRecord(role = :abundance,
+                                                source = "GBIF",
+                                                identifies = :dataset)
+    @test r.source == "TwentyCR" && r.code == "air" && r.path == "plain.nc"
     @test r.url == "https://mirror.example.org/air.nc"      # the URL answered from
     @test r.fetched == Dates.DateTime(2026, 9, 13, 8, 13, 59) && r.bytes == 1
     @test r.doi == "10.1002/qj.3598" && r.citation == "Slivinski et al. (2019)"
     # A CDS record: the request and the job come back too, the dataset being the CDS's name.
     cds = joinpath(dir, "era5_t2m_1990s.nc")
     write(cds, "x")
-    write(EcoSISTEM._sidecarpath(cds),
+    write(EcoSISTEM.Provenancer.sidecarpath(cds),
           """
           writer = "EcoSISTEM 0.8.0"
           role = "habitat"
@@ -157,7 +191,7 @@ end
           year = ["1990"]
           """)
     c = provenance(cds)
-    @test c.dataset == "ERA" && c.job == "50fb750a-172d-4af8-ab53-9f7dff9d73d2"
+    @test c.source == "ERA" && c.job == "50fb750a-172d-4af8-ab53-9f7dff9d73d2"
     @test c.request["variable"] == ["2m_temperature"]
     # A sidecar another program wrote under the same name - prose in `role`, a sentence in
     # `source` - is neither read nor overwritten: it reports nothing, once with a warning.
@@ -168,9 +202,9 @@ end
            role = "2 m air temperature (K)"
            writer = "data/src/twentycr_download.jl"
            """
-    write(EcoSISTEM._sidecarpath(foreign), text)
-    @test_logs (:warn, r"was not written by EcoSISTEM") match_mode=:any (@test isnothing(provenance(foreign)))
-    @test read(EcoSISTEM._sidecarpath(foreign), String) == text
+    write(EcoSISTEM.Provenancer.sidecarpath(foreign), text)
+    @test_logs (:warn, r"was not written by Provenancer") match_mode=:any (@test isnothing(provenance(foreign)))
+    @test read(EcoSISTEM.Provenancer.sidecarpath(foreign), String) == text
     # ...and a present file with no sidecar at all is recorded on first use, without a fetch time,
     # so a copy fetched by hand still ends up with a record.
     held = joinpath(dir, "held.bin")
@@ -180,12 +214,12 @@ end
     @test EcoSISTEM.assetpath(asset) == held
     h = provenance(held)
     @test h.url == "https://example.org/held.bin" && isnothing(h.fetched)
-    @test h.sha256 == EcoSISTEM._sha256(held) && h.bytes == 4
+    @test h.sha256 == EcoSISTEM.Provenancer._filesha256(held) && h.bytes == 4
     # The foreign sidecar stays foreign through the same route.
     @test EcoSISTEM.assetpath(EcoSISTEM.CachedAsset(TwentyCR,
                                                     "https://example.org/air.nc",
                                                     path = foreign)) == foreign
-    @test read(EcoSISTEM._sidecarpath(foreign), String) == text
+    @test read(EcoSISTEM.Provenancer.sidecarpath(foreign), String) == text
 end
 
 @testset "a Natural Earth zip records its source's facts and the version it states" begin
@@ -217,7 +251,7 @@ end
           "region"
     # A record holding only the file and its URL reads back with the row's facts and the zip's
     # own version filled in.
-    write(E._sidecarpath(zip),
+    write(E.Provenancer.sidecarpath(zip),
           """
           writer = "EcoSISTEM 0.8.0"
           role = "region"
@@ -225,7 +259,7 @@ end
           url = "$url"
           """)
     r = E._regionrecord(zip)
-    @test r.dataset == "NaturalEarth" && r.version == "5.1.1" && r.url == url
+    @test r.source == "NaturalEarth" && r.version == "5.1.1" && r.url == url
     @test r.licence == E.datasetinfo(E.NaturalEarthLevel).licence
     @test isnothing(E._regionrecord(other))
 end
@@ -236,7 +270,7 @@ end
     a, b = joinpath(dir, "a.zip"), joinpath(dir, "b.gpkg")
     write(a, "a")
     write(b, "b")
-    write(E._sidecarpath(a),
+    write(E.Provenancer.sidecarpath(a),
           """
           writer = "EcoSISTEM 0.8.0"
           role = "region"
@@ -253,7 +287,65 @@ end
     # where not, and never a download.
     named = provenance(E.NaturalEarthSpec("Scotland"))
     @test length(named) == 1 &&
-          (isnothing(only(named)) || only(named).dataset == "NaturalEarth")
+          (isnothing(only(named)) || only(named).source == "NaturalEarth")
+end
+
+@testset "a record cites its source, its deposit cited apart and the works given alongside it" begin
+    P = EcoSISTEM.Provenancer
+    cites(r) = [l[9:end]
+                for l in P._requestlines(r) if startswith(l, "cite    ")]
+    dataset = "B. Author (2023). The set. https://doi.org/10.1/d"
+    paper = "A. Author (2023). On the set. https://doi.org/10.1/p"
+    # A citation of its own is cited before the works cited alongside it.
+    alongside = ProvenanceRecord(role = :species, source = "The set",
+                                 doi = "10.1/d",
+                                 citation = dataset,
+                                 references = [(doi = "10.1/p", text = paper)])
+    @test cites(alongside) == [dataset, paper]
+    @test occursin("citation " * dataset,
+                   sprint(show, MIME("text/plain"), alongside))
+    # A reference carrying the record's own DOI is the source's citation, cited once.
+    own = ProvenanceRecord(role = :species, source = "The set", doi = "10.1/D",
+                           citation = "the set, composed",
+                           references = [(doi = "10.1/d", text = dataset)])
+    @test cites(own) == [dataset] &&
+          !occursin("citation", sprint(show, MIME("text/plain"), own))
+    # A catalogue row's citation is its references' texts joined, which it cites one by one as
+    # before, whichever DOI it has.
+    path = joinpath(mktempdir(), "era5_t2m_1990s.nc")
+    write(path, "x")
+    row = P.baserecord(path, :habitat)
+    merge!(row,
+           EcoSISTEM._cataloguerecord(EcoSISTEM.ERA,
+                                      EcoSISTEM.layerinfo(EcoSISTEM.ERA, "t2m"),
+                                      path,
+                                      route = EcoSISTEM.GeneratedOnRequest()))
+    P.writesidecar(path, row)
+    era = provenance(path)
+    @test length(era.references) == 2 &&
+          cites(era) == [P._fillplaceholders(ref.text, era.fetched)
+           for ref in era.references]
+    # A deposit cited apart is cited after its source.
+    apart = ProvenanceRecord(role = :species, source = "The set",
+                             doi = "10.1/d",
+                             citation = dataset,
+                             deposit = DepositCitedApart(SourceFacts(source = "A paper",
+                                                                     doi = "10.1/p",
+                                                                     citation = paper)))
+    @test cites(apart) == [dataset, paper]
+    # The deposit is written as the sidecar keeps it, the default not at all.
+    @test P.tomltable(apart)["deposit"] == "DepositCitedApart" &&
+          P.tomltable(apart)["deposit_source"]["doi"] == "10.1/p"
+    @test !haskey(P.tomltable(alongside), "deposit")
+    # A record from before deposits, or naming one this version does not know, has the default.
+    t = Dict{String, Any}("writer" => "EcoSISTEM.Provenancer 0.10.0",
+                          "role" => "species",
+                          "source" => "s")
+    @test P._recordfromtoml(t, location = nothing, sidecar = nothing).deposit ==
+          DepositSharesIdentifier()
+    t["deposit"] = "SomeLaterDeposit"
+    @test P._recordfromtoml(t, location = nothing, sidecar = nothing).deposit ==
+          DepositSharesIdentifier()
 end
 
 end

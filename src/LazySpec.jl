@@ -87,8 +87,9 @@ its last slice, and `calendar` what its coordinates mean.
     dataset's own code list at construction so that every layer's identity is known before
     anything is read and each can keep its own unit.
   - `files`: the files to read, in time order, each a local path, the
-    [`EcoSISTEM.CachedAsset`](@ref) a URL becomes, or a [`EcoSISTEM.CDSRequest`](@ref) fetched on
-    first use; `nothing` where the source resolves them itself. Each file is opened by the
+    [`EcoSISTEM.CachedAsset`](@ref) a URL becomes, a [`EcoSISTEM.CDSRequest`](@ref) fetched on
+    first use, or the [`ProvenanceRecord`](@ref) of a file given by its record; `nothing` where
+    the source resolves them itself. Each file is opened by the
     backend its source's catalogue row names, so a netCDF file without an extension reads.
   - `unit`: the physical unit attached on read. `NoUnits` where a multi-layer spec's layers
     disagree, as a neutral placeholder, and for a file given none.
@@ -132,7 +133,7 @@ struct RasterSpec{A <: NicheAxis, U} <: EcoSISTEM.AbstractLazySpec
     code::Union{Nothing, CODE_TYPE, Vector{CODE_TYPE}}
     files::Union{Nothing,
                  Vector{Union{String, EcoSISTEM.CachedAsset,
-                              EcoSISTEM.CDSRequest}}}
+                              EcoSISTEM.CDSRequest, ProvenanceRecord}}}
     unit::U
     cut::Union{Nothing, Extents.Extent}
     scale::Union{Nothing, Int}
@@ -164,7 +165,7 @@ struct RasterSpec{A <: NicheAxis, U} <: EcoSISTEM.AbstractLazySpec
         _refusefetchedrelease(track, files)
         return new{A, U}(source, code, files, unit, cut,
                          isnothing(scale) ? nothing : Int(scale), fn, times,
-                         atend, calendar, readkw, _storedtrack(track))
+                         atend, calendar, readkw, track)
     end
 end
 
@@ -316,8 +317,10 @@ abstract type AbstractShapeSpec <: EcoSISTEM.AbstractLazySpec end
 
 """
     ShapeSpec(path::AbstractString; layer = 0, coverage = AllTerritories())
+    ShapeSpec(record::ProvenanceRecord; layer = 0, coverage = AllTerritories())
 
-Name an active-area mask taken from the polygons of a vector file, without reading it. It holds
+Name an active-area mask taken from the polygons of a vector file, without reading it: a file by
+its path, or by its provenance record, which says where the file is and what it is. It holds
 **no** geometry: the read, any download, the dissolve of its features into connected pieces of
 ground, the reprojection into the target grid's own CRS and the cell-membership test all happen
 when it is materialised onto a decided grid, as for [`SourceSpec`](@ref); `read(spec)` gives the
@@ -332,6 +335,12 @@ pieces themselves.
     Only the one named file is fetched, so a bare remote `.shp` cannot be read: its `.shx`, `.dbf`
     and `.prj` companions never arrive and GDAL refuses the result. Point at the zip the shapefile
     is published in instead, or download the set by hand and give the local `.shp` path.
+  - `record`: the file's [`ProvenanceRecord`](@ref), as [`Provenancer.record_provenance`](@ref
+    EcoSISTEM.Provenancer.record_provenance) returned it or [`provenance`](@ref) read it, in
+    place of its path: the spec reads the file where the record says it is, and the file's
+    provenance is the record's. Under a data pipeline run the record is the run's, the file read
+    from the run's store or registered with the source the record names by `record_provenance`'s
+    `track`; a spec of a file takes none itself.
   - `layer`: which layer of the file, 0-indexed. Every polygon feature in it is used.
   - `coverage`: how much of the ground the file covers to take, once its features are dissolved
     into connected pieces - [`AllTerritories`](@ref), the default and everything the file holds,
@@ -339,16 +348,17 @@ pieces themselves.
     piece clearing a threshold.
 """
 struct ShapeSpec{C <: EcoSISTEM.AbstractCoverage} <: AbstractShapeSpec
-    path::Union{String, EcoSISTEM.CachedAsset}
+    path::Union{String, EcoSISTEM.CachedAsset, ProvenanceRecord}
     layer::Int
     coverage::C
-    # A leading URL scheme (`scheme://...`) marks `path` as a download, deferred to a `CachedAsset`;
-    # anything else is taken to be an already-local path, used as-is.
-    function ShapeSpec(path::AbstractString; layer::Integer = 0,
+    # A path with a URL scheme (`scheme://...`) is a download, deferred to a `CachedAsset`; any
+    # other path is taken to be already local, used as it is; a record stands for the file it was
+    # read for, as `_specfile` decides.
+    function ShapeSpec(file::Union{AbstractString, ProvenanceRecord};
+                       layer::Integer = 0,
                        coverage::EcoSISTEM.AbstractCoverage = AllTerritories())
-        p = occursin(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", path) ?
-            EcoSISTEM.CachedAsset(ShapeSpec, path) : String(path)
-        return new{typeof(coverage)}(p, Int(layer), coverage)
+        return new{typeof(coverage)}(_specfile(ShapeSpec, file), Int(layer),
+                                     coverage)
     end
 end
 
@@ -403,8 +413,7 @@ struct NaturalEarthSpec{C <: EcoSISTEM.AbstractCoverage} <: AbstractShapeSpec
         _refusefetchedrelease(track, nothing)
         # The source's own spelling is stored, not the caller's: the lookup is case-insensitive, and
         # what is kept should be what the data says so that `show` and any later report agree with it.
-        return new{typeof(coverage)}(lvl, row.Name, coverage,
-                                     _storedtrack(track))
+        return new{typeof(coverage)}(lvl, row.Name, coverage, track)
     end
 end
 
@@ -438,6 +447,11 @@ function NaturalEarthSpec(report::EcoSISTEM.RegionReport; kw...)
                  "one, `first(report)` takes the best by the report's own ordering, `report[i]` " *
                  "takes the one you want.")
 end
+
+# Its files are Natural Earth's own zips, fetched as published.
+@traitimpl IsFetchable{NaturalEarthSpec}
+
+Provenancer.route(::NaturalEarthSpec) = VersionOfRecord()
 
 function Base.show(io::IO, s::NaturalEarthSpec)
     _showregion(io, s)
@@ -796,9 +810,13 @@ end
     RasterFileSpec(path::AbstractString; axis, unit = NoUnits, source = SyntheticData,
                    cut = nothing, scale = nothing, fn = nothing, times = nothing,
                    atend = RepeatAtEnd(), calendar = nothing)
+    RasterFileSpec(record::ProvenanceRecord; axis, unit = NoUnits, source = SyntheticData,
+                   cut = nothing, scale = nothing, fn = nothing, times = nothing,
+                   atend = RepeatAtEnd(), calendar = nothing)
 
 Name a raster **file** as a layer, without reading it: a GeoTIFF or anything else GDAL reads, given
-by path or URL, that is not a layer of a catalogued dataset. Builds a [`RasterSpec`](@ref) whose
+by path or URL, or by its provenance record, that is not a layer of a catalogued dataset. Builds a
+[`RasterSpec`](@ref) whose
 `files` is that one file and whose `code` is `nothing`, so it is read, cut and resampled exactly as
 a [`SourceSpec`](@ref) is.
 
@@ -819,6 +837,12 @@ It is a layer spec. To use a file as a `within` mask, say what in it marks a cel
   - `path`: the file, or a URL naming a **self-contained** file (a `.zip` is read directly). A URL
     is downloaded into `EcoSISTEM.assetdir(owner = RasterSpec)` as an
     [`EcoSISTEM.CachedAsset`](@ref) the first time it is needed.
+  - `record`: the file's [`ProvenanceRecord`](@ref), as [`Provenancer.record_provenance`](@ref
+    EcoSISTEM.Provenancer.record_provenance) returned it or [`provenance`](@ref) read it, in
+    place of its path: the spec reads the file where the record says it is, and the file's
+    provenance is the record's. Under a data pipeline run the record is the run's, the file read
+    from the run's store or registered with the source the record names by `record_provenance`'s
+    `track`; a spec of a file takes none itself.
   - `axis`: the [`NicheAxis`](@ref) the values are on. Required: pass `NicheAxis` itself for data
     whose meaning is not being claimed.
   - `unit`: the physical unit the file's values are in, attached on read. Defaults to `NoUnits`, so
@@ -829,7 +853,8 @@ It is a layer spec. To use a file as a `within` mask, say what in it marks a cel
   - `times`, `atend`, `calendar`: for a file with a third axis, how its slices become a series, as
     the [`RasterSpec`](@ref) fields of those names.
 """
-function RasterFileSpec(path::AbstractString; axis::Type{A}, unit = NoUnits,
+function RasterFileSpec(file::Union{AbstractString, ProvenanceRecord};
+                        axis::Type{A}, unit = NoUnits,
                         source::Type = SyntheticData, cut = nothing,
                         scale::Union{Nothing, Integer} = nothing,
                         fn::Union{Nothing, Function} = nothing,
@@ -837,31 +862,32 @@ function RasterFileSpec(path::AbstractString; axis::Type{A}, unit = NoUnits,
                         atend::AbstractSeriesEnd = RepeatAtEnd(),
                         calendar::Union{Nothing, AbstractSeriesCalendar} = nothing) where {A <:
                                                                                            NicheAxis}
-    return RasterSpec{A, typeof(unit)}(source, nothing, [_fileentry(path)],
-                                       unit, cut, scale, fn, times, atend,
-                                       calendar, NamedTuple(), nothing)
+    return RasterSpec{A, typeof(unit)}(source, nothing,
+                                       [_specfile(RasterSpec, file)], unit,
+                                       cut, scale, fn, times, atend, calendar,
+                                       NamedTuple(), nothing)
 end
 
 # == Functions ======================================================================================
 
 function provenance(spec::RasterSpec)
     entries = isnothing(spec.files) ? _presentfiles(spec) : spec.files
-    return Union{Nothing, InputRecord}[provenance(_localpath(e))
-                                       for e in entries]
+    return Union{Nothing, ProvenanceRecord}[_entryprovenance(e)
+                                            for e in entries]
 end
 
 function provenance(spec::ShapeSpec)
-    return Union{Nothing, InputRecord}[provenance(_localpath(spec.path))]
+    return Union{Nothing, ProvenanceRecord}[_entryprovenance(spec.path)]
 end
 
 function provenance(spec::NaturalEarthSpec)
     path = _localpath(_nesource(_checklevel(spec.level)))
-    return Union{Nothing, InputRecord}[_regionrecord(path)]
+    return Union{Nothing, ProvenanceRecord}[_regionrecord(path)]
 end
 
 function provenance(spec::ConstructedShapeSpec)
     return reduce(vcat, (provenance(m) for m in spec.members),
-                  init = Union{Nothing, InputRecord}[])
+                  init = Union{Nothing, ProvenanceRecord}[])
 end
 
 function provenance(spec::ShapeCoverage)
@@ -874,7 +900,7 @@ end
 
 function provenance(spec::ConstructedRasterSpec)
     return reduce(vcat, (_layerprovenance(l) for l in spec.layers),
-                  init = Union{Nothing, InputRecord}[])
+                  init = Union{Nothing, ProvenanceRecord}[])
 end
 
 """
@@ -892,11 +918,29 @@ against and is not counted; nothing is fetched.
 function verifyassets(spec::RasterSpec)
     entries = isnothing(spec.files) ? _presentfiles(spec) : spec.files
     checked = 0
-    for path in _localpath.(entries)
+    for entry in entries
+        path = _localpath(entry)
         isfile(path) || continue
-        checked += _verifyfile(path)
+        checked += Provenancer.verifyfile(path, sidecar = _entrysidecar(entry))
     end
     return checked
+end
+
+# Where a file entry's record is: beside the file, or, for a file given by its record, wherever
+# that record was read from.
+_entrysidecar(entry) = Provenancer.sidecarpath(_localpath(entry))
+
+_entrysidecar(record::ProvenanceRecord) = record.sidecar
+
+# A file entry's record as `provenance` reads it, warning of another program's sidecar, and as
+# `recordat` reads it, silently.
+function _entryprovenance(entry)
+    return provenance(_localpath(entry), sidecar = _entrysidecar(entry))
+end
+
+function _entryrecord(entry)
+    return Provenancer.recordat(_localpath(entry),
+                                sidecar = _entrysidecar(entry))
 end
 
 # The files a source has on disk for a spec that resolves its own, fetching nothing.
@@ -909,19 +953,21 @@ end
 # facts where the spec names a layer of a catalogued dataset. Nothing is hashed.
 function _readinputs(spec::RasterSpec; role::Symbol = :habitat)
     entries = isnothing(spec.files) ? _presentfiles(spec) : spec.files
-    return InputRecord[_inputrecord(spec, path, role)
-                       for path in _localpath.(entries) if isfile(path)]
+    return ProvenanceRecord[_inputrecord(spec, e, role)
+                            for e in entries if isfile(_localpath(e))]
 end
 
 # One file's record for a read of `spec`: its sidecar's, or its name under `role`, with the row's
-# facts.
-function _inputrecord(spec::RasterSpec, path::AbstractString, role::Symbol)
+# facts. `entry` is the file as the spec holds it.
+function _inputrecord(spec::RasterSpec, entry, role::Symbol)
     rec = _specrecord(spec)
-    record = something(_ourrecordat(path),
-                       InputRecord(role = role,
-                                   dataset = isnothing(rec) ? "file" :
-                                             rec.dataset,
-                                   code = spec.code, path = basename(path)))
+    path = _localpath(entry)
+    record = something(_entryrecord(entry),
+                       ProvenanceRecord(role = role,
+                                        source = isnothing(rec) ? "file" :
+                                                 rec.dataset,
+                                        code = spec.code,
+                                        path = basename(path)))
     isnothing(rec) && return record
     layer = spec.code isa CODE_TYPE ? layerinfo(spec.source, spec.code) :
             nothing
@@ -935,7 +981,7 @@ function _layerprovenance(layer::Union{RasterSpec, ConstructedRasterSpec,
     return provenance(layer)
 end
 
-_layerprovenance(::Any) = Union{Nothing, InputRecord}[]
+_layerprovenance(::Any) = Union{Nothing, ProvenanceRecord}[]
 
 # A Natural Earth zip's record, or `nothing` where it has none, with the source's row filled in.
 function _regionrecord(path::AbstractString)
@@ -948,34 +994,43 @@ end
 # the file's title, its DOI, licence, release date and citation, what its provider asks, and the
 # version the file states, or else the row's - as `_cataloguerecord` would have written them.
 # `layer` is the layer the file is, where it is one.
-function _withcatalogue(record::InputRecord, rec::DatasetRecord,
+function _withcatalogue(record::ProvenanceRecord, rec::DatasetRecord,
                         path::AbstractString; layer = nothing)
-    orrow(have, row) = isempty(have) ? row : have
-    version = isempty(record.version) ?
-              something(_fileversion(rec, path), rec.version) : record.version
-    return InputRecord(role = record.role,
-                       dataset = record.dataset == "file" ? rec.dataset :
-                                 record.dataset,
-                       code = record.code, path = record.path, url = record.url,
-                       request = record.request, region = record.region,
-                       job = record.job, fetched = record.fetched,
-                       bytes = record.bytes, sha256 = record.sha256,
-                       doi = orrow(record.doi, rec.doi),
-                       licence = orrow(record.licence, rec.licence),
-                       version = version,
-                       citation = orrow(record.citation, rec.citation),
-                       title = orrow(record.title,
-                                     _filetitle(rec, layer, path)),
-                       primary = record.primary,
-                       releasedate = orrow(record.releasedate, rec.releasedate),
-                       references = isempty(record.references) ?
-                                    rec.references :
-                                    record.references,
-                       notices = isempty(record.notices) ? rec.notices :
-                                 record.notices,
-                       requestpage = orrow(record.requestpage,
-                                           _requestpage(rec)),
-                       modified = record.modified, history = record.history)
+    orrow(have, row) = something(have, _ornothing(row), Some(nothing))
+    version = isnothing(record.version) ?
+              something(_fileversion(rec, path), _ornothing(rec.version),
+                        Some(nothing)) : record.version
+    return ProvenanceRecord(role = record.role,
+                            source = record.source == "file" ? rec.dataset :
+                                     record.source,
+                            code = record.code, path = record.path,
+                            url = record.url,
+                            request = record.request, region = record.region,
+                            job = record.job, fetched = record.fetched,
+                            bytes = record.bytes, sha256 = record.sha256,
+                            doi = orrow(record.doi, rec.doi),
+                            licence = orrow(record.licence, rec.licence),
+                            version = version,
+                            citation = orrow(record.citation, rec.citation),
+                            title = orrow(record.title,
+                                          _filetitle(rec, layer, path)),
+                            primary = record.primary,
+                            releasedate = orrow(record.releasedate,
+                                                rec.releasedate),
+                            references = isempty(record.references) ?
+                                         rec.references :
+                                         record.references,
+                            notices = isempty(record.notices) ? rec.notices :
+                                      record.notices,
+                            requestpage = orrow(record.requestpage,
+                                                _requestpage(rec)),
+                            modified = record.modified,
+                            history = record.history,
+                            identifies = record.identifies, key = record.key,
+                            namespace = record.namespace,
+                            catalogue = record.catalogue, route = record.route,
+                            location = record.location,
+                            sidecar = record.sidecar)
 end
 
 # The `files` field from whichever of the three location keywords was given: `files` as they are,
@@ -1038,9 +1093,23 @@ end
 
 _fileentry(x::Union{EcoSISTEM.CachedAsset, EcoSISTEM.CDSRequest}) = x
 
-function _fileentry(path::AbstractString)
+_fileentry(path::AbstractString) = _specfile(RasterSpec, path)
+
+# A file as a spec holds it, `owner` being the spec type whose cache a download goes to: a path
+# with a URL scheme is a `CachedAsset` download, any other path is taken to be local, as it is, and
+# a record stands for the file it was read for, which it must name - one built by hand, or read
+# for the facts alone, names none.
+function _specfile(owner::Type, path::AbstractString)
     return occursin(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", path) ?
-           EcoSISTEM.CachedAsset(RasterSpec, path) : String(path)
+           EcoSISTEM.CachedAsset(owner, path) : String(path)
+end
+
+function _specfile(::Type, record::ProvenanceRecord)
+    (isnothing(record.location) || isnothing(record.sidecar)) &&
+        error("$record names no file: a record `Provenancer.record_provenance` returned, or " *
+              "`provenance(path)` read, says where its file and its sidecar are, and a spec " *
+              "of a file takes one of those.")
+    return record
 end
 
 # The raster files in `dir`, in name order, which is the time order every archive read this way
@@ -1104,6 +1173,12 @@ end
 _pathtext(path::AbstractString) = String(path)
 _pathtext(asset::EcoSISTEM.CachedAsset) = asset.url
 _pathtext(request::EcoSISTEM.CDSRequest) = request.path
+_pathtext(record::ProvenanceRecord) = record.location
+
+# A single file entry as the spelling that rebuilds the spec writes it: its path or URL quoted, or
+# the record it was given as.
+_entryrepr(entry) = repr(_pathtext(entry))
+_entryrepr(record::ProvenanceRecord) = repr(record)
 
 # What a spec's stack does in time, for `_setseries!`: its own `atend` and `calendar`, or the
 # defaults for a spec that has none.
@@ -1184,15 +1259,16 @@ end
 # location keyword where the catalogue describes what it reads.
 function _showspec(io::IO, spec::RasterSpec{A},
                    files::AbstractVector) where {A}
-    where_ = length(files) == 1 ? "file = " * repr(_pathtext(only(files))) :
+    where_ = length(files) == 1 ? "file = " * _entryrepr(only(files)) :
              "files = " * repr(_pathtext.(files))
     if isnothing(spec.code)
         unit = spec.unit === NoUnits ? "" : ", unit = $(spec.unit)"
         source = spec.source === SyntheticData ? "" :
                  ", source = $(spec.source)"
-        path = length(files) == 1 ? repr(_pathtext(only(files))) : where_
+        path = length(files) == 1 ? _entryrepr(only(files)) : where_
         return print(io, "RasterFileSpec(", path, unit, source,
-                     join(", " .* _readoptions(spec)), ", axis = $(nameof(A)))")
+                     join(", " .* vcat(_readoptions(spec), _trackoption(spec))),
+                     ", axis = $(nameof(A)))")
     end
     kw = ["$(k) = $(v)" for (k, v) in pairs(spec.readkw)]
     return print(io, "SourceSpec($(spec.source), $(repr(spec.code)), ", where_,

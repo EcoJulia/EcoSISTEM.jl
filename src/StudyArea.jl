@@ -1218,7 +1218,7 @@ function _syntheticplan(extent, cellsize, within, problems, layers, cons,
                            _activegrid(_syntheticyx(geometry), active),
                            simulate_safely,
                            LayerPlan[], fp,
-                           problems, layers, cons, cache, InputRecord[],
+                           problems, layers, cons, cache, ProvenanceRecord[],
                            AsInvestigated())
 end
 

@@ -196,7 +196,7 @@ end
         @test !isfile(path * ".part")
         # The fetch wrote the file's provenance: the request as sent, the CDS job, the row's DOI.
         rec = provenance(path)
-        @test rec.dataset == "ERA" && rec.code == "t2m"
+        @test rec.source == "ERA" && rec.code == "t2m"
         @test rec.request["variable"] == ["2m_temperature"] &&
               !isnothing(rec.job)
         @test rec.doi == "10.24381/cds.f17050d7" && !isnothing(rec.sha256)
@@ -210,7 +210,7 @@ end
         end
         @test occursin("GRIB to CDM", rec.history) && rec.primary === false
         @test !any(s -> occursin(homedir(), s),
-                   tomlstrings(EcoSISTEM._sidecarpath(path)))
+                   tomlstrings(EcoSISTEM.Provenancer.sidecarpath(path)))
         # The file reads through the same row as any other ERA5 file - no extension on its name.
         cr = read(SourceSpec(EcoSISTEM.ERA, "t2m", file = path))
         @test size(cr.array, 3) == 1

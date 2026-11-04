@@ -518,14 +518,17 @@ still describes - and `RasterFileSpec(path; axis)` for a file that belongs to no
 be told both. `SourceSpec` is an alias of the type and `RasterFileSpec` a factory; either way the
 spec holds a name and no data, its read options (`cut`, `scale`, `fn`) and how its files become one
 series (`times`, `atend`, `calendar`) as fields, and `read(spec)` is the one read, through one
-cache. A file entry is a path, a URL cached on first use, or a `CDSRequest` fetched from the Climate
-Data Store on first use; the catalogue's per-dataset row says which backend opens it.
+cache. A file entry is a path, a URL cached on first use, a `CDSRequest` fetched from the Climate
+Data Store on first use, or the `ProvenanceRecord` of a file given by its record, which says where
+the file is and how it came to be; the catalogue's per-dataset row says which backend opens it.
 
 A `SourceSpec` or a `NaturalEarthSpec` may hold a `Track`, naming the FAIR data pipeline run its files
 go through and the root of their data product names. Every route a file takes - a read, a grid
 probe, `fetchfiles` - asks the run first, through a hook the run's package supplies for its handle.
-A track is a field rather than a type parameter, and a spec with no run stores `nothing`, so there is
-one untracked state and no spec type changes with tracking.
+A track is a field rather than a type parameter, so no spec type changes with tracking. A track whose
+handle is `nothing` is kept as given, for the release it may state of files the user gives, and the
+spec takes the untracked route as one with no track does. A `RasterFileSpec` or a `ShapeSpec` have a file, with the provenance described by a `record_provenance` call
+before the spec exists, and the spec takes its record in place of a path.
 
 **`ConstructedShapeSpec` and `ConstructedRasterSpec` are mirrors**: each is the "several members
 become one" node for its medium. Three of their differences are forced by that medium and one is
@@ -564,6 +567,7 @@ classDiagram
     class CircleMaskSpec~R~
     class AbstractCombineStage
     class Track~H~
+    class ProvenanceRecord
     AbstractSpec              <|-- AbstractLazySpec
     AbstractSpec              <|-- AbstractSyntheticSpec
     AbstractLazySpec          <|-- RasterSpec
@@ -581,6 +585,7 @@ classDiagram
     ConstructedRasterSpec "1" *-- "1" AbstractCombineStage : combinestage
     RasterSpec "1" *-- "0..1" Track : track
     NaturalEarthSpec "1" *-- "0..1" Track : track
+    ShapeSpec "1" *-- "0..1" ProvenanceRecord : path
     AbstractLazySpec <|-- AbstractShapeSpec
     AbstractShapeSpec <|-- ConstructedShapeSpec
     AbstractShapeSpec <|-- NaturalEarthSpec
@@ -806,7 +811,7 @@ classDiagram
     class AbstractLayerFate
     class AbstractProblemSeverity
     class AbstractReportStage
-    class InputRecord
+    class ProvenanceRecord
     AbstractReportStage <|-- AsInvestigated
     AbstractReportStage <|-- AsBuilt
     AbstractDecisionSource <|-- GivenByUser
@@ -828,7 +833,7 @@ classDiagram
     LayerPlan "1" *-- "1" AbstractLayerFate : fate
     Problem "1" *-- "1" AbstractProblemSeverity : severity
     StudyAreaReport "1" *-- "1" AbstractReportStage : stage
-    StudyAreaReport "1" *-- "*" InputRecord : inputs
+    StudyAreaReport "1" *-- "*" ProvenanceRecord : inputs
 ```
 
 **`AbstractReportStage` is what tells an investigated area from a built one**, and it is
@@ -1060,20 +1065,74 @@ per month) and `Dim{:layer}` for everything else.
 
 ### Where an input came from - the records
 
-A source type says which archive a raster belongs to; an `InputRecord` says which **file** an
-object was built from, where it was fetched, and what the dataset's DOI, licence, version and
+A source type says which archive a raster belongs to; a `ProvenanceRecord` says which **file** an
+object was built from, where it was fetched, and what the source's DOI, licence, version and
 citation are. Every fetch writes one beside its file, and every read made while deciding a study
 area records its files in the area's report, which keeps them after the reads themselves are
 discarded. `provenance` asked of a report, a study area, a habitat or an ecosystem gathers them
-into a `Provenance`, beside the software, the grid and, for an ecosystem, the run. Published data
-the package never fetched - occurrence records, a trait table, a scenario - enters as records the
-caller attaches to a species list, an intervention or `build_ecosystem`, in the same shape.
+into a `Provenance`, beside the software and the result's context, which for this package is a
+`GridContext`: the grid and, for an ecosystem, the run. Published data the package never fetched -
+occurrence records, a trait table, a scenario - enters as records the caller attaches to a species
+list, an intervention or `build_ecosystem`, in the same shape.
+
+The record, the account and the machinery behind them - the sidecar every fetched file gets, the
+download that resumes and records itself, and the names a file takes in a FAIR data pipeline run
+(`Track`) - are the submodule `Provenancer`'s, which depends on nothing of this package's so that
+another package can use it. Whatever fetches or finds a file for this package - a `CachedAsset`, a
+`CDSRequest`, a `NaturalEarthSpec`, a dataset type whose source resolves its own files - implements
+its `IsFetchable` trait and says which `AbstractFileRoute` the files come by: the source's
+version of record, generated by a service to a request, or of any other origin. What is known of a
+source - a catalogue row's facts, the metadata a DOI resolves to, or the user's own - is a
+`SourceFacts`, from which a record's entries and a registration's keywords are written and whether
+a file is primary is read with its route. Its `AbstractDeposit` says what the source's identifier
+stands for in a pipeline's registry: a deposit its files share the identifier of, the one file it
+names, or a deposit cited apart by facts of its own. A `URLFile` is the module's own fetchable, a
+download recorded with the facts it is given, and `record_provenance` records a file the user
+already has from them. The context is the one abstract field in the model's types left abstract on
+purpose: a `Provenance` is assembled once per recording, and a parameter would make every
+`Provenance` in a signature a `UnionAll`.
 
 ```mermaid
 classDiagram
     class Provenance
-    class InputRecord
-    Provenance "1" *-- "*" InputRecord : inputs
+    class SoftwareRecord
+    class ProvenanceRecord
+    class SourceFacts
+    class URLFile
+    class AbstractProvenanceContext
+    class NoContext
+    class GridContext
+    Provenance "1" *-- "1" SoftwareRecord : software
+    Provenance "1" *-- "*" ProvenanceRecord : inputs
+    Provenance "1" *-- "1" AbstractProvenanceContext : context
+    URLFile "1" *-- "0..1" SourceFacts : facts
+    SourceFacts "1" *-- "1" AbstractDeposit : deposit
+    ProvenanceRecord "1" *-- "1" AbstractDeposit : deposit
+    AbstractProvenanceContext <|-- NoContext
+    AbstractProvenanceContext <|-- GridContext
+```
+
+```mermaid
+classDiagram
+    class AbstractFileRoute
+    class VersionOfRecord
+    class GeneratedOnRequest
+    class OtherOrigin
+    AbstractFileRoute <|-- VersionOfRecord
+    AbstractFileRoute <|-- GeneratedOnRequest
+    AbstractFileRoute <|-- OtherOrigin
+```
+
+```mermaid
+classDiagram
+    class AbstractDeposit
+    class DepositSharesIdentifier
+    class DepositIsFile
+    class DepositCitedApart
+    AbstractDeposit <|-- DepositSharesIdentifier
+    AbstractDeposit <|-- DepositIsFile
+    AbstractDeposit <|-- DepositCitedApart
+    DepositCitedApart "1" *-- "1" SourceFacts : facts
 ```
 
 ## Notes

@@ -7,8 +7,8 @@
 # `EcoSISTEM.jl`, after all the types it shims. Each shim warns - so downstream code gets a
 # migration message rather than a silent `MethodError` - and forwards to the current API. Mirrored
 # by `test/test_deprecations.jl`. The shims whose signatures name a `RasterDataSources` type are in
-# `ext/EcoSISTEMRasterDataSourcesExt/deprecations.jl`, since they cannot be defined without it.
-# There are none at present.
+# `ext/EcoSISTEMRasterDataSourcesExt/deprecations.jl`, since they cannot be defined without it;
+# it holds none at present.
 #
 # ## Every section says which release deprecated it
 #
@@ -24,3 +24,13 @@
 #     shim. A stale `export` of a deleted binding is a precompile *warning*, not an error.
 #   - `test/test_deprecations.jl`, which mirrors this file and must lose the same sections.
 # ===========================================================================
+
+# ---------------------------------------------------------------------------
+# `InputRecord` is `ProvenanceRecord`: a record describes a file however it enters a run, an
+# output of the run that made it included, so its name no longer calls it an input. The binding
+# stays `public`, as the old name was.
+#
+# Deprecated in v0.10.0.
+# ---------------------------------------------------------------------------
+Base.@deprecate_binding InputRecord ProvenanceRecord false
+public InputRecord

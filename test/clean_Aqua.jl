@@ -40,11 +40,13 @@ end
     Aqua.test_piracies(EcoSISTEM)
 
     # Every extension is checked on its own, since Aqua sees only the methods a module itself
-    # defines - and from an extension's point of view the parent's functions and types are foreign
-    # too, so they are declared its own: an extension exists to add methods to them. What is left is
-    # a method on someone else's generic over someone else's types.
+    # defines - and from an extension's point of view the parent's functions and types, its
+    # submodules' included, are foreign too, so they are declared its own: an extension exists to
+    # add methods to them. What is left is a method on someone else's generic over someone else's
+    # types.
     own = Union{Function, Type}[getfield(m, n)
-                                for m in (EcoSISTEM, EcoSISTEM.Units)
+                                for m in (EcoSISTEM, EcoSISTEM.Units,
+                                    EcoSISTEM.Provenancer)
                                 for n in names(m, all = true)
                                 if isdefined(m, n) &&
         getfield(m, n) isa Union{Function, Type}]

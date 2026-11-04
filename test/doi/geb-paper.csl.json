@@ -1,0 +1,161 @@
+{
+ "reference-count": 80,
+ "publisher": "Wiley",
+ "issue": "11",
+ "license": [
+  {
+   "start": {
+    "date-parts": [
+     [
+      2022,
+      7,
+      20
+     ]
+    ],
+    "date-time": "2022-07-20T00:00:00Z",
+    "timestamp": 1658275200000
+   },
+   "content-version": "vor",
+   "delay-in-days": 0,
+   "URL": "http://creativecommons.org/licenses/by/4.0/"
+  }
+ ],
+ "published-print": {
+  "date-parts": [
+   [
+    2022,
+    11
+   ]
+  ]
+ },
+ "abstract": "<jats:title>Abstract</jats:title><jats:sec><jats:title>Aim</jats:title><jats:p>The environmental preferences of species are an important facet of their response to changing conditions, and these have long been thought to exhibit phylogenetic conservatism. However, these bioclimatic envelopes have not previously been imputed from climate records at the date and location of occurrence, and the strength of their phylogenetic signal has not been studied at a broad scale. Here, we combine records from global climate reconstructions with contemporaneous plant occurrences for all available terrestrial plant species and test for phylogenetic niche conservatism in plant climatic traits.</jats:p></jats:sec><jats:sec><jats:title>Location</jats:title><jats:p>Global.</jats:p></jats:sec><jats:sec><jats:title>Time period</jats:title><jats:p>1901\u20132018.</jats:p></jats:sec><jats:sec><jats:title>Major taxa studied</jats:title><jats:p>Terrestrial plants.</jats:p></jats:sec><jats:sec><jats:title>Methods</jats:title><jats:p>We used &gt;100 million plant records from the Global Biodiversity Information Facility (GBIF) to produce distributions of bioclimatic envelopes for &gt;200,000 species, using a range of climate variables. We matched species observations to historical climate reconstructions from the European Centre for Medium\u2010Range Weather Forecasting (ECMWF) and compared this with WorldClim climate averages. We tested for phylogenetic signal in a supertree of plants using Pagel's \u03bb. Finally, to investigate how well bioclimatic envelopes could be inferred for poorly known and rare species, we performed cross\u2010validation by removing occurrence records for some common species to test how accurately their bioclimatic envelopes were estimated.</jats:p></jats:sec><jats:sec><jats:title>Results</jats:title><jats:p>We found extremely strong phylogenetic signals (\u03bb &gt;\u20090.9 in some cases) for climate variables from both climate datasets, including temperature, soil temperature, solar radiation and precipitation. We were also able to impute missing bioclimatic envelopes for artificially removed species, having a correlation with observed data of .7.</jats:p></jats:sec><jats:sec><jats:title>Main conclusions</jats:title><jats:p>We reconstructed plant climatic tolerances for &gt;200,000 plant species historically recorded on GBIF using a technique that could be applied to any comparable biodiversity dataset. Although global information on most species is sparse, we explored methods for bias correction and data imputation, with positive results for both.</jats:p></jats:sec>",
+ "DOI": "10.1111/geb.13564",
+ "type": "journal-article",
+ "page": "2191-2203",
+ "source": "Crossref",
+ "title": "Strong phylogenetic signals in global plant bioclimatic envelopes",
+ "prefix": "10.1111",
+ "volume": "31",
+ "author": [
+  {
+   "ORCID": "https://orcid.org/0000-0003-0852-2340",
+   "authenticated-orcid": false,
+   "given": "Claire",
+   "family": "Harris",
+   "sequence": "first",
+   "affiliation": [
+    {
+     "name": "Institute of Biodiversity, Animal Health and Comparative Medicine, College of Medical, Veterinary and Life Sciences University of Glasgow  Glasgow UK"
+    },
+    {
+     "name": "Boyd Orr Centre for Population and Ecosystem Health University of Glasgow  Glasgow UK"
+    }
+   ],
+   "role": [
+    {
+     "vocabulary": "crossref",
+     "role": "author"
+    }
+   ]
+  },
+  {
+   "ORCID": "https://orcid.org/0000-0001-7769-4395",
+   "authenticated-orcid": false,
+   "given": "Neil",
+   "family": "Brummitt",
+   "sequence": "additional",
+   "affiliation": [
+    {
+     "name": "Boyd Orr Centre for Population and Ecosystem Health University of Glasgow  Glasgow UK"
+    },
+    {
+     "name": "Natural History Museum  London UK"
+    }
+   ],
+   "role": [
+    {
+     "vocabulary": "crossref",
+     "role": "author"
+    }
+   ]
+  },
+  {
+   "ORCID": "https://orcid.org/0000-0001-8814-7688",
+   "authenticated-orcid": false,
+   "given": "Christina A.",
+   "family": "Cobbold",
+   "sequence": "additional",
+   "affiliation": [
+    {
+     "name": "Boyd Orr Centre for Population and Ecosystem Health University of Glasgow  Glasgow UK"
+    },
+    {
+     "name": "School of Mathematics and Statistics University of Glasgow  Glasgow UK"
+    }
+   ],
+   "role": [
+    {
+     "vocabulary": "crossref",
+     "role": "author"
+    }
+   ]
+  },
+  {
+   "ORCID": "https://orcid.org/0000-0003-2589-8091",
+   "authenticated-orcid": false,
+   "given": "Richard",
+   "family": "Reeve",
+   "sequence": "additional",
+   "affiliation": [
+    {
+     "name": "Institute of Biodiversity, Animal Health and Comparative Medicine, College of Medical, Veterinary and Life Sciences University of Glasgow  Glasgow UK"
+    },
+    {
+     "name": "Boyd Orr Centre for Population and Ecosystem Health University of Glasgow  Glasgow UK"
+    }
+   ],
+   "role": [
+    {
+     "vocabulary": "crossref",
+     "role": "author"
+    }
+   ]
+  }
+ ],
+ "member": "311",
+ "published-online": {
+  "date-parts": [
+   [
+    2022,
+    7,
+    20
+   ]
+  ]
+ },
+ "container-title": "Global Ecology and Biogeography",
+ "language": "en",
+ "issued": {
+  "date-parts": [
+   [
+    2022,
+    7,
+    20
+   ]
+  ]
+ },
+ "URL": "http://dx.doi.org/10.1111/geb.13564",
+ "ISSN": [
+  "1466-822X",
+  "1466-8238"
+ ],
+ "container-title-short": "Global Ecol Biogeogr",
+ "published": {
+  "date-parts": [
+   [
+    2022,
+    7,
+    20
+   ]
+  ]
+ }
+}

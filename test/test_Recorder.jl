@@ -30,7 +30,8 @@ const STEP = 1.0month_mean_duration
                               every = EveryInterval(2STEP)))
     @test recording.storage[:, :, 1] == start
     @test recording.storage[:, :, 3] == eco.abundances.matrix
-    @test provenance(recording).run.elapsed ≈ EcoSISTEM.simulationtime(eco)
+    @test provenance(recording).context.run.elapsed ≈
+          EcoSISTEM.simulationtime(eco)
     @test startswith(sprint(show, recording), "RecordAbundance(")
 
     # A run reaching more occurrences than the storage holds is refused at the one it cannot keep.
@@ -45,12 +46,12 @@ end
     eco = Test1Ecosystem()
     recording = RecordAbundance(eco, 3)
     cull = Intervention(AtTime(STEP), AllCells(), RemoveAbundance(1, 1),
-                        provenance = EcoSISTEM.InputRecord(role = :intervention,
-                                                           dataset = "cull plan"))
+                        provenance = EcoSISTEM.ProvenanceRecord(role = :intervention,
+                                                                source = "cull plan"))
     simulate!(recording, eco, STEP, STEP, intervention = cull)
     record = provenance(recording)
-    @test any(r -> r.dataset == "cull plan", record.inputs)
-    @test record.run.elapsed ≈ uconvert(s, STEP)
+    @test any(r -> r.source == "cull plan", record.inputs)
+    @test record.context.run.elapsed ≈ uconvert(s, STEP)
     path = write_provenance(joinpath(mktempdir(), "run.toml"), recording)
     @test haskey(TOML.parsefile(path), "run")
     @test_throws "not recorded anything" write_provenance(joinpath(mktempdir(),
@@ -96,7 +97,7 @@ end
         return diversity(both, occurrence)
     end
     @test abundance.storage[:, :, 2] == both.abundances.matrix
-    @test provenance(diversity).run == provenance(abundance).run
+    @test provenance(diversity).context.run == provenance(abundance).context.run
 
     # A metacommunity measure has no value per cell to keep, and is refused whatever the storage's
     # shape - including a single row, which its values would otherwise fit.

@@ -165,7 +165,7 @@ end
 
 function fetchfiles(spec::ShapeSpec; dryrun::Bool = false)
     dryrun && return [_dryrunentry(spec.path)]
-    return [String(_resolvepath(spec.path))]
+    return _fetchspec(spec)
 end
 
 function fetchfiles(x; dryrun::Bool = false)
@@ -175,6 +175,9 @@ end
 
 """
     missingfiles(x)
+    missingfiles(path::AbstractString; track = nothing, route = VersionOfRecord(),
+                 sidecar = Provenancer.sidecarpath(path))
+    missingfiles(file::Provenancer.URLFile; track = nothing)
 
 Return what is still to do before `x` can be built, fetching nothing: an entry per file still to
 do, a named tuple of the `file` - where it is or would be - and the `reason` it is not done, in
@@ -189,13 +192,44 @@ registered since the job was prepared, or no `read:` entry for it, the entry to 
 source that cannot say where its files are without fetching them is one entry, its `file` the
 source's name.
 
+The second form asks the same of a file of your own, one your code reads and
+[`Provenancer.record_provenance`](@ref EcoSISTEM.Provenancer.record_provenance) records: untracked, it is
+to do while it is not there; tracked, it is what its run's working config makes of it, as above,
+a fetch run having the recording and registering to do and a model run the reading. The third asks
+it of a download, a [`Provenancer.URLFile`](@ref EcoSISTEM.Provenancer.URLFile): untracked, there is
+nothing to do, since it is fetched on first use; tracked, it is what its run's working config makes
+of it, a fetch run having the fetching and registering to do.
+
 # Arguments
 
   - `x`: what to ask about, anything [`fetchfiles`](@ref EcoSISTEM.fetchfiles) takes.
+  - `path`: the file of your own.
+  - `file`: the download.
+  - `track`, `route`, `sidecar`: as given to `record_provenance` for it - the run it goes through, the
+    route it is recorded with, and where its record is; for a download, `track` as given to
+    [`Provenancer.fetchfile`](@ref EcoSISTEM.Provenancer.fetchfile).
 """
 function missingfiles(x)
     return reduce(vcat, (_missing(_spectrack(s), s) for s in _filespecs(x)),
                   init = @NamedTuple{file::String, reason::String}[])
+end
+
+function missingfiles(path::AbstractString;
+                      track::Union{Nothing, Track} = nothing,
+                      route::AbstractFileRoute = VersionOfRecord(),
+                      sidecar::AbstractString = Provenancer.sidecarpath(path))
+    return Provenancer._inputmissing(track, path, route = route,
+                                     sidecar = sidecar)
+end
+
+function missingfiles(file::Provenancer.URLFile;
+                      track::Union{Nothing, Track} = nothing)
+    Provenancer._istracked(track) ||
+        return @NamedTuple{file::String, reason::String}[]
+    return Provenancer._trackedinputmissing(track, file.path,
+                                            route = Provenancer.route(file),
+                                            sidecar = Provenancer.sidecarpath(file.path),
+                                            facts = file.facts, url = file.url)
 end
 
 # The specs among `x` that read files - a raster spec, a named region, a shape - in order, through
@@ -227,6 +261,10 @@ function _missing(::Nothing, spec)
                  reason = "where its files are cannot be told without fetching them")]
     return [(file = p, reason = "not held") for p in paths if !isfile(p)]
 end
+
+# A track with no run tracks nothing, so the spec takes the untracked route; the release it may
+# state is for the record of a file the user gives, not for the route.
+_missing(::Track{Nothing}, spec) = _missing(nothing, spec)
 
 _missing(track::Track, spec) = _trackedmissing(track, spec)
 
@@ -1434,6 +1472,8 @@ _resolvepath(asset::CachedAsset) = assetpath(asset)
 
 _resolvepath(request::CDSRequest) = assetpath(request)
 
+_resolvepath(record::ProvenanceRecord) = record.location
+
 # --- Selecting a named region ---------------------------------------------------------------------
 #
 # Turning a name into geometry, shared by everything that answers a question about a named region.
@@ -1675,8 +1715,9 @@ function _preparegeoms(geoms, src, tcrs)
 end
 
 # Every geometry in `spec`'s vector file, with the CRS they are in - the read `ShapeSpec` defers
-# from construction.
+# from construction. A tracked spec's file comes from its pipeline run first.
 function _readshapefile(spec::ShapeSpec)
+    _providespec!(spec)
     path = _resolvepath(spec.path)
     vpath = endswith(path, ".zip") ? "/vsizip/" * path : path
     dataset = ArchGDAL.read(vpath)
@@ -2066,6 +2107,8 @@ _allfiles(raw) = _filelist(raw)
 # them.
 _fetched(::Nothing, spec) = _fetchspec(spec)
 
+_fetched(::Track{Nothing}, spec) = _fetchspec(spec)
+
 _fetched(track::Track, spec) = _trackedfetch(track, spec)
 
 # A spec's dry-run report, a file each: its named entries, or the files its source would fetch, or
@@ -2090,6 +2133,8 @@ _readkw(spec::RasterSpec) = (; _getrasterkw(spec.source)..., spec.readkw...)
 _providespec!(spec) = _provide!(_spectrack(spec), spec)
 
 _provide!(::Nothing, spec) = nothing
+
+_provide!(::Track{Nothing}, spec) = nothing
 
 function _provide!(track::Track, spec)
     paths = _specpaths(spec)
@@ -2121,6 +2166,8 @@ function _specpaths(spec::NaturalEarthSpec)
     return [_localpath(_nesource(_checklevel(spec.level)))]
 end
 
+_specpaths(spec::ShapeSpec) = [_localpath(spec.path)]
+
 # One file's dry-run report: where it would land, whether it is there, and what the server says
 # it weighs.
 function _dryrunentry(entry)
@@ -2139,12 +2186,15 @@ end
 
 _localpath(request::CDSRequest) = request.path
 
+_localpath(record::ProvenanceRecord) = record.location
+
 # The size a server states for a download, from a `HEAD`, or `nothing` where it states none or
 # the entry is not a plain download.
 function _remotesize(asset::CachedAsset)
     response = try
         Downloads.request(asset.url, method = "HEAD",
-                          downloader = _http11downloader(), throw = false)
+                          downloader = Provenancer._http11downloader(),
+                          throw = false)
     catch
         return nothing
     end

@@ -486,20 +486,16 @@ function _repointrasterdatasources end
 # tracked spec's read, grid probe or shape does in place of fetching. Asked again for a file in place
 # already, it must do no harm, since a build asks once a probe and once a read. The extension
 # supplies the method for its handle; any other handle is refused.
-_trackedprovide!(track::Track, spec, paths) = error(_nopipeline(track))
+function _trackedprovide!(track::Track, spec, paths)
+    return error(Provenancer._nopipeline(track))
+end
 
 # Fetch a tracked spec's files and register each with the pipeline run `track` names, returning their
 # local paths: what `fetchfiles` does for a tracked spec. The extension supplies the method for its
 # handle; any other handle is refused.
-_trackedfetch(track::Track, spec) = error(_nopipeline(track))
+_trackedfetch(track::Track, spec) = error(Provenancer._nopipeline(track))
 
 # What `missingfiles` reports of a tracked spec: its files still to do in the pipeline run `track`
 # names, each a named tuple of the `file` and the `reason`. The extension supplies the method for its
 # handle; any other handle is refused.
-_trackedmissing(track::Track, spec) = error(_nopipeline(track))
-
-# Why a track cannot be followed: its handle is not a pipeline run this package can use.
-function _nopipeline(track::Track)
-    return "A `Track` follows a FAIR data pipeline run, the handle `DataPipeline.initialise()` " *
-           "returns with DataPipeline loaded; a `$(typeof(track.handle))` is not one."
-end
+_trackedmissing(track::Track, spec) = error(Provenancer._nopipeline(track))

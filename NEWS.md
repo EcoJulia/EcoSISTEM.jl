@@ -1,6 +1,6 @@
 # NEWS
 
-- v0.10.0
+- v0.11.0
   - Added
     - The phylogeny-building `SpeciesList` constructors take a `seed`, which fixes the tree and the
       tolerances evolved along it from a stream of their own. `assigntraits!`, `discrete_evolve`,
@@ -15,6 +15,69 @@
     - The switch parameter of `assigntraits!`, `discrete_evolve` and the phylogeny-building `SpeciesList`
       constructor is documented as what it is: the mean time between trait changes as a fraction of the
       root-to-tip length, so a larger value means fewer changes.
+
+- v0.10.0
+  - Added
+    - `EcoSISTEM.Provenancer`, a submodule holding the provenance machinery behind a public API and
+      depending on nothing of EcoSISTEM's, so that another package can use it: `ProvenanceRecord` and the
+      sidecar beside every fetched file, the download that resumes and records itself, `Track` and
+      the names a file takes in a FAIR data pipeline run, and `Provenance`.
+    - `Provenancer.IsFetchable`, a trait for anything that fetches or finds a file - `CachedAsset`,
+      `CDSRequest`, `NaturalEarthSpec` and every RasterDataSources dataset type implement it - each
+      saying which route its files come by: the source's `VersionOfRecord()`, `GeneratedOnRequest()`
+      by a service, or `OtherOrigin()`.
+    - `Provenancer.SourceFacts`, what is known of a source - its DOI, title, authors, publisher,
+      release, licence, what its identifier names and what its provider asks - from which a file's
+      record and its registration are written; `Provenancer.lookup_doi` fills one from the metadata
+      a DOI resolves to, DataCite's record or the CSL record. JSON.jl is a new dependency for it.
+    - `Provenancer.URLFile` and `Provenancer.fetchfile`: a file fetched from a URL on first use,
+      recorded with its source's facts and returned as its record, which a spec takes in place of a
+      path; with a `track`, a pipeline run registers it or puts it in place. `Provenancer.fetchinto`
+      is the locked, resumable fetch beneath, for a fetcher writing its own record.
+    - `GeneratedOnRequest` carries the identifier a service gave the file, where it gave one, and
+      an extract with a DOI of its own - an occurrence download - is primary by it.
+    - `Provenancer.record_provenance(path, doi; role)` records a file you have - a table you downloaded,
+      an occurrence download - from the metadata its DOI resolves to, or from `SourceFacts` you
+      write, once, as a sidecar beside the file; `provenance(path)` reads it back.
+    - A `sidecar` keyword on `record_provenance`, `provenance(path)` and the sidecar functions puts a
+      file's record somewhere other than beside it, for a file in a place that cannot be written
+      to. `SourceFacts(facts; ...)` is a copy of looked-up facts with fields replaced.
+    - `record_provenance` takes a `track`: in a data pipeline fetch run it records a file of your own
+      and registers it with its source, and in a model run it takes the file and its record from
+      the run's store, before your code reads the file. `missingfiles(path; track)` says what is
+      still to do for such a file, as it does for a spec.
+    - `RasterFileSpec` and `ShapeSpec` take the `ProvenanceRecord` that `record_provenance` returns
+      in place of a path: the spec reads the file where the record says it is, so a file of your
+      own goes through a pipeline run through its record, and a spec of a file has no `track`.
+    - `SourceFacts` carries the pipeline `namespace` a source's files are registered in, and
+      `SourceFacts(datasetinfo(T); ...)` gives a catalogued source's facts, for a file you cut from
+      it. A record keeps what the identifier identifies, the citation key, the namespace and the
+      route the file came by, so the file can be registered from the record alone, and says where
+      the file and its sidecar are, which is never written.
+    - `SourceFacts` say what their identifier stands for in a pipeline's registry (`deposit`): by
+      default a deposit their files share it with; `DepositIsFile()`, one file - sent to you, or a
+      single-file dataset - registered as the run's input; or `DepositCitedApart(facts)`, a deposit
+      cited by facts of its own, as GBIF's downloads are, or a dataset made for a paper.
+    - A source's `references` may be given as `SourceFacts`, and the account cites a source's own
+      citation with the works given alongside it, rather than in their place.
+  - Changed
+    - `Provenance` holds `software`, `inputs` and a `context`: for EcoSISTEM's results a
+      `GridContext` of the grid and the run, which were its `grid` and `run` fields. The file
+      `write_provenance` writes is unchanged.
+    - `InputRecord` is `ProvenanceRecord`, since a record describes a file however it enters a
+      run, an output of the run that made it included; the old name is deprecated. Its `dataset`
+      field and keyword are now `source`, the word the sidecar and the data pipeline already use.
+      A record takes any role; EcoSISTEM refuses one outside its set where a record is given to it.
+    - `record_provenance` refuses a record already there that says otherwise - of a file the package
+      fetched from its catalogue (`Provenancer.iscatalogued`: a record with a fetch time naming the
+      `catalogue` it was fetched from, which a catalogue's own fetch writes), or naming another
+      source or another role - and returns one of the same source under the same role with nothing
+      looked up.
+    - A sidecar's `writer` names the module, `EcoSISTEM.Provenancer <version>`; sidecars written by
+      earlier versions are still read.
+    - Unknown text in `SourceFacts` and `ProvenanceRecord` is `nothing`, never blank: every text
+      field but a source's name is `Union{Nothing, String}`, and blank text given to either
+      constructor is taken as `nothing`.
 
 - v0.9.2
   - Fixed
@@ -55,7 +118,7 @@
     - EarthEnv's full land cover, `EarthEnv{LandCover{:DISCover}}`, has a catalogue row, and the
       examples read it, as EarthEnv recommends for most applications; each version's title names
       it. `EarthEnv{LandCover}` is still the reduced version, without DISCover.
-    - A fetched file's record, and `InputRecord`, gain its title, whether it is the cited item or
+    - A fetched file's record, and `ProvenanceRecord`, gain its title, whether it is the cited item or
       one of its files (`primary`), the release date, when its provider last changed it
       (`modified`), and the provider's references and notices with the page quoting them.
       `provenance` and `write_provenance` show them, the access date filled in, and what was done
@@ -166,7 +229,7 @@
     - Every file the package fetches gets a provenance record beside it, `<file>.provenance.toml`:
       the URL or the Climate Data Store request and job, when it was fetched, its size and SHA-256
       checksum, and the dataset's DOI, licence, version and citation from the catalogue.
-      `provenance(path)` and `provenance(spec)` read them back as `InputRecord`s, the one shape a
+      `provenance(path)` and `provenance(spec)` read them back as `ProvenanceRecord`s, the one shape a
       record of any published input takes; `verifyassets(spec)` checks present files against
       their checksums. A file already present when first used is recorded too, without a fetch
       time; a record another program wrote under the same name is left alone and reports nothing.

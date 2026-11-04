@@ -380,10 +380,6 @@ const _DATASET_COLUMNS = (:Dataset, :Format, :LongitudeRange, :CRS, :Resolution,
 # What a row's identifier can name: the data, or a paper describing it.
 const _IDENTIFIES = (:data, :paper)
 
-# How strongly a provider asks for a notice: it, or the data's licence, says the notice must
-# accompany the data; it asks for it; or it offers it for those who wish.
-const _NOTICE_STRENGTHS = (:required, :requested, :optional)
-
 # What a request's text may hold in place of a fact known only once a file is fetched: the date it
 # was fetched, and the year. `DD-MMM-YYYY` comes first, as the longer of the two.
 const _REQUEST_PLACEHOLDERS = ("DD-MMM-YYYY", "YYYY")
@@ -396,6 +392,32 @@ const _OPTIONAL_COLUMNS = Dict(:BioClimPlus => (:Group,),
                                :HabitatHeterogeneity => (:Order,
                                 :PublishedScaleFactor),
                                :BioClim => (:PublishedScaleFactor,))
+
+"""
+    SourceFacts(rec::DatasetRecord; kw...)
+
+Return the facts of a catalogued source as [`EcoSISTEM.Provenancer.SourceFacts`](@ref) carries
+them, from its row: the key the row is written under as the source's name; its identifier,
+licence, release and title; what its provider asks; its request name as the key its citation is
+filed under where it has no DOI; and the namespace its files are registered in. What a file you
+cut or derived from a catalogued source is recorded with, through
+[`Provenancer.record_provenance`](@ref EcoSISTEM.Provenancer.record_provenance), the fields named by
+keyword replaced - the file's own `title`, say - and every other as the row has it.
+
+# Arguments
+
+  - `rec`: the source's row, from [`datasetinfo`](@ref).
+"""
+function Provenancer.SourceFacts(rec::DatasetRecord; kw...)
+    facts = SourceFacts(source = rec.dataset, doi = rec.doi, url = rec.url,
+                        title = rec.title, releasedate = rec.releasedate,
+                        version = rec.version, licence = rec.licence,
+                        identifies = rec.identifies, citation = rec.citation,
+                        references = rec.references, notices = rec.notices,
+                        requestpage = _requestpage(rec), key = rec.request,
+                        namespace = rec.namespace)
+    return isempty(kw) ? facts : SourceFacts(facts; kw...)
+end
 
 # == Functions ==================================================================================
 
@@ -639,14 +661,6 @@ function _datasetrecord(key::AbstractString)
     return nothing
 end
 
-# Whether a file is its source's own, as the data pipeline means it - the cited item or one of its
-# files, so that the same bytes can be fetched again: a file fetched as its provider publishes it
-# (`route` `:published`), from a source whose identifier names the data. A paper's file, an extract
-# a service made to a request (`:extract`) and a file the user gave (`:given`) are not.
-function _isprimary(rec::DatasetRecord, route::Symbol)
-    return route === :published && rec.identifies === :data
-end
-
 # A file's title: its release's, the layer's name where the file is one layer, and the file's own
 # name, which carries whatever else tells it from its siblings - a resolution, a month, a span of
 # years, a box. Unique wherever file names are, which is what a registration needs of it.
@@ -791,9 +805,9 @@ function _readrequest(name::AbstractString, dataset)
     end
     notices = map(get(t, "notice", [])) do n
         strength = Symbol(get(n, "strength", ""))
-        strength in _NOTICE_STRENGTHS ||
+        strength in Provenancer.NOTICE_STRENGTHS ||
             error("a notice in `$path` has strength `$strength`; expected one of " *
-                  "$(join(_NOTICE_STRENGTHS, ", ")).")
+                  "$(join(Provenancer.NOTICE_STRENGTHS, ", ")).")
         haskey(n, "text") || error("each notice in `$path` needs a `text`.")
         return (strength = strength, text = String(n["text"]))
     end

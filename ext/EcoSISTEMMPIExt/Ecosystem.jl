@@ -65,7 +65,7 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
     # The records of published data belonging to the run as a whole, as on the serial `Ecosystem`:
     # set by `build_ecosystem`, and added to by every intervention that acts, which every rank does
     # on the same step.
-    inputs::Vector{EcoSISTEM.InputRecord}
+    inputs::Vector{EcoSISTEM.ProvenanceRecord}
 
     function MPIEcosystem(abundances::MPIGL,
                           spplist::SL,
@@ -106,7 +106,7 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
                                         seed,
                                         epoch,
                                         EcoSISTEM.ExactDates(),
-                                        EcoSISTEM.InputRecord[])
+                                        EcoSISTEM.ProvenanceRecord[])
     end
 end
 
