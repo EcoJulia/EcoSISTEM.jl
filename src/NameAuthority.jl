@@ -152,18 +152,28 @@ end
 
 """
     lineage(authority::AbstractNameAuthority, id::AbstractString)
+    lineage(authority::AbstractNameAuthority, id::AbstractString, rank::AbstractString)
 
 Return the classification of the species `id` names, from the species itself up to its kingdom: a
 vector of `(rank, name, id)` named tuples, one per level in order upwards - species, genus,
 subfamily, family, order and so on, as the authority classifies it. A rank may appear more than
 once (`"unranked"`), and a level the authority does not hold is absent. For a synonym's identifier
 the path starts from its accepted species; for several identifiers joined by `+`, it is the levels
-they share, from the lowest shared one up.
+they share, from the lowest shared one up. Given a `rank`, return the name at that rank alone - the
+lowest, where the rank appears more than once - or `missing` where the path has none, as for
+species written alike in different genera:
+
+```julia
+add_trait!(pool, :genus) do row
+    return lineage(wfo, coalesce(row.id, row.copyofid), "genus")
+end
+```
 
 # Arguments
 
   - `authority`: the checklist to ask.
   - `id`: an identifier [`EcoSISTEM.resolve_name`](@ref) gave, or one of the authority's own.
+  - `rank`: a rank as the authority writes it, such as `"genus"` or `"family"`.
 """
 function lineage end
 
@@ -174,6 +184,13 @@ function lineage(authority::WFOPlantList, id::AbstractString)
     shared = _sharedtop(paths)
     return [(rank = String(t.rank[i]), name = t.name[i], id = t.id[i])
             for i in shared]
+end
+
+function lineage(authority::AbstractNameAuthority, id::AbstractString,
+                 rank::AbstractString)
+    path = lineage(authority, id)
+    i = findfirst(l -> l.rank == rank, path)
+    return isnothing(i) ? missing : path[i].name
 end
 
 # An authority as a report names it.

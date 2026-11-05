@@ -94,6 +94,13 @@ end
         @test [l.name for l in lineage(wfo, "wfo-0000000006+wfo-0000000007")] ==
               ["Fabaceae", "Fabales", "Plantae"]
         @test_throws "no identifier" lineage(wfo, "wfo-9999999999")
+        # One rank's name, `missing` where the path has none - a genus its parts do not share.
+        @test lineage(wfo, "wfo-0000000002", "genus") == "Acacia"
+        @test lineage(wfo, "wfo-0000000001", "family") == "Fabaceae"
+        @test ismissing(lineage(wfo, "wfo-0000000001", "subfamily"))
+        @test ismissing(lineage(wfo, "wfo-0000000006+wfo-0000000007", "genus"))
+        @test lineage(wfo, "wfo-0000000006+wfo-0000000007", "family") ==
+              "Fabaceae"
     end
 end
 
