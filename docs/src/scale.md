@@ -43,7 +43,7 @@ Load `MPI` and the extension activates. [`build_ecosystem`](@ref) then chooses f
 using MPI, EcoSISTEM
 MPI.Init()
 
-eco = build_ecosystem(species, env, seed = 1)      # distributed = :auto, the default
+eco = build_ecosystem(species, env, seed = 1, verbosity = :silent)      # distributed = :auto, the default
 ```
 
 `distributed = :auto` builds a distributed ecosystem when MPI is initialised **and** there is more

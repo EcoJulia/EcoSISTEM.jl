@@ -56,7 +56,7 @@ function community(env, opts, widths; dispersal = 2.4km,
                             birth = 0.15 / year,
                             death = 0.15 / year, survival = 0.1,
                             abundance = individuals, seed = 20260805)
-    return build_ecosystem(species, env; seed = 20260805)
+    return build_ecosystem(species, env; seed = 20260805, verbosity = :silent)
 end
 
 # Run, and report the total abundance of each species across the whole landscape.

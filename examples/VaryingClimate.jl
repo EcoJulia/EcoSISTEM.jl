@@ -72,7 +72,8 @@ end
 function _run(name, regime)
     environment = GridHabitat(regime = regime, supply = SUNLIGHT,
                               area = AREA)
-    eco = build_ecosystem(_species(), environment, seed = 1)
+    eco = build_ecosystem(_species(), environment, seed = 1,
+                          verbosity = :silent)
     simulate!(eco, YEARS, TIMESTEP)
     # Read the temperature off the **built habitat** after the run, not off the spec - the layer
     # holds the values current now, which is the whole point.

@@ -58,7 +58,7 @@ species = build_species(numspecies, tolerance = (niche_means, niche_widths),
                         abundance = 5000, seed = seed)
 
 # --- assemble and simulate ----------------------------------------------------
-eco = build_ecosystem(species, habitat, seed = seed)
+eco = build_ecosystem(species, habitat, seed = seed, verbosity = :silent)
 
 times = 10year
 timestep = 1month_mean_duration

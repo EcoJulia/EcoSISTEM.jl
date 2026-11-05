@@ -126,7 +126,8 @@ const SPECIES = build_species(8,
                               demand = 5.0kJ / day,
                               demandaxis = SolarRadiation)
 
-const ECO = build_ecosystem(SPECIES, ENVIRONMENT, seed = SEED)
+const ECO = build_ecosystem(SPECIES, ENVIRONMENT, seed = SEED,
+                            verbosity = :silent)
 simulate!(ECO, 2.0year, 1.0month_mean_duration)
 
 println("After two simulated years on the British Isles:")

@@ -16,7 +16,21 @@ only the required inputs you do not care about while passing the rest explicitly
 """
 struct DefaultEcosystem end
 
+# As a placement, the one a builder uses when given none: each species' starting abundance in the
+# species list, placed by supply.
+function (::DefaultEcosystem)(species::SpeciesList, habitat::GridHabitat,
+                              context::PlacementContext)
+    allowed = _allowedmask(habitat, context.cells)
+    weight = _weightof(BySupply(), species, habitat, context, allowed)
+    problems = Problem[]
+    table = _drawweighted(weight, species.abun, species, habitat, context,
+                          problems)
+    return PlacedAbundances(table, problems = problems)
+end
+
 # == Functions ==================================================================================
+
+_placementphrase(::DefaultEcosystem) = "DefaultEcosystem()"
 
 # Announce a default that was filled in, unless silenced. Takes `StudyArea`'s vocabulary: `:silent`
 # says nothing, anything else announces. Announcing is the point of these builders - a default you
@@ -133,6 +147,15 @@ _default(::Val{:death}) = (value = 0.6 / year,)
 _default(::Val{:longevity}) = (value = 1.0,)
 
 _default(::Val{:survival}) = (value = 0.2,)
+
+# How many individuals of each active species a weighted placement given no numbers places.
+_default(::Val{:individuals}) = (value = 1000,)
+
+function _default(::Val{:placement})
+    return (value = DefaultEcosystem(),
+            phrase = "`DefaultEcosystem()`, each species' starting abundance in the species " *
+                     "list, placed by supply")
+end
 
 # --- An existing habitat ----------------------------------------------------------------------
 # The same four questions asked of an existing habitat, which answers with what it actually has.

@@ -129,7 +129,7 @@ species = build_species(numspecies, tolerance = (niche_means, niche_widths),
                         abundance = 20_000, seed = seed)
 
 # --- assemble and simulate ----------------------------------------------------
-eco = build_ecosystem(species, habitat, seed = seed)
+eco = build_ecosystem(species, habitat, seed = seed, verbosity = :silent)
 
 # What this ecosystem was built from: the EarthEnv land-cover file and the NatureScot outline it
 # read, with each dataset's DOI, licence and citation where the catalogue knows them, the grid and

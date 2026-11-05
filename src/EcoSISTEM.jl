@@ -462,6 +462,14 @@ include("Landscape.jl")
 
 export GridLandscape, CachedGridLandscape
 
+# Where a run's individuals start: what `build_ecosystem` takes first.
+include("Placement.jl")
+
+export BySupply, BySuitability, ByLayer, Weighted, NoAbundance, FromTable,
+       SumOfPlacements, PlacementContext, PlacedAbundances
+
+public AbstractPlacement
+
 include("Ecosystem.jl")
 
 public cellregime, cellsupply, speciestolerance, speciesdemand, speciesdispersal

@@ -1,0 +1,394 @@
+# SPDX-License-Identifier: LGPL-3.0-or-later
+#
+# Tests `src/Placement.jl` and the placing in `build_ecosystem` and `repopulate!`: the default placement
+# draw for draw against `populate!`, what each shipped placement places, a table's rows and the rows
+# it drops, a function as a placement, and what the ecosystem keeps of how it was placed. Run with
+#     julia --project -e 'using Pkg; Pkg.test(test_args = ["test_Placement.jl"])'
+
+module TestPlacement
+
+using ArchGDAL
+using CSV
+using DataFrames
+using Dates: Date
+using DimensionalData: DimensionalData, DimArray, X, Y, dims
+using Distributions
+using EcoSISTEM
+using EcoSISTEM: getcellat, materialise
+using EcoSISTEM.Units
+using Extents: Extent
+using Rasters
+using RasterDataSources
+using Test
+using Unitful
+using Unitful.DefaultSymbols
+
+include("rasterfixtures.jl")
+include("buildfixtures.jl")
+
+# A 7 x 5 grid of 1 km cells with its first cell inactive; the supply rises across it, so supply
+# weights differ between cells.
+const MASK = let mask = trues(7, 5)
+    mask[1, 1] = false
+    mask
+end
+
+const SOLAR = GradientSpec(1.0e5kJ / (km^2 * day), 9.0e5kJ / (km^2 * day),
+                           axis = SolarRadiation)
+
+function _habitat(; regime = UniformSpec(298.0K, axis = Temperature),
+                  supply = SOLAR)
+    area = StudyArea(extent = (7.0km, 5.0km), cellsize = 1.0km, within = MASK,
+                     verbosity = :silent)
+    return build_habitat(regime = regime, supply = supply, area = area,
+                         verbosity = :silent)
+end
+
+function _species(n = 4; kw...)
+    return build_species(n; tolerance = (298.0K, 2.0K),
+                         toleranceaxis = Temperature, demand = 1.0e-4kJ / day,
+                         demandaxis = SolarRadiation, seed = 1, kw...)
+end
+
+# An ecosystem built quietly by a placement.
+function _placed(p, species, habitat; seed = 1)
+    return build_ecosystem(p, species, habitat,
+                           seed = seed,
+                           verbosity = :silent)
+end
+
+# Each species' individuals, in species order.
+_perspecies(eco) = vec(sum(eco.abundances.matrix, dims = 2))
+
+# The storage column of the grid's inactive cell.
+const INACTIVE = LinearIndices(size(MASK))[1, 1]
+
+@testset "the default placement places as populate! does, draw for draw" begin
+    for (habitat, species) in ((_habitat(), _species()),
+                               (_habitat(supply = (SOLAR,
+                                                   GradientSpec(1.0mm / day,
+                                                                5.0mm / day,
+                                                                axis = Precipitation))),
+                                _species(demand = (1.0e-4kJ / day,
+                                                   1.0e-4Unitful.L / day),
+                                         demandaxis = (SolarRadiation,
+                                                       Precipitation))))
+        placed = @test_logs (:info,
+                             r"`placement` defaulted to `DefaultEcosystem\(\)`") build_ecosystem(species,
+                                                                                                 habitat,
+                                                                                                 seed = 7)
+        populated = Ecosystem(species, habitat, placed.nichefit, seed = 7)
+        @test placed.abundances.matrix == populated.abundances.matrix
+        @test placed.rngs == populated.rngs
+        @test placed.placement === DefaultEcosystem()
+        simulate!(placed, 3month_mean_duration, 1month_mean_duration)
+        simulate!(populated, 3month_mean_duration, 1month_mean_duration)
+        @test placed.abundances.matrix == populated.abundances.matrix
+    end
+end
+
+@testset "each placement places what it says" begin
+    habitat = _habitat()
+    species = _species()
+    active = count(MASK)
+    # A community total, or each species' own; none in the inactive cell.
+    total = _placed(BySupply(total = 500), species, habitat)
+    @test sum(total.abundances.matrix) == 500
+    @test all(iszero, total.abundances.matrix[:, INACTIVE])
+    @test _perspecies(_placed(BySupply(each = 30), species, habitat)) ==
+          fill(30, 4)
+    # A density is of the cells it may place in, rounded half to even.
+    @test sum(_placed(BySupply(total = 2.0 / km^2), species, habitat).abundances.matrix) ==
+          2 * active
+    @test _perspecies(_placed(BySupply(each = 0.5 / km^2), species, habitat)) ==
+          fill(round(Int, 0.5 * active), 4)
+    # Each species' own number from its traits, by a function or a draw from its own stream.
+    @test _perspecies(_placed(BySupply(each = row -> 10 * row.key), species,
+                              habitat)) == [10, 20, 30, 40]
+    drawn = BySupply(each = DrawFrom(Poisson(50)))
+    @test _placed(drawn, species, habitat).abundances.matrix ==
+          _placed(drawn, species, habitat).abundances.matrix
+    @test _placed(drawn, species, habitat).abundances.matrix !=
+          _placed(drawn, species, habitat, seed = 2).abundances.matrix
+    # The supply weights the cells: the richest half holds most.
+    weighted = _placed(BySupply(total = 20_000), species, habitat)
+    bycell = reshape(vec(sum(weighted.abundances.matrix, dims = 1)), size(MASK))
+    @test sum(bycell[:, 4:5]) > sum(bycell[:, 1:2]) ||
+          sum(bycell[5:7, :]) > sum(bycell[1:3, :])
+    # Given no numbers, 1000 per active species, said.
+    @test_logs (:info,
+                r"places 1000 individuals per active species, 4000 in all") build_ecosystem(BySupply(),
+                                                                                            species,
+                                                                                            habitat,
+                                                                                            verbosity = :normal)
+    @test sum(_placed(BySuitability(), species, habitat).abundances.matrix) ==
+          4000
+    @test sum(_placed(NoAbundance(), species, habitat).abundances.matrix) == 0
+    # Placements add, and weights multiply: a layer weight of zero on half the grid keeps everything
+    # off that half.
+    added = _placed(BySupply(total = 300) + BySuitability(each = 5), species,
+                    habitat)
+    @test sum(added.abundances.matrix) == 320
+    halved = materialise(UniformSpec(1.0, axis = EcoSISTEM.NicheAxis),
+                         habitat.area)
+    halved.matrix[:, 1:2] .= 0.0
+    onhalf = _placed(Weighted(BySupply(), ByLayer(halved), total = 1_000),
+                     species, habitat)
+    @test sum(onhalf.abundances.matrix) == 1_000
+    @test all(iszero,
+              reshape(vec(sum(onhalf.abundances.matrix, dims = 1)),
+                      size(MASK))[:, 1:2])
+end
+
+@testset "suitability places each species where it suits" begin
+    habitat = _habitat(regime = GradientSpec(290.0K, 306.0K,
+                                             axis = Temperature))
+    species = build_species(2, tolerance = ([291.0K, 305.0K], [1.0K, 1.0K]),
+                            toleranceaxis = Temperature,
+                            demand = 1.0e-4kJ / day,
+                            demandaxis = SolarRadiation,
+                            seed = 1)
+    eco = _placed(BySuitability(each = 2_000), species, habitat)
+    grids = [reshape(eco.abundances.matrix[sp, :], size(MASK)) for sp in 1:2]
+    # The two species' warm and cool ends, whichever way the gradient runs.
+    @test grids[1] != grids[2]
+    rows = [sum(g, dims = 2) for g in grids]
+    cols = [sum(g, dims = 1) for g in grids]
+    @test argmax(vec(rows[1])) != argmax(vec(rows[2])) ||
+          argmax(vec(cols[1])) != argmax(vec(cols[2]))
+    # By its axis, or refused naming the members there are.
+    @test sum(_placed(BySuitability(Temperature, each = 10), species, habitat).abundances.matrix) ==
+          20
+    @test_throws r"no member Precipitation; it has `Temperature` \(Temperature\)" _placed(BySuitability(Precipitation),
+                                                                                          species,
+                                                                                          habitat)
+    @test_throws r"no member :summer" _placed(BySupply(:summer), species,
+                                              habitat)
+end
+
+@testset "what a placement cannot place is said, or stops it" begin
+    habitat = _habitat()
+    species = _species()
+    @test_throws "not both" BySupply(total = 10, each = 1)
+    @test_throws "whole number" BySupply(total = 2.5)
+    @test_throws "density per area" BySupply(each = 3.0km)
+    @test_throws "give its `total` or `each` to the `Weighted`" Weighted(BySupply(total = 1))
+    @test_throws "multiplies weights" Weighted(NoAbundance())
+    @test_throws "a placement says how many" build_ecosystem(5, species,
+                                                             habitat)
+    # A weight that is zero everywhere places nobody, and says so.
+    nowhere = ByLayer(UniformSpec(0.0, axis = EcoSISTEM.NicheAxis), total = 100)
+    eco = @test_logs (:warn,
+                      r"100 individuals were not placed, their species having no weight") build_ecosystem(nowhere,
+                                                                                                          species,
+                                                                                                          habitat,
+                                                                                                          verbosity = :silent)
+    @test sum(eco.abundances.matrix) == 0
+    @test_throws "finite and non-negative" _placed(ByLayer(UniformSpec(-1.0,
+                                                                       axis = EcoSISTEM.NicheAxis)),
+                                                   species, habitat)
+end
+
+@testset "a table places its rows, and drops what it cannot place" begin
+    habitat = _habitat()
+    species = _species()
+    table = (species = ["1", "1", "2", "zz", "3"],
+             cell = [CartesianIndex(2, 3), CartesianIndex(2, 3),
+                 CartesianIndex(7, 5), CartesianIndex(3, 3),
+                 CartesianIndex(1, 1)],
+             count = [4, 6, 7, 9, 11])
+    eco = @test_logs (:warn,
+                      r"9 individuals of species the species list does not hold were not placed: `zz` \(9\)") (:warn,
+                                                                                                               r"11 individuals in 1 row naming a cell the placement may not place in") build_ecosystem(FromTable(table),
+                                                                                                                                                                                                        species,
+                                                                                                                                                                                                        habitat,
+                                                                                                                                                                                                        verbosity = :silent)
+    linear = LinearIndices(size(MASK))
+    @test eco.abundances.matrix[1, linear[2, 3]] == 10
+    @test eco.abundances.matrix[2, linear[7, 5]] == 7
+    @test sum(eco.abundances.matrix) == 17
+    # A place given as a location is the cell containing it; one off the grid is dropped.
+    located = DataFrame(species = ["2", "4"],
+                        location = [EcoSISTEM.SpatialLocation(3.5km, 1.5km),
+                            EcoSISTEM.SpatialLocation(30.0km, 1.5km)])
+    eco = @test_logs (:warn,
+                      r"1 individual in 1 row naming a place off the grid") build_ecosystem(FromTable(located),
+                                                                                            species,
+                                                                                            habitat,
+                                                                                            verbosity = :silent)
+    @test eco.abundances.matrix[2,
+                                linear[getcellat(habitat,
+                                                 EcoSISTEM.SpatialLocation(3.5km,
+                                                                           1.5km))]] ==
+          1
+    @test sum(eco.abundances.matrix) == 1
+    # A species not active is dropped, naming the way to activate it.
+    species.traits.active[3] = false
+    @test_logs (:warn,
+                r"5 individuals of species that are not active were not placed: `3` \(5\).*activate_species!") build_ecosystem(FromTable((species = ["3"],
+                                                                                                                                          cell = [CartesianIndex(4,
+                                                                                                                                                                 4)],
+                                                                                                                                          count = [5])),
+                                                                                                                               species,
+                                                                                                                               habitat,
+                                                                                                                               verbosity = :silent)
+    species.traits.active[3] = true
+    # A species may be named by its name authority's identifier.
+    species.traits.id[4] = "id-4"
+    eco = _placed(FromTable((species = ["id-4"], cell = [CartesianIndex(4, 4)])),
+                  species, habitat)
+    @test eco.abundances.matrix[4, linear[4, 4]] == 1
+    # What stops it: a count that is not whole, a row after the start, a date with no epoch, no
+    # species column, no place.
+    onecell = [CartesianIndex(4, 4)]
+    @test_throws "a whole, non-negative number" _placed(FromTable((species = ["1"],
+                                                                   cell = onecell,
+                                                                   count = [-1])),
+                                                        species, habitat)
+    @test_throws "places the starting state" _placed(FromTable((species = ["1"],
+                                                                cell = onecell,
+                                                                time = [1.0year])),
+                                                     species, habitat)
+    @test _placed(FromTable((species = ["1"], cell = onecell,
+                             time = [-1.0year])), species, habitat).abundances.matrix[1,
+                                                                                      linear[4,
+                                                                                             4]] ==
+          1
+    @test_throws "no epoch" _placed(FromTable((species = ["1"], cell = onecell,
+                                               time = [Date(2020)])),
+                                    species, habitat)
+    @test_throws "in a `species` column" _placed(FromTable((name = ["1"],
+                                                            cell = onecell)),
+                                                 species, habitat)
+    @test_throws "by `latitude` and `longitude`" _placed(FromTable((species = ["1"],)),
+                                                         species, habitat)
+    @test_throws "the grid's own key" _placed(FromTable((species = ["1"],
+                                                         cell = [7])),
+                                              species, habitat)
+    @test_throws "no file there" FromTable(joinpath(tempdir(),
+                                                    "no-such-table.csv"))
+end
+
+@testset "a file's latitudes and longitudes place in a projected grid, and its record is kept" begin
+    temp = _bngraster(WorldClim{BioClim}, fill(298.0K, 7, 9),
+                      north = (640000.0:2500.0:655000.0) .* m)
+    habitat = _env(_reg(temp, axis = Temperature),
+                   UniformSpec(1.0e5kJ / (km^2 * day), axis = SolarRadiation))
+    species = _species(2)
+    # Places on a lattice over the grid's part of Scotland, the ones in it found as the grid finds
+    # them.
+    lattice = [LatLong(lat * 1.0°, long * 1.0°)
+               for lat in 55.6:0.02:56.0 for long in -4.6:0.02:-3.8]
+    cells = getcellat(habitat, lattice)
+    inside = findall(!isnothing, cells)
+    @test length(inside) > 10
+    rows = DataFrame(species = ["1", "2"],
+                     latitude = [ustrip(lattice[i].y) for i in inside[1:2]],
+                     longitude = [ustrip(lattice[i].x) for i in inside[1:2]],
+                     count = [3, 5])
+    mktempdir() do dir
+        path = joinpath(dir, "founders.csv")
+        CSV.write(path, rows)
+        eco = _placed(FromTable(path), species, habitat)
+        bykey = _placed(FromTable((species = ["1", "2"],
+                                   cell = cells[inside[1:2]],
+                                   count = [3, 5])), species, habitat)
+        @test eco.abundances.matrix == bykey.abundances.matrix
+        @test sum(eco.abundances.matrix) == 8
+        @test any(r -> r.role == :abundance && r.path == "founders.csv",
+                  eco.inputs)
+        @test provenance(eco).context.run.placement ==
+              "FromTable($(repr(path)))"
+        # A table that can be read only once places once.
+        once = FromTable(CSV.Rows(path,
+                                  types = [String, Float64, Float64, Int]))
+        eco = _placed(once, species, habitat)
+        @test sum(eco.abundances.matrix) == 8
+        @test_throws "can be read only once" repopulate!(eco,
+                                                         verbosity = :silent)
+    end
+end
+
+@testset "a function places what it returns, given the context" begin
+    habitat = _habitat()
+    species = _species()
+    seen = Ref{Any}(nothing)
+    eco = build_ecosystem(species, habitat, seed = 1, verbosity = :silent
+                          ) do species,
+                               habitat,
+                               context
+        seen[] = context
+        return (species = ["2"], cell = [CartesianIndex(3, 4)], count = [12])
+    end
+    @test sum(eco.abundances.matrix) == 12
+    context = seen[]
+    @test context isa PlacementContext
+    @test sort(context.cells) == sort(findall(MASK))
+    @test sort(collect(keys(context.streams))) == species.names
+    @test context.time == 0.0s && isnothing(context.epoch)
+    @test provenance(eco).context.run.placement == "an anonymous function"
+    # What it found to say is said; anything but a table or a result is refused.
+    told = EcoSISTEM.Problem(EcoSISTEM.ProblemWarning(), :noted,
+                             "a note from the placement")
+    @test_logs (:warn, "a note from the placement") build_ecosystem(species,
+                                                                    habitat,
+                                                                    verbosity = :silent
+                                                                    ) do _,
+                                                                         _,
+                                                                         _
+        return PlacedAbundances((species = String[],
+                                 cell = CartesianIndex{2}[]),
+                                problems = [told])
+    end
+    @test_throws "returned a Int64" build_ecosystem((_, _, _) -> 3, species,
+                                                    habitat,
+                                                    verbosity = :silent)
+end
+
+@testset "repopulate! places again, by the ecosystem's placement or another" begin
+    habitat = _habitat()
+    species = _species()
+    placement = BySupply(total = 400) + BySuitability(each = 10)
+    eco = _placed(placement, species, habitat)
+    start = copy(eco.abundances.matrix)
+    simulate!(eco, 2month_mean_duration, 1month_mean_duration)
+    # The habitat is unchanged, so its own placement and seed place the start again, leaving the
+    # clock and the dynamics' streams where the run left them.
+    streams = copy.(eco.rngs)
+    repopulate!(eco, verbosity = :silent)
+    @test eco.abundances.matrix == start
+    @test eco.rngs == streams && eco.elapsed > 0.0s
+    other = copy(repopulate!(eco, seed = 99, verbosity = :silent).abundances.matrix)
+    @test other != start && sum(other) == sum(start)
+    repopulate!(eco, NoAbundance(), verbosity = :silent)
+    @test sum(eco.abundances.matrix) == 0 && eco.placement === NoAbundance()
+    @test provenance(eco).context.run.placement == "NoAbundance()"
+    unplaced = Ecosystem(populate!, species, habitat, eco.nichefit)
+    @test isnothing(unplaced.placement)
+    @test_throws "records no placement" repopulate!(unplaced)
+end
+
+@testset "a placement shows as it is written" begin
+    @test sprint(show, BySupply()) == "BySupply()"
+    @test sprint(show, BySupply(SolarRadiation, :summer, total = 5)) ==
+          "BySupply(SolarRadiation, :summer, total = 5)"
+    @test sprint(show, BySuitability(each = TraitColumn(:n))) ==
+          "BySuitability(each = TraitColumn(:n))"
+    @test sprint(show, Weighted(BySupply(), BySuitability(), total = 9)) ==
+          "Weighted(BySupply(), BySuitability(), total = 9)"
+    @test sprint(show, BySupply() + NoAbundance() + BySuitability()) ==
+          "BySupply() + NoAbundance() + BySuitability()"
+    @test BySupply() + (NoAbundance() + BySuitability()) isa
+          SumOfPlacements{<:NTuple{3, Any}}
+    @test sprint(show,
+                 FromTable((species = ["a", "b"],
+                            cell = [CartesianIndex(1, 1),
+                                CartesianIndex(1, 2)]))) ==
+          "FromTable(a NamedTuple, 2 rows)"
+    @test sprint(show,
+                 PlacedAbundances((species = ["a"],
+                                   cell = [CartesianIndex(1, 1)]))) ==
+          "PlacedAbundances(1 row, 0 records, 0 problems)"
+end
+
+end

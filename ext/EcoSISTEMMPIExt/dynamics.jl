@@ -197,6 +197,12 @@ function EcoSISTEM._ownedabundances(eco::MPIEcosystem)
     return (rows = eco.abundances.rows_matrix, firstspecies = eco.firstsp)
 end
 
+# Once a placement has written each rank's own species, the columns are rebuilt from the rows, as
+# the distributed `populate!` rebuilds them: the first step reads the column layout.
+function EcoSISTEM._rowswritten!(eco::MPIEcosystem)
+    return EcoSISTEM.synchronise_from_rows!(eco.abundances)
+end
+
 # **`AddSpecies` is the one operation that is genuinely not rank-local**, and the contrast with the
 # abundance operations is the point: those need no partition work at all, because a rank owns whole
 # species across every cell in `rows_matrix` whenever it is read. Adding a species

@@ -123,7 +123,7 @@ else
                                 dispersal = dispersal,
                                 birth = birth, death = death, survival = 0.1,
                                 abundance = individuals, seed = seed)
-        return build_ecosystem(species, env, seed = seed)
+        return build_ecosystem(species, env, seed = seed, verbosity = :silent)
     end
 
     # Run for `times` and hand back the ecosystem, so each assertion reads as one statement.

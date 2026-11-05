@@ -373,7 +373,7 @@ function build_species(pool::SpeciesPool;
                                verbosity)
     params = _buildparams(birth, death, longevity, survival, pool, table, rows,
                           problems, verbosity)
-    _reportpool(problems, verbosity)
+    _reportproblems(problems, verbosity)
     active = table.active
     abun = zeros(Int64, n)
     abun[active] = _abundances(1000 * count(active), count(active), seed)
@@ -413,15 +413,35 @@ function build_species(source::DefaultEcosystem;
 end
 
 """
-    build_ecosystem(species::SpeciesList, environment::GridHabitat;
+    build_ecosystem(placement, species::SpeciesList, environment::GridHabitat;
         nichefit = nothing, seed = nothing, distributed = :auto, epoch = nothing,
-        calendar = ExactDates(), provenance = ProvenanceRecord[])
+        calendar = ExactDates(), provenance = ProvenanceRecord[], verbosity = :normal)
+    build_ecosystem(species::SpeciesList, environment::GridHabitat; ...)
+    build_ecosystem(species, environment; ...) do species, habitat, context
+        ...
+    end
 
-Assemble an ecosystem from a `species` list and an `environment`. When
-`nichefit` is not given it is inferred from the trait type (`NicheTolerance` ->
+Assemble an ecosystem from a `species` list and an `environment`, its individuals placed by
+`placement`. When `nichefit` is not given it is inferred from the trait type (`NicheTolerance` ->
 `NicheSuitability`, any `AbstractCategoricalTolerance` -> `CategoricalSuitability`). Checks that the
 species' resource demand matches the environment's supply before building,
 and passes `seed` through for reproducibility.
+
+`placement` says how many individuals of each species start in each cell: a shipped placement -
+[`BySupply`](@ref), [`BySuitability`](@ref), [`ByLayer`](@ref), [`Weighted`](@ref),
+[`FromTable`](@ref), [`NoAbundance`](@ref), or several added with `+` - or any function of
+`(species, habitat, context)`, as a `do` block, returning a [`PlacedAbundances`](@ref) or a table of
+the individuals it places. It is called with the species list, the environment and a
+[`PlacementContext`](@ref) - the cells it may place in (the active ones), a random stream per
+species, the run's dates - and its table is checked before anything is written: a row naming a
+species the list does not hold or that is not active, or a place off the grid or in an inactive
+cell, is dropped and reported, and a count that is not a whole number stops the build. Under MPI the
+first rank alone calls it. Left out, it is `DefaultEcosystem()`, each species' starting abundance in
+the species list placed by supply, and is announced. The ecosystem keeps it, for
+[`repopulate!`](@ref) and the run's provenance.
+
+`verbosity` is `:silent`, `:normal` or `:verbose`; `:silent` announces nothing, and reports only what
+could not be placed.
 
 `distributed` selects the ecosystem type: `:auto` (the default) builds a
 distributed `MPIEcosystem` when the MPI extension is loaded and the process is
@@ -456,12 +476,16 @@ the run as a whole rather than to its species or its environment - the records a
 population was seeded from, say, or the study's own DOI. [`provenance`](@ref) of the ecosystem lists
 them beside everything else it was built from.
 """
-function build_ecosystem(species::SpeciesList, environment::GridHabitat;
+function build_ecosystem(placement, species::SpeciesList,
+                         environment::GridHabitat;
                          nichefit = nothing, seed = nothing,
                          distributed = :auto,
                          epoch::Union{Nothing, Dates.TimeType} = nothing,
                          calendar::AbstractRunCalendar = ExactDates(),
-                         provenance = ProvenanceRecord[])
+                         provenance = ProvenanceRecord[],
+                         verbosity::Symbol = :normal)
+    _checkverbosity(verbosity)
+    _checkplacement(placement)
     records = _recordvector(provenance)
     _checksimulatable(environment)
     # Checked here as well as in the `Ecosystem` constructor, and *before* the nichefit is inferred:
@@ -491,16 +515,28 @@ function build_ecosystem(species::SpeciesList, environment::GridHabitat;
     _primeseries!(environment.regime, zero(1.0s))
     _primeseries!(environment.supply, zero(1.0s))
     eco = if _resolvedistributed(distributed)
-        isnothing(seed) ? MPIEcosystem(species, environment, nichefit) :
-        MPIEcosystem(species, environment, nichefit, seed = seed)
+        MPIEcosystem(_leaveempty, species, environment, nichefit, seed = seed)
     else
-        isnothing(seed) ? Ecosystem(species, environment, nichefit) :
-        Ecosystem(species, environment, nichefit, seed = seed)
+        isnothing(seed) ?
+        Ecosystem(_leaveempty, species, environment, nichefit) :
+        Ecosystem(_leaveempty, species, environment, nichefit, seed = seed)
     end
     eco.epoch = resolved
     eco.calendar = calendar
     eco.inputs = _uniqueinputs(records)
-    return eco
+    # Placed from the streams the dynamics go on to draw from, and a community total split from a
+    # stream of its own made from the run's seed.
+    context = _placementcontext(eco, eco.rngs, _abundancerng(eco.seed))
+    return _placeinto!(eco, placement, context, verbosity, clear = false)
+end
+
+# The placement left out: the default, announced.
+function build_ecosystem(species::SpeciesList, environment::GridHabitat;
+                         verbosity::Symbol = :normal, kw...)
+    placement = _getdefaultvalue(Val(:placement), DefaultEcosystem(), verbosity,
+                                 "build_ecosystem")
+    return build_ecosystem(placement, species, environment;
+                           verbosity = verbosity, kw...)
 end
 
 # Complete the trio: build the default environment and default species (each announcing its own
@@ -509,12 +545,14 @@ function build_ecosystem(::DefaultEcosystem; seed = nothing,
                          distributed = :auto,
                          epoch::Union{Nothing, Dates.TimeType} = nothing,
                          calendar::AbstractRunCalendar = ExactDates(),
-                         provenance = ProvenanceRecord[])
-    environment = build_habitat()
-    species = build_species(DefaultEcosystem())
+                         provenance = ProvenanceRecord[],
+                         verbosity::Symbol = :normal)
+    environment = build_habitat(verbosity = verbosity)
+    species = build_species(DefaultEcosystem(), verbosity = verbosity)
     return build_ecosystem(species, environment, seed = seed,
                            distributed = distributed, epoch = epoch,
-                           calendar = calendar, provenance = provenance)
+                           calendar = calendar, provenance = provenance,
+                           verbosity = verbosity)
 end
 
 # == Running it =================================================================================
@@ -633,6 +671,7 @@ function simulate!(cache::CachedEcosystem, srt::Unitful.Time,
                                             cache.seed,
                                             cache.epoch)
     eco.calendar = cache.calendar
+    eco.placement = cache.placement
     update!(eco, timestep)
     return cache.abundances.matrix[Ti(At(srt + timestep))] = eco.abundances
 end

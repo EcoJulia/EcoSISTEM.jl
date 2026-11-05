@@ -27,7 +27,16 @@
     - `fill_traits(pool, specs...; seed)` fills a pool's missing values, each draw from a stream of
       the species' own, as `build_species` does; the species list keeps the values and what was
       filled. Under MPI a pool is made and changed on rank 0, which alone reads a name authority.
+    - `build_ecosystem(placement, species, habitat)` places a run's individuals by a placement:
+      `BySupply`, `BySuitability`, `ByLayer` or several multiplied by `Weighted`, each given a
+      `total` or `each` (a count or a density), `FromTable` reading rows, `NoAbundance`, placements
+      added with `+`, or a `do` block of `(species, habitat, context)`. Rows it cannot place are
+      dropped and reported; the ecosystem keeps its placement, and its provenance names it.
   - Changed
+    - `build_ecosystem(species, habitat)` announces the placement it defaults to, and takes
+      `verbosity`. `repopulate!(eco, placement = eco.placement; seed)` places again by the
+      ecosystem's own placement, or another, from streams of its own: it no longer re-splits the
+      species' totals at random, and leaves the dynamics' streams alone.
     - `PopGrowth` and `NoGrowth` hold one `longevity` per species, a vector, which the step reads per
       species; their constructors still take one number for all. `EqualPop` keeps one.
     - `GaussianKernel` and `LongTailKernel` take their distances by keyword, each named for what it

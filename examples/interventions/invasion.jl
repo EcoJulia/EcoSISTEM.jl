@@ -46,7 +46,7 @@ function invasion_ecosystem(; numnative = configuration().numspecies - 1,
                             demandaxis = SolarRadiation,
                             abundance = individuals,
                             seed = seed)
-    return build_ecosystem(species, env, seed = seed)
+    return build_ecosystem(species, env, seed = seed, verbosity = :silent)
 end
 
 # ---------------------------------------------------------------------------

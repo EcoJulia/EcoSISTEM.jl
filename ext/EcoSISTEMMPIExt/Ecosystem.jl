@@ -66,6 +66,9 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
     # set by `build_ecosystem`, and added to by every intervention that acts, which every rank does
     # on the same step.
     inputs::Vector{EcoSISTEM.ProvenanceRecord}
+    # The placement its individuals were placed by, as on the serial `Ecosystem`, and as there
+    # abstract on purpose: nothing in the step reads it.
+    placement::Any
 
     function MPIEcosystem(abundances::MPIGL,
                           spplist::SL,
@@ -106,7 +109,8 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
                                         seed,
                                         epoch,
                                         EcoSISTEM.ExactDates(),
-                                        EcoSISTEM.ProvenanceRecord[])
+                                        EcoSISTEM.ProvenanceRecord[],
+                                        nothing)
     end
 end
 
@@ -199,8 +203,11 @@ end
 function MPIEcosystem(spplist::EcoSISTEM.SpeciesList,
                       habitat::EcoSISTEM.GridHabitat, nichefit;
                       seed::Union{Integer, Nothing} = nothing)
-    return MPIEcosystem(EcoSISTEM.populate!, spplist, habitat, nichefit;
-                        seed = seed)
+    eco = MPIEcosystem(EcoSISTEM.populate!, spplist, habitat, nichefit;
+                       seed = seed)
+    # `populate!` places as the default placement does, so re-placing repeats it.
+    eco.placement = EcoSISTEM.DefaultEcosystem()
+    return eco
 end
 @doc (@doc MPIEcosystem) MPIEcosystem(::EcoSISTEM.SpeciesList,
                                       ::EcoSISTEM.GridHabitat,

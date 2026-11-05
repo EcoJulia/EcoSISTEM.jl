@@ -563,7 +563,7 @@ function _fillpool(pool::SpeciesPool, slots::AbstractVector{_TraitSlot},
         table[!, name] = identity.(column)
         mask[!, name] = drew
     end
-    _reportpool(problems, verbosity)
+    _reportproblems(problems, verbosity)
     return (values = table, filled = mask)
 end
 

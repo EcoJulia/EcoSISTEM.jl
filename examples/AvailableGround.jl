@@ -193,7 +193,7 @@ function community(env)
                                           light = SolarRadiation),
                             dispersal = 2CELLSIZE, abundance = 500_000,
                             seed = 1)
-    eco = build_ecosystem(species, env, seed = 1)
+    eco = build_ecosystem(species, env, seed = 1, verbosity = :silent)
     simulate!(eco, YEARS, 1month_mean_duration)
     return eco
 end

@@ -83,8 +83,10 @@ seed the per-species RNG streams were derived from. `epoch` is the real date ela
 corresponds to, or `nothing` for a run with no calendar - see [`simulationdate`](@ref) - and
 `calendar` the [`AbstractRunCalendar`](@ref) its dates are placed by. `inputs`
 holds the [`ProvenanceRecord`](@ref)s of published data belonging to the run as a whole - those given to
-[`build_ecosystem`](@ref), and those of every intervention that has acted - which
-[`provenance`](@ref) lists.
+[`build_ecosystem`](@ref), those its placement read, and those of every intervention that has acted -
+which [`provenance`](@ref) lists. `placement` is the placement its individuals were placed by, as it
+was given (see [`AbstractPlacement`](@ref)), which [`repopulate!`](@ref) places by again; `nothing`
+for an ecosystem built from a population function.
 """
 mutable struct Ecosystem{Part <: AbstractHabitat,
                          SL <: SpeciesList,
@@ -107,6 +109,8 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
     # hot path.
     calendar::AbstractRunCalendar
     inputs::Vector{ProvenanceRecord}
+    # Abstract on purpose: a placement may be any function, and nothing in the step reads it.
+    placement::Any
 
     function Ecosystem{Part, SL, NF}(abundances::GridLandscape,
                                      spplist::SL,
@@ -151,7 +155,8 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
                                  seed,
                                  epoch,
                                  ExactDates(),
-                                 ProvenanceRecord[])
+                                 ProvenanceRecord[],
+                                 nothing)
     end
 end
 
@@ -213,7 +218,10 @@ function Ecosystem(spplist::SpeciesList,
                    habitat::GridHabitat,
                    nichefit::AbstractNicheFit;
                    seed::Integer = rand(UInt64))
-    return Ecosystem(populate!, spplist, habitat, nichefit, seed = seed)
+    eco = Ecosystem(populate!, spplist, habitat, nichefit, seed = seed)
+    # `populate!` places as the default placement does, so re-placing repeats it.
+    eco.placement = DefaultEcosystem()
+    return eco
 end
 
 # The constructor's own docstring, looked up by signature: `@doc Ecosystem` would return the type's
@@ -247,6 +255,7 @@ mutable struct CachedEcosystem{Part <: AbstractHabitat,
     epoch::Union{Nothing, Dates.TimeType}
     calendar::AbstractRunCalendar
     inputs::Vector{ProvenanceRecord}
+    placement::Any
 end
 
 """
@@ -282,7 +291,8 @@ function CachedEcosystem(eco::Ecosystem, outputfile::String,
                                                  eco.seed,
                                                  eco.epoch,
                                                  eco.calendar,
-                                                 eco.inputs)
+                                                 eco.inputs,
+                                                 eco.placement)
 end
 
 # ---------------------------------------------------------------------------
@@ -697,6 +707,7 @@ function makeunique(eco::Ecosystem)
                                                eco.epoch)
     stripped.calendar = eco.calendar
     stripped.inputs = eco.inputs
+    stripped.placement = eco.placement
     return stripped
 end
 

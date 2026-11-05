@@ -944,6 +944,46 @@ wrong: values per species reach the pool keyed by species, and a spec names thei
 by different modes. Missing values are filled, and values drawn, each from a stream of the species'
 own key, so a species' values do not depend on how many others were filled.
 
+## Placing a run's individuals
+
+```mermaid
+classDiagram
+    class AbstractPlacement
+    class BySupply~A, N~
+    class BySuitability~A, N~
+    class ByLayer~L, N~
+    class Weighted~W, N~
+    class FromTable~D~
+    class SumOfPlacements~P~
+    class PlacementContext~C, S, R, NF~
+    class PlacedAbundances~T~
+    AbstractPlacement <|-- BySupply
+    AbstractPlacement <|-- BySuitability
+    AbstractPlacement <|-- ByLayer
+    AbstractPlacement <|-- Weighted
+    AbstractPlacement <|-- NoAbundance
+    AbstractPlacement <|-- FromTable
+    AbstractPlacement <|-- SumOfPlacements
+    Weighted "1" *-- "*" AbstractPlacement : weights
+    SumOfPlacements "1" *-- "*" AbstractPlacement : placements
+    PlacedAbundances "1" *-- "*" ProvenanceRecord : records
+```
+
+**A placement says how many individuals of each species start in each cell**, and is
+`build_ecosystem`'s first argument. Called with the species, the habitat and a `PlacementContext` -
+the cells it may place in, a random stream per species, the run's dates - it returns a
+`PlacedAbundances`: rows of species, place and count, the records of what it read, and the problems
+it found. The rows are checked before anything is written, so a function of the user's own is a
+placement on the same terms as a shipped one, and one check covers both. A row names its cell by a
+location or by the grid's own key, never by a storage position, so a table means the same however
+the grid stores its cells.
+
+**Weights multiply and placements add.** `BySupply`, `BySuitability` and `ByLayer` each weight the
+cells, and each is a placement on its own; `Weighted` multiplies several, each normalised first, so a
+cell must score on every weight to be worth placing in. `+` adds placements' rows, as a
+`SumOfPlacements`. The numbers belong to the weighted placement - a community `total` split across the
+species, or `each` species' own - and never to a weight inside one.
+
 ## Demands
 
 ```mermaid

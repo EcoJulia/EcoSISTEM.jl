@@ -237,7 +237,7 @@ function landscape(name::Symbol; scaling = _configuration(name),
     end
     species = landscape_species(safely, numspecies = numspecies,
                                 individuals = individuals, seed = seed)
-    return build_ecosystem(species, env, seed = seed)
+    return build_ecosystem(species, env, seed = seed, verbosity = :silent)
 end
 
 const LANDSCAPES = (:island, :patch, :region_even, :region_gradient, :peaked)

@@ -92,7 +92,7 @@ const SPECIES = build_species(2, tolerance = TOLERANCE,
                               dispersal = 2CELLSIZE, abundance = 200_000,
                               seed = 1)
 
-const ECO = build_ecosystem(SPECIES, ENVIRONMENT, seed = 1)
+const ECO = build_ecosystem(SPECIES, ENVIRONMENT, seed = 1, verbosity = :silent)
 
 # `println`, not `@info`: logging goes to stderr, which `@test_nowarn` fails on.
 ny, nx = size(ENVIRONMENT.active)

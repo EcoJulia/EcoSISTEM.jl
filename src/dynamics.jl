@@ -91,19 +91,46 @@ function populate!(ml::GridLandscape,
 end
 
 """
-    repopulate!(eco::Ecosystem)
+    repopulate!(eco::AbstractEcosystem, placement = eco.placement; seed = eco.seed,
+                verbosity = :normal)
     repopulate!(eco::Ecosystem, abun::Int64)
 
-Repopulate an ecosystem `eco` by redistributing abundances according to resource
-availability. If an `abun` parameter is given, that number of individuals of the
-final species is added at randomly sampled locations instead.
+Place an ecosystem's individuals again from scratch: its abundances are cleared, and `placement`
+places them over its active cells and layers as they now are, as [`build_ecosystem`](@ref) placed
+them. The ecosystem keeps `placement` as its own, so a later `repopulate!(eco)` repeats it. The
+placement draws from streams of its own made from `seed`, so on an unchanged habitat, with the
+ecosystem's own placement and seed, it places what its build placed; the clock, and the streams the
+dynamics draw from, are left as they are. Under MPI with more than one rank this is a collective
+call.
+
+Given an `abun` instead, it adds that number of individuals of the last species at randomly sampled
+cells with any supply.
+
+# Arguments
+
+  - `eco`: the ecosystem.
+  - `placement`: any placement [`build_ecosystem`](@ref) takes; one reading a table that can be read
+    only once is refused.
+  - `seed`: the seed of the placement's streams.
+  - `verbosity`: `:silent` reports only what the placement could not place; anything else reports
+    its notices too.
+  - `abun`: how many individuals of the last species to add.
 """
-function repopulate!(eco::Ecosystem)
-    eco.abundances = empty_landscape(eco.habitat, eco.spplist)
-    eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun),
-                                        length(eco.spplist.abun)))
-    return populate!(eco.abundances, eco.spplist, eco.habitat, eco.nichefit,
-                     eco.rngs)
+function repopulate!(eco::AbstractEcosystem, placement = eco.placement;
+                     seed::Integer = eco.seed, verbosity::Symbol = :normal)
+    _checkverbosity(verbosity)
+    isnothing(placement) &&
+        error("this ecosystem was built from a population function, which records no placement " *
+              "to place by again; give one, as `repopulate!(eco, BySupply())`.")
+    _checkplacement(placement)
+    _reusable(placement) ||
+        error("$(_placementphrase(placement)) reads a table that can be read only once, so it " *
+              "cannot place again; give `FromTable` a path, a record or a table of columns.")
+    streams = makerngs(seed, length(eco.spplist.names))
+    context = _placementcontext(eco, streams, _abundancerng(seed))
+    _placeinto!(eco, placement, context, verbosity, clear = true)
+    invalidatecaches!(eco)
+    return eco
 end
 
 function repopulate!(eco::Ecosystem, abun::Int64)
@@ -194,6 +221,72 @@ function emptypopulate!(ml::GridLandscape,
                                                              EcoSISTEM.AbstractNicheFit}
     @warn "Ecosystem not populated!"
 end
+
+# A population function placing nothing, for an ecosystem its placement fills once it is built.
+_leaveempty(::Any, ::Any, ::Any, ::Any, ::Any) = nothing
+
+# The context of a placement in `eco`: its active cells, a stream per species from `streams`, the
+# community stream, and its nichefit, epoch and calendar, at its start.
+function _placementcontext(eco::AbstractEcosystem, streams::AbstractVector,
+                           community::AbstractRNG)
+    return PlacementContext(cells = findall(parent(eco.habitat.active)),
+                            streams = Dict(zip(eco.spplist.names, streams)),
+                            community = community, nichefit = eco.nichefit,
+                            epoch = eco.epoch, calendar = eco.calendar)
+end
+
+# Place `placement`'s individuals in `eco`: called and checked first, its problems reported, then -
+# its abundances cleared, where `clear` - written, and the placement and its records kept.
+function _placeinto!(eco::AbstractEcosystem, placement,
+                     context::PlacementContext, verbosity::Symbol; clear::Bool)
+    outcome = _resolveplacement(eco, placement, context)
+    _reportproblems(vcat(outcome.placed.problems, outcome.resolved.problems),
+                    verbosity)
+    clear && (_ownedabundances(eco).rows .= 0)
+    _writeplaced!(eco, outcome.resolved)
+    eco.placement = placement
+    eco.inputs = _uniqueinputs(vcat(eco.inputs, outcome.placed.records))
+    return eco
+end
+
+# What `placement` places in `eco`, called and checked but not yet written: its result, its table in
+# one form, and its rows resolved against the species and the grid. Under MPI the root alone calls
+# it, once every rank has built the layers it weights by together, and every rank takes the root's
+# result.
+function _resolveplacement(eco::AbstractEcosystem, placement,
+                           context::PlacementContext)
+    prepared = _prepared(placement, eco.habitat)
+    placed = _sharedresult(eco, context) do
+        raw = _callplacement(prepared, eco.spplist, eco.habitat, context)
+        return PlacedAbundances(_canonicaltable(raw.table, eco.habitat,
+                                                context),
+                                records = raw.records, problems = raw.problems)
+    end
+    return (placed = placed,
+            resolved = _resolveplaced(placed, eco.spplist, eco.habitat,
+                                      context))
+end
+
+# A placement's result, serially; under MPI the extension's method has the root build it and every
+# rank take it.
+_sharedresult(build, ::AbstractEcosystem, ::PlacementContext) = build()
+
+# Placed individuals added to an ecosystem's abundances, each rank its own species'.
+function _writeplaced!(eco::AbstractEcosystem, resolved::NamedTuple)
+    owned = _ownedabundances(eco)
+    held = axes(owned.rows, 1)
+    for (sp, column, n) in zip(resolved.species, resolved.cells,
+                               resolved.counts)
+        row = sp - owned.firstspecies + 1
+        row in held || continue
+        owned.rows[row, column] += n
+    end
+    return _rowswritten!(eco)
+end
+
+# What follows writing the rows of an ecosystem's abundances: nothing, serially; under MPI the
+# extension's method rebuilds the columns from them.
+_rowswritten!(::AbstractEcosystem) = nothing
 
 """
     update!(eco::AbstractEcosystem, timestep::Unitful.Time)

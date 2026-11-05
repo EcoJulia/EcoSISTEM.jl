@@ -93,6 +93,13 @@ end
         @test isempty(provenance(SpeciesPool(DataFrame(species = ["x"]))))
         @test only(provenance(SpeciesPool(DataFrame(species = ["x"]),
                                           provenance = given))) == given
+        # A file's names are read as text, so names made of digits keep their spelling, in whichever
+        # column holds them.
+        numbered = joinpath(dir, "numbered.csv")
+        CSV.write(numbered,
+                  DataFrame(code = ["007", "1e3"], tmin = [270.0, 280.0]))
+        @test names_of(SpeciesPool(numbered, column = :code,
+                                   verbosity = :silent)) == ["007", "1e3"]
     end
 end
 

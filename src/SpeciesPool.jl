@@ -129,7 +129,7 @@ function SpeciesPool(table; column::Symbol = :species,
                      provenance = ProvenanceRecord[],
                      verbosity::Symbol = :normal)
     return _poolshared() do
-        source = _readtable(table, :species)
+        source = _readtable(table, :species, column = column)
         return _newpool(authority, source.table, column, authorship, merge,
                         source.label,
                         vcat(source.records, _recordvector(provenance)),
@@ -379,7 +379,7 @@ function add_trait!(pool::SpeciesPool, table; column::Symbol = :species,
                     verbosity::Symbol = :normal)
     _checkverbosity(verbosity)
     return _poolshared!(pool) do pool
-        source = _readtable(table, role)
+        source = _readtable(table, role, column = column)
         input = source.table
         _checkcolumns(input, column, authorship)
         traitcols = _traitcolumns(input, column, authorship)
@@ -400,7 +400,7 @@ function add_trait!(pool::SpeciesPool, table; column::Symbol = :species,
         merged = _mergegroups!(problems, input, groups, traitcols, merge,
                                r -> pool.species.name[r], verbosity)
         # Everything is said, and a refused merge raised, before the pool changes.
-        _reportpool(problems, verbosity)
+        _reportproblems(problems, verbosity)
         for c in traitcols
             pool.species[!, c] = identity.(Any[haskey(merged, r) ?
                                                merged[r][c] :
@@ -522,7 +522,7 @@ function _newpool(authority, table::DataFrame, column::Symbol, authorship,
     # A name given twice in a list is one species, which needs no merge reported.
     merged = _mergegroups!(notifymerge ? problems : Problem[], table, groups,
                            traitcols, merge, identity, verbosity)
-    _reportpool(problems, verbosity)
+    _reportproblems(problems, verbosity)
     n = length(order)
     species = DataFrame(key = Int[first(groups[s]) for s in order],
                         name = copy(order),
@@ -563,33 +563,44 @@ function _pooltable(pool::SpeciesPool)
     return DataFrames.select(pool.species, _IDENTITY_COLUMNS, _traitnames(pool))
 end
 
-# A table given to a pool, read into a `DataFrame` with its label for the name table and the
-# records of where it came from: a CSV file by its path, with its sidecar's record where it has one
-# and its name otherwise; a record's file, with the record; any Tables.jl table as it is, with none.
-function _readtable(path::AbstractString, role::Symbol)
+# A table given to a pool or a placement, read into a `DataFrame` with its label for the name table
+# and the records of where it came from, under `role`: a CSV file by its path, with its sidecar's
+# record where it has one and its name otherwise; a record's file, with the record; any Tables.jl table
+# as it is, with none. A file's `column` of species names is read as text, so a name made of digits
+# keeps its own spelling (`007`) rather than becoming a number.
+function _readtable(path::AbstractString, role::Symbol;
+                    column::Symbol = :species)
     isfile(path) ||
         error("`$path` is not a file, so no table can be read from it.")
     record = something(Provenancer.recordat(path),
                        ProvenanceRecord(role = role, source = "file",
                                         path = basename(path)))
-    return (table = DataFrame(CSV.File(path)), label = basename(path),
+    return (table = _readcsv(path, column), label = basename(path),
             records = [record])
 end
 
-function _readtable(record::ProvenanceRecord, role::Symbol)
+function _readtable(record::ProvenanceRecord, ::Symbol;
+                    column::Symbol = :species)
     path = _specfile(SpeciesPool, record).location
-    return (table = DataFrame(CSV.File(path)), label = basename(path),
+    return (table = _readcsv(path, column), label = basename(path),
             records = [record])
 end
 
 # Deliberately untyped: anything else is a table or a mistake, told apart by `Tables.istable` so
 # the mistake is named rather than raised as a `MethodError` deep in DataFrames.
-function _readtable(table, ::Symbol)
+function _readtable(table, ::Symbol; column::Symbol = :species)
     Tables.istable(table) ||
-        error("a species table is a path to a CSV file, a `ProvenanceRecord` of one, or a " *
-              "Tables.jl table; got a $(typeof(table)).")
+        error("a table is a path to a CSV file, a `ProvenanceRecord` of one, or a Tables.jl " *
+              "table; got a $(typeof(table)).")
     return (table = DataFrame(table), label = "table",
             records = ProvenanceRecord[])
+end
+
+# A CSV file as a `DataFrame`, its `column` of names read as text. Not validated, so a file without
+# that column is reported where its columns are checked rather than by the reader.
+function _readcsv(path::AbstractString, column::Symbol)
+    return DataFrame(CSV.File(path, types = Dict(column => String),
+                              validate = false))
 end
 
 # Refuse a name or authorship column the table does not have, listing those it has.
@@ -816,7 +827,7 @@ function _poolrows(pool::SpeciesPool, names, verb::AbstractString,
               Problem(ProblemNotice(), :not_in_pool,
                       "could not $verb $(_namelist(absent, :verbose)): recognised, but of no " *
                       "species in the pool."))
-    _reportpool(problems, verbosity)
+    _reportproblems(problems, verbosity)
     return rows
 end
 
@@ -861,7 +872,7 @@ function _selectrows(pool::SpeciesPool, names, rank::AbstractString,
               Problem(ProblemWarning(), :other_rank,
                       "could not $verb $(join(elsewhere, ", ")): not a $rank in " *
                       "$(_authorityphrase(authority))."))
-    _reportpool(problems, verbosity)
+    _reportproblems(problems, verbosity)
     rows = Int[]
     for (r, s) in enumerate(eachrow(pool.species))
         id = ismissing(s.copyofid) ? s.id : s.copyofid
@@ -891,11 +902,12 @@ function _setactive!(pool::SpeciesPool, rows, active::Bool, verbosity::Symbol)
     already = count(r -> pool.species.active[r] == active, rows)
     pool.species.active[rows] .= active
     state = active ? "active" : "inactive"
-    _reportpool([Problem(ProblemNotice(), active ? :activated : :deactivated,
-                         "$(length(rows) - already) species $(active ? "activated" : "deactivated")" *
-                         (already > 0 ? " ($already already $state)" : "") *
-                         "; $(count(pool.species.active)) of $(length(pool)) active.")],
-                verbosity)
+    _reportproblems([Problem(ProblemNotice(),
+                             active ? :activated : :deactivated,
+                             "$(length(rows) - already) species $(active ? "activated" : "deactivated")" *
+                             (already > 0 ? " ($already already $state)" : "") *
+                             "; $(count(pool.species.active)) of $(length(pool)) active.")],
+                    verbosity)
     return pool
 end
 
@@ -922,7 +934,7 @@ function _remove!(pool::SpeciesPool, rows, keep_active::Bool, verbosity::Symbol)
           Problem(ProblemNotice(), :removed,
                   "$(length(rows)) species removed; $(length(pool)) " *
                   (length(pool) == 1 ? "remains." : "remain.")))
-    _reportpool(problems, verbosity)
+    _reportproblems(problems, verbosity)
     return pool
 end
 
@@ -1028,9 +1040,9 @@ function _namelist(names::AbstractVector, verbosity::Symbol)
     return join(first(quoted, 10), ", ") * " and $(length(quoted) - 10) more"
 end
 
-# Raise a pool's problems at their levels, notices only where `verbosity` asks for them, warnings
-# and errors always - an error last, once everything else is said.
-function _reportpool(problems, verbosity::Symbol)
+# Raise a pool's or a placement's problems at their levels, notices only where `verbosity` asks for
+# them, warnings and errors always - an error last, once everything else is said.
+function _reportproblems(problems, verbosity::Symbol)
     for p in sort(problems, by = p -> p.severity isa ProblemError)
         p.severity isa ProblemNotice && verbosity === :silent && continue
         _report(p.severity, p.message)

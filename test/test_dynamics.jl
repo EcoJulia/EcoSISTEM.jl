@@ -516,6 +516,11 @@ const _ABSTRACT_BY_DESIGN = Dict((:Ecosystem,
                                      "an `AbstractRunCalendar`, a marker set " *
                                      "by `build_ecosystem` and read only when " *
                                      "dates become elapsed time. Not read in the loop.",
+                                 (:Ecosystem,
+                                  :placement) =>
+                                     "`Any`, because a placement may be any " *
+                                     "function. Read only by `repopulate!` and " *
+                                     "the run's provenance, never in the loop.",
                                  (:SpeciesList,
                                   :authority) =>
                                      "a `Union{Nothing, AbstractNameAuthority}`, " *

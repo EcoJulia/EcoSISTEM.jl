@@ -30,7 +30,7 @@ env = GridHabitat(regime = UniformSpec(285.0K, axis = Temperature),
                         area = area)
 species = build_species(5, tolerance = (285.0K, 3.0K), toleranceaxis = Temperature, demand = 1.0e9kJ / day, demandaxis = SolarRadiation,
                         abundance = 1000, seed = 1)
-eco = build_ecosystem(species, env)
+eco = build_ecosystem(species, env, verbosity = :silent)
 ```
 
 ```@example clock
@@ -267,14 +267,14 @@ species = build_species(5, tolerance = (285.0K, 3.0K), toleranceaxis = Temperatu
 ```
 
 ```@example epoch
-eco = build_ecosystem(species, makeenv())
+eco = build_ecosystem(species, makeenv(), verbosity = :silent)
 eco.habitat.regime.matrix[1, 1]        # 280 K: the January slice
 ```
 
 Give the run a July epoch and it starts in July instead:
 
 ```@example epoch
-eco = build_ecosystem(species, makeenv(), epoch = DateTime(2015, 7, 1))
+eco = build_ecosystem(species, makeenv(), epoch = DateTime(2015, 7, 1), verbosity = :silent)
 eco.habitat.regime.matrix[1, 1]        # 286 K: the July slice
 ```
 

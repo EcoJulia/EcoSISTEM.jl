@@ -29,7 +29,7 @@ makeeco() = begin
                             area = area)
     species = build_species(5, tolerance = (285.0K, 5.0K), toleranceaxis = Temperature, demand = 1.0e9kJ / day, demandaxis = SolarRadiation,
                             abundance = 10_000, seed = 1)
-    build_ecosystem(species, env, seed = 1)
+    build_ecosystem(species, env, seed = 1, verbosity = :silent)
 end
 ```
 

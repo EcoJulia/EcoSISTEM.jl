@@ -107,7 +107,7 @@ function continent_run(continent, env)
                   continent.specialist_width)
     abundances = vcat(fill(div(continent_capacity(env), n - 1), n - 1), 0)
     eco = build_ecosystem(continent_species(widths, abundances), env,
-                          seed = PAPER_SEED)
+                          seed = PAPER_SEED, verbosity = :silent)
     introduction = continent.burnin + PAPER_TIMESTEP
     invasion = Intervention(AtTime(introduction),
                             CellMask(origin_mask(env.active)),
@@ -177,7 +177,7 @@ function invasion_speed(continent, env, width)
     mask = origin_mask(env.active)
     eco = build_ecosystem(continent_species([continent.generalist_width, width],
                                             [0, 0]),
-                          env, seed = PAPER_SEED)
+                          env, seed = PAPER_SEED, verbosity = :silent)
     arrivals = InterventionSet(Intervention(AtTime(0year), CellMask(mask),
                                             AddAbundance(1, continent.founders)),
                                Intervention(AtTime(continent.burnin),

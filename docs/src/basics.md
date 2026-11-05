@@ -62,7 +62,7 @@ species = build_species(10,
 Assemble, and run for ten years in monthly steps:
 
 ```@example basics
-eco = build_ecosystem(species, env)
+eco = build_ecosystem(species, env, verbosity = :silent)
 simulate!(eco, 10year, 1month_mean_duration)
 sum(eco.abundances.matrix)          # individuals still alive
 ```
@@ -104,6 +104,39 @@ the interval. A run of `times` in steps of `timestep` takes `times / timestep` s
 [`RecordDiversity`](@ref) records a diversity measure the same way, and [`SaveAbundance`](@ref)
 writes each recording to a file; each keeps the run's [`provenance`](@ref) as of its last write.
 
+## Where the individuals start
+
+[`build_ecosystem`](@ref) places the starting individuals by a **placement**, its first argument.
+Left out, as above, it places each species' starting abundance by supply, and announces the choice
+unless told `verbosity = :silent`, as the examples here are. Give one to say how many individuals
+start where - here 5,000 shared between the species, each spread over the cells by how well each
+cell suits it:
+
+```@example basics
+eco3 = build_ecosystem(BySuitability(total = 5_000), species, env)
+sum(eco3.abundances.matrix)
+```
+
+[`BySupply`](@ref), [`BySuitability`](@ref) and [`ByLayer`](@ref) (any layer of your own, such as a
+vegetation index) each weight the cells, and [`Weighted`](@ref) multiplies several. Each takes a
+community `total` or `each` species' own, as a count or as a density (`2.0/km^2`).
+[`FromTable`](@ref) reads rows of species, place and count; [`NoAbundance`](@ref) places nothing;
+and placements add with `+`. Any function of the species, the habitat and a
+[`PlacementContext`](@ref) is a placement too, written as a `do` block returning a table:
+
+```@example basics
+eco4 = build_ecosystem(species, env) do species, habitat, context
+    return (species = ["1", "2"],
+            cell = [CartesianIndex(1, 1), CartesianIndex(3, 3)],
+            count = [100, 50])
+end
+sum(eco4.abundances.matrix)
+```
+
+Every row is checked before anything is written: a species the list does not hold, or a place off
+the grid or in an inactive cell, is dropped and reported. The ecosystem keeps its placement, and
+[`repopulate!`](@ref) places by it again.
+
 ## Varying the model
 
 Every per-species keyword takes either one value for all species or a vector with one entry
@@ -142,7 +175,7 @@ species2 = build_species(10,
                          demand = (sunlight = 1.0e9kJ / day,
                                    water = 1.0e6Unitful.L / day), demandaxis = (sunlight = SolarRadiation, water = Precipitation),
                          abundance = 10_000, seed = 1)
-eco2 = build_ecosystem(species2, env2)
+eco2 = build_ecosystem(species2, env2, verbosity = :silent)
 simulate!(eco2, 1year, 1month_mean_duration)
 sum(eco2.abundances.matrix)
 ```

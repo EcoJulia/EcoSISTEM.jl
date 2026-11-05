@@ -561,6 +561,42 @@ if rank == 0
     @test longserial.abundances.matrix == long_abuns
 end
 
+# **A placement, against the serial twin at every rank count.** Under MPI the first rank alone calls
+# it, so every other rank takes its rows and the states its draws left the species' streams in: a
+# rank keeping its own streams' states would run apart from the serial twin from the first step. Its
+# layer weight is built on every rank first, since that build is collective, and `repopulate!` is a
+# collective call placing the same again.
+placement = Weighted(BySupply(SolarRadiation), BySuitability(),
+                     ByLayer(UniformSpec(1.0, axis = EcoSISTEM.NicheAxis)),
+                     total = 5_000) +
+            FromTable((species = ["1"], cell = [CartesianIndex(2, 3)],
+                       count = [50]))
+placesppl, _ = mpifixture_species()
+placedeco = build_ecosystem(placement, placesppl, varying_environment(),
+                            nichefit = nichefit, seed = 0, distributed = true,
+                            verbosity = :silent)
+placed_start = gatherabundance(placedeco)
+MPI.Barrier(comm)
+@test_nowarn simulate!(placedeco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+placed_abuns = gatherabundance(placedeco)
+placedserial = build_ecosystem(placement, placesppl, varying_environment(),
+                               nichefit = nichefit, seed = 0,
+                               distributed = false, verbosity = :silent)
+serial_start = copy(placedserial.abundances.matrix)
+simulate!(placedserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+serial_run = copy(placedserial.abundances.matrix)
+# Placed again over the layers as the run left them, which have changed since the build.
+repopulate!(placedeco, verbosity = :silent)
+placed_again = gatherabundance(placedeco)
+repopulate!(placedserial, verbosity = :silent)
+if rank == 0
+    @test sum(placed_start) == 5_050
+    @test placed_start == serial_start
+    @test placed_abuns == serial_run
+    @test placed_again == placedserial.abundances.matrix
+    @test sum(placed_again) == 5_050
+end
+
 # **An intervention is the only thing that can leave the two landscape layouts out of step**, and so
 # the only thing that exercises where `synchronise_from_rows!` sits in the timestep. It writes
 # `rows_matrix` after the dynamics; the next timestep opens with `update_resource_usage!`, which
@@ -899,14 +935,15 @@ if rank == 0
                _allocreport(8 * VARYING_SPECIES, mixedmany)
     @test mixedslope < bound
 
-    # The same sweep `test_dynamics.jl` runs, over the distributed types. `epoch`, `calendar` and
-    # `active` are abstract by design and are explained there; anything else must be looked at.
+    # The same sweep `test_dynamics.jl` runs, over the distributed types. `epoch`, `calendar`,
+    # `placement` and `active` are abstract by design and are explained there; anything else must be
+    # looked at.
     mpiabstract = Tuple{Symbol, Symbol}[]
     for obj in (eco, eco.abundances, eco.habitat, eco.cache)
         S = typeof(obj)
         for f in fieldnames(S)
             isconcretetype(fieldtype(S, f)) && continue
-            (f === :epoch || f === :calendar || f === :active) && continue
+            f in (:epoch, :calendar, :placement, :active) && continue
             push!(mpiabstract, (nameof(S), f))
         end
     end

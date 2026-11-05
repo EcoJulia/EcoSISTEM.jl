@@ -79,7 +79,7 @@ function community(env, opts, widths; dispersal = 2.4km,
                             birth = birth, death = death,
                             longevity = longevity, survival = survival,
                             abundance = individuals, seed = seed)
-    return build_ecosystem(species, env, seed = seed)
+    return build_ecosystem(species, env, seed = seed, verbosity = :silent)
 end
 
 # Total abundance per cell, laid back out on the grid - `(y, x)`, as everywhere in the package.

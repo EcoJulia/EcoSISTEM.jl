@@ -1113,7 +1113,7 @@ end
                             toleranceaxis = Temperature,
                             demand = 1.0e9kJ / day, demandaxis = SolarRadiation,
                             abundance = 300, seed = 1)
-        build_ecosystem(spp, env, seed = 1)
+        build_ecosystem(spp, env, seed = 1, verbosity = :silent)
     end
 
     # Caught BEFORE the first timestep: a constant rate over a known duration has a predictable
