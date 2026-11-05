@@ -13,11 +13,10 @@ using Distributions
 
 ## DIFFERENT OPTS ##
 
-# **The gate, added 2026-08-13 - this file had none and was the second-slowest thing in
-# `extras_examples` at 36 s, a fifth of the whole run.** It is a *smoke test* of the two-resource
-# path, so under the suite it needs enough individuals to exercise the arithmetic and no more:
-# 100 million of them on 100 cells was buying nothing a million does not. Run it directly (or set
-# `ECOSISTEM_SCALE=large`) for the published figures.
+# **The gate: at full scale this file is among the slowest in `extras_examples`.** It is a *smoke
+# test* of the two-resource path, so under the suite it needs enough individuals to exercise the
+# arithmetic and no more: 100 million of them on 100 cells buys nothing a million does not. Run it
+# directly (or set `ECOSISTEM_SCALE=large`) for the published figures.
 const SMALL = get(ENV, "ECOSISTEM_SCALE", "large") == "small"
 
 numSpecies = 100;

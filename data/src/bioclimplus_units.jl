@@ -15,7 +15,7 @@
 # open investigation.** `data/catalogue/BioClimPlus.csv` records them:
 #
 #   * `gsp` ships as `L*m^-2` with `AccumulationPeriod = percell=gsl` - a seasonal total, as Part A
-# concludes. Confirmed empirically 2026-07-23.
+# concludes, and confirmed empirically.
 #   * `gdd0`/`gdd5`/`gdd10` ship as `d*K` over `year`, which is Part B's recommendation **already
 #     applied** - they were `K` when this was written.
 #

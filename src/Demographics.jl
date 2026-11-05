@@ -16,7 +16,8 @@ Every subtype carries the same four fields, and two of them are what make the mo
 
   - `longevity` is the exponent on a species' own resource demand, applied to birth **and** death
     alike. It therefore sets the *tempo* of turnover - a body-size proxy - and cancels out of the
-    birth/death ratio, so it does not move where a species can persist.
+    birth/death ratio, so it does not move where a species can persist. It may differ between
+    species.
   - `survival` is the exponent on niche suitability, applied with **opposite** signs to birth and
     death. It does move the ratio, which is what makes it the niche.
 
@@ -39,7 +40,8 @@ known.
 # Fields
 
   - `birth`, `death`: the rates, per unit time, the same for every species.
-  - `longevity`, `survival`: the two exponents described in [`AbstractParams`](@ref).
+  - `longevity`, `survival`: the two exponents described in [`AbstractParams`](@ref), the same for
+    every species.
 """
 struct EqualPop{U <: Unitful.Units} <: AbstractParams
     birth::TimeUnitType{U}
@@ -56,20 +58,21 @@ Demographic rates given per species: the general form, and what the hot loop rea
 # Fields
 
   - `birth`, `death`: one rate per species, per unit time.
-  - `longevity`, `survival`: the two exponents described in [`AbstractParams`](@ref).
+  - `longevity`: the exponent on each species' own demand described in [`AbstractParams`](@ref), one
+    per species; given as one number, every species takes it.
+  - `survival`: the exponent on niche suitability described there, the same for every species.
 """
 struct PopGrowth{U <: Unitful.Units} <: AbstractParams
     birth::Vector{TimeUnitType{U}}
     death::Vector{TimeUnitType{U}}
-    longevity::Float64
+    longevity::Vector{Float64}
     survival::Float64
     function PopGrowth{U}(birth::Vector{TimeUnitType{U}},
                           death::Vector{TimeUnitType{U}},
-                          longevity::Float64,
-                          survival::Float64) where {U <: Unitful.Units}
-        longevity >= 0 && survival >= 0 ||
-            error("longevity and survival must not be negative")
-        return new{U}(birth, death, longevity, survival)
+                          longevity::Union{Real, AbstractVector{<:Real}},
+                          survival::Real) where {U <: Unitful.Units}
+        return new{U}(birth, death,
+                      _speciesexponents(longevity, survival, length(birth))...)
     end
 end
 
@@ -83,22 +86,22 @@ rates and the environment does not modulate them.
 # Fields
 
   - `birth`, `death`: one rate per species, per unit time.
-  - `longevity`, `survival`: the two exponents described in [`AbstractParams`](@ref). Carried so
-    that the same parameters can be reused with a growing model, but not read while growth is off.
+  - `longevity`, `survival`: the two exponents, as [`PopGrowth`](@ref) holds them - `longevity` one
+    per species. Carried so that the same parameters can be reused with a growing model, but not
+    read while growth is off.
 """
 struct NoGrowth{U <: Unitful.Units} <: AbstractParams
     birth::Vector{TimeUnitType{U}}
     death::Vector{TimeUnitType{U}}
-    longevity::Float64
+    longevity::Vector{Float64}
     survival::Float64
 
     function NoGrowth{U}(birth::Vector{TimeUnitType{U}},
                          death::Vector{TimeUnitType{U}},
-                         longevity::Float64,
-                         survival::Float64) where {U <: Unitful.Units}
-        longevity >= 0 && survival >= 0 ||
-            error("longevity and survival must not be negative")
-        return new{U}(birth, death, longevity, survival)
+                         longevity::Union{Real, AbstractVector{<:Real}},
+                         survival::Real) where {U <: Unitful.Units}
+        return new{U}(birth, death,
+                      _speciesexponents(longevity, survival, length(birth))...)
     end
 end
 
@@ -108,7 +111,9 @@ function Base.show(io::IO, p::Union{PopGrowth, NoGrowth})
     return print(io, nameof(typeof(p)), "(", length(p.birth),
                  " species, birth ",
                  _rangephrase(p.birth), ", death ", _rangephrase(p.death),
-                 ", longevity ", p.longevity, ", survival ", p.survival, ")")
+                 ", longevity ", _rangephrase(p.longevity), ", survival ",
+                 p.survival,
+                 ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", p::Union{PopGrowth, NoGrowth})
@@ -116,7 +121,7 @@ function Base.show(io::IO, ::MIME"text/plain", p::Union{PopGrowth, NoGrowth})
     println(io, "  species    ", length(p.birth))
     println(io, "  birth      ", _rangephrase(p.birth))
     println(io, "  death      ", _rangephrase(p.death))
-    println(io, "  longevity  ", p.longevity)
+    println(io, "  longevity  ", _rangephrase(p.longevity))
     print(io, "  survival   ", p.survival)
     return nothing
 end
@@ -134,7 +139,7 @@ function equalpop(params::EqualPop, numspp)
     u = unit(params.birth)
     return PopGrowth{typeof(u)}(fill(params.birth, numspp),
                                 fill(params.death, numspp),
-                                params.longevity,
+                                fill(params.longevity, numspp),
                                 params.survival)
 end
 function equalpop(params::PopGrowth, numspp)
@@ -143,6 +148,17 @@ end
 
 function equalpop(params::NoGrowth, numspp)
     return params
+end
+
+# A per-species parameter set's exponents as it holds them: `longevity` one per species - one number
+# filled to all `n` - and `survival` one for all, neither negative.
+function _speciesexponents(longevity, survival::Real, n::Integer)
+    lives = longevity isa AbstractVector ?
+            _tofield(Float64.(longevity), n, "longevity") :
+            fill(Float64(longevity), n)
+    (all(>=(0), lives) && survival >= 0) ||
+        error("longevity and survival must not be negative")
+    return lives, Float64(survival)
 end
 
 # Choose the parameter type from the shape of what was passed: scalar rates give an `EqualPop`, a

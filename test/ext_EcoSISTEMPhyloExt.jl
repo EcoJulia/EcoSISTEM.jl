@@ -5,7 +5,7 @@ module TestEcoSISTEMPhyloExt
 using Phylo
 using DataFrames
 using EcoSISTEM
-# `[C7-VIS]` B1/B2/B3: these are `public` rather than exported, so they must be named.
+# These are `public` rather than exported, so they must be named.
 using EcoSISTEM: gettraits, reroot!, assigntraits!, resettraits!
 using EcoSISTEM: discrete_evolve, continuous_evolve
 using EcoSISTEM: varcovar, fitbrownian
@@ -89,9 +89,8 @@ end
     @test gettraits(tree) == fromglobal
 end
 
-# The phylogenetic trait models, which had NO test of any kind until 2026-08-28. That is not a
-# hypothetical gap: `varcovar` called `indmax`, removed in Julia 0.7, so it threw an `UndefVarError`
-# on **every** call for years, and it was found by moving the file rather than by running it.
+# The phylogenetic trait models. Nothing else in the suite calls them, so without these a call that
+# cannot work - one naming a function Julia no longer has - would go unnoticed.
 #
 # `varcovar` is the one worth pinning properly, because the other two are built on it and because it
 # has an exact, checkable definition: entry (i, j) is the root-to-tip distance shared by tips i and

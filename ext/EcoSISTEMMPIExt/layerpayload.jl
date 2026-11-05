@@ -31,6 +31,20 @@ function EcoSISTEM._sharedreport(build, layers::NamedTuple, cons::NamedTuple,
     end
 end
 
+# A species pool, made or changed on the root and sent whole: its tables are small, and only the root
+# read a name authority's release to make them.
+function EcoSISTEM._sharedpool(build)
+    return _sharedbuild(build, _poolpayload, nothing) do skeleton, _
+        return skeleton
+    end
+end
+
+# A pool as a payload: all skeleton, no arrays to send in place.
+function _poolpayload(pool::EcoSISTEM.SpeciesPool)
+    return (skeleton = pool, descriptors = (),
+            arrays = ())
+end
+
 # The root runs `build` and takes its result apart with `pack`; every other rank receives the parts
 # and puts them together with `rebuild`. Then the root's input records replace everyone else's in
 # `cache`.

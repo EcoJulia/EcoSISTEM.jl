@@ -24,8 +24,9 @@
 # No MPI is needed to bless these: it is a serial run, so this set stays MPI-free and cheap.
 #
 # **Re-blessing `mpi/...` is only ever right when the serial keys moved for a reason already
-# understood.** Re-blessing to make a red distributed test green would silently re-admit A22, which
-# is the one thing this file is here to prevent.
+# understood.** Re-blessing to make a red distributed test green would silently re-admit a
+# distributed loop that disagrees with the serial one, which is the one thing this file is here to
+# prevent.
 
 module CanonicalMPIFixture
 

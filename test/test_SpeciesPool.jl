@@ -37,8 +37,6 @@ ids_of(pool) = DataFrame(pool).id
     # A name given twice is one species, with nothing to report.
     @test_logs SpeciesPool(["b", "a", "b"])
     @test names_of(SpeciesPool(["b", "a", "b"])) == ["b", "a"]
-    @test_logs (:info, r"10 species") SpeciesPool(DefaultEcosystem())
-    @test_logs SpeciesPool(DefaultEcosystem(), verbosity = :silent)
     # A table's other columns are the species' values, `missing` kept where a value is unknown.
     table = DataFrame(species = ["x", "y", "z"], tmin = [1.0, 2.0, missing])
     pool = SpeciesPool(table)

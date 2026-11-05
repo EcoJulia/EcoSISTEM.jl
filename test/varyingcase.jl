@@ -8,7 +8,7 @@
 # environment. Such a fixture is structurally incapable of detecting:
 #
 #   - anything **spatial**, including the `(y, x)` dimension-order class that only a **non-square**
-#     grid exposes (see CLAUDE.md, which records several of exactly that shape);
+#     grid exposes;
 #   - anything **temporal**: the whole layer-change subsystem (`SteadyLayerChange`,
 #     `PatternedLayerChange`, `SeriesLayerChange`, `atend`, calendars) had no blessed coverage at all;
 #   - a **partitioning** bug in MPI, since with identical cells every decomposition looks alike.
@@ -229,8 +229,12 @@ function mpifixture_intervention()
                         AllCells(), AddAbundance(1, 5))
 end
 
+# The demographic parameters both MPI fixtures share, named once for the reason the kernels are.
+mpifixture_params() = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2)
+
 function mpifixture_species(; numspecies = VARYING_SPECIES,
-                            movement = mpifixture_movement(numspecies))
+                            movement = mpifixture_movement(numspecies),
+                            params = mpifixture_params())
     # Two demands, matching the two supplies of the varying environment: `build_ecosystem` checks
     # that the species and environment sides align layer for layer.
     demand = SpeciesRequirementCollection((Demand{SolarRadiation}(collect(1:numspecies) .*
@@ -239,7 +243,6 @@ function mpifixture_species(; numspecies = VARYING_SPECIES,
                                            Demand{Precipitation}(fill(2.0Unitful.L /
                                                                       day,
                                                                       numspecies))))
-    param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2)
     # Optima spread across the regime's own 288-302 K gradient, so species genuinely sort in space.
     # A shared optimum would put them all in the same cells, and optima outside the environment would
     # kill everything -- a run where nothing survives compares equal across ranks for the wrong reason.
@@ -248,23 +251,27 @@ function mpifixture_species(; numspecies = VARYING_SPECIES,
     return SpeciesList(numspecies, tolerance,
                        fill(div(1_000, numspecies), numspecies), demand,
                        movement,
-                       param, fill(true, numspecies)), tolerance
+                       params, fill(true, numspecies)), tolerance
 end
 
 mpifixture_nichefit() = NicheSuitability{Temperature, typeof(1.0K)}()
 
 """
-    mpifixture_ecosystem(; seed = 0, numspecies = VARYING_SPECIES)
+    mpifixture_ecosystem(; seed = 0, numspecies = VARYING_SPECIES,
+                         movement = mpifixture_movement(), params = mpifixture_params())
 
 Build the **serial** ecosystem that a distributed run of the same fixture must reproduce, with its
-abundances filled exactly as the MPI test fills its own.
+abundances filled exactly as the MPI test fills its own. `movement` and `params` replace the
+fixture's dispersal and demographic parameters, as `mpifixture_species` takes them.
 
 Simulating this for `MPIFIXTURE_BURNIN` at `MPIFIXTURE_TIMESTEP` and gathering the distributed run
 must give the same abundance matrix, cell for cell, at any rank count.
 """
 function mpifixture_ecosystem(; seed = 0, numspecies = VARYING_SPECIES,
-                              movement = mpifixture_movement())
-    sppl, _ = mpifixture_species(numspecies = numspecies, movement = movement)
+                              movement = mpifixture_movement(),
+                              params = mpifixture_params())
+    sppl, _ = mpifixture_species(numspecies = numspecies, movement = movement,
+                                 params = params)
     eco = Ecosystem(sppl, varying_environment(), mpifixture_nichefit(),
                     seed = seed)
     # Filled artificially rather than populated, so the starting state is identical on every rank

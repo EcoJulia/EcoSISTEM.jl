@@ -146,10 +146,9 @@ end
 
 @testset "type-level rejection of a wrongly-ordered regime/supply DimArray" begin
     # `ContinuousRegime`/`CategoricalRegime`/`Supply{A}` require their `matrix` to be a
-    # `(Y, X)`-ordered `DimArray` - this is what actually prevents the historical X/Y mixup bug
-    # from recurring (see `~/.claude/plans/fix-dimension-order-mismatch.md`, Step 2): a
-    # wrongly-ordered array is rejected outright at construction (`MethodError`, not a runtime
-    # check), never becoming a valid regime/supply in the first place.
+    # `(Y, X)`-ordered `DimArray` - this is what keeps a regime or supply from being built with
+    # `X` and `Y` swapped: a wrongly-ordered array is rejected outright at construction
+    # (`MethodError`, not a runtime check), never becoming a valid regime/supply in the first place.
     change = NoLayerChange()
     correct = DimArray(fill(274.0K, 3, 4), (Y((1:3)km), X((1:4)km)))
     wrong = DimArray(fill(274.0K, 3, 4), (X((1:3)km), Y((1:4)km)))
@@ -180,8 +179,7 @@ end
     regime = materialise(GradientSpec(280.0K, 300.0K, axis = Temperature),
                          area)
     @test plot(regime).n == 1
-    # **Titled from the layer's own axis, never from its unit.** The old recipes looked the value's
-    # unit up in a four-entry `Dict`, which is the inference this subproject removes everywhere else.
+    # **Titled from the layer's own axis, never from its unit.**
     @test plot(regime).subplots[1][:title] == "Temperature (K)"
     # `(y, x)`: `matrix` is already in the orientation `heatmap` wants, so the plotted surface
     # must match it exactly - a transpose would pass a `size` check on a square grid and be wrong,

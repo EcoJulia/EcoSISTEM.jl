@@ -49,7 +49,6 @@ Base.show(io::IO, m::MergeWith) = print(io, "MergeWith(", m.f, ")")
     SpeciesPool(names::AbstractVector{<:AbstractString}; authority = nothing, verbosity = :normal)
     SpeciesPool(table; column = :species, authorship = nothing, authority = nothing,
                 merge = RefuseMerge(), provenance = ProvenanceRecord[], verbosity = :normal)
-    SpeciesPool(DefaultEcosystem(); verbosity = :normal)
 
 Every species a run may hold, each once, declared before the run is built. A species may be
 deactivated - kept, but marked to hold no individuals until it is activated - or removed, leaving it
@@ -74,7 +73,6 @@ was read from. [`deactivate_species!`](@ref), [`activate_species!`](@ref) and
   - `names`: a pool of the species these name, a name given twice taken once.
   - `table`: a table of the species, one row each: a path to a CSV file, a
     [`ProvenanceRecord`](@ref) of one (its record kept), or any Tables.jl table.
-  - `DefaultEcosystem()`: the default ecosystem's species, announced.
   - `column`: the table's column of names.
   - `authorship`: the table's column of each name's authors, which pick among a homonym's rows,
     or `nothing`, the default, for none.
@@ -116,9 +114,12 @@ end
 function SpeciesPool(names::AbstractVector{<:AbstractString};
                      authority::Union{Nothing, AbstractNameAuthority} = nothing,
                      verbosity::Symbol = :normal)
-    table = DataFrame(species = String.(names))
-    return _newpool(authority, table, :species, nothing, MergeWith(first),
-                    "names", ProvenanceRecord[], verbosity, notifymerge = false)
+    return _poolshared() do
+        table = DataFrame(species = String.(names))
+        return _newpool(authority, table, :species, nothing, MergeWith(first),
+                        "names", ProvenanceRecord[], verbosity,
+                        notifymerge = false)
+    end
 end
 
 function SpeciesPool(table; column::Symbol = :species,
@@ -127,11 +128,13 @@ function SpeciesPool(table; column::Symbol = :species,
                      merge::AbstractMergeRule = RefuseMerge(),
                      provenance = ProvenanceRecord[],
                      verbosity::Symbol = :normal)
-    source = _readtable(table, :species)
-    return _newpool(authority, source.table, column, authorship, merge,
-                    source.label,
-                    vcat(source.records, _recordvector(provenance)),
-                    verbosity)
+    return _poolshared() do
+        source = _readtable(table, :species)
+        return _newpool(authority, source.table, column, authorship, merge,
+                        source.label,
+                        vcat(source.records, _recordvector(provenance)),
+                        verbosity)
+    end
 end
 
 function Base.show(io::IO, pool::SpeciesPool)
@@ -194,15 +197,19 @@ function deactivate_species!(pool::SpeciesPool, names...;
                              rank::AbstractString = "species",
                              verbosity::Symbol = :normal)
     _checkverbosity(verbosity)
-    rows = isempty(names) ? collect(1:length(pool)) :
-           _selectrows(pool, names, rank, "deactivate", verbosity)
-    return _setactive!(pool, rows, false, verbosity)
+    return _poolshared!(pool) do pool
+        rows = isempty(names) ? collect(1:length(pool)) :
+               _selectrows(pool, names, rank, "deactivate", verbosity)
+        return _setactive!(pool, rows, false, verbosity)
+    end
 end
 
 function deactivate_species!(f::Function, pool::SpeciesPool;
                              verbosity::Symbol = :normal)
     _checkverbosity(verbosity)
-    return _setactive!(pool, _chosenrows(f, pool), false, verbosity)
+    return _poolshared!(pool) do pool
+        return _setactive!(pool, _chosenrows(f, pool), false, verbosity)
+    end
 end
 
 """
@@ -223,15 +230,19 @@ function activate_species!(pool::SpeciesPool, names...;
                            rank::AbstractString = "species",
                            verbosity::Symbol = :normal)
     _checkverbosity(verbosity)
-    rows = isempty(names) ? collect(1:length(pool)) :
-           _selectrows(pool, names, rank, "activate", verbosity)
-    return _setactive!(pool, rows, true, verbosity)
+    return _poolshared!(pool) do pool
+        rows = isempty(names) ? collect(1:length(pool)) :
+               _selectrows(pool, names, rank, "activate", verbosity)
+        return _setactive!(pool, rows, true, verbosity)
+    end
 end
 
 function activate_species!(f::Function, pool::SpeciesPool;
                            verbosity::Symbol = :normal)
     _checkverbosity(verbosity)
-    return _setactive!(pool, _chosenrows(f, pool), true, verbosity)
+    return _poolshared!(pool) do pool
+        return _setactive!(pool, _chosenrows(f, pool), true, verbosity)
+    end
 end
 
 """
@@ -259,21 +270,25 @@ function remove_species!(pool::SpeciesPool, names...; keep_active::Bool = false,
                          rank::AbstractString = "species",
                          verbosity::Symbol = :normal)
     _checkverbosity(verbosity)
-    if isempty(names)
-        keep_active ||
-            error("`remove_species!` with no names would remove every species; name them, or " *
-                  "pass `keep_active = true` to remove only the inactive ones.")
-        rows = findall(!, pool.species.active)
-    else
-        rows = _selectrows(pool, names, rank, "remove", verbosity)
+    return _poolshared!(pool) do pool
+        if isempty(names)
+            keep_active ||
+                error("`remove_species!` with no names would remove every species; name them, or " *
+                      "pass `keep_active = true` to remove only the inactive ones.")
+            rows = findall(!, pool.species.active)
+        else
+            rows = _selectrows(pool, names, rank, "remove", verbosity)
+        end
+        return _remove!(pool, rows, keep_active, verbosity)
     end
-    return _remove!(pool, rows, keep_active, verbosity)
 end
 
 function remove_species!(f::Function, pool::SpeciesPool;
                          keep_active::Bool = false, verbosity::Symbol = :normal)
     _checkverbosity(verbosity)
-    return _remove!(pool, _chosenrows(f, pool), keep_active, verbosity)
+    return _poolshared!(pool) do pool
+        return _remove!(pool, _chosenrows(f, pool), keep_active, verbosity)
+    end
 end
 
 """
@@ -295,30 +310,34 @@ original.
 """
 function copy_species!(pool::SpeciesPool, name::AbstractString;
                        as::AbstractString = _requireas())
-    label = String(as)
-    label in pool.species.name &&
-        _report(ProblemError(),
-                "`$label` already names a species of the pool, so it cannot label a copy.")
-    if !isnothing(pool.authority)
-        resolved = resolve_name(pool.authority, label)
-        isnothing(resolved.name) ||
+    return _poolshared!(pool) do pool
+        label = String(as)
+        label in pool.species.name &&
             _report(ProblemError(),
-                    "`$label` is a name $(_authorityphrase(pool.authority)) recognises (as " *
-                    "`$(resolved.name)`), so it cannot label a copy.")
+                    "`$label` already names a species of the pool, so it cannot label a copy.")
+        if !isnothing(pool.authority)
+            resolved = resolve_name(pool.authority, label)
+            isnothing(resolved.name) ||
+                _report(ProblemError(),
+                        "`$label` is a name $(_authorityphrase(pool.authority)) recognises (as " *
+                        "`$(resolved.name)`), so it cannot label a copy.")
+        end
+        rows = _poolrows(pool, (name,), "copy", :normal)
+        isempty(rows) &&
+            error("there is no species `$name` in the pool to copy.")
+        original = copy(pool.species[only(rows), :])
+        # A copy of a copy records the first original, as its own copy would.
+        iscopy = !ismissing(original.copykey)
+        push!(pool.species,
+              merge(original,
+                    (key = pool.nextkey, name = label, id = missing,
+                     active = true,
+                     copyof = iscopy ? original.copyof : original.name,
+                     copyofid = iscopy ? original.copyofid : original.id,
+                     copykey = iscopy ? original.copykey : original.key)))
+        pool.nextkey += 1
+        return pool
     end
-    rows = _poolrows(pool, (name,), "copy", :normal)
-    isempty(rows) && error("there is no species `$name` in the pool to copy.")
-    original = copy(pool.species[only(rows), :])
-    # A copy of a copy records the first original, as its own copy would.
-    iscopy = !ismissing(original.copykey)
-    push!(pool.species,
-          merge(original,
-                (key = pool.nextkey, name = label, id = missing, active = true,
-                 copyof = iscopy ? original.copyof : original.name,
-                 copyofid = iscopy ? original.copyofid : original.id,
-                 copykey = iscopy ? original.copykey : original.key)))
-    pool.nextkey += 1
-    return pool
 end
 
 """
@@ -359,48 +378,53 @@ function add_trait!(pool::SpeciesPool, table; column::Symbol = :species,
                     provenance = ProvenanceRecord[],
                     verbosity::Symbol = :normal)
     _checkverbosity(verbosity)
-    source = _readtable(table, role)
-    input = source.table
-    _checkcolumns(input, column, authorship)
-    traitcols = _traitcolumns(input, column, authorship)
-    _checknewcolumns(pool, traitcols, replace)
-    given = _namecolumn(input, column)
-    auths = _authorshipcolumn(input, authorship)
-    index = _poolindex(pool)
-    found = Dict{Tuple{String, Union{Nothing, String}}, Any}()
-    groups = Dict{Int, Vector{Int}}()
-    for i in eachindex(given)
-        hit = get!(found, (given[i], auths[i])) do
-            return _lookuprow(pool, index, given[i], auths[i])
+    return _poolshared!(pool) do pool
+        source = _readtable(table, role)
+        input = source.table
+        _checkcolumns(input, column, authorship)
+        traitcols = _traitcolumns(input, column, authorship)
+        _checknewcolumns(pool, traitcols, replace)
+        given = _namecolumn(input, column)
+        auths = _authorshipcolumn(input, authorship)
+        index = _poolindex(pool)
+        found = Dict{Tuple{String, Union{Nothing, String}}, Any}()
+        groups = Dict{Int, Vector{Int}}()
+        for i in eachindex(given)
+            hit = get!(found, (given[i], auths[i])) do
+                return _lookuprow(pool, index, given[i], auths[i])
+            end
+            isnothing(hit.row) || push!(get!(Vector{Int}, groups, hit.row), i)
         end
-        isnothing(hit.row) || push!(get!(Vector{Int}, groups, hit.row), i)
+        problems = Problem[]
+        _noteunmatched!(problems, found, verbosity)
+        merged = _mergegroups!(problems, input, groups, traitcols, merge,
+                               r -> pool.species.name[r], verbosity)
+        # Everything is said, and a refused merge raised, before the pool changes.
+        _reportpool(problems, verbosity)
+        for c in traitcols
+            pool.species[!, c] = identity.(Any[haskey(merged, r) ?
+                                               merged[r][c] :
+                                               missing for r in 1:length(pool)])
+        end
+        append!(pool.names,
+                _namerows(found, source.label, groups,
+                          r -> (key = pool.species.key[r],
+                                species = pool.species.name[r],
+                                id = pool.species.id[r])))
+        append!(pool.inputs,
+                _recordvector(vcat(source.records,
+                                   _recordvector(provenance))))
+        return pool
     end
-    problems = Problem[]
-    _noteunmatched!(problems, found, verbosity)
-    merged = _mergegroups!(problems, input, groups, traitcols, merge,
-                           r -> pool.species.name[r], verbosity)
-    # Everything is said, and a refused merge raised, before the pool changes.
-    _reportpool(problems, verbosity)
-    for c in traitcols
-        pool.species[!, c] = identity.(Any[haskey(merged, r) ? merged[r][c] :
-                                           missing for r in 1:length(pool)])
-    end
-    append!(pool.names,
-            _namerows(found, source.label, groups,
-                      r -> (key = pool.species.key[r],
-                            species = pool.species.name[r],
-                            id = pool.species.id[r])))
-    append!(pool.inputs,
-            _recordvector(vcat(source.records,
-                               _recordvector(provenance))))
-    return pool
 end
 
 function add_trait!(f, pool::SpeciesPool, name::Symbol; replace::Bool = false)
-    _checknewcolumns(pool, [name], replace)
-    pool.species[!, name] = identity.(Any[f(row)
-                                          for row in eachrow(_pooltable(pool))])
-    return pool
+    return _poolshared!(pool) do pool
+        _checknewcolumns(pool, [name], replace)
+        pool.species[!, name] = identity.(Any[f(row)
+                                              for row in eachrow(_pooltable(pool))])
+        return pool
+    end
 end
 
 """
@@ -433,6 +457,34 @@ Return the [`ProvenanceRecord`](@ref)s of what `pool` was read from: its table, 
   - `pool`: the pool to report on.
 """
 provenance(pool::SpeciesPool) = copy(pool.inputs)
+
+# Make a pool once for every rank: under MPI rank 0 makes it - reading a name authority's release
+# there alone - and every other rank takes the one it made. Every rank must make the call, in the
+# same order, as layers are built.
+function _poolshared(build)
+    _usempi() || return build()
+    return _sharedpool(build)
+end
+
+# Change a pool once for every rank, as `_poolshared` makes one: the root changes its own and every
+# other rank's is brought to the same state.
+function _poolshared!(change!, pool::SpeciesPool)
+    _usempi() || (change!(pool); return pool)
+    shared = _sharedpool() do
+        change!(pool)
+        return pool
+    end
+    shared === pool || _takestate!(pool, shared)
+    return pool
+end
+
+# Bring `pool` to the state of `other`, field by field.
+function _takestate!(pool::SpeciesPool, other::SpeciesPool)
+    for f in fieldnames(SpeciesPool)
+        setfield!(pool, f, getfield(other, f))
+    end
+    return pool
+end
 
 # A new pool: `table`'s names, standardised through `authority` where there is one and grouped into
 # species - rows reaching one final name are one species, whose identifier joins every identifier
@@ -674,8 +726,9 @@ end
 
 # What a pool looks names up by, built once for each operation: its species' rows by name and by
 # identifier, the names of its data by name and authorship, and by name alone where a name reached
-# one species whatever its authorship, and its authority's resolver.
-function _poolindex(pool::SpeciesPool)
+# one species whatever its authorship, and - where `resolve` asks for it - its authority's resolver,
+# which reads the authority's names.
+function _poolindex(pool::SpeciesPool; resolve::Bool = true)
     species = pool.species
     rowof(v) = Dict(x => r for (r, x) in enumerate(v) if !ismissing(x))
     bykey = rowof(species.key)
@@ -689,8 +742,15 @@ function _poolindex(pool::SpeciesPool)
     byname = Dict(n => only(rows) for (n, rows) in keys if length(rows) == 1)
     return (name = rowof(species.name), id = rowof(species.id), given = given,
             givenname = byname,
-            resolve = isnothing(pool.authority) ? nothing :
-                      _resolver(pool.authority))
+            resolve = (resolve && !isnothing(pool.authority)) ?
+                      _resolver(pool.authority) : nothing)
+end
+
+# Each species' row by name, for the species list built from a pool: its own name, and every name of
+# the pool's data that reached it alone.
+function _speciesnamemap(pool::SpeciesPool)
+    index = _poolindex(pool, resolve = false)
+    return Dict{String, Int}(merge(index.givenname, index.name))
 end
 
 # A name looked up in a pool, as `add_trait!` and the verbs do: its species' `row` in the pool, or

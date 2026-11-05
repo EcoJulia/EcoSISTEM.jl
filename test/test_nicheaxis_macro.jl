@@ -3,7 +3,7 @@
 module TestNicheAxisMacro
 
 using EcoSISTEM
-# `[C7-VIS]` B1/B2/B3: these are `public` rather than exported, so they must be named.
+# These are `public` rather than exported, so they must be named.
 using EcoSISTEM: getdist
 using EcoSISTEM.Units
 using Unitful
@@ -22,8 +22,8 @@ using Test
     @nicheaxis(TestGroupAxis<:EcoSISTEM.NicheAxis, condition=K,
                bounds=(0.0K, nothing))
     @nicheaxis(TestLeaf <: TestGroupAxis)
-    # A subtype on the *same* unit is the case D24 exists for (`SoilTemperature <: Temperature`),
-    # and it stays legal - only a **contradicting** unit is refused, below.
+    # A subtype on the *same* unit (`SoilTemperature <: Temperature`) is what an axis subtype is
+    # for, and it stays legal - only a **contradicting** unit is refused, below.
     @nicheaxis(TestSubLeaf <: TestLeaf)
     @nicheaxis(TestResource<:EcoSISTEM.NicheAxis, condition=nothing,
                resource=g/day,
@@ -403,10 +403,10 @@ end
     @test EcoSISTEM.canonicalunit(Temperature) === EcoSISTEM.K
 end
 
-# **The regression test for `[TF-DENSITY-SCALE]`: an axis's canonical unit must NOT change the
-# dynamics.** Before this, a stripped `pdf` was "probability mass in a window one canonical unit
-# wide", so re-declaring an axis from `mm/d` to `cm/d` multiplied every suitability by 10 and moved
-# every equilibrium (`b/d` by `10^(2*survival)` - 100× at `survival = 1.0`).
+# **An axis's canonical unit must NOT change the dynamics.** Without `densitywidth`, a stripped
+# `pdf` is "probability mass in a window one canonical unit wide", so re-declaring an axis from
+# `mm/d` to `cm/d` would multiply every suitability by 10 and move every equilibrium (`b/d` by
+# `10^(2*survival)` - a factor of 100 at `survival = 1.0`).
 # Two axes declared here at **different canonical units for the same physical quantity**, each with
 # the *same* fixed physical `densitywidth`, must give the **same** suitability for the same niche.
 @testset "an axis's canonical unit does not change suitability" begin

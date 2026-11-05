@@ -16,7 +16,7 @@ using Random
 # to an 8-argument one (`switch::Vector{Float64}`) that only exists once `Phylo` is loaded. This file
 # never said so, and passed anyway: run serially, some *earlier* test file had already loaded `Phylo`
 # into the shared process. Each parallel worker is a fresh process, so the order-dependency became
-# a `MethodError`. The rule it broke is `CLAUDE.md`'s: a file needing a weak dependency must name it.
+# a `MethodError`. A file needing a weak dependency must name it.
 using Phylo
 
 @testset "SpeciesList" begin
@@ -218,11 +218,11 @@ end
 
 # **The forwarding rule, asserted by ENUMERATION rather than by a list.** A `SpeciesList` holds
 # an `AbstractTypes`; every Diversity hook about the types must therefore give the same answer for
-# the list as for what it wraps. Every defect found on 2026-08-18 was a breach of exactly this -
-# hardcoded (`floattypes`, `_hassimilarity`), drifted (`_calcsimilarity` gained a **scale**), or
-# absent (`_subsettypes`, `_calcordinariness`, `_addedoutputcols`, `_getaddedoutput`).
+# the list as for what it wraps. A breach takes one of three forms - a hook hardcoded
+# (`floattypes`, `_hassimilarity`), drifted (`_calcsimilarity` gaining a **scale**), or absent
+# (`_subsettypes`, `_calcordinariness`, `_addedoutputcols`, `_getaddedoutput`).
 # Written as a sweep over `Diversity.API` so that a hook added upstream is caught here rather
-# than by whatever breaks first - the failure mode was always silence, never an error.
+# than by whatever breaks first - the failure mode is silence, never an error.
 @testset "SpeciesList forwards every AbstractTypes hook" begin
     species = build_species(EcoSISTEM.DefaultEcosystem(), verbosity = :silent)
     habitat = build_habitat(EcoSISTEM.DefaultEcosystem(), verbosity = :silent)

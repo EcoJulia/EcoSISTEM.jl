@@ -3,7 +3,7 @@
 module TestEcosystem
 
 using EcoSISTEM
-# `[C7-VIS]` B1/B2/B3: these are `public` rather than exported, so they must be named.
+# These are `public` rather than exported, so they must be named.
 using EcoSISTEM: getnichefit, update!
 using Random: Random
 using EcoSISTEM: getregime
@@ -229,14 +229,11 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
             e
         end
         @test swaperr isa ErrorException
-        # **The offending layers are named by their AXES**, not by their positions - that is D25
-        # earning its keep on the error path: the message says *which measurements* disagree rather
-        # than which slots, and the reader does not have to count members to find out.
-        # **D3(a) moved which check catches this.** A nichefit now carries its own axis, so the
-        # swapped fit derives `(:Precipitation, :Temperature)` against the tolerance's
-        # `(:Temperature, :Precipitation)` and the **naming** check fires first - where before, the
-        # fit had no axis, both sides fell back to positional names, and it reached the per-member
-        # check. Caught earlier and by a better question; the axes are still what is named.
+        # **The offending layers are named by their AXES**, not by their positions: the message says
+        # *which measurements* disagree rather than which slots, and the reader does not have to
+        # count members to find out. A nichefit carries its own axis, so the swapped fit derives
+        # `(:Precipitation, :Temperature)` against the tolerance's `(:Temperature, :Precipitation)`
+        # and the **naming** check fires before the per-member one.
         @test occursin("Temperature", swaperr.msg) &&
               occursin("Precipitation", swaperr.msg)
     end

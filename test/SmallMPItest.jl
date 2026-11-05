@@ -212,6 +212,55 @@ else
     end
 end
 
+# **A species pool is made and changed on the root, which alone reads a name authority's release.**
+# Every pool operation is one rank's work sent to the others, so a release read by every rank - 388
+# MiB held, about 2 GB at its peak, for the real one - is read once; a lineage read inside an
+# `add_trait!` do-block is the root's too. A made-up release, written by the root where every rank
+# can see it.
+include(joinpath(@__DIR__, "wfofixtures.jl"))
+if !MANYRANKS
+    @info "Skipping the shared species pool testset: it needs more than one rank."
+else
+    @testset "a species pool is made and changed on the root alone" begin
+        shared = MPI.bcast(rank == 0 ? mktempdir() : "", 0, comm)
+        zip = joinpath(shared, "_DwC_backbone_R.zip")
+        rank == 0 && fakewfo(shared)
+        MPI.Barrier(comm)
+        wfo = WFOPlantList(release = "2026-06", path = zip)
+        pool = SpeciesPool(DataFrame(species = ["Acacia alpha", "Mimosa alpha",
+                                         "Acacia zeta", "Mimosa beta"],
+                                     v = 1:4),
+                           authority = wfo, merge = MergeWith(first),
+                           verbosity = :silent)
+        add_trait!(pool, :genus) do row
+            return EcoSISTEM.lineage(wfo, row.id, "genus")
+        end
+        deactivate_species!(pool, "Mimosa", rank = "genus", verbosity = :silent)
+        copy_species!(pool, "Acacia zeta", as = "zeta copy")
+        @test isempty(EcoSISTEM._WFOLOADED) == (rank != 0)
+        root = MPI.bcast(DataFrame(pool), 0, comm)
+        @test isequal(root, DataFrame(pool))
+        @test DataFrame(pool).genus == ["Acacia", "Acacia", "Mimosa", "Acacia"]
+        @test DataFrame(pool).active == [true, true, false, true]
+        # A failure on the root stops every rank, as a shared layer's does.
+        @test_throws ErrorException activate_species!(SpeciesPool(["a"]), "a",
+                                                      rank = "genus")
+        # Species built from the pool on every rank are the root's.
+        species = build_species(pool,
+                                tolerance = ToleranceSpec(Temperature,
+                                                          μ = 285.0K,
+                                                          σ = 2.0K),
+                                demand = DemandSpec(SolarRadiation,
+                                                    1.0kJ / day),
+                                seed = 1, verbosity = :silent)
+        received = MPI.bcast(species, 0, comm)
+        @test isequal(received.traits, species.traits)
+        @test received.abun == species.abun && received.names == species.names
+        MPI.Barrier(comm)
+        rank == 0 && rm(EcoSISTEM._wfocachepath(zip), force = true)
+    end
+end
+
 # **The fixture is built by `mpifixture_species` in `varyingcase.jl`, not spelled out here.**
 # The canonical `mpi/...` results are blessed from a SERIAL run of that same builder, and those
 # numbers are only evidence about this run if both sides build the identical thing - two
@@ -453,8 +502,8 @@ always_abuns = gatherabundance(alwayseco)
 rank == 0 && checkblessed(always_abuns, "mpi/always")
 
 # The same one-rank equality the birth-only run gets above. It cannot catch a rank-mapping bug (see
-# the note above), but it does catch the loop body diverging from the serial one, which is A22's
-# failure and is invisible to any MPI-against-MPI comparison.
+# the note above), but it does catch the loop body diverging from the serial one, which no
+# MPI-against-MPI comparison can see.
 if MPI.Comm_size(comm) == 1
     alwaysserial = mpifixture_ecosystem(movement = mpifixture_always())
     simulate!(alwaysserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
@@ -485,6 +534,32 @@ mixed_abuns = gatherabundance(mixedeco)
 mixedserial = mpifixture_ecosystem(movement = mpifixture_mixed())
 simulate!(mixedserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
 rank == 0 && @test mixedserial.abundances.matrix == mixed_abuns
+
+# **Longevity differing by species**, against the serial twin at every rank count. Each species'
+# exponent is read by its global index, and a rank numbers its own species from one, so a read by
+# the local index takes another species' value - invisibly at one rank, where the two agree. The
+# demands differ by species, or the exponent would change nothing; the test asserts that it does,
+# and that every species survives to have its exponent read.
+function mpifixture_longevity(numspecies = VARYING_SPECIES)
+    U = typeof(unit(0.6 / year))
+    return PopGrowth{U}(fill(0.6 / year, numspecies),
+                        fill(0.6 / year, numspecies),
+                        collect(range(0.5, 1.5, length = numspecies)), 0.2)
+end
+longsppl, _ = mpifixture_species(params = mpifixture_longevity())
+longeco = MPIEcosystem(longsppl, varying_environment(), nichefit, seed = 0)
+longeco.abundances.rows_matrix .= MPIFIXTURE_FILL
+MPI.Barrier(comm)
+@test_nowarn simulate!(longeco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+long_abuns = gatherabundance(longeco)
+# Every rank builds the serial reference, since building a habitat is collective.
+longserial = mpifixture_ecosystem(params = mpifixture_longevity())
+simulate!(longserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+if rank == 0
+    @test long_abuns != true_abuns
+    @test all(>(0), sum(long_abuns, dims = 2))
+    @test longserial.abundances.matrix == long_abuns
+end
 
 # **An intervention is the only thing that can leave the two landscape layouts out of step**, and so
 # the only thing that exercises where `synchronise_from_rows!` sits in the timestep. It writes

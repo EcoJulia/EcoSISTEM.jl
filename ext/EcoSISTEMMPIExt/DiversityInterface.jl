@@ -124,11 +124,11 @@ end
 
 import Diversity.API: _getordinariness!
 using Diversity.API: _calcsimilarity, _calcabundance
-# **`[MPI-DUP]` - this had BOTH problems the serial path had, and a `grep` over `src/` finds
-# neither.** It cached into `eco.ordinariness` (stale the moment anything mutated the ecosystem),
-# and it hardcoded the scale as `one(eltype(relab))` - right only when the types carry no
-# similarity, and so wrong for exactly the phylogenetic case a scale exists for.
-# Now: no cache, and **one `_calcabundance` call giving both the processed abundances and the
+# **A second copy of the serial path, which a `grep` over `src/` does not find, so it must avoid
+# both of that path's traps by itself.** It must not cache (a cached value is stale the moment
+# anything mutates the ecosystem), and its scale must not be `one(eltype(relab))` - right only when
+# the types carry no similarity, and so wrong for exactly the phylogenetic case a scale exists for.
+# So: no cache, and **one `_calcabundance` call giving both the processed abundances and the
 # real scale**, as Diversity's own `Metacommunity` does.
 # **Computed in the COLUMN partition, and that is what makes it right rather than merely faster.**
 # Ordinariness multiplies the similarity matrix by the abundances, so a species' ordinariness in a

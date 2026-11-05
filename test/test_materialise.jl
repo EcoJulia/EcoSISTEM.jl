@@ -28,13 +28,12 @@ end
 include("rasterfixtures.jl")
 include("buildfixtures.jl")
 
-# **`[ONE-PATH]`: `GridHabitat` puts in the habitat exactly what `materialise` shows.**
-# This is a *structural* guard, not a numerical coincidence. A builder running its own near-copy of
-# the inspection chain (`_materialiseon` -> `_assemble` -> `_resolve_regime`/`_resolve_supply`) drifts
-# from it: three times over, in un-united dims, a hardcoded `Intervals(Start())`, and a `NicheSpec`
-# that `materialise` built and the builder could not. Each
-# was found by accident. The builder now calls `materialise`, so the assertions below can only fail
-# if the two are pulled apart again.
+# **`GridHabitat` puts in the habitat exactly what `materialise` shows.** This is a *structural*
+# guard, not a numerical coincidence: a builder running its own near-copy of the inspection chain
+# (`_materialiseon` -> `_assemble` -> `_resolve_regime`/`_resolve_supply`) drifts from it - in dims
+# left without units, a hardcoded `Intervals(Start())`, a `NicheSpec` one can build and the other
+# cannot. The builder calls `materialise`, so the assertions below fail only if the two are pulled
+# apart.
 #
 # Both roles, both kinds of spec (data-backed and synthetic), on both kinds of positioned area -
 # because the two paths differed *per kind*, so a single case would prove almost nothing.
@@ -61,8 +60,8 @@ include("buildfixtures.jl")
 
         @test env.regime.matrix == seenreg.matrix
         @test env.supply.matrix == seensup.matrix
-        # The **dims**, not just the values: A17 was two identical value arrays whose coordinates
-        # were described differently, which is exactly what a value-only check misses.
+        # The **dims**, not just the values: two identical value arrays whose coordinates are
+        # described differently are exactly what a value-only check misses.
         @test dims(env.regime.matrix, (Y, X)) == dims(seenreg.matrix, (Y, X))
         @test dims(env.supply.matrix, (Y, X)) == dims(seensup.matrix, (Y, X))
         @test env.regime.size == seenreg.size

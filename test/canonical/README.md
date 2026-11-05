@@ -124,13 +124,12 @@ worst kind of canonical failure, because re-blessing makes it go away until next
    `categorical/regime_map` is still what makes every number conditional on a *recorded* input. ✅ The gate for this is cheap and worth running on any new file: three consecutive checking
    runs, plus a re-bless that leaves `reference.toml` byte-identical.
 
-🔴 **`test_varying.jl` and `test_intervention.jl` exist because of the same class of hole
-`test_realdata.jl` did.** Until they were written, *every* blessed number came from an environment
-where **every cell was identical and nothing changed over time**, on a **square** grid. That is
-structurally incapable of detecting a transposed index (see CLAUDE.md - a past bug had exactly that
-shape), any part of the layer-change subsystem, or which cells an intervention selected. Four steps
-of the axis/units work passed with `reference.toml` unmoved, which was *correct* for those steps -
-but the experiment could not have told the difference.
+🔴 **`test_varying.jl` and `test_intervention.jl` close the same class of hole as
+`test_realdata.jl`.** Without them, *every* blessed number would come from an environment where
+**every cell is identical and nothing changes over time**, on a **square** grid. That is
+structurally incapable of detecting a transposed index, any part of the layer-change subsystem, or
+which cells an intervention selected: a change could leave `reference.toml` unmoved and still be
+wrong, and the experiment could not tell.
 
 ⭐ They are **additive**: no key in them replaces one in `test_simulated.jl`, so the baseline those
 original numbers provide is preserved. The shared fixture is

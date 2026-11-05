@@ -11,20 +11,18 @@
 # (degree coordinates); pass a projected CRS (with matching length-valued `lat`/`long`) for a
 # metric-grid fixture - see `_bngraster`.
 #
-# **`Intervals(Start)`, because that is what a reader hands back.** Measured 2026-08-13 on real
+# **`Intervals(Start)`, because that is what a reader hands back.** Measured on real
 # reads (`WorldClim{Climate}`, `WorldClim{BioClim}`, `EarthEnv{LandCover}`): `Y`/`X` come back
 # `Projected`/**`Intervals(Start)`**/`Regular`, a monthly `Ti` comes back `Sampled`/`Points`/
 # `Irregular` holding **1-based** `(1:n) .* month_mean_duration`, and a layer axis comes back
 # `Categorical` holding **`Symbol`** codes. `_locus` preserves whatever the source file declares and
 # refuses `Points` outright, so nothing shipped ever arrives as `Center`.
 #
-# **This declared `Center` until 2026-08-13, while the comment above claimed it matched real
-# reads.** The difference is half a cell - a `Center` cell labelled 20° spans `[10°, 30°)`, a `Start`
-# one spans `[20°, 40°)` - so a query at 19.9° landed in a different cell in the tests than in
-# production, ~9 km for WorldClim. That is the mechanism behind four separate hidden bugs
-# (`[S3-F3]`, `[S3-F5]`, the `Dim{:var}` band fixture, and the 0-based month axis): **the fixture was
-# unrepresentative and the code was calibrated against the fixture.** `locus` stays a keyword so a
-# test can still ask for `Center` deliberately, but it must now be asked for.
+# **The default must match real reads, or the tests answer a different question.** The difference
+# is half a cell - a `Center` cell labelled 20° spans `[10°, 30°)`, a `Start` one spans
+# `[20°, 40°)` - so with `Center` a query at 19.9° lands in a different cell in the tests than in
+# production, ~9 km for WorldClim, and code calibrated against such a fixture is wrong on real data.
+# `locus` stays a keyword so a test can still ask for `Center` deliberately.
 function _testraster(T, values; lat = (0.0:1.0:4.0) .* °,
                      long = (0.0:1.0:4.0) .* °, crs = Rasters.EPSG(4326),
                      locus = DimensionalData.Lookups.Start(),
@@ -32,12 +30,10 @@ function _testraster(T, values; lat = (0.0:1.0:4.0) .* °,
     centre = DimensionalData.Lookups.Intervals(locus)
     latstep = length(lat) > 1 ? lat[2] - lat[1] : oneunit(eltype(lat))
     longstep = length(long) > 1 ? long[2] - long[1] : oneunit(eltype(long))
-    # **The order follows the values.** It was hardcoded `ForwardOrdered` while the span was
-    # computed *signed*, so a **descending** axis - the normal orientation of a north-up GeoTIFF -
-    # was declared incoherently: values falling, span negative, order claiming to rise. Nothing
-    # noticed while consumers read the raw coordinates and took `abs` of their difference; asking the
-    # lookup for its cells' own intervals (`[LOCUS-BLIND]`) is what made the fixture's own
-    # declaration load-bearing.
+    # **The order follows the values.** The span is computed *signed*, so a **descending** axis -
+    # the normal orientation of a north-up GeoTIFF - must be declared reverse-ordered, or it is
+    # incoherent: values falling, span negative, order claiming to rise. Consumers ask the lookup
+    # for its cells' own intervals, so the fixture's declaration is load-bearing.
     ord(step) = step < zero(step) ?
                 DimensionalData.Lookups.ReverseOrdered() :
                 DimensionalData.Lookups.ForwardOrdered()
@@ -62,8 +58,8 @@ _thirdaxis(::Nothing, ::Nothing) = nothing
 function _thirdaxis(time, code)
     return error("a fixture raster has at most one third axis; got both `time` and `code`.")
 end
-# `Points`/`Irregular`, which is what a real monthly read carries - *not* `Intervals`. The `Ti`
-# half of the `Intervals(Start)` rule is `[TIME-AXIS]`, deliberately not part of this step.
+# `Points`/`Irregular`, which is what a real monthly read carries - *not* `Intervals`: the
+# `Intervals(Start)` rule is for `Y` and `X`.
 function _thirdaxis(time, ::Nothing)
     return DimensionalData.Ti(DimensionalData.Lookups.Sampled(collect(time),
                                                               order = DimensionalData.Lookups.ForwardOrdered(),

@@ -32,7 +32,7 @@ using EcoSISTEM: AbstractDemand, AbstractParams, SimpleCategoricalTolerance,
 # The private helpers too: the moved bodies call each other by bare name, and a method defined as
 # `EcoSISTEM.foo(...)` does not bind `foo` inside this module.
 using EcoSISTEM: arenoderecordsempty, pair, root_to_tips, brownian_motion
-# The phylogenetic trait set is `public` rather than exported (`[C7-VIS]`), so `using EcoSISTEM`
+# The phylogenetic trait set is `public` rather than exported, so `using EcoSISTEM`
 # above does not reach it - and several bodies here call these by bare name. The rest of the set
 # (`resettraits!`, `reroot!`, `discrete_evolve`, `continuous_evolve`) is only ever *defined* here, with
 # a qualified name, which binds nothing locally and so needs no import.

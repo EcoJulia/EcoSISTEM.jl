@@ -231,8 +231,8 @@ using Unitful.DefaultSymbols
 # differing only in values - and it is why the twelve land-cover bands belong here.
 #
 # **"Areal" is invisible in the unit.** A cover fraction is `NoDims`, so no unit-based test can
-# tell a space layer from any other dimensionless one. Only the axis knows - which is this
-# subproject's whole thesis, and a mistake I made once while writing it.
+# tell a space layer from any other dimensionless one. Only the axis knows, which is why a layer's
+# meaning is read from its axis and never from its unit.
 #
 # **One axis per stratum, not one axis with a stratum parameter**, because the strata do not share
 # a dimension: surface and canopy are areas (m^2/m^2 -> m^2), soil is a volume (m^3/m^2 -> m^3). A single

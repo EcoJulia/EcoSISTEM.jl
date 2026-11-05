@@ -781,6 +781,7 @@ function _addspecies!(eco::AbstractEcosystem, abun::Integer;
     push!(eco.rngs, Random.Xoshiro(UInt64[eco.seed, n + 1]))
     repopulate!(eco, abun)
     push!(eco.spplist.names, isnothing(name) ? string(n + 1) : name)
+    _addidentity!(eco.spplist, eco.spplist.names[end])
     append!(eco.spplist.abun, abun)
     # An arrival carrying its own traits is by definition not native.
     append!(eco.spplist.native, all(isnothing, (tolerance, demand, dispersal)))
@@ -830,12 +831,13 @@ function _addmovement!(movement::AbstractVector{<:SpeciesDispersal},
     return movement
 end
 
-# **Two vectors, and both must grow** - `birth` and `death` are separate per-species vectors on the
-# same params object, so extending one and not the other leaves them different lengths and the
-# demographic loop reads off the end. Cloning the last species' rates is the `nothing` default the
-# family shares.
+# **Three vectors, and all must grow** - `birth`, `death` and `longevity` are separate per-species
+# vectors on the same params object, so extending one and not the others leaves them different
+# lengths and the demographic loop reads off the end. Cloning the last species' values is the
+# `nothing` default the family shares.
 function _addparams!(params::AbstractParams, birth = nothing, death = nothing)
     append!(params.birth, isnothing(birth) ? params.birth[end] : birth)
+    push!(params.longevity, params.longevity[end])
     return append!(params.death, isnothing(death) ? params.death[end] : death)
 end
 

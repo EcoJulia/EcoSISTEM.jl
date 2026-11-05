@@ -566,7 +566,7 @@ end
 # *species* across **all** cells (`synchronise_from_rows!` has already run - `ext/EcoSISTEMMPIExt/dynamics.jl`). That
 # is what makes every abundance operation rank-local: a rank clears or adds to its own species at the
 # named cells, every rank does the same, and between them they cover the whole assemblage. No global
-# draw and no partition arithmetic is needed, which is what an earlier reading of the plan assumed.
+# draw and no partition arithmetic is needed.
 # The MPI extension supplies the sole method for its own landscape.
 function _ownedabundances(eco::AbstractEcosystem)
     return (rows = eco.abundances.matrix, firstspecies = 1)

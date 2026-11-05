@@ -510,9 +510,9 @@ function _resourceadjustment(eco::AbstractEcosystem, supply::AbstractSupply,
     # Traits
     ϵ̄real = 1 / suitability(eco, sc, sp)
     # Alter rates by resource available in current pop & own demands
-    birth_resource = ϵ̄^-params.longevity * ϵ̄real^-params.survival *
+    birth_resource = ϵ̄^-params.longevity[sp] * ϵ̄real^-params.survival *
                      min(K / E, 1.0)
-    death_resource = ϵ̄^-params.longevity * ϵ̄real^params.survival * (E / K)
+    death_resource = ϵ̄^-params.longevity[sp] * ϵ̄real^params.survival * (E / K)
     return birth_resource, death_resource
 end
 
@@ -565,9 +565,9 @@ function _resourceadjustment(eco::AbstractEcosystem,
     ϵ̄real = 1 / suitability(eco, sc, sp)
     # Alter rates by resource available in current pop & own demands
     demanded = _fold(*, ϵ̄)
-    birth_resource = demanded^-params.longevity * ϵ̄real^-params.survival *
+    birth_resource = demanded^-params.longevity[sp] * ϵ̄real^-params.survival *
                      min(_fold(min, _zipmap(/, K, E)), 1.0)
-    death_resource = demanded^-params.longevity * ϵ̄real^params.survival *
+    death_resource = demanded^-params.longevity[sp] * ϵ̄real^params.survival *
                      _fold(max, _zipmap(/, E, K))
     return birth_resource, death_resource
 end

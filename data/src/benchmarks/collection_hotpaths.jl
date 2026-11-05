@@ -48,9 +48,7 @@
 # fixed-arity predecessors there, and nothing else: `LayerCollection((a, b))` ->
 # `RegimeCollection2(a, b)` for a regime and `SupplyCollection2(a, b)` for a supply,
 # `SpeciesRequirementCollection((a, b))` -> `ToleranceCollection2(a, b)`, `SpeciesRequirementCollection((a, b))` ->
-# `DemandCollection2(a, b)`, and `MultiplicativeFit((a, b))` -> `MultiplicativeFit2(a, b)`. That
-# variant is what produced the before/after figures recorded in
-# `~/.claude/plans/ecosistem-collection-types.md`.
+# `DemandCollection2(a, b)`, and `MultiplicativeFit((a, b))` -> `MultiplicativeFit2(a, b)`.
 #
 # **Do not lift the parameters from `test/TestCases.jl`.** Its fixtures use `survival = 0.0`,
 # which makes the suitability term `ϵ̄real^-0.0 == 1` - so the regime, tolerance and nichefit have no
@@ -80,16 +78,14 @@ const SEED = 1234
 # A temperature regime and a solar supply, or a rainfall regime and a water supply, filled flat.
 # The values are arbitrary; only the shapes matter.
 #
-# These were once built from the layer constructors directly, on the grounds that
-# `GridHabitat` "needs a positioned `StudyArea`, and so a data source, for more than one
-# layer". Measured 2026-08-07: that is not so - it takes a tuple on either side over a synthetic
-# area. Going through it means the benchmark measures the shape users actually get.
+# They are built through `GridHabitat`, which takes a tuple on either side over a synthetic area,
+# so the benchmark measures the shape users actually get.
 #
 # One real difference, and it is why this is worth stating: a bare `ContinuousRegime(...)` declares
 # no axis, so building one directly gives `EcoSISTEM.NicheAxis` where `GridHabitat` gives it the
 # axis of its spec (`Temperature`/`Precipitation`). That parameter is dispatched on, so a benchmark
-# built the first way measures a shape no real environment has. Both arms are built through the
-# habitat, so the 1-vs-2 comparison these benchmarks exist for is unaffected.
+# built from the layer constructors directly measures a shape no real environment has. Both arms
+# are built through the habitat, so the 1-vs-2 comparison these benchmarks exist for is unaffected.
 function _area()
     return StudyArea(extent = (GRID[1] * CELLSIZE, GRID[2] * CELLSIZE),
                      cellsize = CELLSIZE, verbosity = :silent)
@@ -127,7 +123,7 @@ function build(nregimes::Int, nsupplies::Int)
                                       thresh = 1.0e-3),
                     NSPP)
     # `build_species`' own defaults - see the warning in the header about `survival = 0.0`.
-    param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2, 1.0)
+    param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2)
     species = SpeciesList(NSPP, tolerance, abun, demand, movement, param,
                           fill(true, NSPP))
     return Ecosystem(species, habitat, nichefit, seed = SEED)

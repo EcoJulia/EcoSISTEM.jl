@@ -905,6 +905,23 @@ classDiagram
     SpeciesPool "1" *-- "*" ProvenanceRecord : inputs
 ```
 
+```mermaid
+classDiagram
+    class AbstractTraitSpec
+    class ToleranceSpec~A, D, P~
+    class DemandSpec~A, V~
+    class MovementSpec~M, P~
+    class ChosenBy~K, C~
+    class TraitColumn~U, F~
+    class DrawFrom~D, U~
+    AbstractTraitSpec <|-- ToleranceSpec
+    AbstractTraitSpec <|-- DemandSpec
+    AbstractTraitSpec <|-- MovementSpec
+    AbstractTraitSpec <|-- ChosenBy
+    ToleranceSpec "1" *-- "*" TraitColumn : params
+    MovementSpec "1" *-- "*" DrawFrom : params
+```
+
 **A `SpeciesPool` declares every species a run may hold before the run is built**, so its arrays,
 its random streams and its partition between MPI ranks are fixed from the start: a species is
 deactivated or activated, not appended. Each species keeps a key - its position in the table the
@@ -918,6 +935,14 @@ its own name with its identifiers joined, so a table naming it by name alone sti
 one. Which of several rows reaching one species supplies its values is not the authority's
 question, since it turns on which names the data holds, and the pool's `AbstractMergeRule` answers
 it.
+
+**A species list is built from a pool one `AbstractTraitSpec` per trait**, each parameter a trait
+value: one value for every species, a `TraitColumn` of the pool, a `DrawFrom` a distribution, or a
+function of the species' row. Nothing takes values per species by position, so no order can be got
+wrong: values per species reach the pool keyed by species, and a spec names their column. A
+`ChosenBy` picks each species' spec by a key of its row, which is how species of one pool disperse
+by different modes. Missing values are filled, and values drawn, each from a stream of the species'
+own key, so a species' values do not depend on how many others were filled.
 
 ## Demands
 

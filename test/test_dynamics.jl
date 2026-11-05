@@ -3,7 +3,7 @@
 module TestDynamics
 
 using EcoSISTEM
-# `[C7-VIS]` B2: `update!` is `public` rather than exported, so it must be named.
+# `update!` is `public` rather than exported, so it must be named.
 using EcoSISTEM: update!
 using Test
 using Unitful
@@ -189,9 +189,9 @@ const _SPAREWATER = UniformSpec(1.0e12Unitful.L / (m^2 * day),
 
     # REGRESSION GUARD. A second resource that can never limit anything, and that every species
     # demands equally (ϵ̄ = 1, the product's fixed point), must leave birth and death *exactly*
-    # unchanged. This failed before 2026-08-06: the suitability term was applied once per resource,
-    # so it moved birth by ×0.5457 and death by ×1.8325 - `suit^∓survival` - for a resource that
-    # could not possibly matter.
+    # unchanged. Applying the suitability term once per resource would move birth by a factor of
+    # 0.5457 and death by 1.8325 here - `suit^∓survival` - for a resource that cannot possibly
+    # matter.
     inert = _demandeco((solar, fill(1.0Unitful.L / day, 3)),
                        (_SOLAR, _SPAREWATER),
                        (SolarRadiation, Precipitation))
@@ -210,11 +210,39 @@ const _SPAREWATER = UniformSpec(1.0e12Unitful.L / (m^2 * day),
         ϵ = only(EcoSISTEM.values(one.spplist.demand)).resource[sp] *
             only(EcoSISTEM.values(one.spplist.demand)).exchange_rate
         # birth and death both carry `demanded^-longevity`, so both scale by ϵ̄^-longevity again.
-        @test all(adj(twice, sp) .≈ adj(one, sp) .* ϵ^-longevity)
+        @test all(adj(twice, sp) .≈ adj(one, sp) .* ϵ^-longevity[sp])
     end
     # The average species is the fixed point of that compounding and is *not* a witness to it -
     # ϵ̄ = 1 there, so it alone would pass whatever the combining rule.
     @test adj(twice, 2) == adj(one, 2)
+end
+
+# Each species' own longevity is the exponent on its own demand, on birth and death alike, so changing
+# one species' longevity scales that species' two terms by its demand to the change, leaves their
+# ratio - the equilibrium - as it was, and touches no other species; one ecosystem holding several
+# exponents does so for every species at once, single resource or several.
+@testset "each species' longevity sets its own tempo" begin
+    solar = [1.0e9, 2.0e9, 3.0e9] .* kJ / day        # ϵ̄ = 0.5, 1.0, 1.5
+    adj(eco, sp) = EcoSISTEM._resourceadjustment(eco, eco.habitat.supply, 1,
+                                                 sp)
+    for (demand, supply, axes) in ((solar, _SOLAR, SolarRadiation),
+                                   ((solar, fill(1.0Unitful.L / day, 3)),
+                                    (_SOLAR, _SPAREWATER),
+                                    (SolarRadiation, Precipitation)))
+        even = _demandeco(demand, supply, axes)
+        varied = _demandeco(demand, supply, axes)
+        varied.spplist.params.longevity .= [0.5, 1.0, 2.0]
+        for sp in 1:3
+            ϵ = solar[sp] / mean(solar)
+            factor = ϵ^-(varied.spplist.params.longevity[sp] - 1.0)
+            @test all(adj(varied, sp) .≈ adj(even, sp) .* factor)
+            (b, d) = adj(varied, sp)
+            (b0, d0) = adj(even, sp)
+            @test b / d ≈ b0 / d0
+        end
+        # ϵ̄ = 1 is the fixed point: the average species' terms do not move at all.
+        @test adj(varied, 2) == adj(even, 2)
+    end
 end
 
 # A supply that never runs short leaves a whole run unchanged, and a stock does so as a flow does. A
@@ -402,13 +430,13 @@ end
 
 # -- The hot loop must not allocate per cell -----------------------------------------------------
 #
-# **Why these exist, and why there are two.** A62: `Ecosystem` declares `abundances::GridLandscape`,
-# and when that type gained parameters the bare name became a `UnionAll` -- an abstract field -- so
-# every `eco.abundances.matrix` reached inside a threaded body was boxed. It cost about 176 bytes
-# per cell, grew with the grid, and shipped in v0.5.0 unnoticed for a release.
+# **Why these exist, and why there are two.** `Ecosystem` declares `abundances::GridLandscape`,
+# the bare name of a parametric type, so the field is abstract. Were a field the loop reads through
+# it to name a type parameter, every `eco.abundances.matrix` reached inside a threaded body would be
+# boxed, at about 176 bytes per cell, growing with the grid.
 #
-# Nothing in the suite could have caught it. The change that caused it was in `Landscape.jl`; the
-# damage was in `dynamics.jl`, whose text never changed. Reading the loop finds nothing.
+# The cause would be in `Landscape.jl` and the damage in `dynamics.jl`, whose text need not change,
+# so reading the loop finds nothing.
 #
 # The two checks catch different halves and neither subsumes the other: the first names the boxing
 # directly and fails the moment a type on the path gains a parameter, the second catches any
@@ -438,8 +466,8 @@ end
     # **Deliberately NOT `isconcretetype(fieldtype(T, :abundances))`.** That field is still the bare
     # `GridLandscape` `UnionAll` and is *meant* to be: the landscape holds concrete raw arrays
     # inside an abstract container, and Julia infers a field through it so long as the field's own
-    # declared type names no type parameter. A field-concreteness walk would fail on the very field
-    # A62 was about, and would have to carve it out -- worse than no check.
+    # declared type names no type parameter. A field-concreteness walk would fail on exactly this
+    # field, and would have to carve it out -- worse than no check.
     @test !isconcretetype(fieldtype(T, :abundances))
     @test Base.return_types(_readmatrix, (T,))[1] === Matrix{Int64}
     @test Base.return_types(_readgrid, (T,))[1] === Array{Int64, 3}
@@ -488,6 +516,11 @@ const _ABSTRACT_BY_DESIGN = Dict((:Ecosystem,
                                      "an `AbstractRunCalendar`, a marker set " *
                                      "by `build_ecosystem` and read only when " *
                                      "dates become elapsed time. Not read in the loop.",
+                                 (:SpeciesList,
+                                  :authority) =>
+                                     "a `Union{Nothing, AbstractNameAuthority}`, " *
+                                     "because species may have no name authority. " *
+                                     "Not read in the loop.",
                                  (:GridHabitat,
                                   :active) =>
                                      "abstract, and measured to cost nothing: " *
@@ -527,7 +560,7 @@ end
     ncells(eco) = size(eco.abundances.matrix, 2)
     extracells = ncells(large) - ncells(small)
     @test extracells > 500
-    # Fewer than one byte per additional cell: A62 cost about 176 of them.
+    # Fewer than one byte per additional cell: a boxed field costs about 176 of them.
     @test _usagealloc(large) - _usagealloc(small) < extracells
 end
 

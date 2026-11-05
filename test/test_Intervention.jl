@@ -3,7 +3,7 @@
 module TestIntervention
 
 using EcoSISTEM
-# `[C7-VIS]` C: these are `public` rather than exported - a spec is what a user writes,
+# These are `public` rather than exported - a spec is what a user writes,
 # and these are what it materialises into.
 using EcoSISTEM: SteadyLayerChange
 using EcoSISTEM.Units

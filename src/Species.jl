@@ -36,7 +36,14 @@ being them, so every `AbstractTypes` question is forwarded there; see `src/Diver
   - `native`: whether each species is native, one flag each.
   - `susceptible`: optional per-species disease susceptibility, `missing` where unset.
   - `inputs`: the [`ProvenanceRecord`](@ref)s of the published data the species were built from -
-    occurrence records, trait tables, parameters from the literature - as given with `provenance`.
+    occurrence records, trait tables, parameters from the literature - as given with `provenance`, and
+    a [`SpeciesPool`](@ref)'s own.
+  - `traits`: each species' identity and values, one row per species - its `key` in the pool it came
+    from, `name`, `id`, whether it is `active`, what it is a copy of - and the values it was built
+    from, filled ([`fill_traits`](@ref)); for species built otherwise, the identity alone.
+  - `filled`: which of `traits`' values were filled or drawn rather than given, a column each.
+  - `authority`: the name authority the species' names were standardised through, or `nothing`.
+  - `namemap`: the species' rows by name - their own, and the names their data used.
 
 # Type parameters
 
@@ -59,6 +66,10 @@ mutable struct SpeciesList{TL <: AbstractTolerance,
     native::Vector{Bool}
     susceptible::Vector{Union{Missing, Float64}}
     inputs::Vector{ProvenanceRecord}
+    traits::DataFrame
+    filled::DataFrame
+    authority::Union{Nothing, AbstractNameAuthority}
+    namemap::Dict{String, Int}
 
     function SpeciesList{TL, DM, MO, T, P}(names::Vector{String},
                                            tolerance::TL,
@@ -68,16 +79,20 @@ mutable struct SpeciesList{TL <: AbstractTolerance,
                                            movement::MO,
                                            params::P,
                                            native::Vector{Bool};
-                                           provenance = ProvenanceRecord[]) where {TL <:
-                                                                                   AbstractTolerance,
-                                                                                   DM <:
-                                                                                   AbstractDemand,
-                                                                                   MO <:
-                                                                                   AbstractVector{<:SpeciesDispersal},
-                                                                                   T <:
-                                                                                   AbstractTypes,
-                                                                                   P <:
-                                                                                   AbstractParams}
+                                           provenance = ProvenanceRecord[],
+                                           traits = _identityframe(names),
+                                           filled = DataFrame(),
+                                           authority = nothing,
+                                           namemap = _namemap(names)) where {TL <:
+                                                                             AbstractTolerance,
+                                                                             DM <:
+                                                                             AbstractDemand,
+                                                                             MO <:
+                                                                             AbstractVector{<:SpeciesDispersal},
+                                                                             T <:
+                                                                             AbstractTypes,
+                                                                             P <:
+                                                                             AbstractParams}
         # Check dimensions
         equal_param = equalpop(params, length(names))
         sus = Vector{Union{Missing, Float64}}(undef, length(names))
@@ -90,7 +105,9 @@ mutable struct SpeciesList{TL <: AbstractTolerance,
                                                        equal_param,
                                                        native,
                                                        sus,
-                                                       _recordvector(provenance))
+                                                       _recordvector(provenance),
+                                                       traits, filled,
+                                                       authority, namemap)
     end
 end
 # ---------------------------------------------------------------------------
@@ -214,7 +231,8 @@ end
 
 """
     SpeciesList(numspecies::Int64, tolerance::TL, abun::Vector{Int64}, demand::DM,
-      movement::MO, params::P, native::Vector{Bool}; names = nothing, provenance = ProvenanceRecord[])
+      movement::MO, params::P, native::Vector{Bool}; names = nothing, provenance = ProvenanceRecord[],
+      pool = nothing)
 
 Create a `SpeciesList` from tolerances supplied directly, rather than evolved along a phylogeny.
 Species are treated as maximally distinct, with a `UniqueTypes` similarity structure.
@@ -234,6 +252,8 @@ Species are treated as maximally distinct, with a `UniqueTypes` similarity struc
     diversity measure reports them.
   - `provenance`: an [`ProvenanceRecord`](@ref), or a vector of them, for the published data the
     species were built from; [`provenance`](@ref) of an ecosystem built from them lists these.
+  - `pool`: what [`build_species`](@ref) read from a [`SpeciesPool`](@ref) - its filled values, which
+    were filled, its authority and its names - or `nothing`, the default, for species built otherwise.
 """
 function SpeciesList(numspecies::Int64,
                      tolerance::TL,
@@ -243,14 +263,15 @@ function SpeciesList(numspecies::Int64,
                      params::P,
                      native::Vector{Bool};
                      names = nothing,
-                     provenance = ProvenanceRecord[]) where {TL <:
-                                                             AbstractTolerance,
-                                                             DM <:
-                                                             AbstractDemand,
-                                                             MO <:
-                                                             AbstractVector{<:SpeciesDispersal},
-                                                             P <:
-                                                             AbstractParams}
+                     provenance = ProvenanceRecord[],
+                     pool = nothing) where {TL <:
+                                            AbstractTolerance,
+                                            DM <:
+                                            AbstractDemand,
+                                            MO <:
+                                            AbstractVector{<:SpeciesDispersal},
+                                            P <:
+                                            AbstractParams}
     names = _speciesnames(names, numspecies)
     # Species are maximally distinct, and the types carry the names so that nothing downstream
     # can lose them.
@@ -279,8 +300,9 @@ function SpeciesList(numspecies::Int64,
                                        ty,
                                        movement,
                                        params,
-                                       native,
-                                       provenance = provenance)
+                                       native;
+                                       provenance = provenance,
+                                       _poolfields(pool, names)...)
 end
 
 # == Functions ==================================================================================
@@ -369,4 +391,46 @@ _phylogenyrng(::Nothing) = Random.default_rng()
 
 function _phylogenyrng(seed::Integer)
     return Random.Xoshiro(UInt64[seed % UInt64, _PHYLOGENY_STREAM])
+end
+
+# The identity of species built from no pool: their names, each its own key and row, active, and a
+# copy of nothing.
+function _identityframe(names::AbstractVector{<:AbstractString})
+    n = length(names)
+    return DataFrame(key = collect(1:n), name = collect(String, names),
+                     id = Vector{Union{Missing, String}}(missing, n),
+                     active = trues(n),
+                     copyof = Vector{Union{Missing, String}}(missing, n),
+                     copyofid = Vector{Union{Missing, String}}(missing, n),
+                     copykey = Vector{Union{Missing, Int}}(missing, n))
+end
+
+# Each species' row by its own name.
+function _namemap(names::AbstractVector{<:AbstractString})
+    return Dict(n => i
+                for (i, n) in enumerate(names))
+end
+
+# The keywords a species list takes from what was read of a pool, none without one.
+_poolfields(::Nothing, names) = NamedTuple()
+
+function _poolfields(pool::NamedTuple, names)
+    return (traits = pool.traits, filled = pool.filled,
+            authority = pool.authority, namemap = pool.namemap)
+end
+
+# Give a species just appended to `sl` its identity: a key after every other, active, and no values
+# of its own (`missing`, none filled), found by its name.
+function _addidentity!(sl::SpeciesList, name::AbstractString)
+    traits = sl.traits
+    DataFrames.allowmissing!(traits)
+    row = Dict{Symbol, Any}(c => missing for c in propertynames(traits))
+    row[:key] = maximum(traits.key, init = 0) + 1
+    row[:name] = String(name)
+    row[:active] = true
+    push!(traits, row)
+    isempty(propertynames(sl.filled)) || push!(sl.filled, Dict(c => false
+                          for c in propertynames(sl.filled)))
+    sl.namemap[String(name)] = nrow(traits)
+    return sl
 end

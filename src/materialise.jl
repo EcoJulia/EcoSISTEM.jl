@@ -805,11 +805,12 @@ function _materialisefield(spec::ConstructedRasterSpec, area::StudyArea)
             categorical = categorical, series = _seriespolicy(spec))
 end
 
-# **This is what carries `simulate_safely` into `GridHabitat`** (user, 2026-08-13: *"it
-# should apply equally if possible"*). A layer named on the `StudyArea` already shaped the grid, so
-# every remaining cell is covered and this does nothing; a layer introduced only at build time never
-# faced that test, and blanking the cells it does not reach makes `_coverage` - which already reads
-# `NaN` - mark them inactive. No new plumbing, and `materialise` still shows exactly what is built.
+# **This is what carries `simulate_safely` into `GridHabitat`**, so that it applies to a layer
+# introduced at build time as to one named on the area. A layer named on the `StudyArea` already
+# shaped the grid, so every remaining cell is covered and this does nothing; a layer introduced only
+# at build time never faced that test, and blanking the cells it does not reach makes `_coverage` -
+# which already reads `NaN` - mark them inactive. No new plumbing, and `materialise` still shows
+# exactly what is built.
 #
 # **A categorical layer is the documented exception**: its class codes are integers and cannot
 # carry `NaN`, which `_coverage` already notes (such a layer always reports full coverage). Harmless
@@ -954,18 +955,13 @@ function _syntheticonarea(regime, supply, area::StudyArea,
     (regime isa Union{Tuple, NamedTuple} && length(specs) < 2) &&
         error("a tuple `regime` describes a multi-layer environment, so it needs at least 2 " *
               "elements; got $(length(specs)). Pass the spec on its own for a single layer.")
-    # **An already-BUILT layer is now admitted here, and this is a CORRECTION of an expired
-    # premise rather than a reversal of the guard 6d tightened.** The old `_refusebuilt` turned both
-    # roles away outright, on the ground that this builder *generates* its layers at the area's shape
-    # and a synthetic area had nothing for a layer to have been built on. That was true when a
-    # synthetic grid carried `NoLookup` dims; `[S4]` gave it real `Sampled`/`Intervals(Start)`
-    # coordinates, so a built layer now either sits on this exact grid - **provably**, by
-    # `_yxcompatible` - or it does not, and `materialise`'s `AbstractLayer` method decides precisely
-    # that, refusing a mismatch by size and copying the rest in. So there is nothing left for a
-    # separate guard to say that is not said better one layer down.
-    # **The general claim below is untouched**: arbitrary data still cannot be sampled onto a
-    # synthetic grid. What changed is only the case where the values are *already on it*, which is
-    # what lets `build_habitat` reseed a habitat from its own as-built area.
+    # **An already-built layer is admitted here.** A synthetic grid has real
+    # `Sampled`/`Intervals(Start)` coordinates, so a built layer either sits on this exact grid -
+    # **provably**, by `_yxcompatible` - or it does not, and `materialise`'s `AbstractLayer` method
+    # decides precisely that, refusing a mismatch by size and copying the rest in; a separate guard
+    # here would have nothing to add. Arbitrary data still cannot be sampled onto a synthetic grid:
+    # only values *already on it* are admitted, which is what lets `build_habitat` reseed a habitat
+    # from its own as-built area.
     #
     # The check runs over the *expanded* specs, never the `regime` as passed. `_shapesgrid` is
     # written for a single spec - its `::Any` fallback says "data-backed" - so handing it a

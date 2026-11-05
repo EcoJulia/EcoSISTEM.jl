@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# The marker that asks `build_habitat`/`build_species`/`build_ecosystem` for their own defaults -
-# a small synthetic toy grid, announced value by value as it is chosen.
+# Where a builder's unnamed inputs come from: `DefaultEcosystem()`, every value the builders fill in
+# for a first run - a small synthetic toy grid and its species - or an existing habitat, whose own
+# layers, grid and topology a rebuild carries across. Each value is announced as it is chosen. The
+# builders in `actions.jl` ask for them; the values live here, and nowhere else.
 
 """
     DefaultEcosystem
@@ -14,19 +16,7 @@ only the required inputs you do not care about while passing the rest explicitly
 """
 struct DefaultEcosystem end
 
-# The default ecosystem's species, as `build_species(DefaultEcosystem())` names them, announced.
-function SpeciesPool(::DefaultEcosystem; verbosity::Symbol = :normal)
-    _announce(verbosity,
-              "SpeciesPool(DefaultEcosystem()): 10 species, named \"1\" to \"10\".")
-    return SpeciesPool(10, verbosity = verbosity)
-end
-
 # == Functions ==================================================================================
-
-#
-# Filling in what a caller did not name. Every method dispatches on `DefaultEcosystem` or on the
-# `GridHabitat` a rebuild takes its values from: the builders in `actions.jl` state the workflow, and
-# the values behind it live here, with the type that selects them.
 
 # Announce a default that was filled in, unless silenced. Takes `StudyArea`'s vocabulary: `:silent`
 # says nothing, anything else announces. Announcing is the point of these builders - a default you
@@ -41,79 +31,133 @@ function _announce(verbosity::Symbol, msg::AbstractString)
     return nothing
 end
 
-# One value, chosen by what is **wanted** against where it is **coming from** - one function rather
-# than a `_getregime`/`_getsupply` family, so a new source or a new keyword is one added method
-# rather than a new name, and the call site reads as what it asks
-# (`_getdefaultvalue(AbstractSupply, source, verbosity)`).
-#
-# This first method is the fallback for a source nothing else handles. It is a fallback rather than a
-# `Union` annotation because the open first argument is the whole point - a new kind of source must
-# be one added method - but a bare `MethodError` on a private helper tells a caller nothing useful.
-function _getdefaultvalue(::Type, source, ::Symbol)
-    return error("`build_habitat` cannot take defaults from a $(nameof(typeof(source))). Pass " *
+# One keyword a builder was not given, from where it is **coming from**, announced as `builder` fills
+# it in: one function for every builder and keyword, so a new source or a new keyword is one added
+# method. `what` is the keyword, as a `Val` written literally at the call, so dispatch is resolved
+# when the builder compiles. A builder asks for it in its keyword defaults, which are evaluated only
+# for a keyword not given, so only what was filled in is announced.
+function _getdefaultvalue(what::Val{K}, ::DefaultEcosystem, verbosity::Symbol,
+                          builder::AbstractString) where {K}
+    default = _default(what)
+    phrase = haskey(default, :phrase) ? default.phrase :
+             sprint(show, default.value)
+    _announce(verbosity, "$builder: `$K` defaulted to $phrase.")
+    return default.value
+end
+
+# A source nothing else handles. A fallback rather than a `Union` annotation because the open source
+# is the whole point - a new kind of source must be one added method - but a bare `MethodError` on a
+# private helper tells a caller nothing useful.
+function _getdefaultvalue(::Val, source, ::Symbol, builder::AbstractString)
+    return error("`$(first(split(builder, '(')))` cannot take defaults from a " *
+                 "$(nameof(typeof(source))). Pass " *
                  "`DefaultEcosystem()` for the announced defaults, or an existing `GridHabitat` to " *
-                 "rebuild from one - or name every input explicitly and call `GridHabitat` itself.")
+                 "rebuild from one - or name every input explicitly.")
 end
 
-function _getdefaultvalue(::Type{AbstractRegime}, ::DefaultEcosystem,
-                          verbosity::Symbol)
-    _announce(verbosity,
-              "build_habitat(DefaultEcosystem()): `regime` defaulted to a uniform 25.0 °C temperature.")
-    # Stated in °C because that is what the announcement says and what a reader recognises as a
-    # temperate default. `Temperature`'s canonical unit is K, so it converts affinely on the way in
-    # - 25.0 °C is 298.15 K, not 25 K of anything.
-    return UniformSpec(25.0°C, axis = Temperature)
+# How each builder taking defaults names itself when it announces one.
+const _HABITAT = "build_habitat(DefaultEcosystem())"
+
+const _DEFAULTSPECIES = "build_species(DefaultEcosystem())"
+
+const _POOLSPECIES = "build_species(pool)"
+
+# --- Every value a builder fills in --------------------------------------------------------------
+# Each its value, by keyword, and how an announcement describes it where its own `show` would not.
+
+# Stated in °C because that is what the announcement says and what a reader recognises as a
+# temperate default. `Temperature`'s canonical unit is K, so it converts affinely on the way in -
+# 25.0 °C is 298.15 K, not 25 K of anything.
+function _default(::Val{:regime})
+    return (value = UniformSpec(25.0°C, axis = Temperature),
+            phrase = "a uniform 25.0 °C temperature")
 end
 
-function _getdefaultvalue(::Type{AbstractSupply}, ::DefaultEcosystem,
-                          verbosity::Symbol)
-    _announce(verbosity,
-              "build_habitat(DefaultEcosystem()): `supply` defaulted to a uniform canonical solar rate.")
-    return UniformSpec(1.0 * canonicalunit(Resource, SolarRadiation) / km^2,
-                       axis = SolarRadiation)
+function _default(::Val{:supply})
+    return (value = UniformSpec(1.0 * canonicalunit(Resource, SolarRadiation) /
+                                km^2,
+                                axis = SolarRadiation),
+            phrase = "a uniform canonical solar rate")
+end
+
+# The synthetic toy grid is a sensible default only because the default `regime` and `supply` are
+# synthetic too. An explicitly passed **data** regime still needs its own `area`: no toy grid could
+# suit unseen data, and the builder will not guess one.
+function _default(::Val{:area})
+    return (value = StudyArea(extent = (10.0km, 10.0km), cellsize = 1.0km,
+                              verbosity = :silent),
+            phrase = "a synthetic 10.0 km × 10.0 km grid of 1.0 km cells")
 end
 
 # Announced even though `GridHabitat`'s own default is this same `Island()`: every value this builder
 # chose has to be visible, and one silent choice would be an exception a reader must know about.
-function _getdefaultvalue(::Type{AbstractTopology}, ::DefaultEcosystem,
-                          verbosity::Symbol)
-    _announce(verbosity,
-              "build_habitat(DefaultEcosystem()): `topology` defaulted to `Island()` - the grid's edges do not wrap.")
-    return Island()
+function _default(::Val{:topology})
+    return (value = Island(),
+            phrase = "`Island()` - the grid's edges do not wrap")
 end
 
-# The synthetic toy grid is a sensible default only because `DefaultEcosystem`'s `regime` and
-# `supply` are synthetic too. An explicitly passed **data** regime still needs its own `area`: no toy
-# grid could suit unseen data, and the builder will not guess one.
-function _getdefaultvalue(::Type{StudyArea}, ::DefaultEcosystem,
-                          verbosity::Symbol)
-    _announce(verbosity,
-              "build_habitat(DefaultEcosystem()): `area` defaulted to a synthetic 10.0 km × 10.0 km grid of 1.0 km cells.")
-    return StudyArea(extent = (10.0km, 10.0km), cellsize = 1.0km,
-                     verbosity = :silent)
+_default(::Val{:numspecies}) = (value = 10,)
+
+function _default(::Val{:tolerance})
+    return (value = (298.0K, 2.0K),
+            phrase = "a (298.0 K, 2.0 K) temperature niche")
 end
 
+function _default(::Val{:toleranceaxis})
+    return (value = Temperature, phrase = "`Temperature`")
+end
+
+function _default(::Val{:demand})
+    return (value = 10.0 * canonicalunit(Resource, SolarRadiation),
+            phrase = "10× the canonical solar rate")
+end
+
+function _default(::Val{:demandaxis})
+    return (value = SolarRadiation, phrase = "`SolarRadiation`")
+end
+
+function _default(::Val{:dispersal})
+    return (value = 10.0km, phrase = "a mean distance of 10.0 km")
+end
+
+function _default(::Val{:movement})
+    return (value = MovementSpec(InsectDispersal(),
+                                 meandist = _default(Val(:dispersal)).value),
+            phrase = "`InsectDispersal()` with a mean distance of 10.0 km")
+end
+
+_default(::Val{:birth}) = (value = 0.6 / year,)
+
+_default(::Val{:death}) = (value = 0.6 / year,)
+
+_default(::Val{:longevity}) = (value = 1.0,)
+
+_default(::Val{:survival}) = (value = 0.2,)
+
+# --- An existing habitat ----------------------------------------------------------------------
 # The same four questions asked of an existing habitat, which answers with what it actually has.
 # That is what makes `build_habitat(h, supply = ...)` a rebuild with one thing changed rather than a
 # fresh start: everything not named is carried across, the grid included. The layers come back
 # **built** and are handed to a `GridHabitat` on the habitat's own as-built area, which `materialise`
 # copies rather than aliases. Nothing is resampled, because nothing moved.
-function _getdefaultvalue(::Type{AbstractRegime}, source::GridHabitat,
-                          verbosity::Symbol)
+function _getdefaultvalue(::Val{:regime}, source::GridHabitat,
+                          verbosity::Symbol,
+                          ::AbstractString)
     _announce(verbosity,
               "build_habitat(habitat): `regime` taken from the habitat as built.")
     return source.regime
 end
 
-function _getdefaultvalue(::Type{AbstractSupply}, source::GridHabitat,
-                          verbosity::Symbol)
+function _getdefaultvalue(::Val{:supply}, source::GridHabitat,
+                          verbosity::Symbol,
+                          ::AbstractString)
     _announce(verbosity,
               "build_habitat(habitat): `supply` taken from the habitat as built.")
     return source.supply
 end
 
-function _getdefaultvalue(::Type{AbstractTopology}, source::GridHabitat,
-                          verbosity::Symbol)
+function _getdefaultvalue(::Val{:topology}, source::GridHabitat,
+                          verbosity::Symbol, ::AbstractString)
     _announce(verbosity,
               # Interpolated directly rather than through `nameof(typeof(...))`: `Island` and
               # `Torus` are aliases for a parametric `EdgeTopology`, so the type's name is
@@ -125,8 +169,8 @@ end
 # A habitat hands back the grid it was **actually built on**, narrowing included, which is why the
 # `AsBuilt` stage exists. Re-deriving from the report's `specs` would answer the original question
 # and hand back the wider as-investigated mask, silently discarding whatever cells the build cost.
-function _getdefaultvalue(::Type{StudyArea}, source::GridHabitat,
-                          verbosity::Symbol)
+function _getdefaultvalue(::Val{:area}, source::GridHabitat, verbosity::Symbol,
+                          ::AbstractString)
     _announce(verbosity,
               "build_habitat(habitat): `area` taken from the habitat's own as-built grid.")
     return StudyArea(source, verbosity = :silent)

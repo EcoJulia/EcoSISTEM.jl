@@ -96,10 +96,10 @@ end
     @test length(EcoBase.yrange(grid)) == ny
 end
 
-# **The measurement that made B3 a defect fix rather than a tidy-up.** The old
-# `Float64(regime.size / km)` did not throw on a geographic grid - it returned `1.0 ° km^-1`, a unit
-# that means nothing, *silently*, and the `DimensionError` only surfaced two functions later inside
-# EcoBase's own `xmax`, where it read as the caller's fault.
+# **Why a geographic grid has a test of its own.** `Float64(regime.size / km)` does not throw on a
+# geographic grid - it returns `1.0 ° km^-1`, a unit that means nothing, *silently*, and the
+# `DimensionError` only surfaces two functions later inside EcoBase's own `xmax`, where it reads as
+# the caller's fault.
 @testset "a geographic grid answers in degrees, and its derivations work" begin
     hab = _geographic()
     grid = EcoBase.getcoords(hab)

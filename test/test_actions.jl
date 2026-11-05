@@ -479,13 +479,13 @@ end
                            demandaxis = SolarRadiation, seed = 1)
     @test build_ecosystem(ownspp, ownenv, seed = 1) isa Ecosystem
 end
-# **The regression test for `[TF-BYPASS]`, and it must use the EXPLICIT-`nichefit` route.**
-# A caller-supplied `nichefit` walks straight past `_defaultsuitability`, so the inferred route -
-# which already refused this - proves nothing about it. And the two axes must **share a unit**:
-# `Temperature` and `TemperatureRange` are both `K`, so the `eltype` comparison passes them and the
-# axis comparison is the only thing that can catch it. That is precisely the hole: before the axes
-# were compared in `_checkmembers`, this assembled an ecosystem pairing a temperature *range*
-# tolerance with an absolute temperature regime, silently.
+# **An explicit `nichefit` must not bypass the axis check, so this must use the EXPLICIT-`nichefit`
+# route.** A caller-supplied `nichefit` walks straight past `_defaultsuitability`, so the inferred
+# route - which refuses this anyway - proves nothing about it. And the two axes must **share a
+# unit**: `Temperature` and `TemperatureRange` are both `K`, so the `eltype` comparison passes them
+# and the axis comparison in `_checkmembers` is the only thing that can catch it. Without it, this
+# would assemble an ecosystem pairing a temperature *range* tolerance with an absolute temperature
+# regime, silently.
 @testset "an explicit nichefit cannot bypass the axis check" begin
     toy = _area(extent = (5km, 5km), cellsize = 1km)
     env = GridHabitat(regime = UniformSpec(290.0K, axis = Temperature),

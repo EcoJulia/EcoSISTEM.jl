@@ -1381,8 +1381,8 @@ end
 
 function _checkaxisunit(u, period, axis, code, thickness = nothing)
     isnothing(axis) && return nothing
-    # **Deliberately the Condition unit only, NOT `layerrate`'s Resource fallback** - I tried that
-    # and it is wrong. A catalogue row states an **areal flux density** (`npp` is `g*m^-2`), while a
+    # **Deliberately the Condition unit only, NOT `layerrate`'s Resource fallback**, which would be
+    # wrong here. A catalogue row states an **areal flux density** (`npp` is `g*m^-2`), while a
     # Resource-role canonical unit is a **per-cell rate** (`g*day^-1`); the two differ by the cell area
     # on purpose, so comparing them reports a dimension mismatch on a correct pair. `layerrate` can
     # consult the Resource unit because it only asks *whether the dimensions differ* in order to

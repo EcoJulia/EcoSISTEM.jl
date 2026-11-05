@@ -140,10 +140,9 @@ function MPIEcosystem(popfun::F,
     # **First, exactly as in the serial `Ecosystem` constructor and for the same reason.**
     # `genlookups` below divides the regime's cell size by a dispersal distance, so on a geographic
     # grid (`size` in `°`) it raises `DimensionError: ° km^-1` before any tailored message is reached.
-    # **This guard was missing here.** It was added to the serial constructor on 2026-08-12, when
-    # `[GEO-SIZE]` made a geographic cell size honest and exposed the ordering; the MPI constructor
-    # has the identical fault and was overlooked. Nothing caught it because `test/SmallMPItest.jl`
-    # builds a synthetic grid, so the geographic case is never exercised under MPI.
+    # **Keep it in step with the serial constructor by hand**: `test/SmallMPItest.jl` builds a
+    # synthetic grid, so the geographic case is never exercised under MPI and nothing would catch
+    # this guard going missing.
     _checksimulatable(habitat)
 
     comm = MPI.COMM_WORLD

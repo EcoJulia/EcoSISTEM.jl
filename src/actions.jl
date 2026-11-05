@@ -139,13 +139,14 @@ function build_habitat(source = DefaultEcosystem();
                        # evaluate in declaration order, and one passed explicitly is never evaluated
                        # - so naming a keyword suppresses exactly its own message.
                        verbosity::Symbol = :normal,
-                       regime = _getdefaultvalue(AbstractRegime, source,
-                                                 verbosity),
-                       supply = _getdefaultvalue(AbstractSupply, source,
-                                                 verbosity),
-                       area = _getdefaultvalue(StudyArea, source, verbosity),
-                       topology = _getdefaultvalue(AbstractTopology, source,
-                                                   verbosity))
+                       regime = _getdefaultvalue(Val(:regime), source,
+                                                 verbosity, _HABITAT),
+                       supply = _getdefaultvalue(Val(:supply), source,
+                                                 verbosity, _HABITAT),
+                       area = _getdefaultvalue(Val(:area), source, verbosity,
+                                               _HABITAT),
+                       topology = _getdefaultvalue(Val(:topology), source,
+                                                   verbosity, _HABITAT))
     return GridHabitat(; regime, supply, area, topology)
 end
 
@@ -216,14 +217,14 @@ function build_species(numspecies::Integer;
                        toleranceaxis = nothing,
                        demand = _require(:demand),
                        demandaxis = _require(:demandaxis),
-                       dispersal = 10.0km,
+                       dispersal = _default(Val(:dispersal)).value,
                        pthresh::Real = 1.0e-9,
-                       movement = InsectDispersal(),
+                       movement = _default(Val(:movement)).value.mode,
                        disperse_safely = nothing,
-                       birth = 0.6 / year,
-                       death = 0.6 / year,
-                       longevity::Real = 1.0,
-                       survival::Real = 0.2,
+                       birth = _default(Val(:birth)).value,
+                       death = _default(Val(:death)).value,
+                       longevity::Real = _default(Val(:longevity)).value,
+                       survival::Real = _default(Val(:survival)).value,
                        abundance = 1000 * numspecies,
                        native = true,
                        names = nothing,
@@ -289,37 +290,123 @@ function build_species(numspecies::Integer;
                        names = names, provenance = provenance)
 end
 
-# As above for `build_species`: default `numspecies`, `tolerance` and `demand` if omitted, announce,
-# then delegate. Any other keyword (dispersal, movement, rates, abundance, ...) passes straight through.
-function build_species(::DefaultEcosystem; numspecies = nothing,
-                       tolerance = nothing, toleranceaxis = nothing,
-                       demand = nothing, demandaxis = nothing,
-                       verbosity::Symbol = :normal, kw...)
-    if isnothing(numspecies)
-        numspecies = 10
-        _announce(verbosity,
-                  "build_species(DefaultEcosystem()): `numspecies` defaulted to 10.")
+"""
+    build_species(pool::SpeciesPool; tolerance, demand,
+                  movement = MovementSpec(InsectDispersal(), meandist = 10.0km),
+                  birth = 0.6 / year, death = 0.6 / year, longevity = 1.0, survival = 0.2,
+                  seed = nothing, verbosity = :normal, provenance = ProvenanceRecord[])
+
+Build a `SpeciesList` of every species of `pool`, one spec per trait. `tolerance` and `demand` are
+required: they must match the habitat the species will live in, axis for axis. Every other trait
+has a default, announced when it is taken. Each parameter is a trait value - one value for every
+species, a [`TraitColumn`](@ref) of the pool, a [`DrawFrom`](@ref) a distribution, or a function of
+the species' row of the pool - and the pool's missing values are filled first, as
+[`fill_traits`](@ref) fills them; the filled values, and which were filled, are kept on the species
+list. Nothing is taken by position.
+
+A deactivated species is built with the rest and starts with no individuals; the active ones share
+1000 individuals each, split at random, from a stream of `seed`'s own. The pool's records, and its
+authority's, are the species list's inputs, which [`provenance`](@ref) of an ecosystem lists.
+
+# Arguments
+
+  - `pool`: the species, a [`SpeciesPool`](@ref).
+  - `tolerance`: each species' niche, a [`ToleranceSpec`](@ref), a tuple or named tuple of them for
+    a habitat with several regimes, or an [`AbstractTolerance`](@ref) built already.
+  - `demand`: what each species takes from the shared supply, a [`DemandSpec`](@ref), a tuple or
+    named tuple of them for several supplies, or an [`AbstractDemand`](@ref) built already.
+  - `movement`: how each species disperses, a [`MovementSpec`](@ref), or a [`ChosenBy`](@ref)
+    choosing one per species.
+  - `birth`, `death`: each species' rates, per unit time.
+  - `longevity`: the exponent on each species' own demand, which sets the tempo of its turnover.
+  - `survival`: the exponent on niche suitability, one number for every species.
+  - `seed`: an integer fixing every value drawn and the split of the starting individuals, each
+    from a stream of its own; left unset, both come from the global generator.
+  - `verbosity`: `:silent` says nothing, `:normal` announces each default taken and notes each column
+    read and filled, `:verbose` names every name a note concerns.
+  - `provenance`: a [`ProvenanceRecord`](@ref), or a vector of them, for what nothing else records -
+    a paper parameters were taken from.
+"""
+function build_species(pool::SpeciesPool;
+                       # Declared first, because the defaults below announce themselves through it.
+                       verbosity::Symbol = :normal,
+                       tolerance = _require(:tolerance),
+                       demand = _require(:demand),
+                       movement = _getdefaultvalue(Val(:movement),
+                                                   DefaultEcosystem(),
+                                                   verbosity, _POOLSPECIES),
+                       birth = _getdefaultvalue(Val(:birth), DefaultEcosystem(),
+                                                verbosity, _POOLSPECIES),
+                       death = _getdefaultvalue(Val(:death), DefaultEcosystem(),
+                                                verbosity, _POOLSPECIES),
+                       longevity = _getdefaultvalue(Val(:longevity),
+                                                    DefaultEcosystem(),
+                                                    verbosity,
+                                                    _POOLSPECIES),
+                       survival = _getdefaultvalue(Val(:survival),
+                                                   DefaultEcosystem(),
+                                                   verbosity, _POOLSPECIES),
+                       seed::Union{Nothing, Integer} = nothing,
+                       provenance = ProvenanceRecord[])
+    _checkverbosity(verbosity)
+    n = length(pool)
+    n > 0 || error("the pool holds no species to build.")
+    slots = _TraitSlot[]
+    _slots!(slots, pool, "tolerance", tolerance, Colon())
+    _slots!(slots, pool, "demand", demand, Colon())
+    _slots!(slots, pool, "movement", movement, Colon())
+    for (name, value) in ((:birth, birth), (:death, death),
+        (:longevity, longevity))
+        push!(slots, _TraitSlot(name, value, Colon(), nothing))
     end
-    if isnothing(tolerance)
-        tolerance = (298.0K, 2.0K)
-        _announce(verbosity,
-                  "build_species(DefaultEcosystem()): `tolerance` defaulted to a (298.0 K, 2.0 K) temperature niche.")
-    end
-    if isnothing(toleranceaxis)
-        toleranceaxis = Temperature
-        _announce(verbosity,
-                  "build_species(DefaultEcosystem()): `toleranceaxis` defaulted to `Temperature`.")
-    end
-    if isnothing(demand)
-        demand = 10.0 * canonicalunit(Resource, SolarRadiation)
-        _announce(verbosity,
-                  "build_species(DefaultEcosystem()): `demand` defaulted to 10× the canonical solar rate.")
-    end
-    if isnothing(demandaxis)
-        demandaxis = SolarRadiation
-        _announce(verbosity,
-                  "build_species(DefaultEcosystem()): `demandaxis` defaulted to `SolarRadiation`.")
-    end
+    filled = _fillpool(pool, slots, seed, verbosity)
+    table = filled.values
+    rows = 1:n
+    problems = Problem[]
+    tolerances = _buildtrait(tolerance, pool, table, "tolerance", rows,
+                             problems,
+                             verbosity)
+    demands = _buildtrait(demand, pool, table, "demand", rows, problems,
+                          verbosity)
+    movements = _buildmovement(movement, pool, table, "movement", rows,
+                               problems,
+                               verbosity)
+    params = _buildparams(birth, death, longevity, survival, pool, table, rows,
+                          problems, verbosity)
+    _reportpool(problems, verbosity)
+    active = table.active
+    abun = zeros(Int64, n)
+    abun[active] = _abundances(1000 * count(active), count(active), seed)
+    return SpeciesList(n, tolerances, abun, demands, movements, params,
+                       fill(true, n), names = table.name,
+                       provenance = vcat(pool.inputs,
+                                         _recordvector(provenance)),
+                       pool = (traits = table, filled = filled.filled,
+                               authority = pool.authority,
+                               namemap = _speciesnamemap(pool)))
+end
+
+# As `build_habitat` fills its inputs: `numspecies`, `tolerance` and `demand` and their axes from
+# `DefaultEcosystem()` where omitted, announced, then delegated. Any other keyword (dispersal,
+# movement, rates, abundance, ...) passes straight through.
+function build_species(source::DefaultEcosystem;
+                       verbosity::Symbol = :normal,
+                       numspecies = _getdefaultvalue(Val(:numspecies), source,
+                                                     verbosity,
+                                                     _DEFAULTSPECIES),
+                       tolerance = _getdefaultvalue(Val(:tolerance), source,
+                                                    verbosity, _DEFAULTSPECIES),
+                       toleranceaxis = _getdefaultvalue(Val(:toleranceaxis),
+                                                        source,
+                                                        verbosity,
+                                                        _DEFAULTSPECIES),
+                       demand = _getdefaultvalue(Val(:demand), source,
+                                                 verbosity,
+                                                 _DEFAULTSPECIES),
+                       demandaxis = _getdefaultvalue(Val(:demandaxis), source,
+                                                     verbosity,
+                                                     _DEFAULTSPECIES),
+                       kw...)
     return build_species(numspecies; tolerance = tolerance,
                          toleranceaxis = toleranceaxis, demand = demand,
                          demandaxis = demandaxis, kw...)

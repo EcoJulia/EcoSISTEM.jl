@@ -3,7 +3,7 @@
 module TestCoordinates
 
 using EcoSISTEM
-# `[C7-VIS]` C: the unit-general spatial aliases are `public`, not exported.
+# The unit-general spatial aliases are `public`, not exported.
 using EcoSISTEM: SpatialLocation, SpatialSize, getlat, getlong
 using EcoSISTEM.Units
 using Unitful

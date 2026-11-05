@@ -37,7 +37,7 @@ _dem() = Demand{SolarRadiation}(fill(450000.0kJ / m^2 / day * 1.0m^2, NSP))
     @test typeof(tol) <: AbstractSpeciesRequirement
     @test typeof(dem) <: AbstractSpeciesRequirement
     # And the alias carries the **axis and** the eltype as well as the role, so it is usable in
-    # a `where`. The axis slot came first (D3(a)) and is what the three families now share.
+    # a `where`. The axis slot comes first and is what the three families share.
     @test eltype(tol) == typeof(1.0K)
     @test typeof(tol) <: AbstractTolerance{Temperature, typeof(1.0K)}
     @test !(typeof(tol) <: AbstractTolerance{Temperature, Float64})

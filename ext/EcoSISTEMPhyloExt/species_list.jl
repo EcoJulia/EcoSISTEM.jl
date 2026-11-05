@@ -123,8 +123,8 @@ end
 # ---------------------------------------------------------------------------
 # **Here rather than in `src/Species.jl` because uncommenting it would need `Phylo`**: it
 # evolves body mass as a continuous trait along a phylogeny, exactly as the two live tree-generating
-# constructors above do. It is *parked*, not dead - see `SizeDemand` in `src/Demand.jl` and
-# **A44** in the master plan. Keeping the two halves of that decision together is the point.
+# constructors above do. It is *parked*, not dead - see `SizeDemand` in `src/Demand.jl`. Keeping
+# the two halves of that decision together is the point.
 
 # The size-based `SpeciesList` constructor - COMMENTED OUT with `SizeDemand`
 # ---------------------------------------------------------------------------
@@ -135,8 +135,7 @@ end
 # **The part worth not losing** is the allometry on the `density` line below: the mass-abundance
 # (self-thinning) relation `size^pop_mass / km^2`. It is computed here, used once for abundance, and
 # then thrown away - which is exactly the material a metabolic (or footprint) reading of
-# `SizeDemand` would need. See the note above `SizeDemand` in `Demand.jl`, **A44** in the master
-# plan, and **A1** in `~/.claude/plans/ecosistem-axes-units-and-roles.md`.
+# `SizeDemand` would need. See the note above `SizeDemand` in `src/Demand.jl`.
 #
 # `continuous_evolve`/`assigntraits!`/`resettraits!` are NOT affected - all are public and
 # used elsewhere; checked before commenting this out.

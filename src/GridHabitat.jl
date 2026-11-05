@@ -440,14 +440,14 @@ end
 # individual onto nothing.
 #
 # **It deliberately does NOT zero merely-inactive cells** - that is the `active` mask's job, and
-# `active` is read live. Zeroing them here destroyed the supply of any cell that might later be
+# `active` is read live. Zeroing them here would destroy the supply of any cell that might later be
 # *reactivated*, and a zero supply is not inert: `death_resource` is `E/K`, so `K = 0` in a cell that
 # holds individuals gives `Inf` and a death probability of exactly 1. A reactivated cell would not
 # merely fail to support life, it would kill everything that dispersed into it, silently. Every
 # consumer that needs the mask already applies it for itself - the hot loop gates on
 # `active && totaldemand > 0` before reading any supply, `populate!`/`repopulate!` (and their MPI
 # counterparts) re-derive `activity` and zero their own working copy, and `totalsupply` passes
-# the mask in. (R3/R6, decided with the user 2026-08-05.)
+# the mask in.
 #
 # Rebuilds rather than mutating: `ContinuousLayer` is mutable, so zeroing in place would reach back
 # into the caller's own supply object.

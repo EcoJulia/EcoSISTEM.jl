@@ -8,7 +8,7 @@
 # file because the building path is tested from several, and they are needed by every piece.
 #
 # `_area`'s leading `;` is load-bearing: without it `kw...` splats positionally and every caller
-# gets a `MethodError` about `Pair`s. See `CLAUDE.md`.
+# gets a `MethodError` about `Pair`s.
 
 # A synthetic single-polygon shapefile (a rectangle over `(x1,y1)-(x2,y2)` in `sr`, or with no CRS
 # metadata at all if `sr = nothing`), written to a temp dir for `ShapeSpec` tests - no checked-in

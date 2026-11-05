@@ -133,12 +133,10 @@ end
         @test_throws NOSUCHFIELD lc.three
     end
 
-    # **The fallback, and it is what keeps every existing positional call site working.** Two
-    # Members on the same axis cannot be told apart by name, so the collection **errors and asks
-    # for names** rather than falling back to `:one`/`:two`. The model itself is never refused - a
-    # repeated axis is legitimate (`CombiningFit`'s own docstring pairs a summer and a winter
-    # temperature) - only the *guessing* is. This fell back silently until 2026-08-18; the
-    # fallback made sense when most members had no axis at all, and step A removed that.
+    # **Two members on the same axis cannot be told apart by name**, so the collection **errors
+    # and asks for names** rather than falling back to `:one`/`:two`. The model itself is never
+    # refused - a repeated axis is legitimate (`CombiningFit`'s own docstring pairs a summer and a
+    # winter temperature) - only the *guessing* is.
     @testset "a repeated axis errors, asking for names" begin
         msg = try
             LayerCollection((temp, temp))
@@ -168,10 +166,9 @@ end
     @testset "a bare layer answers as a one-member collection" begin
         @test values(temp) === (temp,)
         @test values(solar) === (solar,)
-        # **Named by its own AXIS**, not by a role label. It read `(:regime,)`/`(:supply,)` until
-        # 2026-08-18, and those could never match the species side's `(:tolerance,)`/`(:demand,)` -
-        # so single-member pairings had to be *skipped* by the naming check. Both sides now derive
-        # the same name from the same axis, and the skip is gone with the labels.
+        # **Named by its own AXIS**, not by a role label: a role label (`:regime`, `:supply`) could
+        # never match the species side's (`:tolerance`, `:demand`), whereas both sides derive the
+        # same name from the same axis, so the naming check covers single-member pairings too.
         @test keys(temp) == (:Temperature,)
         @test keys(solar) == (:SolarRadiation,)
     end
@@ -278,9 +275,8 @@ end
                                NicheSuitability(raintol)))
         @test f isa EcoSISTEM.CombiningFit
         @test length(values(f)) == 2
-        # Named by AXIS, not by position - a nichefit carries its own axis since D3(a), so a
-        # `CombiningFit` derives the same names its paired tolerance and regime do. It read
-        # `(:one, :two)` until then, because every fit answered the root and so clashed.
+        # Named by AXIS, not by position - a nichefit carries its own axis, so a `CombiningFit`
+        # derives the same names its paired tolerance and regime do.
         @test keys(f) == (:Temperature, :Precipitation)
         @test nichefitcombine(f)((Temperature = 2.0, Precipitation = 3.0)) ==
               6.0

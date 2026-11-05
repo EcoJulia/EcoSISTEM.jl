@@ -3,7 +3,7 @@
 module TestLayerChange
 
 using EcoSISTEM
-# `[C7-VIS]` C: these are `public` rather than exported - a spec is what a user writes,
+# These are `public` rather than exported - a spec is what a user writes,
 # and these are what it materialises into.
 using EcoSISTEM: AbsoluteChange, NoChange, PatternedLayerChange, RateChange,
                  RelativeChange, SeriesLayerChange, SteadyLayerChange,
@@ -268,24 +268,20 @@ end
     @test occursin("not a change shape", err.msg)
 end
 
-# **Regression tests for the half-month phase bug - fixed 2026-08-05.** These were written
-# deliberately failing, against the unfixed behaviour, and passed **unchanged** when the fix landed.
-# That is why their expectations must not be edited: they are the statement of what correct means,
-# written before the code that satisfies them.
+# **A monthly series must apply each slice for its whole month.** These tests' expectations must
+# not be edited to match the code: they state what correct means, independently of the code that
+# satisfies them.
 #
-# **The bug they pin.** A monthly series applied every slice half a month early, and slice 1 for half
-# as long as the others. Coordinates are built 1-based (`_mkstackaxis` -> `Ti((1:12) .*
-# month_mean_duration)`) as slice *identifiers*, `origin` defaults to `first(times)` = 1 month, and
-# the lookup took the **nearest** coordinate - which treats each one as a slice *centre*, so
-# transitions landed on midpoints instead of month boundaries. The fix (`_current`, `LayerChange.jl`)
-# reads a coordinate as *when its slice becomes current* and floors, with a drift tolerance standing
-# in for what nearest was implicitly buying.
+# **What they guard against.** Coordinates are built 1-based (`_mkstackaxis` -> `Ti((1:12) .*
+# month_mean_duration)`) as slice *identifiers*, and `origin` defaults to `first(times)` = 1 month.
+# Taking the **nearest** coordinate would treat each one as a slice *centre*, landing transitions on
+# midpoints instead of month boundaries: every slice half a month early, and slice 1 for half as
+# long as the others. `_current` (`LayerChange.jl`) reads a coordinate as *when its slice becomes
+# current* and floors, with a drift tolerance standing in for what nearest would implicitly buy.
 #
-# **Why it survived so long, and why these tests are sub-monthly**: at `timestep =
-# 1month_mean_duration` every step lands exactly on a stored coordinate, so the right slice was picked
-# every time and the bug was invisible. Every timestep in this repo is `1month_mean_duration`, so
-# nothing exercised it. **A fix verified only at monthly steps would have proved nothing** - keep
-# these at sub-monthly elapsed times.
+# **Why these tests are sub-monthly**: at `timestep = 1month_mean_duration` every step lands exactly
+# on a stored coordinate, so either rule picks the right slice and the difference is invisible -
+# keep these at sub-monthly elapsed times.
 @testset "a monthly series applies each slice for its whole month" begin
     stack = _teststack(273.0K, 1.0K)
     layer = _testregime(274.0K, Temperature)
@@ -327,15 +323,14 @@ end
     @test isempty(wrong)
 end
 
-# **The same root cause, but this one was loud** - also fixed 2026-08-05, and also written before
-# the fix. `_seriesreach` added only *half* a gap past the last coordinate, to match the
-# nearest-coordinate rule, so a 12-slice monthly series covered 11.5 months: a full year of simulation
-# against a twelve-month climatology errored with "this series ran out" a fortnight early, and the
-# twelfth slice was never fully reached under the default `ErrorAtEnd`.
+# **A 12-slice monthly series must cover a full twelve months.** `_seriesreach` must add a whole
+# gap past the last coordinate: half a gap, which the nearest-coordinate rule would match, covers
+# 11.5 months, so a year's simulation against a twelve-month climatology would error with "this
+# series ran out" a fortnight early under the default `ErrorAtEnd`.
 #
 # Kept separate from the phase test above because this one *throws* rather than quietly returning
-# the wrong slice, so it is the symptom a user hits first - and a fix to the lookup alone would have
-# left it standing.
+# the wrong slice, so it is the symptom a user hits first - and the lookup and the reach can each be
+# wrong without the other.
 @testset "a 12-slice monthly series covers a full twelve months" begin
     stack = _teststack(273.0K, 1.0K)
     layer = _testregime(274.0K, Temperature)
@@ -363,8 +358,8 @@ end
 @testset "A SeriesLayerChange is indexed by elapsed time" begin
     stack = _teststack(273.0K, 1.0K)
 
-    # The wrap fix. The `StackCycle` this replaces reset to slice 1 and discarded the overshoot,
-    # so 13 months into a 12-slice series landed on slice 1; a true modulus lands on slice 2.
+    # A true modulus keeps the overshoot: 13 months into a 12-slice series lands on slice 2, not
+    # slice 1.
     layer = _testregime(274.0K, Temperature)
     repeating = EcoSISTEM._attachchange(ReplaceWith(SeriesChange(stack,
                                                                  atend = RepeatAtEnd())),

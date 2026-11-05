@@ -12,7 +12,7 @@
 using Random
 using Test
 using EcoSISTEM
-# `[C7-VIS]` B1/B2/B3: these are `public` rather than exported, so they must be named.
+# These are `public` rather than exported, so they must be named.
 using EcoSISTEM: empty_landscape, synchronise_from_cols!,
                  synchronise_from_rows!
 using ParallelTestRunner: find_tests, runtests

@@ -215,8 +215,8 @@ struct StudyArea{G <: Union{StudyGrid, Nothing}}
         # as-investigated mask: measured at **48 cells against the habitat's 46**, silently
         # discarding the narrowing *and* the `Problem` that recorded it.
         # So an `AsBuilt` base with **no** keyword is taken **verbatim** - that is the whole point
-        # of copying rather than rebuilding, and it is why `[AREA-PROV]` Part C added the stage.
-        # **The copy keeps `AsBuilt`** (user's decision): the flag says what a report *describes*,
+        # of copying rather than rebuilding, and what the stage exists for.
+        # **The copy keeps `AsBuilt`**: the flag says what a report *describes*,
         # and resetting it to protect the connotation that "a `StudyArea` is a proposal" would be a
         # lie that also breaks the copy on its second hop.
         # **Any keyword sends it down the ordinary path**, with no warning: overriding is an
@@ -643,7 +643,7 @@ function _preaggregated(reason::AbstractString, ratio)
     return "$reason; pre-aggregated $(floor(Int, ratio))× on its own lattice first"
 end
 
-# Pick the layer whose grid is preserved exactly. The rule (user's choice) is "whichever is already in
+# Pick the layer whose grid is preserved exactly. The rule is "whichever is already in
 # the target CRS", since that is the one needing no reprojection, which maximises how many layers
 # survive untouched. Ties are broken by finest resolution, then by the order the layers were given
 # (regime before supply) so the choice is deterministic. Returns `nothing` when no layer matches the
@@ -973,7 +973,7 @@ end
 # Say how many cells `simulate_safely = false` let through - cells the simulation will run on although
 # the data does not describe all of them, and which are handed a whole cell's worth of supply anyway.
 #
-# **Nothing is said on the `true` path** (user, 2026-08-13): a cell is dropped at the edge of almost
+# **Nothing is said on the `true` path**: a cell is dropped at the edge of almost
 # every re-gridded area, so a notice there would fire on nearly all of them and mean nothing.
 function _partialcover!(problems, covered::NamedTuple, cellsize,
                         simulate_safely::Bool)

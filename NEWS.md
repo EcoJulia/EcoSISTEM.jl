@@ -20,7 +20,16 @@
       synonyms to their accepted species, merging rows that reach one species by `merge`
       (`RefuseMerge()` or `MergeWith(f)`). `lineage` gives a species' classification.
     - `ProblemError`, the severity of a problem that stops.
+    - `build_species(pool; tolerance, demand, ...)` builds species from a `SpeciesPool`, one spec per
+      trait: `ToleranceSpec` (a family's parameters by name), `DemandSpec`, `MovementSpec`, and
+      `ChosenBy` choosing a spec per species. Each parameter is one value, a `TraitColumn`, a
+      `DrawFrom` or a function of the species' row; nothing is taken by position.
+    - `fill_traits(pool, specs...; seed)` fills a pool's missing values, each draw from a stream of
+      the species' own, as `build_species` does; the species list keeps the values and what was
+      filled. Under MPI a pool is made and changed on rank 0, which alone reads a name authority.
   - Changed
+    - `PopGrowth` and `NoGrowth` hold one `longevity` per species, a vector, which the step reads per
+      species; their constructors still take one number for all. `EqualPop` keeps one.
     - `GaussianKernel` and `LongTailKernel` take their distances by keyword, each named for what it
       is: a Gaussian kernel's mean distance (`meandist`) or the standard deviation of its
       displacement along each axis (`sd`); a long-tailed kernel's `shape` with its `scale` or

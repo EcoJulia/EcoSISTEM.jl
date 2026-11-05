@@ -13,7 +13,7 @@ module TestRasters
 
 using EcoSISTEM
 using Statistics: mean
-# `[C7-VIS]` C: these are `public` rather than exported - a spec is what a user writes,
+# These are `public` rather than exported - a spec is what a user writes,
 # and these are what it materialises into.
 using EcoSISTEM: SeriesLayerChange, AbsoluteChange
 using EcoSISTEM: hasdata, landcoverclass
@@ -330,8 +330,8 @@ end
     @test !EcoSISTEM._iscategorical(Temperature)
 end
 
-# The step this whole subproject exists for: a monthly total becomes a rate by being divided by
-# **its own** month, not by a fixed 30.4375-day one. Exercised on a synthetic array so it costs no
+# A monthly total becomes a rate by being divided by **its own** month, not by a fixed 30.4375-day
+# one. Exercised on a synthetic array so it costs no
 # download - what is being tested is the arithmetic and the slice-to-month mapping, not the reader.
 @testset "a monthly read is divided by each slice's own month" begin
     spec = SourceSpec(WorldClim{Climate}, :prec)
@@ -339,8 +339,7 @@ end
     array = fill(100.0, 2, 2, 12)
     out = EcoSISTEM._applyperiod(array, spec, NamedTuple())
 
-    # February is the case the plan is named after: 100/28.25 rather than 100/30.4375, which is
-    # 7.7% higher - the error that was silently in every monthly climatology until now.
+    # February shows it most: 100/28.25 rather than 100/30.4375, which is 7.7% higher.
     @test out[1, 1, 2] ≈ 100 / 28.25
     @test out[1, 1, 2] / (100 / 30.4375) ≈ 1.0774 atol = 1e-4
     @test out[1, 1, 1] ≈ 100 / 31           # January
@@ -406,10 +405,9 @@ end
     @test isnothing(t.scale)
     @test_throws ErrorException SourceSpec(WorldClim{BioClim}, 1, scale = 0)
 
-    # ...and the keywords really do reach `read` through `GridHabitat`. This is the
-    # regression test: A1 deleted the only method that forwarded read keywords, so `month` became
-    # silently unreachable. Asking for 2 months must give a 2-slice series - not the source's
-    # own default of all 12.
+    # ...and the keywords really do reach `read` through `GridHabitat`: without the method that
+    # forwards read keywords, `month` is silently unreachable. Asking for 2 months must give a
+    # 2-slice series - not the source's own default of all 12.
     wind = SourceSpec(WorldClim{Climate}, :wind, month = 1:2)
     env = _env(wind, SUP,
                within = EcoSISTEM.boundingbox("Scotland",

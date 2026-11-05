@@ -341,8 +341,8 @@ public AbstractParams
 include("Topology.jl")
 
 # The three aliases are the API. They cover three of the four combinations -
-# `EdgeTopology{Periodic, Bounded}` has no name - and the maintainer's rule is that a fourth would get
-# an **exported alias of its own** rather than callers reaching for the underlying type. So the alias
+# `EdgeTopology{Periodic, Bounded}` has no name - and a fourth would get an **exported alias of its
+# own** rather than callers reaching for the underlying type. So the alias
 # layer stays the surface, and what it is built from does not.
 export Torus, Cylinder, Island
 
@@ -442,6 +442,15 @@ export deactivate_species!, activate_species!, remove_species!, copy_species!,
        add_trait!, name_table
 
 public AbstractMergeRule
+
+# What a species list is built from, one spec per trait, each parameter a value for all, a column of
+# the pool, a draw or a function of the species' row.
+include("SpeciesSpec.jl")
+
+export TraitColumn, DrawFrom, ToleranceSpec, DemandSpec, MovementSpec, ChosenBy,
+       fill_traits
+
+public AbstractTraitSpec
 
 include("Species.jl")
 
@@ -665,8 +674,8 @@ include("extensions.jl")
 
 # The whole phylogenetic trait-evolution set is `public` rather than exported.
 # Not because it is machinery - a user running a phylogenetic model calls these - but because it
-# is **on its way out of this package**: the maintainer intends it to move to `Phylo` itself, and
-# `public` de-prioritises it here without withdrawing support meanwhile.
+# belongs in `Phylo` rather than here: `public` keeps it supported without making it part of what
+# `using EcoSISTEM` brings in.
 public assigntraits!, resettraits!, reroot!, gettraits
 public discrete_evolve, continuous_evolve
 

@@ -3,7 +3,7 @@
 module TestStudyArea
 
 using EcoSISTEM
-# `[C7-VIS]` C: these are `public` rather than exported - a spec is what a user writes,
+# These are `public` rather than exported - a spec is what a user writes,
 # and these are what it materialises into.
 using EcoSISTEM: SteadyLayerChange
 using EcoSISTEM: LayerCache, ReadKey, _asraster, Problem, _originaligned,
@@ -815,7 +815,7 @@ end
 
     # The grid convention, and what happens to the remainder - one subject in two halves, so they
     # share a fixture. **Non-square throughout**: the cell count is computed per axis, so a square
-    # fixture cannot see a y/x swap in the `ceil` - the same class of bug as `[NICHE-YX]`.
+    # fixture cannot see a y/x swap in the `ceil`.
     @testset "the target grid starts on the data's own edge" begin
         # 7 × 11 cells of 2.5 km, so the data spans 17.5 km north-south by 27.5 km east-west.
         raw = _bngraster(WorldClim{BioClim}, fill(291.0K, 7, 11),
@@ -970,11 +970,11 @@ end
                               long = (-180.0:10.0:170.0) .* °)
         # Every cell is covered - the layer spans the world.
         @test all(EcoSISTEM._fullycovered(global_, area.report.active))
-        # **The regression itself, executable** - not a threshold in metres, which would only be a
-        # number I chose. Asked the wrong way round the footprint is computed in the *target's* CRS,
-        # and the very same per-cell test then drops cells the layer plainly covers. This is what
-        # deleted 1859 of `ScottishCultivatedLand.jl`'s 3168 active cells, and it is what would come
-        # back if `_fullycovered` were ever repointed at `_dimsextent(A, tcrs)`.
+        # **The wrong way round, executable** - not a threshold in metres, which would only be an
+        # arbitrary number. Asked the wrong way round the footprint is computed in the *target's*
+        # CRS, and the very same per-cell test then drops cells the layer plainly covers - 1859 of
+        # `ScottishCultivatedLand.jl`'s 3168 active cells - which is what would happen if
+        # `_fullycovered` were ever repointed at `_dimsextent(A, tcrs)`.
         wrongway = EcoSISTEM._dimsextent(global_.array,
                                          Rasters.crs(area.report.active))
         @test !all(EcoSISTEM._cellsinbox(EcoSISTEM._cellintervals(area.report.active,

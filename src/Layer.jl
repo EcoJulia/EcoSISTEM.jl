@@ -450,13 +450,9 @@ _iscontinuous(regime::CategoricalRegime) = false
 # role, and the same rule as everything else on this path. The fallback names any axis from its own
 # declaration, so a layer on a newly declared axis plots sensibly with no entry added anywhere.
 #
-# **This replaces a `Dict(K => "Temperature (K)", mm => "Rainfall (mm)", ...)` keyed on the value's
-# unit** - the exact inference this subproject exists to remove, surviving in the one place nobody
-# looked. It was broken in three separate ways, all of which the axis form cannot reproduce: the
-# categorical recipe read `unitdict` from a *sibling recipe's local scope*, so plotting any
-# categorical layer threw `UndefVarError`; the continuous one threw `KeyError` for any unit outside
-# those four, which is most of them; and the temperature one converted to °C and then titled the
-# result "Temperature (K)" whenever the stored unit was K.
+# **Keyed on the axis, never on the value's unit**: a unit does not say what a layer measures, and a
+# table of units fails for every unit it does not list and for a value converted to another (a
+# temperature plotted in °C under a title saying K).
 # No `Temperature` entry: the fallback already produces exactly "Temperature (K)" from the axis's
 # own name and canonical unit, so one would be a second copy of a fact the declaration already holds.
 _regimetitle(::Type{<:Precipitation}) = "Rainfall (mm/day)"
@@ -621,10 +617,8 @@ end
 # The class codes themselves: a `dimension` grid of integer niche `types` with relative `weights`
 # and spatial clumpiness `clumpiness`. **Values only, and deliberately no cell size** - the
 # percolation and clustering depend on the grid's *shape* alone, so a cell size cannot affect the
-# pattern. It was previously threaded in only to build the `CategoricalRegime` below, which
-# `_specfield` then discarded via `.matrix`; that vestigial argument was annotated
-# `::Unitful.Length` and so refused a geographic grid's angular cell size once `[GEO-SIZE]` made it
-# honest. Splitting the field out is what lets both materialise paths reach it.
+# pattern. Taking one would only tie the field to one kind of grid - a length refuses a geographic
+# grid's angular cell size - and keeping it out is what lets both materialise paths reach it.
 function _nichefield(rng::AbstractRNG, dimension::Tuple,
                      types::Vector{Int64},
                      clumpiness::Float64,
@@ -1549,9 +1543,8 @@ _supplyside(s::AbstractLayer{Resource}) = _side(s, "environment supply", false)
 # size: origin `(0, 0)`, step `size`, `Intervals(Start)`.
 #
 # **This is `_syntheticyx`'s construction, applied to a layer instead of a study area** - and it is
-# what lets a layer's cell size be *derived from its own dims* rather than stored beside them
-# (`[CELL-DERIVE]`). A grid with no coordinates has nothing for `getcellsizes` to read, which is the
-# whole reason the `.size` field had to be supplied and could therefore lie.
+# what lets a layer's cell size be *derived from its own dims* rather than stored beside them, where
+# it could disagree with them: a grid with no coordinates has nothing for `getcellsizes` to read.
 #
 # **Real coordinates, not a `NoLookup` wrapper.** The reproducibility argument for `NoLookup` - that
 # two independently built pairs of the same size compare equal without a shared lookup object being

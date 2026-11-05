@@ -299,6 +299,11 @@ function _sharedlayer end
 # `cache`, the last holding the root's input records afterwards. Every rank must call it.
 function _sharedreport end
 
+# Make or change a species pool once for every rank, as `_sharedlayer` builds a layer: `build` runs on
+# the root, which alone reads a name authority's release, and every other rank takes the pool it
+# returns. Every rank must call it.
+function _sharedpool end
+
 # --- Detecting it, on the parent's side ------------------------------------
 # Everything below is implemented here rather than declared. It lives with the hooks because it is
 # what asks whether they have arrived: both `Base.get_extension` calls in the package are here, and
