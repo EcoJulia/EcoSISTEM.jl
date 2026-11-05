@@ -43,6 +43,12 @@ function _specroutes(spec::NaturalEarthSpec)
             for p in _specpaths(spec)]
 end
 
+function _specroutes(authority::WFOPlantList)
+    asset = _wfoasset(authority)
+    return [(path = _localpath(asset), route = Provenancer.route(authority),
+             code = nothing, url = asset.url)]
+end
+
 # The route a file comes by, asked of whatever describes it: a path the user gave; an entry of a
 # spec's `files`, a `CachedAsset` or a `CDSRequest`, which says of itself; or the dataset type of a
 # source resolving its own files. Anything else is refused by name: implementing `IsFetchable` is
@@ -102,6 +108,8 @@ _catalogued(::NaturalEarthSpec) = _datasetrecord(NaturalEarthLevel)
 
 _catalogued(::ShapeSpec) = nothing
 
+_catalogued(::WFOPlantList) = _datasetrecord(WFOPlantList)
+
 # What the catalogue says now of one file of a tracked spec, as its record holds it: the catalogue's
 # facts for the route it comes by, where it is fetched from, the release a track gives a file the
 # user gave, and the version a file states of itself. `entry` is one of `_specroutes(spec)`.
@@ -134,6 +142,13 @@ function _currentfacts(spec::NaturalEarthSpec, entry)
     return facts
 end
 
+function _currentfacts(::WFOPlantList, entry)
+    facts = _cataloguerecord(WFOPlantList, nothing, entry.path,
+                             route = entry.route)
+    facts["url"] = entry.url
+    return facts
+end
+
 # A spec's files fetched by its own route, as an untracked spec's are, for a tracked fetch run to
 # register after.
 _fetchspec(spec::RasterSpec) = _fetchedpaths(spec, spec.files)
@@ -143,6 +158,8 @@ function _fetchspec(spec::NaturalEarthSpec)
 end
 
 _fetchspec(spec::ShapeSpec) = [String(_resolvepath(spec.path))]
+
+_fetchspec(authority::WFOPlantList) = [assetpath(_wfoasset(authority))]
 
 # The provenance record of a file the user gave a spec, written beside it where it has none: what
 # the catalogue says of it, the release its track names, and no fetch time, which is not known.

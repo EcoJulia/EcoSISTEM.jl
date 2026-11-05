@@ -364,7 +364,7 @@ include("ReportTerms.jl")
 
 # What a report says about each decision and each layer. `public`, not exported, to match
 # `Problem`/`LayerPlan`/`StudyAreaReport` themselves - these are read off a report, not written.
-public AbstractProblemSeverity, ProblemNotice, ProblemWarning
+public AbstractProblemSeverity, ProblemNotice, ProblemWarning, ProblemError
 
 public AbstractLayerFate, LayerKeptExactly, LayerAggregated, LayerResampled
 
@@ -425,6 +425,24 @@ include("cellgeometry.jl")
 public getcellareas, getcellsizes, getcellarea, getcellsize, getcellat,
        getgridarea,
        getgridshape, getcellcount
+# **The species a run may hold, and what their names mean**: a name authority standardises names to
+# its identifiers, and a pool declares every species before the run, built from a table, names or a
+# count. Both precede `Species.jl`, whose species list is built from a pool.
+include("NameAuthority.jl")
+
+export WFOPlantList
+
+# An authority's interface is what another authority implements, not what a model calls.
+public AbstractNameAuthority, resolve_name, lineage
+
+include("SpeciesPool.jl")
+
+export SpeciesPool, RefuseMerge, MergeWith
+export deactivate_species!, activate_species!, remove_species!, copy_species!,
+       add_trait!, name_table
+
+public AbstractMergeRule
+
 include("Species.jl")
 
 export SpeciesList

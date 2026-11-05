@@ -576,14 +576,15 @@ end
 @testset "guard: datasets.csv reconciles to the layer tables" begin
     E = EcoSISTEM
     rows = E._datasets()
-    @test length(rows) == 14
+    @test length(rows) == 15
     for r in rows
         # every row names a loaded source type, spelled as the loader spells it back - Natural
-        # Earth's being the level type its downloads are owned by
+        # Earth's being the level type its downloads are owned by, and the WFO Plant List's the
+        # name authority its release is read by
         T = r.dataset == "NaturalEarth" ? E.NaturalEarthLevel :
             _datasetnamed(r.dataset)
         @test T <: RasterDataSources.RasterDataSource || T <: EcoSISTEMSource ||
-              T === E.NaturalEarthLevel
+              T === E.NaturalEarthLevel || T === WFOPlantList
         @test E._datasetkey(T) == r.dataset
         # a fetchable row is a RasterDataSources type; the package's own sources are not
         @test (r.fetch === :getraster) ==

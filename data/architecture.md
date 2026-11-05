@@ -827,6 +827,7 @@ classDiagram
     AbstractLayerFate <|-- LayerResampled
     AbstractProblemSeverity <|-- ProblemNotice
     AbstractProblemSeverity <|-- ProblemWarning
+    AbstractProblemSeverity <|-- ProblemError
     StudyAreaReport "1" *-- "1" AbstractDecisionSource : crssource
     StudyAreaReport "1" *-- "1" AbstractDecisionSource : cellsizesource
     StudyAreaReport "1" *-- "*" LayerPlan : layers
@@ -887,6 +888,36 @@ outright, adopted from the layers, or measured across a projection - so a surpri
 traced to the decision that produced it. **`AbstractLayerFate`** says what the grid cost each layer,
 and carries the data each case means something by: `LayerAggregated` holds its whole-number factor,
 `LayerResampled` its reason, `LayerKeptExactly` neither.
+
+## The species pool and name authorities
+
+```mermaid
+classDiagram
+    class SpeciesPool~A~
+    class AbstractNameAuthority
+    class AbstractMergeRule
+    class MergeWith~F~
+    class ProvenanceRecord
+    AbstractNameAuthority <|-- WFOPlantList
+    AbstractMergeRule <|-- RefuseMerge
+    AbstractMergeRule <|-- MergeWith
+    SpeciesPool "1" *-- "0..1" AbstractNameAuthority : authority
+    SpeciesPool "1" *-- "*" ProvenanceRecord : inputs
+```
+
+**A `SpeciesPool` declares every species a run may hold before the run is built**, so its arrays,
+its random streams and its partition between MPI ranks are fixed from the start: a species is
+deactivated or activated, not appended. Each species keeps a key - its position in the table the
+pool was made from - that removing another species does not change, which is what leaves every
+other species' streams as they were when one is taken out.
+
+**An `AbstractNameAuthority` says which species a name means, by the authority's own identifiers**,
+so tables naming species differently meet on one identifier; `WFOPlantList` is the plant one, a
+catalogued source read from its Darwin Core release. Each name reaches one species: a homonym keeps
+its own name with its identifiers joined, so a table naming it by name alone still finds exactly
+one. Which of several rows reaching one species supplies its values is not the authority's
+question, since it turns on which names the data holds, and the pool's `AbstractMergeRule` answers
+it.
 
 ## Demands
 

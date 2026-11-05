@@ -146,7 +146,8 @@ tracked spec is fetched by its data pipeline run, which registers what it fetche
     or a [`ShapeSpec`](@ref); a [`Varying`](@ref) of one; a [`ConstructedRasterSpec`](@ref) or
     a [`ConstructedShapeSpec`](@ref), through its members; a [`ShapeMaskSpec`](@ref) or a
     [`ShapeCoverage`](@ref), through its shape; or a tuple, named tuple or vector of any of
-    these. A synthetic spec, or a mask given as a matrix, reads no file and adds none.
+    these. A synthetic spec, or a mask given as a matrix, reads no file and adds none. Or a
+    [`WFOPlantList`](@ref), whose release's file species names are resolved against.
   - `dryrun`: `true` fetches nothing and instead returns, per file, a named tuple of the `entry`,
     whether it is `present`, and its `bytes` where the server states them (a plain download's
     `Content-Length`; a Climate Data Store request cannot say), so a user on a slow link can
@@ -166,6 +167,11 @@ end
 function fetchfiles(spec::ShapeSpec; dryrun::Bool = false)
     dryrun && return [_dryrunentry(spec.path)]
     return _fetchspec(spec)
+end
+
+function fetchfiles(authority::WFOPlantList; dryrun::Bool = false)
+    dryrun && return [_dryrunentry(_wfoasset(authority))]
+    return _fetched(authority.track, authority)
 end
 
 function fetchfiles(x; dryrun::Bool = false)
@@ -234,7 +240,10 @@ end
 
 # The specs among `x` that read files - a raster spec, a named region, a shape - in order, through
 # every wrapper and combination a habitat can be built from.
-_filespecs(spec::Union{RasterSpec, NaturalEarthSpec, ShapeSpec}) = Any[spec]
+function _filespecs(spec::Union{RasterSpec, NaturalEarthSpec, ShapeSpec,
+                                WFOPlantList})
+    return Any[spec]
+end
 
 _filespecs(spec::ConstructedRasterSpec) = _filespecs(spec.layers)
 
@@ -282,6 +291,8 @@ end
 _wouldbepaths(spec::NaturalEarthSpec) = _specpaths(spec)
 
 _wouldbepaths(spec::ShapeSpec) = [_localpath(spec.path)]
+
+_wouldbepaths(authority::WFOPlantList) = _specpaths(authority)
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -2167,6 +2178,8 @@ function _specpaths(spec::NaturalEarthSpec)
 end
 
 _specpaths(spec::ShapeSpec) = [_localpath(spec.path)]
+
+_specpaths(authority::WFOPlantList) = [_localpath(_wfoasset(authority))]
 
 # One file's dry-run report: where it would land, whether it is there, and what the server says
 # it weighs.

@@ -226,7 +226,7 @@ function _assetrecord(asset::CachedAsset, path::AbstractString, response)
                                         _assetrole(asset.owner))
     rec = _datasetrecord(asset.owner)
     isnothing(rec) && return record
-    layer = rec.format === :Shapefile ? nothing :
+    layer = rec.format in (:Shapefile, :DwCA) ? nothing :
             _layerbyfile(asset.owner, asset.url)
     merge!(record,
            _cataloguerecord(asset.owner, layer, path,

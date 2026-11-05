@@ -11,6 +11,15 @@
       one aimed at a dead cell: `SeedDispersal(family; disperse_safely)`, and `WindDispersal`,
       `InsectDispersal`, `VertebrateDispersal`, `AlwaysDispersal` and `NoDispersal` with defaults.
       A mode called with its kernel's keywords, or a kernel, gives one species' `SpeciesDispersal`.
+    - `SpeciesPool`, every species a run may hold, declared before it is built: from a count, names
+      or a table of values (a CSV file, its `ProvenanceRecord` or any Tables.jl table). Changed by
+      `deactivate_species!`, `activate_species!`, `remove_species!`, `copy_species!` and
+      `add_trait!`, which joins values by species name; `name_table` says how each name matched.
+    - `WFOPlantList(; release)`, the World Flora Online Plant List as a name authority, a catalogued
+      source fetched on first use: a pool given one standardises its names to WFO identifiers,
+      synonyms to their accepted species, merging rows that reach one species by `merge`
+      (`RefuseMerge()` or `MergeWith(f)`). `lineage` gives a species' classification.
+    - `ProblemError`, the severity of a problem that stops.
   - Changed
     - `GaussianKernel` and `LongTailKernel` take their distances by keyword, each named for what it
       is: a Gaussian kernel's mean distance (`meandist`) or the standard deviation of its

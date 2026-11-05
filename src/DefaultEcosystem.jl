@@ -14,6 +14,13 @@ only the required inputs you do not care about while passing the rest explicitly
 """
 struct DefaultEcosystem end
 
+# The default ecosystem's species, as `build_species(DefaultEcosystem())` names them, announced.
+function SpeciesPool(::DefaultEcosystem; verbosity::Symbol = :normal)
+    _announce(verbosity,
+              "SpeciesPool(DefaultEcosystem()): 10 species, named \"1\" to \"10\".")
+    return SpeciesPool(10, verbosity = verbosity)
+end
+
 # == Functions ==================================================================================
 
 #
