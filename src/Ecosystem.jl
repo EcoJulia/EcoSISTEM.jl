@@ -658,11 +658,14 @@ end
 Convert type of similarity in [`SpeciesList`](@ref) to UniqueTypes, i.e. an
 identity matrix.
 
-The species keep their names: only the similarity structure is dropped.
+The species keep their names, their identity and values from the pool they were built from, and
+their name authority: only the similarity structure is dropped.
 """
 function makeunique(eco::Ecosystem)
     sppl = eco.spplist
     EcoSISTEM.invalidatecaches!(eco)
+    # Every field but `types` must reach the new list: a pool-built list's identity (`traits`,
+    # `namemap`) and its `authority` cannot be rebuilt from the rest.
     newsppl = SpeciesList{typeof(sppl.tolerance),
                           typeof(sppl.demand),
                           typeof(sppl.movement),
@@ -675,7 +678,11 @@ function makeunique(eco::Ecosystem)
                                                sppl.movement,
                                                sppl.params,
                                                sppl.native,
-                                               provenance = sppl.inputs)
+                                               provenance = sppl.inputs,
+                                               traits = sppl.traits,
+                                               filled = sppl.filled,
+                                               authority = sppl.authority,
+                                               namemap = sppl.namemap)
     newsppl.susceptible = sppl.susceptible
     stripped = Ecosystem{typeof(eco.habitat), typeof(newsppl),
                          typeof(eco.nichefit)}(eco.abundances,

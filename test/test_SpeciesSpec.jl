@@ -3,15 +3,16 @@
 # Tests `src/SpeciesSpec.jl` and `build_species(pool)` in `src/actions.jl`: the trait values and
 # specs a species list is built from, the filling of a pool's missing values from streams of each
 # species' own, the units a column is read in, and species built from a pool - the same, value for
-# value, as the released form builds from the same values. Run with
+# value, as the released form builds from the same values, and kept whole by `makeunique`. Run with
 #     julia --project -e 'using Pkg; Pkg.test(test_args = ["test_SpeciesSpec.jl"])'
 
 module TestSpeciesSpec
 
 using DataFrames
 using Distributions
+using Diversity: UniqueTypes
 using EcoSISTEM
-using EcoSISTEM: AbstractTraitSpec
+using EcoSISTEM: AbstractTraitSpec, makeunique
 using EcoSISTEM.Units
 using Test
 using Unitful
@@ -305,6 +306,26 @@ end
               species.namemap["Acacia alpha"] == 1
         @test species.namemap["zeta copy"] == 3
         @test any(r -> r.doi == "10.5281/zenodo.20782718", species.inputs)
+        # `makeunique` replaces the similarity and nothing else: every other field of the list, and
+        # of the ecosystem, is the original's. Compared field by field over the type, so a field
+        # added to either is checked without being named here; a drawn longevity gives `filled`
+        # something to lose.
+        drawn = quietly(pool, longevity = DrawFrom(Uniform(0.5, 1.5)),
+                        seed = 1)
+        @test drawn.authority === wfo && any(any, eachcol(drawn.filled))
+        habitat = build_habitat(DefaultEcosystem(), verbosity = :silent)
+        eco = build_ecosystem(drawn, habitat, seed = 1)
+        stripped = makeunique(eco)
+        @test stripped.spplist.types isa UniqueTypes
+        # The fields of `a`, but `except`, holding something other than `b`'s.
+        function changed(a, b, except)
+            return filter(fieldnames(typeof(a))) do name
+                return name != except &&
+                       !isequal(getfield(a, name), getfield(b, name))
+            end
+        end
+        @test isempty(changed(stripped.spplist, drawn, :types))
+        @test isempty(changed(stripped, eco, :spplist))
     end
     # Species built otherwise have an identity of their own.
     plain = build_species(3, tolerance = (285.0K, 3.0K),
