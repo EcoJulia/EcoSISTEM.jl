@@ -256,6 +256,18 @@ else
         received = MPI.bcast(species, 0, comm)
         @test isequal(received.traits, species.traits)
         @test received.names == species.names
+        # A filter's names are matched on the root, which alone reads the release, and every rank
+        # keeps the rows the root's answers keep.
+        for holder in (pool, species)
+            records = DataFrame(species = ["Mimosa alpha", "Acacia theta",
+                                    "zeta copy", "Mimosa beta", "Algae x"])
+            filter!(IsActiveSpecies(holder, verbosity = :silent), records)
+            @test records.species == ["Mimosa alpha", "zeta copy"]
+        end
+        @test isempty(EcoSISTEM._WFOLOADED) == (rank != 0)
+        @test_throws ErrorException filter(IsActiveSpecies(pool,
+                                                           level = EcoSISTEM.ProblemError()),
+                                           DataFrame(species = ["Algae x"]))
         MPI.Barrier(comm)
         rank == 0 && rm(EcoSISTEM._wfocachepath(zip), force = true)
     end

@@ -114,7 +114,7 @@ end
 function SpeciesPool(names::AbstractVector{<:AbstractString};
                      authority::Union{Nothing, AbstractNameAuthority} = nothing,
                      verbosity::Symbol = :normal)
-    return _poolshared() do
+    return _madeonroot() do
         table = DataFrame(species = String.(names))
         return _newpool(authority, table, :species, nothing, MergeWith(first),
                         "names", ProvenanceRecord[], verbosity,
@@ -128,7 +128,7 @@ function SpeciesPool(table; column::Symbol = :species,
                      merge::AbstractMergeRule = RefuseMerge(),
                      provenance = ProvenanceRecord[],
                      verbosity::Symbol = :normal)
-    return _poolshared() do
+    return _madeonroot() do
         source = _readtable(table, :species, column = column)
         return _newpool(authority, source.table, column, authorship, merge,
                         source.label,
@@ -458,19 +458,19 @@ Return the [`ProvenanceRecord`](@ref)s of what `pool` was read from: its table, 
 """
 provenance(pool::SpeciesPool) = copy(pool.inputs)
 
-# Make a pool once for every rank: under MPI rank 0 makes it - reading a name authority's release
-# there alone - and every other rank takes the one it made. Every rank must make the call, in the
-# same order, as layers are built.
-function _poolshared(build)
+# Make a value once for every rank - a pool, a filter's answers for its names: under MPI rank 0 makes
+# it, reading a name authority's release there alone, and every other rank takes the one it made.
+# Every rank must make the call, in the same order, as layers are built.
+function _madeonroot(build)
     _usempi() || return build()
-    return _sharedpool(build)
+    return _sharedwhole(build)
 end
 
-# Change a pool once for every rank, as `_poolshared` makes one: the root changes its own and every
+# Change a pool once for every rank, as `_madeonroot` makes one: the root changes its own and every
 # other rank's is brought to the same state.
 function _poolshared!(change!, pool::SpeciesPool)
     _usempi() || (change!(pool); return pool)
-    shared = _sharedpool() do
+    shared = _sharedwhole() do
         change!(pool)
         return pool
     end

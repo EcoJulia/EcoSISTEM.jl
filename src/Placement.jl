@@ -1036,12 +1036,14 @@ end
 
 # A placement's table, in the one form, with each row's species matched to its row in the species
 # list as a filter matches it, and the rows naming no active species dropped, each kind counted in
-# one warning; a count that is not a whole non-negative number stops it.
+# one warning; a count that is not a whole non-negative number stops it. It runs inside the
+# placement's shared build, so it looks its names up itself.
 function _matchedtable(table::NamedTuple, species::SpeciesList,
                        verbosity::Symbol)
     counts = [_placedcount(n, row) for (row, n) in enumerate(table.count)]
     index = _matchindex(species)
-    matched = _matchspecies(table.species, counts, index)
+    matched = _matchspecies(table.species, counts, index,
+                            _nameanswers(index, table.species))
     keep = .!isnothing.(matched.rows)
     kept = merge(map(column -> column[keep], table),
                  (species = Vector{Int}(matched.rows[keep]),

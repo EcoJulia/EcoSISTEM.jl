@@ -299,10 +299,11 @@ function _sharedlayer end
 # `cache`, the last holding the root's input records afterwards. Every rank must call it.
 function _sharedreport end
 
-# Make or change a species pool once for every rank, as `_sharedlayer` builds a layer: `build` runs on
-# the root, which alone reads a name authority's release, and every other rank takes the pool it
-# returns. Every rank must call it.
-function _sharedpool end
+# Make a small value once for every rank - a species pool, a filter's answers for its names, a
+# placement's result - as `_sharedlayer` builds a layer: `build` runs on the root, which alone reads
+# what makes it (a name authority's release among it), and every other rank takes the value it
+# returns, sent whole. Every rank must call it.
+function _sharedwhole end
 
 # A distributed ecosystem with no individuals yet, partitioned between the ranks, for
 # `build_ecosystem` to place into. The MPI extension supplies the sole method. Every rank must call it.

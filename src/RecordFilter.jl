@@ -29,7 +29,9 @@ a copy's label, by a name the pool's data used, by the name authority's identifi
 authority resolves to one of the species. What the filter removes is reported at `level`, each kind
 with how many rows it took and its names, the commonest first: names the authority does not recognise
 (with no authority, names of no species), names it recognises that are of no species held, species
-that are not active, and rows naming no species.
+that are not active, and rows naming no species. Under MPI it is a collective call: the first rank
+matches the names and reports, reading the authority alone, and every rank keeps the rows of its own
+table by those answers, so every rank filters the same table, in the same order.
 
 # Arguments
 
@@ -107,7 +109,9 @@ function Base.filter(f::AbstractRecordFilter, table::NamedTuple)
 end
 
 # Which rows of `table` the filter keeps, its report raised first, so that a filter stopped by it
-# leaves the table as it was.
+# leaves the table as it was. Under MPI the first rank looks the names up and reports - so it alone
+# reads a name authority - and every rank keeps its rows by the first rank's answers, so every rank
+# must filter the same table, in the same order.
 function _keptrows(f::IsActiveSpecies, table)
     columns = Tables.columns(table)
     names = Tables.columnnames(columns)
@@ -116,11 +120,16 @@ function _keptrows(f::IsActiveSpecies, table)
               "$(_columnsphrase(names)). Give the column naming them as `column`.")
     index = _matchindex(f.species)
     given = Tables.getcolumn(columns, f.column)
-    matched = _matchspecies(given, Iterators.repeated(1, length(given)), index)
-    _reportproblems(_matchproblems(matched.dropped, f.level, "record",
-                                   "removed",
-                                   index, f.verbosity), f.verbosity)
-    return .!isnothing.(matched.rows)
+    weights = Iterators.repeated(1, length(given))
+    answers = _madeonroot() do
+        answers = _nameanswers(index, given)
+        matched = _matchspecies(given, weights, index, answers)
+        _reportproblems(_matchproblems(matched.dropped, f.level, "record",
+                                       "removed", index, f.verbosity),
+                        f.verbosity)
+        return answers
+    end
+    return .!isnothing.(_matchspecies(given, weights, index, answers).rows)
 end
 
 # A table's column names, for a message.
@@ -137,27 +146,39 @@ function _rowspecies(name, row::Int)
                  "its name or its name authority's identifier.")
 end
 
-# How each row's species name matches the species `index` describes: the row of the species it names,
-# `nothing` where it reaches no active species, and the weight each dropped name took (a record's 1, a
-# placement's individuals) by kind - names not recognised (by the authority, or with none by any
-# species), names recognised but of no species held, species not active, and rows naming none. Each
-# distinct name is looked up once.
-function _matchspecies(names, weights, index)
+# Each distinct name of `names` with its species row and whether it is recognised, each looked up once.
+function _nameanswers(index, names)
+    answers = Dict{String,
+                   NamedTuple{(:row, :recognised),
+                              Tuple{Union{Nothing, Int}, Bool}}}()
+    for (r, name) in enumerate(names)
+        ismissing(name) && continue
+        given = _rowspecies(name, r)
+        haskey(answers, given) || (answers[given] = _matchrow(index, given))
+    end
+    return answers
+end
+
+# How each row's species name matches the species `index` describes, by `answers` for its names: the
+# row of the species it names, `nothing` where it reaches no active species, and the weight each
+# dropped name took (a record's 1, a placement's individuals) by kind - names not recognised (by the
+# authority, or with none by any species), names recognised but of no species held, species not
+# active, and rows naming none.
+function _matchspecies(names, weights, index, answers::AbstractDict)
     rows = Vector{Union{Nothing, Int}}(nothing, length(names))
     dropped = (unrecognised = Dict{String, Int}(), absent = Dict{String, Int}(),
                inactive = Dict{String, Int}(), unnamed = Ref(0))
-    seen = Dict{String,
-                NamedTuple{(:row, :recognised),
-                           Tuple{Union{Nothing, Int}, Bool}}}()
     for (r, (name, w)) in enumerate(zip(names, weights))
         if ismissing(name)
             dropped.unnamed[] += w
             continue
         end
         given = _rowspecies(name, r)
-        hit = get!(seen, given) do
-            return _matchrow(index, given)
-        end
+        hit = get(answers, given, nothing)
+        isnothing(hit) &&
+            error("row $r names `$given`, which the first MPI rank did not match: under MPI the " *
+                  "first rank matches the names for every rank, so every rank filters the same " *
+                  "table.")
         if isnothing(hit.row)
             tally = hit.recognised ? dropped.absent : dropped.unrecognised
             tally[given] = get(tally, given, 0) + w
