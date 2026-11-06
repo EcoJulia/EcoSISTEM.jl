@@ -52,6 +52,18 @@ pool = SpeciesPool("envelopes.csv", authority = WFOPlantList(release = "2026-06"
                    merge = MergeWith(first))
 ```
 
+A table of records - occurrences, say - often names species a run does not hold. Filtering it by
+[`IsActiveSpecies`](@ref) keeps the rows naming one of the active species of a pool or a species list,
+each name found as the pool finds names (through its authority, where it has one, so a synonym
+counts), and reports what it removed, by kind and with how many rows each name took. `filter!`
+changes a `DataFrame` in place; `filter` returns a new table:
+
+```@example sp
+records = DataFrame(species = ["Aloe vera", "Opuntia ficus-indica", "Ficus sycomorus",
+                               "Aloe vera"])
+filter!(IsActiveSpecies(pool, verbosity = :silent), records)
+```
+
 ## Species from a pool
 
 Each trait is a spec: [`ToleranceSpec`](@ref) names a response family's parameters as the family

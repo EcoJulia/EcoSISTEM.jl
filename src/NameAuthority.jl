@@ -276,6 +276,19 @@ function _resolver(a::WFOPlantList)
                                              a.prefer_accepted)
 end
 
+# A resolver made on its first use, so that matching names that all reach a species directly never
+# reads the authority's names; `nothing` without an authority.
+_lazyresolver(::Nothing) = nothing
+
+function _lazyresolver(authority::AbstractNameAuthority)
+    made = Ref{Any}(nothing)
+    function resolve(name, authorship)
+        isnothing(made[]) && (made[] = _resolver(authority))
+        return made[](name, authorship)
+    end
+    return resolve
+end
+
 # Where a release file's reduced table is cached: named for the file's path, then for its size and
 # time and the reader's text, each digested with SHA-256 (never `Base.hash`, whose values change
 # between Julia versions), so a replaced file or a changed reader is read afresh.

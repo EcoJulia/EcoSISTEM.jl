@@ -984,6 +984,21 @@ cell must score on every weight to be worth placing in. `+` adds placements' row
 `SumOfPlacements`. The numbers belong to the weighted placement - a community `total` split across the
 species, or `each` species' own - and never to a weight inside one.
 
+```mermaid
+classDiagram
+    class AbstractRecordFilter
+    class IsActiveSpecies~S, L~
+    AbstractRecordFilter <|-- IsActiveSpecies
+```
+
+**A record filter decides which rows of a table of records a run can use**, before anything is placed
+from them, for `filter!` and `filter`. `IsActiveSpecies` keeps the rows naming one of the active
+species of a pool or a species list, and reports what it removes by kind: names the name authority
+does not recognise, names of species not held, species not active. A placement finds its table's
+species by the same matcher - a species' own name, a name the pool's data used, an identifier, or any
+name the authority resolves to one of the species - so a filter and a placement say the same of the
+same rows.
+
 ## Demands
 
 ```mermaid

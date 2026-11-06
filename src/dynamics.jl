@@ -92,7 +92,7 @@ end
 # its abundances cleared, where `clear` - written, and the placement and its records kept.
 function _placeinto!(eco::AbstractEcosystem, placement,
                      context::PlacementContext, verbosity::Symbol; clear::Bool)
-    outcome = _resolveplacement(eco, placement, context)
+    outcome = _resolveplacement(eco, placement, context, verbosity)
     _reportproblems(vcat(outcome.placed.problems, outcome.resolved.problems),
                     verbosity)
     clear && (_ownedabundances(eco).rows .= 0)
@@ -103,21 +103,22 @@ function _placeinto!(eco::AbstractEcosystem, placement,
 end
 
 # What `placement` places in `eco`, called and checked but not yet written: its result, its table in
-# one form, and its rows resolved against the species and the grid. Under MPI the root alone calls
-# it, once every rank has built the layers it weights by together, and every rank takes the root's
-# result.
+# one form with its species matched to the species list, and its rows resolved against the grid.
+# Under MPI the root alone calls it and matches its names - so only the root reads a name authority -
+# once every rank has built the layers it weights by together, and every rank takes the root's result.
 function _resolveplacement(eco::AbstractEcosystem, placement,
-                           context::PlacementContext)
+                           context::PlacementContext, verbosity::Symbol)
     prepared = _prepared(placement, eco.habitat)
     placed = _sharedresult(eco, context) do
         raw = _callplacement(prepared, eco.spplist, eco.habitat, context)
-        return PlacedAbundances(_canonicaltable(raw.table, eco.habitat,
-                                                context),
-                                records = raw.records, problems = raw.problems)
+        matched = _matchedtable(_canonicaltable(raw.table, eco.habitat,
+                                                context), eco.spplist,
+                                verbosity)
+        return PlacedAbundances(matched.table, records = raw.records,
+                                problems = vcat(raw.problems, matched.problems))
     end
     return (placed = placed,
-            resolved = _resolveplaced(placed, eco.spplist, eco.habitat,
-                                      context))
+            resolved = _resolveplaced(placed, eco.habitat, context))
 end
 
 # A placement's result, serially; under MPI the extension's method has the root build it and every

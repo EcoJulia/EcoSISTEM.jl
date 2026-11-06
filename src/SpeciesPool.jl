@@ -777,20 +777,44 @@ function _lookuprow(pool::SpeciesPool, index, name::AbstractString,
                 match = isnothing(own) ? :not_found : :exact, row = own)
     end
     resolved = index.resolve(name, authorship)
-    row = something(own,
-                    get(index.given, (name, something(authorship, missing)),
-                        nothing),
-                    get(index.givenname, name, nothing),
-                    isnothing(resolved.id) ? nothing :
-                    get(index.id, resolved.id, nothing),
-                    isnothing(resolved.name) ? nothing :
-                    get(index.name, resolved.name, nothing), Some(nothing))
+    row = something(_directrow(index, name, authorship),
+                    _resolvedrow(index, resolved), Some(nothing))
     # A species' own name the authority does not know is a copy's label, matched exactly.
     !isnothing(own) && isnothing(resolved.name) &&
         return (name = String(name), id = nothing, match = :exact, row = own)
     match = isnothing(row) && !isnothing(resolved.name) ? :not_in_pool :
             resolved.match
     return (name = resolved.name, id = resolved.id, match = match, row = row)
+end
+
+# A name's species row without asking the authority: by a species' own name (a copy's label among
+# them), by a name of the pool's data with its authorship, or by that name alone where it reached one
+# species; `nothing` where none.
+function _directrow(index, name::AbstractString, authorship = nothing)
+    return something(get(index.name, name, nothing),
+                     get(index.given, (name, something(authorship, missing)),
+                         nothing),
+                     get(index.givenname, name, nothing), Some(nothing))
+end
+
+# The species row an authority's answer reaches: by the identifier it gives, else by its accepted
+# name, since a name reached by another route may carry another identifier; `nothing` where none.
+function _resolvedrow(index, resolved::NamedTuple)
+    return something(isnothing(resolved.id) ? nothing :
+                     get(index.id, resolved.id, nothing),
+                     isnothing(resolved.name) ? nothing :
+                     get(index.name, resolved.name, nothing), Some(nothing))
+end
+
+# What a filter or a placement matches a table's names against, for a pool: its species' rows by name
+# and identifier as the verbs find them, whether each is active, and its authority's resolver, made on
+# the first name not found otherwise.
+function _matchindex(pool::SpeciesPool)
+    return merge(_poolindex(pool, resolve = false),
+                 (resolve = _lazyresolver(pool.authority),
+                  active = Vector{Bool}(pool.species.active),
+                  speciesname = Vector{String}(pool.species.name),
+                  authority = pool.authority, holder = "the pool"))
 end
 
 # The rows of the species `names` name, for a verb, reporting the names that reach none: a name the

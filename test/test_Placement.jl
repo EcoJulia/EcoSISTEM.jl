@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
 # Tests `src/Placement.jl` and the placing in `build_ecosystem` and `repopulate!`: the default placement
-# and the one it equals, what each shipped placement places, a table's rows and the rows
-# it drops, a function as a placement, and what the ecosystem keeps of how it was placed. Run with
+# and the one it equals, what each shipped placement places, a table's rows, the rows it drops and the
+# names it finds through a name authority, a function as a placement, and what the ecosystem keeps of
+# how it was placed. Run with
 #     julia --project -e 'using Pkg; Pkg.test(test_args = ["test_Placement.jl"])'
 
 module TestPlacement
@@ -25,6 +26,7 @@ using Unitful.DefaultSymbols
 
 include("rasterfixtures.jl")
 include("buildfixtures.jl")
+include("wfofixtures.jl")
 
 # A 7 x 5 grid of 1 km cells with its first cell inactive; the supply rises across it, so supply
 # weights differ between cells.
@@ -216,11 +218,11 @@ end
                  CartesianIndex(1, 1)],
              count = [4, 6, 7, 9, 11])
     eco = @test_logs (:warn,
-                      r"9 individuals of species the species list does not hold were not placed: `zz` \(9\)") (:warn,
-                                                                                                               r"11 individuals in 1 row naming a cell the placement may not place in") build_ecosystem(FromTable(table),
-                                                                                                                                                                                                        species,
-                                                                                                                                                                                                        habitat,
-                                                                                                                                                                                                        verbosity = :silent)
+                      r"9 individuals of 1 name of no species in the species list were not placed: `zz` \(9\)\.") (:warn,
+                                                                                                                   r"11 individuals in 1 row naming a cell the placement may not place in") build_ecosystem(FromTable(table),
+                                                                                                                                                                                                            species,
+                                                                                                                                                                                                            habitat,
+                                                                                                                                                                                                            verbosity = :silent)
     linear = LinearIndices(size(MASK))
     @test eco.abundances.matrix[1, linear[2, 3]] == 10
     @test eco.abundances.matrix[2, linear[7, 5]] == 7
@@ -243,13 +245,13 @@ end
     # A species not active is dropped, naming the way to activate it.
     species.traits.active[3] = false
     @test_logs (:warn,
-                r"5 individuals of species that are not active were not placed: `3` \(5\).*activate_species!") build_ecosystem(FromTable((species = ["3"],
-                                                                                                                                          cell = [CartesianIndex(4,
-                                                                                                                                                                 4)],
-                                                                                                                                          count = [5])),
-                                                                                                                               species,
-                                                                                                                               habitat,
-                                                                                                                               verbosity = :silent)
+                r"5 individuals of 1 species not active were not placed: `3` \(5\)\. Activate them in their pool with `activate_species!`") build_ecosystem(FromTable((species = ["3"],
+                                                                                                                                                                       cell = [CartesianIndex(4,
+                                                                                                                                                                                              4)],
+                                                                                                                                                                       count = [5])),
+                                                                                                                                                            species,
+                                                                                                                                                            habitat,
+                                                                                                                                                            verbosity = :silent)
     species.traits.active[3] = true
     # A species may be named by its name authority's identifier.
     species.traits.id[4] = "id-4"
@@ -285,6 +287,25 @@ end
                                               species, habitat)
     @test_throws "no file there" FromTable(joinpath(tempdir(),
                                                     "no-such-table.csv"))
+end
+
+@testset "a table's species are found through the pool's name authority" begin
+    withfakewfo() do zip
+        wfo = WFOPlantList(release = "2026-06", path = zip)
+        species = _species(SpeciesPool(["Acacia alpha", "Acacia zeta"],
+                                       authority = wfo, verbosity = :silent))
+        # A synonym places as its accepted species; a name the authority recognises but the list
+        # does not hold is reported apart from one it does not recognise.
+        table = (species = ["Mimosa alpha", "Acacia theta", "Algae x"],
+                 cell = fill(CartesianIndex(4, 4), 3), count = [3, 4, 5])
+        eco = @test_logs((:warn,
+                          r"^5 individuals of 1 name not recognised by the WFO Plant List 2026-06 were not placed: `Algae x` \(5\)\.$"),
+                         (:warn,
+                          r"^4 individuals of 1 name recognised by the WFO Plant List 2026-06 but of no species in the species list were not placed: `Acacia theta` \(4\)\.$"),
+                         build_ecosystem(FromTable(table), species, _habitat(),
+                                         verbosity = :silent))
+        @test _perspecies(eco) == [3, 0]
+    end
 end
 
 @testset "a file's latitudes and longitudes place in a projected grid, and its record is kept" begin

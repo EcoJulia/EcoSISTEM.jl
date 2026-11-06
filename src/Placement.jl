@@ -205,7 +205,8 @@ A placement reading the individuals from a table, one row for a number of indivi
 species in one cell.
 
 A row names its species in a `species` column, by its name in the species list (or a name the data
-of the pool it came from used, or a copy's label) or by its name authority's identifier. It names its
+of the pool it came from used, or a copy's label), by its name authority's identifier, or by any name
+the authority resolves to one of the species, as [`IsActiveSpecies`](@ref) finds them. It names its
 place by a location - `latitude` and `longitude` columns in degrees, or a `location` column of
 [`LatLong`](@ref)s or [`SpatialLocation`](@ref)s - or, in a table in memory, by the grid's own key for
 the cell, a `cell` column of what [`getcellat`](@ref) returns. An optional `count` column gives each
@@ -1018,12 +1019,6 @@ function _placementtime(t, ::PlacementContext, row::Int)
                  "elapsed time or a date.")
 end
 
-# A table's column names, for a message.
-function _columnsphrase(names)
-    return isempty(names) ? "no columns" :
-           join(("`$n`" for n in names), ", ")
-end
-
 # Several placements' tables, in the one form, as one: dated where any is, the rest at the context's
 # time.
 function _vcattables(tables::AbstractVector, context::PlacementContext)
@@ -1039,40 +1034,43 @@ function _vcattables(tables::AbstractVector, context::PlacementContext)
     return (species = species, cell = cells, count = counts, time = times)
 end
 
-# A placement's table checked against the species, the grid and the time, as what is written: each
-# row's species row, storage column and count. A row naming a species the list does not hold or
-# that is not active, or a place off the grid or a cell it may not place in, is dropped, each kind
-# counted in one warning; a count that is not a whole non-negative number, or a row after the
-# context's time, stops it.
-function _resolveplaced(placed::PlacedAbundances, species::SpeciesList,
-                        habitat::GridHabitat, context::PlacementContext)
-    table = _canonicaltable(placed.table, habitat, context)
+# A placement's table, in the one form, with each row's species matched to its row in the species
+# list as a filter matches it, and the rows naming no active species dropped, each kind counted in
+# one warning; a count that is not a whole non-negative number stops it.
+function _matchedtable(table::NamedTuple, species::SpeciesList,
+                       verbosity::Symbol)
+    counts = [_placedcount(n, row) for (row, n) in enumerate(table.count)]
+    index = _matchindex(species)
+    matched = _matchspecies(table.species, counts, index)
+    keep = .!isnothing.(matched.rows)
+    kept = merge(map(column -> column[keep], table),
+                 (species = Vector{Int}(matched.rows[keep]),
+                  count = counts[keep]))
+    return (table = kept,
+            problems = _matchproblems(matched.dropped, ProblemWarning(),
+                                      "individual", "not placed", index,
+                                      verbosity))
+end
+
+# A placement's matched table checked against the grid and the time, as what is written: each row's
+# species row, storage column and count. A row naming a place off the grid or a cell it may not place
+# in is dropped, each kind counted in one warning; a row after the context's time stops it.
+function _resolveplaced(placed::PlacedAbundances, habitat::GridHabitat,
+                        context::PlacementContext)
+    table = placed.table
     allowed = _allowedmask(habitat, context.cells)
     linear = LinearIndices(getgridshape(habitat))
-    active = _activespecies(species)
-    find = _speciesfinder(species)
     resolved = (species = Int[], cells = Int[], counts = Int[])
-    unknown = Dict{String, Int}()
-    inactive = Dict{String, Int}()
     offgrid = (rows = 0, individuals = 0)
     outside = (rows = 0, individuals = 0)
     dated = haskey(table, :time)
     for row in eachindex(table.species)
-        n = _placedcount(table.count[row], row)
+        n = table.count[row]
         dated && table.time[row] > context.time &&
             error("row $row of a placement's table is at $(table.time[row]), after " *
                   "$(context.time): a placement at build places the starting state, so every row " *
                   "is at or before the start.")
-        name = _rowspecies(table.species[row], row)
-        sp = find(name)
-        if isnothing(sp)
-            unknown[name] = get(unknown, name, 0) + n
-            continue
-        end
-        if !active[sp]
-            inactive[name] = get(inactive, name, 0) + n
-            continue
-        end
+        sp = table.species[row]
         key = table.cell[row]
         if isnothing(key)
             offgrid = (rows = offgrid.rows + 1,
@@ -1091,18 +1089,6 @@ function _resolveplaced(placed::PlacedAbundances, species::SpeciesList,
         push!(resolved.counts, n)
     end
     problems = Problem[]
-    isempty(unknown) ||
-        push!(problems,
-              Problem(ProblemWarning(), :unknown_species,
-                      "$(_individualsword(sum(values(unknown)))) of species the species list does not " *
-                      "hold were not placed: $(_listphrase(sort!(collect(unknown))))."))
-    isempty(inactive) ||
-        push!(problems,
-              Problem(ProblemWarning(), :inactive_species,
-                      "$(_individualsword(sum(values(inactive)))) of species that are not active were " *
-                      "not placed: $(_listphrase(sort!(collect(inactive)))). Activate them in " *
-                      "their pool with `activate_species!` and build the species again to place " *
-                      "them."))
     iszero(offgrid.rows) ||
         push!(problems,
               Problem(ProblemWarning(), :off_grid,
@@ -1116,27 +1102,6 @@ function _resolveplaced(placed::PlacedAbundances, species::SpeciesList,
                       "not placed."))
     return (species = resolved.species, cells = resolved.cells,
             counts = resolved.counts, problems = problems)
-end
-
-# A species' row from what a placement's row names it by: a name the species list knows - its own,
-# one its pool's data used, a copy's label - or its name authority's identifier.
-function _speciesfinder(species::SpeciesList)
-    ids = Dict{String, Int}()
-    if hasproperty(species.traits, :id)
-        for (sp, id) in enumerate(species.traits.id)
-            ismissing(id) || (ids[id] = sp)
-        end
-    end
-    return name -> something(get(species.namemap, name, nothing),
-                             get(ids, name, nothing), Some(nothing))
-end
-
-# A row's species as a `String`, refused where it is not a name.
-_rowspecies(name::AbstractString, ::Int) = String(name)
-
-function _rowspecies(name, row::Int)
-    return error("row $row of a placement's table names its species as `$(repr(name))`; a " *
-                 "species is named by its name or its name authority's identifier.")
 end
 
 # A row's count as a whole number, refused where it is not a non-negative one.

@@ -356,6 +356,21 @@ function _namemap(names::AbstractVector{<:AbstractString})
                 for (i, n) in enumerate(names))
 end
 
+# What a filter or a placement matches a table's names against, for a species list: its species' rows
+# by their own names, by every name of their pool's data that reached one of them, and by identifier,
+# whether each is active, and its authority's resolver, made on the first name not found otherwise.
+function _matchindex(species::SpeciesList)
+    traits = species.traits
+    rowof(v) = Dict(x => r for (r, x) in enumerate(v) if !ismissing(x))
+    return (name = rowof(traits.name), id = rowof(traits.id),
+            given = Dict{Tuple{String, Union{Missing, String}}, Int}(),
+            givenname = species.namemap,
+            resolve = _lazyresolver(species.authority),
+            active = Vector{Bool}(traits.active),
+            speciesname = Vector{String}(traits.name),
+            authority = species.authority, holder = "the species list")
+end
+
 # The keywords a species list takes from what was read of a pool, none without one.
 _poolfields(::Nothing, names) = NamedTuple()
 

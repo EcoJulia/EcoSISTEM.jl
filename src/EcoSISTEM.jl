@@ -458,6 +458,13 @@ export SpeciesList
 
 public getdemand
 
+# Which rows of a table of records a run can use, decided before anything is placed from it.
+include("RecordFilter.jl")
+
+export IsActiveSpecies
+
+public AbstractRecordFilter
+
 include("Landscape.jl")
 
 export GridLandscape, CachedGridLandscape

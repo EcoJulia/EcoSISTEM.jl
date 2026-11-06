@@ -32,6 +32,9 @@
       `total` or `each` (a count or a density), `FromTable` reading rows, `NoAbundance`, placements
       added with `+`, or a `do` block of `(species, habitat, context)`. Rows it cannot place are
       dropped and reported; the ecosystem keeps its placement, and its provenance names it.
+    - `IsActiveSpecies(pool or species)` for `filter!` and `filter`, keeping a table's rows that name
+      an active species, found as a placement finds a table's species - through the pool's name
+      authority, so synonyms count - and reporting what it removes by kind.
   - Changed
     - `build_ecosystem(species, habitat)` places 1000 individuals of each active species, split at
       random and placed by supply, and announces it; it takes `verbosity`. `repopulate!(eco, placement = eco.placement; seed)` places again by the
