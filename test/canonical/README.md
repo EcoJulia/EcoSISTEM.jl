@@ -33,6 +33,14 @@ the code. Review it before committing:
 changed; your job is to explain *why* before recording the new value. If you cannot say why, do not
 bless it.
 
+### Intended changes
+
+**2026-11-06 - every simulated abundance was re-blessed for placement drawing from streams of its own**,
+one per species keyed on its pool key, instead of from the dynamics streams. 30 keys moved, every
+data-read key and every derived property (`occupied_cells`, `species_surviving`) held; a copy placing
+from the dynamics streams again restored the 18 keys outside `mpi/` exactly. The `mpi/` fixtures fill
+by hand, so only the dynamics streams' start reached them.
+
 ### ⚠️ A dependency can move the numbers without the model changing
 
 **2026-09-11 - every simulated value was re-blessed, once, for a change in how a seed becomes a
