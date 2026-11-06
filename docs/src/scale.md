@@ -63,8 +63,9 @@ The first rank reads the data and builds the result, and every other rank receiv
 the data is read once however many ranks there are, and every rank holds the same values. A failure
 while the first rank builds is raised on every rank. Making and changing a [`SpeciesPool`](@ref) are
 collective in the same way, so a name authority's release is read on the first rank alone, and so is
-filtering a table by [`IsActiveSpecies`](@ref): the first rank matches the names and reports, and
-every rank keeps the rows of its own table by those answers, so every rank filters the same table.
+filtering a table by [`IsActiveSpecies`](@ref) or [`InActiveCell`](@ref): the first rank decides and
+reports, and every rank keeps the rows of its own table by that decision, so
+every rank filters the same table.
 
 So every rank must make each of these calls, in the same order. A rank that builds or inspects
 something the others do not is left waiting for them, with no error. Build a reference or diagnostic

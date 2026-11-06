@@ -988,7 +988,9 @@ species, or `each` species' own - and never to a weight inside one.
 classDiagram
     class AbstractRecordFilter
     class IsActiveSpecies~S, L~
+    class InActiveCell~C, S, L~
     AbstractRecordFilter <|-- IsActiveSpecies
+    AbstractRecordFilter <|-- InActiveCell
 ```
 
 **A record filter decides which rows of a table of records a run can use**, before anything is placed
@@ -997,7 +999,10 @@ species of a pool or a species list, and reports what it removes by kind: names 
 does not recognise, names of species not held, species not active. A placement finds its table's
 species by the same matcher - a species' own name, a name the pool's data used, an identifier, or any
 name the authority resolves to one of the species - so a filter and a placement say the same of the
-same rows.
+same rows. `InActiveCell` keeps the rows whose position lies in an active cell - of a study area as it
+was decided, or of a habitat as it stands - or within `snap`, a ground distance, of one;
+the placement given the same `snap` moves such a row into that cell, and the filter moves nothing.
+Under MPI each filter is a collective call, the first rank deciding for every rank.
 
 ## Demands
 

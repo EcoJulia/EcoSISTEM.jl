@@ -64,6 +64,15 @@ records = DataFrame(species = ["Aloe vera", "Opuntia ficus-indica", "Ficus sycom
 filter!(IsActiveSpecies(pool, verbosity = :silent), records)
 ```
 
+[`InActiveCell`](@ref) filters by position instead, keeping the rows whose latitude and longitude
+(Darwin Core's `decimalLatitude` and `decimalLongitude` by default) lie in one of a study area's or a
+habitat's active cells. A record falling just outside them - a coastal plant whose point lands in a sea
+cell - is kept where an active cell lies within `snap`, a ground distance:
+
+```julia
+filter!(InActiveCell(habitat, snap = 10km), occurrences)
+```
+
 ## Species from a pool
 
 Each trait is a spec: [`ToleranceSpec`](@ref) names a response family's parameters as the family

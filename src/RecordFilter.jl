@@ -7,13 +7,17 @@
 using CSV: CSV
 using DataFrames: AbstractDataFrame, DataFrame, keepat!
 using Tables: Tables
+using Unitful
+using Unitful.DefaultSymbols
 
 """
     AbstractRecordFilter
 
 A filter keeping the rows of a table of records that a run can use, for `filter!` (in place, on a
-`DataFrame`) and `filter` (returning a new table): [`IsActiveSpecies`](@ref). Each reports what it
-removes.
+`DataFrame`) and `filter` (returning a new table): [`IsActiveSpecies`](@ref) by species,
+[`InActiveCell`](@ref) by position. Each reports what it removes. Under MPI
+each is a collective call: the first rank decides and reports, and every rank keeps the rows of its
+own table by that decision, so every rank filters the same table, in the same order.
 """
 abstract type AbstractRecordFilter end
 
@@ -77,6 +81,83 @@ function Base.show(io::IO, ::MIME"text/plain", f::IsActiveSpecies)
     println(io, "IsActiveSpecies")
     println(io, "  species   ", f.species)
     println(io, "  column    ", repr(f.column))
+    println(io, "  level     ", nameof(typeof(f.level)), "()")
+    print(io, "  verbosity ", repr(f.verbosity))
+    return nothing
+end
+
+"""
+    InActiveCell(cells; latitude = :decimalLatitude, longitude = :decimalLongitude, snap = 0.0km,
+                 level = ProblemNotice(), verbosity = :normal)
+
+A filter keeping the rows of a table whose position lies in one of the active cells of `cells`, for
+`filter!` and `filter` as [`IsActiveSpecies`](@ref) is: of a [`StudyArea`](@ref) or its
+[`StudyAreaReport`](@ref), the cells the area was decided to simulate, known before anything is built
+on it; of a [`GridHabitat`](@ref), its cells as they stand when the filter is called, which may be
+fewer, since a habitat can be narrower than the area it was built on and cells can be deactivated as
+a run proceeds. A position is a latitude and a longitude in degrees, placed in the grid as
+[`getcellat`](@ref) places it. A row in an inactive cell is kept where the centre of an active cell
+lies within `snap` of its own cell's centre - a ground distance, straight on a projected grid and
+along a great circle on a geographic one - since a placement given the same `snap` moves it there; the
+filter itself moves nothing. What it removes is reported at `level`: rows off the grid, rows in
+inactive cells with no active cell that near, and rows with no position; the rows kept by `snap` are
+noted.
+
+# Arguments
+
+  - `cells`: the study area, its report or the habitat whose active cells are kept.
+  - `latitude`, `longitude`: the columns giving each row's position, in degrees; Darwin Core's
+    names by default, as an occurrence download from GBIF has them.
+  - `snap`: how far from an active cell a row in an inactive one may be and still be kept, as a
+    length; `0.0km`, the default, keeps no row in an inactive cell.
+  - `level`, `verbosity`: as for [`IsActiveSpecies`](@ref).
+
+# Fields
+
+  - `cells`, `latitude`, `longitude`, `snap`, `level`, `verbosity`: as given.
+"""
+struct InActiveCell{C <: Union{StudyArea, StudyAreaReport, GridHabitat},
+                    S <: Unitful.Length, L <: AbstractProblemSeverity} <:
+       AbstractRecordFilter
+    cells::C
+    latitude::Symbol
+    longitude::Symbol
+    snap::S
+    level::L
+    verbosity::Symbol
+
+    function InActiveCell(cells::Union{StudyArea, StudyAreaReport, GridHabitat};
+                          latitude::Symbol = :decimalLatitude,
+                          longitude::Symbol = :decimalLongitude,
+                          snap::Unitful.Length = 0.0km,
+                          level::AbstractProblemSeverity = ProblemNotice(),
+                          verbosity::Symbol = :normal)
+        _checksnap(snap)
+        _checkverbosity(verbosity)
+        return new{typeof(cells), typeof(snap), typeof(level)}(cells, latitude,
+                                                               longitude, snap,
+                                                               level, verbosity)
+    end
+end
+
+function Base.show(io::IO, f::InActiveCell)
+    print(io, "InActiveCell(", f.cells)
+    f.latitude === :decimalLatitude ||
+        print(io, ", latitude = ", repr(f.latitude))
+    f.longitude === :decimalLongitude ||
+        print(io, ", longitude = ", repr(f.longitude))
+    iszero(f.snap) || print(io, ", snap = ", f.snap)
+    f.level isa ProblemNotice ||
+        print(io, ", level = ", nameof(typeof(f.level)), "()")
+    f.verbosity === :normal || print(io, ", verbosity = ", repr(f.verbosity))
+    return print(io, ")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", f::InActiveCell)
+    println(io, "InActiveCell")
+    println(io, "  cells     ", f.cells)
+    println(io, "  position  ", repr(f.latitude), ", ", repr(f.longitude))
+    println(io, "  snap      ", f.snap)
     println(io, "  level     ", nameof(typeof(f.level)), "()")
     print(io, "  verbosity ", repr(f.verbosity))
     return nothing
@@ -254,3 +335,184 @@ end
 
 # The verb agreeing with a count.
 _were(n::Integer) = n == 1 ? "was" : "were"
+
+# Which rows of `table` a filter by position keeps, its report raised first, so that a filter stopped
+# by it leaves the table as it was. Under MPI the first rank decides and reports, and every rank keeps
+# its rows by the first rank's decision.
+function _keptrows(f::InActiveCell, table)
+    columns = Tables.columns(table)
+    names = Tables.columnnames(columns)
+    for column in (f.latitude, f.longitude)
+        column in names ||
+            error("the table gives no position in a `$column` column; it has " *
+                  "$(_columnsphrase(names)). Give the columns holding each row's position as " *
+                  "`latitude` and `longitude`.")
+    end
+    latitudes = Tables.getcolumn(columns, f.latitude)
+    longitudes = Tables.getcolumn(columns, f.longitude)
+    keep = _madeonroot() do
+        placed = _snapcells(f.cells, latitudes, longitudes, f.snap)
+        _reportproblems(_placingproblems(placed, f.level, f.snap, "record",
+                                         "removed"), f.verbosity)
+        return .!isnothing.(placed.cells)
+    end
+    length(keep) == length(latitudes) ||
+        error("the table has $(length(latitudes)) rows and the first MPI rank's has " *
+              "$(length(keep)): under MPI the first rank decides for every rank, so every rank " *
+              "filters the same table.")
+    return keep
+end
+
+# Refuse a `snap` no distance can be.
+function _checksnap(snap::Unitful.Length)
+    (isfinite(snap) && snap >= zero(snap)) ||
+        error("`snap` is how far a record may be from an active cell, so a finite, non-negative " *
+              "length; got $snap.")
+    return nothing
+end
+
+# Each record's cell in the grid of `x` - a study area, its report or a habitat - with a record in an
+# inactive cell moved to the nearest active cell within `snap`, or `nothing` for a record off the
+# grid, with no active cell that near, or with no position; and how many records each of those took.
+# A cell's nearest active cell is found once, however many records it holds.
+function _snapcells(x, latitudes, longitudes, snap::Unitful.Length)
+    rows = [r
+            for (r, (lat, long)) in enumerate(zip(latitudes, longitudes))
+            if !(ismissing(lat) || ismissing(long))]
+    places = [LatLong(_rowdegrees(latitudes[r], r, "latitude") * °,
+                      _rowdegrees(longitudes[r], r, "longitude") * °)
+              for r in rows]
+    found = getcellat(x, places)
+    yx = _gridyx(x)
+    active = _activemask(x)
+    cells = Vector{Union{Nothing, CartesianIndex{2}}}(nothing,
+                                                      length(latitudes))
+    nearest = Dict{CartesianIndex{2}, Union{Nothing, CartesianIndex{2}}}()
+    offgrid = inactive = snapped = 0
+    for (r, cell) in zip(rows, found)
+        if isnothing(cell)
+            offgrid += 1
+        elseif active[cell]
+            cells[r] = cell
+        else
+            target = get!(nearest, cell) do
+                return _nearestactive(yx, active, cell, snap)
+            end
+            if isnothing(target)
+                inactive += 1
+            else
+                snapped += 1
+                cells[r] = target
+            end
+        end
+    end
+    return (cells = cells, offgrid = offgrid, inactive = inactive,
+            snapped = snapped, unplaced = length(latitudes) - length(rows))
+end
+
+# A row's latitude or longitude in degrees, refused where it is not a number.
+function _rowdegrees(x::Union{Real, Unitful.Quantity}, ::Int, ::AbstractString)
+    return _degrees(x)
+end
+
+function _rowdegrees(x, row::Int, what::AbstractString)
+    return error("row $row of a table gives its $what as `$(repr(x))`; a position is a latitude " *
+                 "and a longitude in degrees.")
+end
+
+# The active cell nearest to `cell` whose centre lies within `snap` of its own, ties to the lower
+# `(y, x)`; `nothing` where none does. Along a row the distance grows with the columns between, so
+# each row is searched outwards until it passes `snap`, and only the rows whose own distance from
+# `cell`'s is within it.
+function _nearestactive(yx, active::AbstractMatrix{Bool},
+                        cell::CartesianIndex{2},
+                        snap::Unitful.Length)
+    iszero(snap) && return nothing
+    best = nothing
+    nearest = snap
+    for row in axes(active, 1)
+        _rowdistance(yx, cell[1], row) <= snap || continue
+        for (start, step) in ((cell[2], -1), (cell[2] + 1, 1))
+            col = start
+            while col in axes(active, 2)
+                candidate = CartesianIndex(row, col)
+                d = _celldistance(yx, cell, candidate)
+                d <= snap || break
+                if active[candidate] &&
+                   (isnothing(best) || d < nearest ||
+                    (d == nearest && Tuple(candidate) < Tuple(best)))
+                    best, nearest = candidate, d
+                end
+                col += step
+            end
+        end
+    end
+    return best
+end
+
+# The centre of cell `i` on axis `d`, from its own edges, so whichever point of a cell its coordinate
+# labels.
+function _cellcentre(d, i::Int)
+    lo, hi = _celledges(d, i)
+    return (lo + hi) / 2
+end
+
+# The ground distance between two cells' centres.
+function _celldistance(yx, a::CartesianIndex{2}, b::CartesianIndex{2})
+    return _grounddistance(_cellcentre(yx[1], a[1]), _cellcentre(yx[2], a[2]),
+                           _cellcentre(yx[1], b[1]), _cellcentre(yx[2], b[2]))
+end
+
+# The least ground distance between a cell of row `r1` and one of row `r2`, which no cell of `r2`
+# lies nearer than: their difference in latitude, or in northing.
+function _rowdistance(yx, r1::Int, r2::Int)
+    return _arc(abs(_cellcentre(yx[1], r1) - _cellcentre(yx[1], r2)))
+end
+
+# A distance on the ground: a length as it is, an angle along a great circle of the package's one
+# Earth radius, `LONGITUDE_DEGREE_LENGTH` to a degree.
+_arc(d::Unitful.Length) = d
+function _arc(angle::Unitful.DimensionlessQuantity)
+    return uconvert(km, angle * LONGITUDE_DEGREE_LENGTH)
+end
+
+# The ground distance between two points: straight on a projected grid, along a great circle on a
+# geographic one.
+function _grounddistance(y1::Unitful.Length, x1, y2, x2)
+    return sqrt((y1 - y2)^2 + (x1 - x2)^2)
+end
+
+function _grounddistance(φ1::Unitful.DimensionlessQuantity, λ1, φ2, λ2)
+    h = sin((φ2 - φ1) / 2)^2 + cos(φ1) * cos(φ2) * sin((λ2 - λ1) / 2)^2
+    return _arc(2 * asin(sqrt(min(h, 1.0))) * u"rad")
+end
+
+# The report of what placing records on a grid removed, at `level`: records off the grid, in inactive
+# cells with no active cell within `snap`, and with no position; and, as a notice, those an active
+# cell within `snap` kept.
+function _placingproblems(placed::NamedTuple, level::AbstractProblemSeverity,
+                          snap::Unitful.Length, noun::AbstractString,
+                          done::AbstractString)
+    near = iszero(snap) ? "" : ", with no active cell within $snap,"
+    problems = Problem[]
+    for (n, code, where) in ((placed.offgrid, :off_grid, "off the grid"),
+        (placed.inactive, :inactive_cell,
+        _inactivecells(placed.inactive) * near),
+        (placed.unplaced, :no_position, "with no position"))
+        iszero(n) && continue
+        push!(problems,
+              Problem(level, code,
+                      "$(_countword(n, noun)) $where $(_were(n)) $done."))
+    end
+    iszero(placed.snapped) ||
+        push!(problems,
+              Problem(ProblemNotice(), :snapped,
+                      "$(_countword(placed.snapped, noun)) $(_inactivecells(placed.snapped)) " *
+                      "within $snap of an active cell $(_were(placed.snapped)) kept."))
+    return problems
+end
+
+# Where records in inactive cells are, agreeing with how many.
+function _inactivecells(n::Integer)
+    return n == 1 ? "in an inactive cell" : "in inactive cells"
+end

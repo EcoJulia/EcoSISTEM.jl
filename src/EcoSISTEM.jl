@@ -461,7 +461,7 @@ public getdemand
 # Which rows of a table of records a run can use, decided before anything is placed from it.
 include("RecordFilter.jl")
 
-export IsActiveSpecies
+export IsActiveSpecies, InActiveCell
 
 public AbstractRecordFilter
 

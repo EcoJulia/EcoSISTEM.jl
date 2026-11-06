@@ -188,6 +188,29 @@ else
         everyactive = MPI.gather(habitat.active, comm)
         rank == 0 && @test all(==(first(everyactive)), everyactive)
 
+        # A filter by position decides on the root, and every rank keeps the rows the root keeps: one
+        # record in the triangle, one in the grid outside it, one off the grid, one with no position;
+        # of an area as it was decided, and of a habitat as it stands.
+        records = DataFrame(decimalLatitude = [53.0, 54.4, 60.0, missing],
+                            decimalLongitude = [11.0, 13.4, 11.0, 11.0])
+        for filtered in (filter(InActiveCell(masked, verbosity = :silent),
+                                records),
+                         filter(InActiveCell(habitat, verbosity = :silent),
+                                records[1:1, :]))
+            @test agreeswithroot(==, filtered, rank == 0 ? filtered : nothing)
+            @test filtered.decimalLatitude == [53.0]
+        end
+        # A rank filtering another table is refused, the root having decided for its own.
+        if rank == 0
+            @test nrow(filter(InActiveCell(masked, verbosity = :silent),
+                              records)) == 1
+        else
+            @test_throws "every rank filters the same table" filter(InActiveCell(masked,
+                                                                                 verbosity = :silent),
+                                                                    records[1:2,
+                                                                            :])
+        end
+
         # Only the root read, and every rank records what it read.
         @test isempty(area.report.cache.reads) == (rank != 0)
         everyinput = MPI.gather(provenance(habitat).inputs, comm)

@@ -35,6 +35,9 @@
     - `IsActiveSpecies(pool or species)` for `filter!` and `filter`, keeping a table's rows that name
       an active species, found as a placement finds a table's species - through the pool's name
       authority, so synonyms count - and reporting what it removes by kind.
+    - `InActiveCell(area or habitat)` for `filter!` and `filter`, keeping the rows whose latitude and
+      longitude lie in an active cell, or within `snap` (a ground distance) of one. Under MPI every
+      filter is a collective call.
   - Changed
     - `build_ecosystem(species, habitat)` places 1000 individuals of each active species, split at
       random and placed by supply, and announces it; it takes `verbosity`. `repopulate!(eco, placement = eco.placement; seed)` places again by the

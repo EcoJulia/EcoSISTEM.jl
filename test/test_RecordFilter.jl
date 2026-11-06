@@ -2,21 +2,28 @@
 #
 # Tests `src/RecordFilter.jl`: `IsActiveSpecies` keeping the rows of a table that name an active species
 # of a pool or a species list, in place or into a new table, matching names through a name authority (a
-# made-up WFO release), and its report - each kind of name dropped, its level and its detail. Run with
+# made-up WFO release), and its report - each kind of name dropped, its level and its detail; and
+# `InActiveCell` keeping the rows whose position lies in an active cell of a study area or a habitat,
+# or within `snap` of one, on geographic and projected grids. Run with
 #     julia --project -e 'using Pkg; Pkg.test(test_args = ["test_RecordFilter.jl"])'
 
 module TestRecordFilter
 
 using CSV
 using DataFrames
+using DimensionalData: DimensionalData, DimArray, X, Y
 using EcoSISTEM
 using EcoSISTEM: AbstractRecordFilter, ProblemWarning, ProblemError
 using EcoSISTEM.Units
+using Rasters
+using RasterDataSources
 using Test
 using Unitful
 using Unitful.DefaultSymbols
 
 include("wfofixtures.jl")
+include("rasterfixtures.jl")
+include("buildfixtures.jl")
 
 # The species of `pool`, every one alike.
 function _species(pool::SpeciesPool)
@@ -25,6 +32,19 @@ function _species(pool::SpeciesPool)
                                                    σ = 2.0K),
                          demand = DemandSpec(SolarRadiation, 1.0e-4kJ / day),
                          seed = 1, verbosity = :silent)
+end
+
+# A 5 x 7 grid of 1-degree cells over 50-55 N and 0-7 E, with `inactive` cells off: across the middle
+# row a degree of longitude is about 68 km, and a degree of latitude is 111 km everywhere.
+function _geohabitat(inactive = [CartesianIndex(3, 4), CartesianIndex(3, 3),
+                         CartesianIndex(2, 4)])
+    temp = _testraster(WorldClim{BioClim}, fill(298.0K, 5, 7),
+                       lat = (50.0:1.0:54.0) .* °, long = (0.0:1.0:6.0) .* °)
+    mask = trues(5, 7)
+    mask[inactive] .= false
+    regime = _reg(temp, axis = Temperature)
+    return GridHabitat(regime = regime, supply = SUP,
+                       area = _area(regime = regime, within = mask))
 end
 
 # A pool of three species, the third not active, and a copy of the first.
@@ -133,6 +153,86 @@ end
     end
 end
 
+@testset "a filter by position keeps the records in active cells, and reports the rest" begin
+    habitat = _geohabitat()
+    records = DataFrame(decimalLatitude = [52.5, 52.5, 49.0, missing, 50.5],
+                        decimalLongitude = [3.5, 0.5, 3.5, 1.0, 3.5], n = 1:5)
+    kept = @test_logs((:info, r"^1 record off the grid was removed\.$"),
+                      (:info, r"^1 record in an inactive cell was removed\.$"),
+                      (:info, r"^1 record with no position was removed\.$"),
+                      filter(InActiveCell(habitat), records))
+    @test kept.n == [2, 5] && nrow(records) == 5
+    @test InActiveCell(habitat) isa AbstractRecordFilter
+    # A habitat's cells as they stand when it is called, an area's as it was decided.
+    habitat.active[1, 1] = false
+    corner = DataFrame(decimalLatitude = [50.5], decimalLongitude = [0.5])
+    @test nrow(filter(InActiveCell(habitat, verbosity = :silent), corner)) == 0
+    @test nrow(filter(InActiveCell(habitat.area, verbosity = :silent), corner)) ==
+          1
+    @test nrow(filter(InActiveCell(habitat.area.report, verbosity = :silent),
+                      corner)) == 1
+    # Other columns, in place, and the level the removals are reported at.
+    renamed = DataFrame(lat = [52.5, 50.5], long = [3.5, 3.5])
+    @test_logs((:warn, r"^1 record in an inactive cell was removed\.$"),
+               filter!(InActiveCell(habitat, latitude = :lat, longitude = :long,
+                                    level = ProblemWarning()), renamed))
+    @test renamed.lat == [50.5]
+end
+
+@testset "`snap` keeps a record within a ground distance of an active cell" begin
+    habitat = _geohabitat()
+    records = DataFrame(decimalLatitude = [52.5], decimalLongitude = [3.5])
+    # Its cell's western, northern and southern neighbours are inactive or 111 km away; its eastern
+    # neighbour's centre is 68 km away.
+    @test_logs((:info,
+                r"^1 record in an inactive cell, with no active cell within 60 km, was removed\.$"),
+               filter(InActiveCell(habitat, snap = 60km), records))
+    @test_logs((:info,
+                r"^1 record in an inactive cell within 70 km of an active cell was kept\.$"),
+               filter(InActiveCell(habitat, snap = 70km), records))
+    # The nearest active cell, by the ground distance between centres, ties to the lower `(y, x)`.
+    yx = EcoSISTEM._gridyx(habitat)
+    cell = CartesianIndex(3, 4)
+    @test EcoSISTEM._celldistance(yx, cell, CartesianIndex(3, 5)) ≈ 67.77km rtol = 1e-3
+    @test EcoSISTEM._celldistance(yx, cell, CartesianIndex(4, 4)) ≈ 111.32km
+    nearest(h, snap) = EcoSISTEM._nearestactive(yx, parent(h.active), cell,
+                                                snap)
+    @test nearest(habitat, 70km) == CartesianIndex(3, 5)
+    @test isnothing(nearest(habitat, 60km)) && isnothing(nearest(habitat, 0km))
+    @test nearest(_geohabitat([cell]), 70km) == CartesianIndex(3, 3)
+    @test nearest(_geohabitat([
+                                  cell,
+                                  CartesianIndex(3, 3),
+                                  CartesianIndex(3, 5)
+                              ]),
+                  120km) == CartesianIndex(2, 4)
+    # A projected grid's distances are straight, in its own units.
+    temp = _bngraster(WorldClim{BioClim}, fill(298.0K, 9, 9))
+    bng = _env(_reg(temp, axis = Temperature), SUP)
+    byx = EcoSISTEM._gridyx(bng)
+    @test EcoSISTEM._celldistance(byx, CartesianIndex(4, 4),
+                                  CartesianIndex(5, 5)) ≈ hypot(2.5, 2.5) * km
+end
+
+@testset "a filter by position refuses what it cannot place" begin
+    habitat = _geohabitat()
+    @test_throws "gives no position in a `decimalLatitude` column; it has `lat`" filter(InActiveCell(habitat),
+                                                                                        DataFrame(lat = [1.0],
+                                                                                                  decimalLongitude = [1.0]))
+    @test_throws "row 1 of a table gives its latitude as `\"north\"`" filter(InActiveCell(habitat),
+                                                                             DataFrame(decimalLatitude = ["north"],
+                                                                                       decimalLongitude = [1.0]))
+    @test_throws "a finite, non-negative length; got -1 km" InActiveCell(habitat,
+                                                                         snap = -1km)
+    @test_throws TypeError InActiveCell(habitat, snap = 3)
+    # A grid with no real-world position cannot place a latitude and a longitude.
+    synthetic = StudyArea(extent = (7.0km, 5.0km), cellsize = 1.0km,
+                          verbosity = :silent)
+    @test_throws "the place given is in °" filter(InActiveCell(synthetic),
+                                                  DataFrame(decimalLatitude = [1.0],
+                                                            decimalLongitude = [1.0]))
+end
+
 @testset "a filter shows as it is written" begin
     pool = _pool()
     shown = sprint(show, pool)
@@ -145,6 +245,17 @@ end
     plain = sprint(show, MIME"text/plain"(), IsActiveSpecies(pool))
     @test startswith(plain, "IsActiveSpecies\n") &&
           occursin("level     ProblemNotice()", plain)
+    habitat = _geohabitat()
+    @test sprint(show, InActiveCell(habitat)) ==
+          "InActiveCell($(sprint(show, habitat)))"
+    @test sprint(show,
+                 InActiveCell(habitat.area, latitude = :lat, snap = 10km,
+                              level = ProblemWarning())) ==
+          "InActiveCell($(sprint(show, habitat.area)), latitude = :lat, snap = 10 km, level = ProblemWarning())"
+    plain = sprint(show, MIME"text/plain"(), InActiveCell(habitat, snap = 5km))
+    @test startswith(plain, "InActiveCell\n") &&
+          occursin("snap      5 km", plain) &&
+          occursin("cells     GridHabitat", plain)
 end
 
 end
