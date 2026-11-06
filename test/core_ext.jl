@@ -42,8 +42,8 @@ include(joinpath(@__DIR__, "testsets.jl"))
                    # `Modules`, so the duplicates are invisible rather than rendered twice.
                    # Listed with real counts, not exempted: a **new** docstring in these files
                    # still fails this test and has to be looked at.
-                   "EcoSISTEMMPIExt/Ecosystem.jl" => 2,
-                   "EcoSISTEMMPIExt/dynamics.jl" => 4,
+                   "EcoSISTEMMPIExt/Ecosystem.jl" => 1,
+                   "EcoSISTEMMPIExt/dynamics.jl" => 2,
                    "EcoSISTEMMPIExt/Landscape.jl" => 3)
     extdir = joinpath(@__DIR__, "..", "ext")
     for (root, _, files) in walkdir(extdir)
