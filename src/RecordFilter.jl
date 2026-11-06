@@ -25,10 +25,10 @@ abstract type AbstractRecordFilter end
     IsActiveSpecies(species; column = :species, level = ProblemNotice(), verbosity = :normal)
 
 A filter keeping the rows of a table that name one of the active species of `species`, a
-[`SpeciesPool`](@ref) or a [`SpeciesList`](@ref): `filter!(IsActiveSpecies(pool), records)` removes the
-other rows of a `DataFrame` in place, and `filter(IsActiveSpecies(pool), records)` returns the rows kept
-as a new table - a `DataFrame` for a `DataFrame`, a `CSV.File` or any other column table, a named
-tuple of columns for one. A row's species is found as a placement finds it: by a species' own name or
+[`SpeciesPool`](@ref), a [`SpeciesList`](@ref) or an ecosystem, whose species list it reads:
+`filter!(IsActiveSpecies(pool), records)` removes the other rows of a `DataFrame` in place, and
+`filter(IsActiveSpecies(pool), records)` returns the rows kept as a new table - a `DataFrame` for a
+`DataFrame`, a `CSV.File` or any other column table, a named tuple of columns for one. A row's species is found as a placement finds it: by a species' own name or
 a copy's label, by a name the pool's data used, by the name authority's identifier, or by any name the
 authority resolves to one of the species. What the filter removes is reported at `level`, each kind
 with how many rows it took and its names, the commonest first: names the authority does not recognise
@@ -39,7 +39,7 @@ table by those answers, so every rank filters the same table, in the same order.
 
 # Arguments
 
-  - `species`: the pool or the species list whose active species are kept.
+  - `species`: the pool, the species list or the ecosystem whose active species are kept.
   - `column`: the column naming each row's species.
   - `level`: how the report is raised - a [`ProblemNotice`](@ref), the default, not at all at
     `verbosity = :silent`; a [`ProblemWarning`](@ref); or a [`ProblemError`](@ref), which stops the
@@ -51,14 +51,15 @@ table by those answers, so every rank filters the same table, in the same order.
 
   - `species`, `column`, `level`, `verbosity`: as given.
 """
-struct IsActiveSpecies{S <: Union{SpeciesPool, SpeciesList},
+struct IsActiveSpecies{S <: Union{SpeciesPool, SpeciesList, AbstractEcosystem},
                        L <: AbstractProblemSeverity} <: AbstractRecordFilter
     species::S
     column::Symbol
     level::L
     verbosity::Symbol
 
-    function IsActiveSpecies(species::Union{SpeciesPool, SpeciesList};
+    function IsActiveSpecies(species::Union{SpeciesPool, SpeciesList,
+                                            AbstractEcosystem};
                              column::Symbol = :species,
                              level::AbstractProblemSeverity = ProblemNotice(),
                              verbosity::Symbol = :normal)
@@ -93,9 +94,9 @@ end
 A filter keeping the rows of a table whose position lies in one of the active cells of `cells`, for
 `filter!` and `filter` as [`IsActiveSpecies`](@ref) is: of a [`StudyArea`](@ref) or its
 [`StudyAreaReport`](@ref), the cells the area was decided to simulate, known before anything is built
-on it; of a [`GridHabitat`](@ref), its cells as they stand when the filter is called, which may be
-fewer, since a habitat can be narrower than the area it was built on and cells can be deactivated as
-a run proceeds. A position is a latitude and a longitude in degrees, placed in the grid as
+on it; of a [`GridHabitat`](@ref), or of an ecosystem, its habitat's, its cells as they stand when the
+filter is called, which may be fewer, since a habitat can be narrower than the area it was built on
+and cells can be deactivated as a run proceeds. A position is a latitude and a longitude in degrees, placed in the grid as
 [`getcellat`](@ref) places it. A row in an inactive cell is kept where the centre of an active cell
 lies within `snap` of its own cell's centre - a ground distance, straight on a projected grid and
 along a great circle on a geographic one - since a placement given the same `snap` moves it there; the
@@ -105,7 +106,7 @@ noted.
 
 # Arguments
 
-  - `cells`: the study area, its report or the habitat whose active cells are kept.
+  - `cells`: the study area, its report, the habitat or the ecosystem whose active cells are kept.
   - `latitude`, `longitude`: the columns giving each row's position, in degrees; Darwin Core's
     names by default, as an occurrence download from GBIF has them.
   - `snap`: how far from an active cell a row in an inactive one may be and still be kept, as a
@@ -116,7 +117,8 @@ noted.
 
   - `cells`, `latitude`, `longitude`, `snap`, `level`, `verbosity`: as given.
 """
-struct InActiveCell{C <: Union{StudyArea, StudyAreaReport, GridHabitat},
+struct InActiveCell{C <: Union{StudyArea, StudyAreaReport, GridHabitat,
+                          AbstractEcosystem},
                     S <: Unitful.Length, L <: AbstractProblemSeverity} <:
        AbstractRecordFilter
     cells::C
@@ -126,7 +128,8 @@ struct InActiveCell{C <: Union{StudyArea, StudyAreaReport, GridHabitat},
     level::L
     verbosity::Symbol
 
-    function InActiveCell(cells::Union{StudyArea, StudyAreaReport, GridHabitat};
+    function InActiveCell(cells::Union{StudyArea, StudyAreaReport, GridHabitat,
+                                       AbstractEcosystem};
                           latitude::Symbol = :decimalLatitude,
                           longitude::Symbol = :decimalLongitude,
                           snap::Unitful.Length = 0.0km,

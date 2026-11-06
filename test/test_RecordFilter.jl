@@ -233,6 +233,33 @@ end
                                                             decimalLongitude = [1.0]))
 end
 
+@testset "an ecosystem filters as its species list and its habitat do" begin
+    # A projected grid, since an ecosystem cannot be simulated on a geographic one, and two places in
+    # different cells of it.
+    habitat = _env(_reg(_bngraster(WorldClim{BioClim}, fill(298.0K, 9, 9)),
+                        axis = Temperature), SUP)
+    lattice = [(lat, long) for lat in 55.6:0.02:56.0 for long in -4.6:0.02:-3.8]
+    cells = EcoSISTEM.getcellat(habitat,
+                                [LatLong(lat * °, long * °)
+                                 for (lat, long) in lattice])
+    here = findfirst(!isnothing, cells)
+    there = findfirst(c -> !isnothing(c) && c != cells[here], cells)
+    (lat1, long1), (lat2, long2) = lattice[here], lattice[there]
+    species = _species(_pool())
+    eco = build_ecosystem(NoAbundance(), species, habitat, verbosity = :silent)
+    records = DataFrame(species = ["a", "c", "a copy", "zz", "b"],
+                        decimalLatitude = [lat1, lat1, lat2, lat2, 0.0],
+                        decimalLongitude = [long1, long1, long2, long2, 0.0])
+    bylist = filter(IsActiveSpecies(species, verbosity = :silent), records)
+    @test filter(IsActiveSpecies(eco, verbosity = :silent), records) == bylist
+    @test bylist.species == ["a", "a copy", "b"]
+    # Its habitat's cells as they stand: one deactivated is filtered out, as is a place off the grid.
+    eco.habitat.active[cells[there]] = false
+    bycells = filter(InActiveCell(eco.habitat, verbosity = :silent), records)
+    @test filter(InActiveCell(eco, verbosity = :silent), records) == bycells
+    @test bycells.species == ["a", "c"]
+end
+
 @testset "a filter shows as it is written" begin
     pool = _pool()
     shown = sprint(show, pool)

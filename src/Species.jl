@@ -371,6 +371,9 @@ function _matchindex(species::SpeciesList)
             authority = species.authority, holder = "the species list")
 end
 
+# What a filter matches a table's names against, for an ecosystem: its species list.
+_matchindex(eco::AbstractEcosystem) = _matchindex(eco.spplist)
+
 # The keywords a species list takes from what was read of a pool, none without one.
 _poolfields(::Nothing, names) = NamedTuple()
 
