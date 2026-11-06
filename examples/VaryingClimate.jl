@@ -62,18 +62,23 @@ const SEASONAL = Varying(BASE, OffsetBy(PatternedChange(8.0K, 1year)))
 # One species, wide enough to survive all three so the comparison is about where it thrives rather
 # than whether it lives.
 function _species()
-    return build_species(20, tolerance = (285.0K, 6.0K),
-                         toleranceaxis = Temperature,
-                         demand = 5.0kJ / day, demandaxis = SolarRadiation,
-                         dispersal = 5.0km, abundance = 200_000, seed = 1)
+    return build_species(SpeciesPool(20),
+                         tolerance = ToleranceSpec(Temperature, μ = 285.0K,
+                                                   σ = 6.0K),
+                         demand = DemandSpec(SolarRadiation, 5.0kJ / day),
+                         movement = MovementSpec(InsectDispersal(),
+                                                 meandist = 5.0km),
+                         seed = 1, verbosity = :silent)
 end
 
-# Run one regime and report where it ended. Seeded identically each time, so the runs are comparable.
+# Run one regime and report where it ended. Seeded identically each time, so the runs are comparable:
+# each starts from the same 200,000 individuals, split at random among the species and placed by
+# supply.
 function _run(name, regime)
     environment = GridHabitat(regime = regime, supply = SUNLIGHT,
                               area = AREA)
-    eco = build_ecosystem(_species(), environment, seed = 1,
-                          verbosity = :silent)
+    eco = build_ecosystem(BySupply(total = 200_000), _species(), environment,
+                          seed = 1)
     simulate!(eco, YEARS, TIMESTEP)
     # Read the temperature off the **built habitat** after the run, not off the spec - the layer
     # holds the values current now, which is the whole point.

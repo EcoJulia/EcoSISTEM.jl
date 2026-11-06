@@ -663,15 +663,16 @@ end
         # A projected reference keeps its own metric grid, and `cellsize` there means a real physical
         # cell side - exactly, not an approximation.
         penv = _env(_reg(bng, axis = Temperature), SUP, cellsize = 5.0km)
-        @test EcoSISTEM._uniformcellside(EcoSISTEM.getregime(build_ecosystem(build_species(2,
-                                                                                           tolerance = (291.0K,
-                                                                                                        2.0K),
-                                                                                           toleranceaxis = Temperature,
-                                                                                           demand = DEM,
-                                                                                           demandaxis = SolarRadiation,
-                                                                                           seed = 1),
+        pspecies = build_species(SpeciesPool(2),
+                                 tolerance = ToleranceSpec(Temperature,
+                                                           μ = 291.0K,
+                                                           σ = 2.0K),
+                                 demand = DemandSpec(SolarRadiation, DEM),
+                                 seed = 1, verbosity = :silent)
+        @test EcoSISTEM._uniformcellside(EcoSISTEM.getregime(build_ecosystem(pspecies,
                                                                              penv,
-                                                                             seed = 1))) ≈
+                                                                             seed = 1,
+                                                                             verbosity = :silent))) ≈
               5.0km
         # 22.5 km of ground (9 cells of 2.5 km, edge to edge) at 5 km cells -> 4 whole cells each
         # way, starting on the data's own lower edge, with 2.5 km left over that fills no cell.
@@ -710,15 +711,16 @@ end
         uenv = _env(_reg(temp, axis = Temperature), SUP, cellsize = 200.0km,
                     crs = Rasters.EPSG(32631))
         @test uenv isa GridHabitat
-        @test EcoSISTEM._uniformcellside(EcoSISTEM.getregime(build_ecosystem(build_species(2,
-                                                                                           tolerance = (290.0K,
-                                                                                                        2.0K),
-                                                                                           toleranceaxis = Temperature,
-                                                                                           demand = DEM,
-                                                                                           demandaxis = SolarRadiation,
-                                                                                           seed = 1),
+        uspecies = build_species(SpeciesPool(2),
+                                 tolerance = ToleranceSpec(Temperature,
+                                                           μ = 290.0K,
+                                                           σ = 2.0K),
+                                 demand = DemandSpec(SolarRadiation, DEM),
+                                 seed = 1, verbosity = :silent)
+        @test EcoSISTEM._uniformcellside(EcoSISTEM.getregime(build_ecosystem(uspecies,
                                                                              uenv,
-                                                                             seed = 1))) ≈
+                                                                             seed = 1,
+                                                                             verbosity = :silent))) ≈
               200.0km
     end
 
@@ -885,12 +887,13 @@ end
         @test genv isa GridHabitat
 
         # ...but assembling an ecosystem on it is refused, because dispersal assumes uniform cells
-        sp = build_species(2, tolerance = (290.0K, 2.0K),
-                           toleranceaxis = Temperature, demand = DEM,
-                           demandaxis = SolarRadiation,
-                           seed = 1)
+        sp = build_species(SpeciesPool(2),
+                           tolerance = ToleranceSpec(Temperature, μ = 290.0K,
+                                                     σ = 2.0K),
+                           demand = DemandSpec(SolarRadiation, DEM), seed = 1,
+                           verbosity = :silent)
         err = try
-            build_ecosystem(sp, genv, seed = 1)
+            build_ecosystem(sp, genv, seed = 1, verbosity = :silent)
             nothing
         catch e
             e
@@ -902,18 +905,21 @@ end
         penv = _env(_reg(_bngraster(WorldClim{BioClim}, fill(290.0K, 9, 9)),
                          axis = Temperature),
                     SUP)
-        @test build_ecosystem(sp, penv, seed = 1) isa Ecosystem
+        @test build_ecosystem(sp, penv, seed = 1, verbosity = :silent) isa
+              Ecosystem
         # and so does a *synthetic* one, which has no CRS at all but a genuine metric cell size
         senv = GridHabitat(regime = UniformSpec(290.0K,
                                                 axis = Temperature),
                            supply = SUP,
                            area = _area(extent = (5km, 5km),
                                         cellsize = 1km))
-        @test build_ecosystem(sp, senv, seed = 1) isa Ecosystem
-        # the guard is on the Ecosystem constructor too, not only on `build_ecosystem`
-        @test_throws ErrorException Ecosystem(sp, genv,
-                                              NicheSuitability{Temperature,
-                                                               typeof(1.0K)}())
+        @test build_ecosystem(sp, senv, seed = 1, verbosity = :silent) isa
+              Ecosystem
+        # the guard is on the empty ecosystem a placement is written into too, not only on
+        # `build_ecosystem`
+        @test_throws "cannot be simulated" EcoSISTEM._emptyecosystem(sp, genv,
+                                                                     NicheSuitability{Temperature,
+                                                                                      typeof(1.0K)}())
     end
 
     @testset "masks on a projected target" begin
@@ -1268,11 +1274,12 @@ end
     # `canonicalunit(::Type{<:SolarRadiationAxis})` fixes: a tolerance built (by default) in the canonical unit
     # and a regime built from an honestly-tagged-but-differently-scaled raster value must still
     # reconcile, not silently disagree by a factor of 1000.
-    sp = build_species(2,
-                       tolerance = (500.0kJ / (m^2 * day),
-                                    100.0kJ / (m^2 * day)),
-                       demand = DEM, demandaxis = SolarRadiation,
-                       toleranceaxis = SolarRadiation, seed = 1)
+    sp = build_species(SpeciesPool(2),
+                       tolerance = ToleranceSpec(SolarRadiation,
+                                                 μ = 500.0kJ / (m^2 * day),
+                                                 σ = 100.0kJ / (m^2 * day)),
+                       demand = DemandSpec(SolarRadiation, DEM), seed = 1,
+                       verbosity = :silent)
     @test sp.tolerance isa NicheTolerance{SolarRadiation}
     # projected (BNG) fixture, since this test simulates - see the multi-regime testset above
     mjraster = _bngraster(WorldClim{Climate},
@@ -1281,7 +1288,7 @@ end
     # the regime is canonicalised to kJ*m^-2*day^-1 regardless of the MJ input
     canon = typeof(1.0 * EcoSISTEM.canonicalunit(SolarRadiation))
     @test eltype(env.regime) == canon
-    eco = build_ecosystem(sp, env, seed = 1)
+    eco = build_ecosystem(sp, env, seed = 1, verbosity = :silent)
     @test eco.nichefit isa NicheSuitability{SolarRadiation, canon}
     @test_nowarn simulate!(eco, 2month_mean_duration, 1month_mean_duration)
 end

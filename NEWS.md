@@ -33,8 +33,8 @@
       added with `+`, or a `do` block of `(species, habitat, context)`. Rows it cannot place are
       dropped and reported; the ecosystem keeps its placement, and its provenance names it.
   - Changed
-    - `build_ecosystem(species, habitat)` announces the placement it defaults to, and takes
-      `verbosity`. `repopulate!(eco, placement = eco.placement; seed)` places again by the
+    - `build_ecosystem(species, habitat)` places 1000 individuals of each active species, split at
+      random and placed by supply, and announces it; it takes `verbosity`. `repopulate!(eco, placement = eco.placement; seed)` places again by the
       ecosystem's own placement, or another, from streams of its own: it no longer re-splits the
       species' totals at random, and leaves the dynamics' streams alone.
     - `PopGrowth` and `NoGrowth` hold one `longevity` per species, a vector, which the step reads per
@@ -47,26 +47,31 @@
       `shape` of 1 or less, whose density does not integrate, is refused when the kernel is built
       rather than failing in its lookup; a `meandist` needs a `shape` above 3/2.
     - A species list's `movement` is one `SpeciesDispersal` per species, of at most four kinds, so
-      species in one list may disperse differently. `build_species`' `movement` takes a mode, by
-      default `InsectDispersal()`, which disperses as the old default did, or the species'
-      movements; `disperse_safely` defaults to the mode's own.
+      species in one list may disperse differently.
+    - `build_species(DefaultEcosystem(); ...)` builds its species from a `SpeciesPool`, taking
+      `tolerance` and `demand` as specs.
   - Deprecated
     - The positional `GaussianKernel(dist, thresh)` and `LongTailKernel(dist, shape, thresh)`: their
       distance was a Gaussian kernel's mean but neither the mean nor the scale of a long-tailed one.
       Their kernels and lookups are unchanged.
     - `BirthOnlyMovement`, `AlwaysMovement` and `NoMovement`, now functions returning each species'
-      movement; given to `build_species` as `movement`, each stands for its mode. Code reading their
-      `kernels` or `disperse_safely` fields, or dispatching on them, needs the new form.
+      movement. Code reading their `kernels` or `disperse_safely` fields, or dispatching on them,
+      needs the new form.
+    - `repopulate_by_tolerance!(eco)`, for `repopulate!(eco, BySuitability())`, which places over the
+      active cells only and takes its numbers from the placement.
   - Fixed
-    - `build_species` splits an integer `abundance` across species from a stream of its own, keyed
-      on `seed`, instead of reseeding Julia's global generator; an unseeded split still draws from
-      the global generator, which a seeded one no longer touches. A seeded split differs from
-      before, so the paper's figures 5 and 7 change.
-    - The phylogeny-building `SpeciesList` constructors pad a short abundance vector with zeros
-      instead of erroring, and `discrete_evolve` uses the switch value it is given.
+    - `discrete_evolve` uses the switch value it is given.
     - The switch parameter of `assigntraits!`, `discrete_evolve` and the phylogeny-building `SpeciesList`
       constructor is documented as what it is: the mean time between trait changes as a fraction of the
       root-to-tip length, so a larger value means fewer changes.
+  - Removed
+    - `build_species(numspecies; ...)`: species are built from a `SpeciesPool`, as
+      `build_species(SpeciesPool(numspecies); ...)`, and where their individuals start is the
+      placement `build_ecosystem` is given (`abundance = zeros(...)` is `NoAbundance()`). The call
+      raises an error showing its own rewrite.
+    - `SpeciesList`'s `abun` and `native`, as fields and constructor arguments, `Ecosystem` and
+      `MPIEcosystem` built from a population function, and `populate!`, `populate_by_tolerance!` and
+      `emptypopulate!`. Each raises an error naming its replacement.
 
 - v0.10.1
   - Fixed

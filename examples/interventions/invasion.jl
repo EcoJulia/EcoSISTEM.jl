@@ -18,15 +18,16 @@ using EcoSISTEM
 using EcoSISTEM.Units
 using Unitful
 using Unitful.DefaultSymbols
-# Only `Normal` is wanted, and it is named rather than swept in. A blanket `using` of a large package
-# lands every one of its exports in whichever module the example is included into, where any of them
-# may collide with a name already defined there -- and the example harness checks stderr is empty, so
-# such a collision fails the suite. Naming the import keeps the next export from finding the next
-# name.
+# Only `Normal` and `DataFrame` are wanted, and they are named rather than swept in. A blanket
+# `using` of a large package lands every one of its exports in whichever module the example is
+# included into, where any of them may collide with a name already defined there -- and the example
+# harness checks stderr is empty, so such a collision fails the suite. Naming the import keeps the
+# next export from finding the next name.
 #
 # Worth knowing that a clash here is invisible on a current Julia: 1.11 warns about it and 1.12 does
 # not warn at all, so a collision can pass locally and fail on an older runner.
 using Distributions: Normal
+using DataFrames: DataFrame
 
 # The native assemblage the invader arrives into - spread evenly along the temperature gradient.
 # `numnative` is one short of the configuration's species count: the invader arriving mid-run
@@ -38,15 +39,18 @@ function invasion_ecosystem(; numnative = configuration().numspecies - 1,
                       supply = UniformSpec(supply_density(individuals),
                                            axis = SolarRadiation),
                       area = study_area())
-    means = collect(range(284.0K, 292.0K, length = numnative))
-    widths = fill(3.0K, numnative)
-    species = build_species(numnative, tolerance = (means, widths),
-                            toleranceaxis = Temperature,
-                            demand = intervention_demand(),
-                            demandaxis = SolarRadiation,
-                            abundance = individuals,
-                            seed = seed)
-    return build_ecosystem(species, env, seed = seed, verbosity = :silent)
+    pool = SpeciesPool(DataFrame(species = string.(1:numnative),
+                                 optimum = range(284.0K, 292.0K,
+                                                 length = numnative)))
+    species = build_species(pool,
+                            tolerance = ToleranceSpec(Temperature,
+                                                      μ = TraitColumn(:optimum),
+                                                      σ = 3.0K),
+                            demand = DemandSpec(SolarRadiation,
+                                                intervention_demand()),
+                            seed = seed, verbosity = :silent)
+    return build_ecosystem(BySupply(total = individuals), species, env,
+                           seed = seed)
 end
 
 # ---------------------------------------------------------------------------

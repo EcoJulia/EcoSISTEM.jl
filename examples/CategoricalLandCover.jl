@@ -77,22 +77,24 @@ const OPEN = (:herbaceous, :cultivated_and_managed, :regularly_flooded)
 _classes(names) = collect(EcoSISTEM.landcoverclass.(names))
 
 # A **pre-built** tolerance, which `build_species` takes as it stands: a set of classes is not a
-# mean and a width, so there is no `(mean, width)` form for it and no `toleranceaxis` to give - the
-# tolerance already carries its own meaning. It does still declare its `axis`, which is what pairs
-# it with the `LandCoverTypology` regime above.
+# distribution's parameters, so there is no `ToleranceSpec` for it - the tolerance already carries
+# its own meaning. It does still declare its `axis`, which is what pairs it with the
+# `LandCoverTypology` regime above.
 const TOLERANCE = SimpleCategoricalTolerance([
                                                  _classes(WOODLAND),
                                                  _classes(OPEN)
                                              ],
                                              axis = LandCoverTypology)
 
-const SPECIES = build_species(2, tolerance = TOLERANCE,
-                              demand = 5.0kJ / day,
-                              demandaxis = SolarRadiation,
-                              dispersal = 2CELLSIZE, abundance = 200_000,
-                              seed = 1)
+const SPECIES = build_species(SpeciesPool(2), tolerance = TOLERANCE,
+                              demand = DemandSpec(SolarRadiation, 5.0kJ / day),
+                              movement = MovementSpec(InsectDispersal(),
+                                                      meandist = 2CELLSIZE),
+                              seed = 1, verbosity = :silent)
 
-const ECO = build_ecosystem(SPECIES, ENVIRONMENT, seed = 1, verbosity = :silent)
+# 200,000 individuals, split at random between the two guilds and placed by supply.
+const ECO = build_ecosystem(BySupply(total = 200_000), SPECIES, ENVIRONMENT,
+                            seed = 1)
 
 # `println`, not `@info`: logging goes to stderr, which `@test_nowarn` fails on.
 ny, nx = size(ENVIRONMENT.active)

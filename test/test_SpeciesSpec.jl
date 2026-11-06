@@ -3,7 +3,7 @@
 # Tests `src/SpeciesSpec.jl` and `build_species(pool)` in `src/actions.jl`: the trait values and
 # specs a species list is built from, the filling of a pool's missing values from streams of each
 # species' own, the units a column is read in, and species built from a pool - the same, value for
-# value, as the released form builds from the same values, and kept whole by `makeunique`. Run with
+# value, as `SpeciesList` builds from the same values, and kept whole by `makeunique`. Run with
 #     julia --project -e 'using Pkg; Pkg.test(test_args = ["test_SpeciesSpec.jl"])'
 
 module TestSpeciesSpec
@@ -178,11 +178,19 @@ end
     @test_throws "one number for every species" quietly(pool, survival = [0.2])
 end
 
-@testset "species built from a pool are the released form's, value for value" begin
-    old = build_species(5, tolerance = (285.0K, 3.0K),
-                        toleranceaxis = Temperature,
-                        demand = 1.0e9kJ / day, demandaxis = SolarRadiation,
-                        seed = 3)
+# The species `SpeciesList` builds from a Gaussian niche, a demand and the defaults `build_species`
+# announces: insect dispersal with a mean distance of 10 km, and the shared rates.
+function direct(n, niche, demand; meandist = 10.0km)
+    return SpeciesList(n,
+                       NicheTolerance(Temperature, Normal, fill(niche[1], n),
+                                      fill(niche[2], n)),
+                       Demand{SolarRadiation}(fill(demand, n)),
+                       fill(InsectDispersal()(meandist = meandist), n),
+                       EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2))
+end
+
+@testset "species built from a pool are those built directly, value for value" begin
+    ref = direct(5, (285.0K, 3.0K), 1.0e9kJ / day)
     new = @test_logs((:info, r"`movement` defaulted"),
                      (:info, r"`birth` defaulted"),
                      (:info, r"`death` defaulted"),
@@ -193,23 +201,23 @@ end
                                                              μ = 285.0K,
                                                              σ = 3.0K),
                                    demand = SOLAR, seed = 3))
-    @test new.names == old.names && new.abun == old.abun
-    @test new.tolerance.dists == old.tolerance.dists
-    @test new.demand.resource == old.demand.resource
-    @test new.movement == old.movement &&
-          typeof(new.movement) == typeof(old.movement)
-    @test typeof(new.params) == typeof(old.params)
+    @test new.names == ref.names
+    @test new.tolerance.dists == ref.tolerance.dists
+    @test new.demand.resource == ref.demand.resource
+    @test new.movement == ref.movement &&
+          typeof(new.movement) == typeof(ref.movement)
+    @test typeof(new.params) == typeof(ref.params)
     @test (new.params.birth, new.params.death, new.params.longevity,
            new.params.survival) ==
-          (old.params.birth, old.params.death, old.params.longevity,
-           old.params.survival)
+          (ref.params.birth, ref.params.death, ref.params.longevity,
+           ref.params.survival)
     @test_throws "`tolerance` was not passed" build_species(SpeciesPool(2),
                                                             demand = SOLAR)
     @test_throws "`demand` was not passed" build_species(SpeciesPool(2),
                                                          tolerance = TEMPERATURE)
     # A tolerance built already is taken as it is.
-    @test quietly(SpeciesPool(5), tolerance = old.tolerance).tolerance ===
-          old.tolerance
+    @test quietly(SpeciesPool(5), tolerance = ref.tolerance).tolerance ===
+          ref.tolerance
 end
 
 @testset "a pool's species built with every kind of value" begin
@@ -270,8 +278,21 @@ end
     @test ismissing(species.traits.movement_meandist[1]) &&
           all(0.6km .<= species.traits.movement_meandist[2:3] .<= 2.4km)
     @test species.filled.tmin == [false, false, true, false]
-    # A deactivated species starts with none; the others share 1000 each.
-    @test species.abun[4] == 0 && sum(species.abun) == 3000
+    # A deactivated species is placed none; the others share 1000 each.
+    habitat = build_habitat(DefaultEcosystem(),
+                            regime = (temperature = UniformSpec(285.0K,
+                                                                axis = Temperature),
+                                      rainfall = UniformSpec(3.0mm / day,
+                                                             axis = Precipitation)),
+                            supply = (light = UniformSpec(10.0kJ /
+                                                          (km^2 * day),
+                                                          axis = SolarRadiation),
+                                      water = UniformSpec(10.0mm / day,
+                                                          axis = Precipitation)),
+                            verbosity = :silent)
+    eco = build_ecosystem(species, habitat, seed = 1, verbosity = :silent)
+    placed = vec(sum(eco.abundances.matrix, dims = 2))
+    @test placed[4] == 0 && sum(placed) == 3000
     # A key no choice names is refused, named.
     odd = SpeciesPool(DataFrame(species = ["a", "b"],
                                 syndrome = ["wind", "ballistic"]))
@@ -328,30 +349,24 @@ end
         @test isempty(changed(stripped, eco, :spplist))
     end
     # Species built otherwise have an identity of their own.
-    plain = build_species(3, tolerance = (285.0K, 3.0K),
-                          toleranceaxis = Temperature,
-                          demand = 1.0e9kJ / day, demandaxis = SolarRadiation)
+    plain = direct(3, (285.0K, 3.0K), 1.0e9kJ / day)
     @test plain.traits.key == [1, 2, 3] && all(plain.traits.active)
     @test plain.namemap == Dict("1" => 1, "2" => 2, "3" => 3)
 end
 
-@testset "species built from a pool run as the released form's do, and take an arrival" begin
+@testset "species built from a pool run as those built directly do, and take an arrival" begin
     habitat = build_habitat(DefaultEcosystem(), verbosity = :silent)
     # A demand the default habitat can carry, so the run has something to compare.
     tiny = 1.0e-4kJ / day
     niche = ToleranceSpec(Temperature, μ = 298.0K, σ = 2.0K)
-    old = build_species(3, tolerance = (298.0K, 2.0K),
-                        toleranceaxis = Temperature,
-                        demand = tiny, demandaxis = SolarRadiation,
-                        dispersal = 1.0km,
-                        seed = 1)
+    ref = direct(3, (298.0K, 2.0K), tiny, meandist = 1.0km)
     pool = SpeciesPool(DataFrame(species = ["1", "2", "3"],
                                  life = [0.5, 1.0, 2.0],
                                  need = [0.5, 1.0, 1.5] .* 1.0e-4))
     new = quietly(pool, tolerance = niche,
                   demand = DemandSpec(SolarRadiation, tiny),
                   seed = 1)
-    runs = map((old, new)) do species
+    runs = map((ref, new)) do species
         eco = build_ecosystem(species, habitat, seed = 1)
         simulate!(eco, 6month_mean_duration, 1month_mean_duration)
         return eco.abundances.matrix

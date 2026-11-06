@@ -11,11 +11,9 @@
 
 function EcoSISTEM.SpeciesList(numspecies::Int64,
                                numtraits::Int64,
-                               abun::Vector{Int64},
                                demand::DM,
                                movement::MO,
                                params::P,
-                               native::Vector{Bool},
                                switch::Vector{Float64};
                                seed = nothing) where {DM <: AbstractDemand,
                                                       MO <:
@@ -40,13 +38,6 @@ function EcoSISTEM.SpeciesList(numspecies::Int64,
                                         penalty = 0.5)
     # Create similarity matrix (for now identity)
     phy = PhyloBranches(tree)
-    # Draw random set of abundances from distribution
-    if length(abun) < numspecies
-        abun = vcat(abun, fill(0, numspecies - length(abun)))
-    end
-    # error out when abun dist and NumberSpecies are not the same (same for resource dist)
-    length(abun) == numspecies || throw(DimensionMismatch("Abundance vector
-                                            doesn't match number species"))
     counttypes(demand) == numspecies ||
         throw(DimensionMismatch("Demand vector
  doesn't match number species"))
@@ -56,22 +47,18 @@ function EcoSISTEM.SpeciesList(numspecies::Int64,
                        typeof(phy),
                        typeof(params)}(names,
                                        sp_trt,
-                                       abun,
                                        demand,
                                        phy,
                                        movement,
-                                       params,
-                                       native)
+                                       params)
 end
 
 function EcoSISTEM.SpeciesList(numspecies::Int64,
                                numtraits::Int64,
-                               abun::Vector{Int64},
                                demand::DM,
                                movement::MO,
                                phy::T,
-                               params::P,
-                               native::Vector{Bool};
+                               params::P;
                                seed = nothing) where {DM <: AbstractDemand,
                                                       MO <:
                                                       AbstractVector{<:SpeciesDispersal},
@@ -94,13 +81,6 @@ function EcoSISTEM.SpeciesList(numspecies::Int64,
     sp_trt = SimpleCategoricalTolerance(Array(gettraits(tree, true)[:, 1]),
                                         axis = EcoSISTEM.TypologyAxis,
                                         penalty = 0.5)
-    # Draw random set of abundances from distribution
-    if length(abun) < numspecies
-        abun = vcat(abun, fill(0, numspecies - length(abun)))
-    end
-    # error out when abun dist and NumberSpecies are not the same (same for resource dist)
-    length(abun) == numspecies || throw(DimensionMismatch("Abundance vector
-                                            doesn't match number species"))
     counttypes(demand) == numspecies ||
         throw(DimensionMismatch("Demand vector
  doesn't match number species"))
@@ -110,12 +90,10 @@ function EcoSISTEM.SpeciesList(numspecies::Int64,
                        typeof(phy),
                        typeof(params)}(names,
                                        sp_trt,
-                                       abun,
                                        demand,
                                        phy,
                                        movement,
-                                       params,
-                                       native)
+                                       params)
 end
 
 # ---------------------------------------------------------------------------

@@ -500,14 +500,11 @@ export Ecosystem, CachedEcosystem, resettime!
 # `gettolerance`/`getdemand`, which have always been `public`.
 public getnichefit
 
-# **How abundances change** - `populate!` sets them up, `update!` advances them one timestep.
+# **How abundances change** - placed by a placement, and advanced a timestep by `update!`.
 include("dynamics.jl")
 
-# These five are the shipped values of a *user-selectable strategy*, not machinery. The three
-# placements share one signature, so any of them can be passed to `Ecosystem(popfun, ...)` and a
-# user may write a fourth; the two re-placements take a built ecosystem. They stay exported.
-export populate!, repopulate!, populate_by_tolerance!, repopulate_by_tolerance!,
-       emptypopulate!
+# Placing an ecosystem's individuals again, by its own placement or another.
+export repopulate!
 
 # `update!` is the timestep loop rather than a strategy - `simulate!` calls it, and
 # nothing outside the package does.

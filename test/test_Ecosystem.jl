@@ -23,7 +23,8 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
 @testset "Ecosystem" begin
     eco = Test1Ecosystem()
     @test eco isa Ecosystem
-    @test sum(eco.abundances.matrix, dims = 2)[:, 1] == eco.spplist.abun
+    # Each species' individuals as placed, which the rebuild below places again.
+    abun = vec(sum(eco.abundances.matrix, dims = 2))
     # tolerances, regime and nichefit line up - arity, names, unit and kind, member by member
     @test isnothing(EcoSISTEM._checkaligned("t",
                                             EcoSISTEM._toleranceside(eco.spplist.tolerance),
@@ -38,13 +39,15 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
                        typeof(eco.spplist.movement), UniqueTypes,
                        typeof(eco.spplist.params)}(eco.spplist.names,
                                                    eco.spplist.tolerance,
-                                                   eco.spplist.abun,
                                                    eco.spplist.demand,
                                                    UniqueTypes(length(eco.spplist.names)),
                                                    eco.spplist.movement,
-                                                   eco.spplist.params,
-                                                   eco.spplist.native)
-    eco = Ecosystem(sppl, eco.habitat, eco.nichefit)
+                                                   eco.spplist.params)
+    eco = build_ecosystem(BySupply(each = row -> abun[row.key]), sppl,
+                          eco.habitat, nichefit = eco.nichefit,
+                          distributed = false)
+    # The placement places exactly the counts it is given, species by species.
+    @test vec(sum(eco.abundances.matrix, dims = 2)) == abun
     # Adding a species mid-run is the `AddSpecies` operation, applied either by declaring an
     # intervention or - as here - through `applyinterventions!`, the supported imperative route.
     # `step` must be one the run has actually reached: the selection RNG is keyed on it.
@@ -116,6 +119,7 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
     @testset "movement types" begin
         # Test other movement types
         eco = Test1Ecosystem()
+        abun = vec(sum(eco.abundances.matrix, dims = 2))
         # No topology here since step 19 - it belongs to the habitat, not the movement.
         mov = fill(AlwaysDispersal(LongTailKernel)(scale = 10.0km, shape = 10.0,
                                                    thresh = 1e-10),
@@ -125,12 +129,13 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
                            typeof(eco.spplist.types),
                            typeof(eco.spplist.params)}(eco.spplist.names,
                                                        eco.spplist.tolerance,
-                                                       eco.spplist.abun,
                                                        eco.spplist.demand,
                                                        eco.spplist.types, mov,
-                                                       eco.spplist.params,
-                                                       eco.spplist.native)
-        @test_nowarn Ecosystem(sppl, eco.habitat, eco.nichefit)
+                                                       eco.spplist.params)
+        @test_nowarn build_ecosystem(BySupply(each = row -> abun[row.key]),
+                                     sppl, eco.habitat,
+                                     nichefit = eco.nichefit,
+                                     distributed = false, verbosity = :silent)
     end
     @testset "diversity" begin
         # Test Diversity get functions
@@ -190,7 +195,6 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
         movement = fill(InsectDispersal()(meandist = 1.0km,
                                           thresh = 10e-4),
                         numSpecies)
-        native = fill(true, numSpecies)
         resource = SpeciesRequirementCollection((Demand{SolarRadiation}(fill(2.0kJ /
                                                                              day,
                                                                              numSpecies)),
@@ -199,13 +203,13 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
                                                                             numSpecies))))
         param = EqualPop(0.6 / month_mean_duration, 0.6 / month_mean_duration,
                          1.0, 0.0)
-        sppl = SpeciesList(numSpecies, tolerance, abun, resource, movement,
-                           param,
-                           native)
+        sppl = SpeciesList(numSpecies, tolerance, resource, movement, param)
+        placement = BySupply(each = row -> abun[row.key])
         # the matching nichefit is `MultiplicativeFit((...))`; a single `NicheSuitability` mismatches
         badrel = NicheSuitability{Temperature, typeof(1.0K)}()
         err = try
-            Ecosystem(sppl, habitat, badrel)
+            build_ecosystem(placement, sppl, habitat, nichefit = badrel,
+                            distributed = false)
             nothing
         catch e
             e
@@ -223,7 +227,8 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
                                      NicheSuitability{Temperature,
                                                       typeof(1.0K)}()))
         swaperr = try
-            Ecosystem(sppl, habitat, swapped)
+            build_ecosystem(placement, sppl, habitat, nichefit = swapped,
+                            distributed = false)
             nothing
         catch e
             e
@@ -265,7 +270,7 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
 end
 
 @testset "_addtypes! keeps the names, and refuses what it cannot extend" begin
-    # Real names are essential: `build_species` yields `"1"`, `"2"`, ... , so the bug this guards -
+    # Real names are essential: `SpeciesPool(n)` names `"1"`, `"2"`, ... , so the bug this guards -
     # `UniqueTypes(count)` renaming **every existing species** to its index on each `_addspecies!` -
     # cannot show itself on a synthetic list.
     named = ["oak", "ash", "elm"]
@@ -282,8 +287,9 @@ end
 # --- `CachedEcosystem`, which is declared in `Ecosystem.jl` ---
 
 # Build a small, fully deterministic ecosystem. With a fixed `seed` the initial
-# abundances (a fixed vector) and the per-species RNG streams are identical every
-# time, so runs are byte-for-byte reproducible.
+# abundances (a fixed number per species, placed by supply from the per-species
+# RNG streams) and those streams are identical every time, so runs are
+# byte-for-byte reproducible.
 function cache_test_eco(seed)
     numSpecies = 8
     grid = (4, 4)
@@ -298,11 +304,8 @@ function cache_test_eco(seed)
     tolerance = NicheTolerance(Temperature, Normal,
                                fill(274.0K, numSpecies),
                                fill(0.5K, numSpecies))
-    native = fill(true, numSpecies)
-    abun = fill(div(individuals, numSpecies), numSpecies)
 
-    sppl = SpeciesList(numSpecies, tolerance, abun, resource, movement, param,
-                       native)
+    sppl = SpeciesList(numSpecies, tolerance, resource, movement, param)
     # The grid is decided first, then built on: 100 km^2 over 4 × 4 is 2.5 km cells - the same
     # `sqrt(area / prod(dimension))` the deprecated builder computed internally.
     studyarea = StudyArea(extent = (sqrt(area), sqrt(area)),
@@ -313,7 +316,9 @@ function cache_test_eco(seed)
                                                axis = SolarRadiation),
                           area = studyarea)
     nichefit = NicheSuitability{Temperature, typeof(1.0K)}()
-    return Ecosystem(sppl, habitat, nichefit, seed = seed)
+    return build_ecosystem(BySupply(each = div(individuals, numSpecies)), sppl,
+                           habitat, nichefit = nichefit, seed = seed,
+                           distributed = false)
 end
 
 @testset "CachedEcosystem save/load/resume" begin

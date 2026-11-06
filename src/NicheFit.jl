@@ -178,9 +178,9 @@ AdditiveFit(fits::Union{Tuple, NamedTuple}) = CombiningFit(sum, fits)
 Return how well species `sp` suits a grid square - by linear position `pos`, or by cell coordinates
 `(y, x)`.
 
-Both forms exist because each has a caller that already holds what it takes: `populate_by_tolerance!`
-works in linear indices, while the hot loop already has `(y, x)` for the supply. They are
-distinguished by **arity**, so neither shadows the other.
+Both forms exist because a caller may hold either: a linear position, as the abundance matrix's
+columns are numbered, or `(y, x)`, as the hot loop holds the supply's. They are distinguished by
+**arity**, so neither shadows the other.
 """
 function suitability(eco::AbstractEcosystem, y::Int64, x::Int64, sp::Int64)
     return _suitability(eco.habitat.regime, eco.spplist.tolerance, eco.nichefit,

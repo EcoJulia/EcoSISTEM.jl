@@ -478,7 +478,7 @@ function _checktraitvalue(v)
               "values to the pool with `add_trait!`, keyed by species, and name their column with " *
               "`TraitColumn`.")
     return error("a trait value is one value for every species, a `TraitColumn`, a `DrawFrom`, a " *
-                 "distribution or a function of the species' row; got a $(typeof(v)).")
+                 "distribution or a function of the species' row; got a value of type $(typeof(v)).")
 end
 
 # Refuse a fill that is none of the forms a fill takes.
@@ -847,7 +847,7 @@ end
 # `MethodError`.
 function _buildtrait(other, pool, table, prefix, rows, problems, verbosity)
     return error("`$prefix` is a spec - `ToleranceSpec`, `DemandSpec` - a tuple or named tuple of " *
-                 "them, or a requirement built already; got a $(typeof(other)).")
+                 "them, or a requirement built already; got a value of type $(typeof(other)).")
 end
 
 # One parameter value as a bare number in a tolerance's frame `support`, converted by its role: a

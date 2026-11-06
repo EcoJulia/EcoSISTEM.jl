@@ -27,6 +27,7 @@ to [`GridHabitat`](@ref), [`build_species`](@ref) and [`build_ecosystem`](@ref):
 ```@example examples
 using EcoSISTEM, EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
+using DataFrames
 
 const SOLAR = 4.5e11kJ / (km^2 * month_mean_duration)   # supplied per unit area, per month
 const WATER = 192.0mm / month_mean_duration
@@ -48,15 +49,21 @@ function uniform_env(cells, side; temperature = 298.0K, topology = Torus())
                              area = area, topology = topology)
 end
 
-# A community of `length(opts)` species, with the given temperature optima and niche widths.
+# A community of `length(opts)` species, with the given temperature optima and niche widths, each
+# a column of the species pool's table, and `individuals` shared between them, placed by supply.
 function community(env, opts, widths; dispersal = 2.4km,
                    individuals = 10_000_000)
-    species = build_species(length(opts), tolerance = (opts, widths), toleranceaxis = Temperature,
-                            demand = NEEDS, demandaxis = (sunlight = SolarRadiation, water = Precipitation), dispersal = dispersal,
-                            birth = 0.15 / year,
-                            death = 0.15 / year, survival = 0.1,
-                            abundance = individuals, seed = 20260805)
-    return build_ecosystem(species, env; seed = 20260805, verbosity = :silent)
+    pool = SpeciesPool(DataFrame(species = string.(eachindex(opts)),
+                                 optimum = opts, width = widths))
+    species = build_species(pool,
+                            tolerance = ToleranceSpec(Temperature, μ = TraitColumn(:optimum),
+                                                      σ = TraitColumn(:width)),
+                            demand = (sunlight = DemandSpec(SolarRadiation, NEEDS.sunlight),
+                                      water = DemandSpec(Precipitation, NEEDS.water)),
+                            movement = MovementSpec(InsectDispersal(), meandist = dispersal),
+                            birth = 0.15 / year, death = 0.15 / year, survival = 0.1,
+                            seed = 20260805, verbosity = :silent)
+    return build_ecosystem(BySupply(total = individuals), species, env, seed = 20260805)
 end
 
 # Run, and report the total abundance of each species across the whole landscape.
@@ -181,12 +188,12 @@ while the centre column rises.
 *Total abundance of two species seeded at opposite edges, after simulation, for mean dispersal
 distances of (A) 0.5 km, (B) 1 km, (C) 2 km and (D) 4 km.*
 
-By default a boundary redistributes rather than removes: an individual whose dispersal is aimed
-off the grid, or into an inactive cell, is reallocated among the destinations it *can* reach, so
-no boundary loses individuals. Pass `disperse_safely = false` to any of [`Torus`](@ref),
-[`Cylinder`](@ref) or [`Island`](@ref) - as `Torus(false)` - to make those individuals die
-instead, which is the difference between an animal-dispersed seed, carried somewhere the animal
-can reach, and a wind-dispersed one blown out to sea. Because it is about dead cells rather than
+An insect-dispersed species, as here, is redistributed rather than removed: an individual whose
+dispersal is aimed off the grid, or into an inactive cell, is reallocated among the destinations it
+*can* reach, so no boundary loses individuals. `disperse_safely = false` on a species' dispersal
+mode - `InsectDispersal(disperse_safely = false)`, or [`WindDispersal`](@ref)'s default - makes
+those individuals die instead, which is the difference between an animal-dispersed seed, carried
+somewhere the animal can reach, and a wind-dispersed one blown out to sea. Because it is about dead cells rather than
 the map edge, it matters for a torus too, which has no edge but may still contain inactive cells.
 
 ## Large species pools

@@ -25,11 +25,13 @@ function _eco(; abundance = 3000, seed = 1, kw...)
                       supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                            axis = SolarRadiation),
                       area = area)
-    spp = build_species(3, tolerance = (285.0K, 5.0K),
-                        toleranceaxis = Temperature, demand = 1.0e9kJ / day,
-                        demandaxis = SolarRadiation,
-                        abundance = abundance, seed = seed)
-    return build_ecosystem(spp, env; seed = seed, kw...)
+    spp = build_species(SpeciesPool(3),
+                        tolerance = ToleranceSpec(Temperature, μ = 285.0K,
+                                                  σ = 5.0K),
+                        demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
+                        seed = seed, verbosity = :silent)
+    return build_ecosystem(BySupply(total = abundance), spp, env; seed = seed,
+                           verbosity = :silent, kw...)
 end
 _active(eco) = count(parent(eco.habitat.active))
 
@@ -608,10 +610,13 @@ end
                       supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                            axis = SolarRadiation),
                       area = area)
-    spp = build_species(3, tolerance = (285.0K, 5.0K),
-                        toleranceaxis = Temperature, demand = 1.0e9kJ / day,
-                        demandaxis = SolarRadiation, abundance = 3000, seed = 1)
-    eco = build_ecosystem(spp, env, seed = 1)
+    spp = build_species(SpeciesPool(3),
+                        tolerance = ToleranceSpec(Temperature, μ = 285.0K,
+                                                  σ = 5.0K),
+                        demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
+                        seed = 1, verbosity = :silent)
+    eco = build_ecosystem(BySupply(total = 3000), spp, env, seed = 1,
+                          verbosity = :silent)
     height, width = Base.size(parent(eco.habitat.active))
     @test height != width
     cells = LinearIndices((height, width))

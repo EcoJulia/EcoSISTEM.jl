@@ -11,6 +11,7 @@ using Unitful.DefaultSymbols
 using Distributions
 using EcoSISTEM.Units
 using JLD2
+using DataFrames: DataFrame
 
 include("TestCases.jl")
 
@@ -22,10 +23,7 @@ include("TestCases.jl")
     @test typeof(EcoSISTEM.calc_lookup_moves!(eco.habitat.topology,
                                               1, 1, 1, eco, 10)) ==
           Vector{Int64}
-    @test_nowarn populate!(EcoSISTEM.empty_landscape(eco.habitat,
-                                                     eco.spplist),
-                           eco.spplist, eco.habitat, eco.nichefit, eco.rngs)
-    @test_nowarn repopulate!(eco)
+    @test_nowarn repopulate!(eco, verbosity = :silent)
 
     # Test Cylinder
     @test_nowarn EcoSISTEM.calc_lookup_moves!(Cylinder(), 1, 1, 1, eco, 10)
@@ -40,10 +38,7 @@ include("TestCases.jl")
     @test typeof(EcoSISTEM.calc_lookup_moves!(eco.habitat.topology,
                                               1, 1, 1, eco, 10)) ==
           Vector{Int64}
-    @test_nowarn populate!(EcoSISTEM.empty_landscape(eco.habitat,
-                                                     eco.spplist),
-                           eco.spplist, eco.habitat, eco.nichefit, eco.rngs)
-    @test_nowarn repopulate!(eco)
+    @test_nowarn repopulate!(eco, verbosity = :silent)
 end
 
 @testset "Dispersal from a cell with no reachable destination" begin
@@ -100,14 +95,12 @@ end
     movement = fill(InsectDispersal()(meandist = 1.0km,
                                       thresh = 1.0e-3),
                     N)
-    native = fill(true, N)
-    abun = fill(10, N)
     nichefit = NicheSuitability{Temperature, typeof(1.0K)}()
 
     # single supply
-    sppl1 = SpeciesList(N, tolerance, abun,
+    sppl1 = SpeciesList(N, tolerance,
                         Demand{SolarRadiation}(fill(10.0kJ / day, N)),
-                        movement, nogrowth, native)
+                        movement, nogrowth)
     # Grid decided first: 100 km^2 over 4 × 4 is 2.5 km cells.
     habitat1 = GridHabitat(regime = UniformSpec(274.0K,
                                                 axis = Temperature),
@@ -118,7 +111,8 @@ end
                                             cellsize = sqrt(area) /
                                                        grid[1],
                                             verbosity = :silent))
-    eco1 = Ecosystem(sppl1, habitat1, nichefit)
+    eco1 = build_ecosystem(BySupply(each = 10), sppl1, habitat1,
+                           nichefit = nichefit, distributed = false)
     @test EcoSISTEM.resource_adjustment(eco1, eco1.habitat.supply, 1, 1) ==
           (0.0, 0.0)
 
@@ -129,8 +123,7 @@ end
                                               Demand{Precipitation}(fill(2.0Unitful.L /
                                                                          day,
                                                                          N))))
-    sppl2 = SpeciesList(N, tolerance, abun, resource2, movement, nogrowth,
-                        native)
+    sppl2 = SpeciesList(N, tolerance, resource2, movement, nogrowth)
     side = sqrt(area)
     habitat2 = GridHabitat(regime = UniformSpec(274.0K,
                                                 axis = Temperature),
@@ -141,7 +134,8 @@ end
                            area = StudyArea(extent = (side, side),
                                             cellsize = side / grid[1],
                                             verbosity = :silent))
-    eco2 = Ecosystem(sppl2, habitat2, nichefit)
+    eco2 = build_ecosystem(BySupply(each = 10), sppl2, habitat2,
+                           nichefit = nichefit, distributed = false)
     @test EcoSISTEM.resource_adjustment(eco2, eco2.habitat.supply, 1, 1) ==
           (0.0, 0.0)
 end
@@ -150,17 +144,31 @@ end
 # limit anything when a second resource is added. The whole shipped corpus uses *scalar* demands,
 # so ϵ̄ = 1 for every species and none of the properties below is observable in it - which is exactly
 # why a multi-resource arithmetic bug survived for years unnoticed.
+#
+# `demand` is the three species' demands on one resource, or a tuple of them, one per supply, on the
+# axes `demandaxis` names; each is a column of the species' pool.
 function _demandeco(demand, supply, demandaxis = SolarRadiation;
-                    tolerance = (280.0K, 5.0K))
+                    tolerance = ToleranceSpec(Temperature, μ = 280.0K,
+                                              σ = 5.0K))
     area = StudyArea(extent = (3.0km, 5.0km), cellsize = 1.0km,
                      verbosity = :silent)
     env = GridHabitat(regime = UniformSpec(285.0K, axis = Temperature),
                       supply = supply, area = area)
-    spp = build_species(3, tolerance = tolerance,
-                        toleranceaxis = Temperature, demand = demand,
-                        demandaxis = demandaxis,
-                        abundance = 300, seed = 1)
-    eco = build_ecosystem(spp, env, seed = 1)
+    members = demand isa Tuple ? demand : (demand,)
+    resourceaxes = demandaxis isa Tuple ? demandaxis : (demandaxis,)
+    columns = ntuple(i -> Symbol(:demand, i), length(members))
+    table = DataFrame(species = string.(1:3))
+    for (column, member) in zip(columns, members)
+        table[!, column] = member
+    end
+    specs = map(resourceaxes, columns) do axis, column
+        return DemandSpec(axis, TraitColumn(column))
+    end
+    spp = build_species(SpeciesPool(table, verbosity = :silent),
+                        tolerance = tolerance,
+                        demand = demand isa Tuple ? specs : only(specs),
+                        seed = 1, verbosity = :silent)
+    eco = build_ecosystem(BySupply(total = 300), spp, env, seed = 1)
     eco.abundances.matrix .= 10
     EcoSISTEM.update_resource_usage!(eco)
     return eco
@@ -319,10 +327,8 @@ end
                      0.0)
     kernel = fill(GaussianKernel(meandist = 1.0km, thresh = 1.0e-3), N)
     movement = InsectDispersal().(kernel)
-    native = fill(true, N)
-    abun = fill(10, N)
     resource = Demand{SolarRadiation}(fill(2.0kJ / day, N))
-    sppl = SpeciesList(N, tolerance, abun, resource, movement, param, native)
+    sppl = SpeciesList(N, tolerance, resource, movement, param)
 
     # A fully-active habitat for exercising calc_lookup_moves!/update! at
     # extreme y/x coordinates - every cell reachable, so no cell's move
@@ -340,7 +346,8 @@ end
 
     nichefit = NicheSuitability{EcoSISTEM.axisof(habitat.regime),
                                 eltype(habitat.regime)}()
-    eco = Ecosystem(sppl, habitat, nichefit)
+    eco = build_ecosystem(BySupply(each = 10), sppl, habitat,
+                          nichefit = nichefit, distributed = false)
 
     # getgridshape must report (ny, nx) - the actual array shape - not (nx, ny).
     @test EcoSISTEM.getgridshape(eco) == grid

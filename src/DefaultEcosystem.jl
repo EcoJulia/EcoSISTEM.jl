@@ -16,15 +16,17 @@ only the required inputs you do not care about while passing the rest explicitly
 """
 struct DefaultEcosystem end
 
-# As a placement, the one a builder uses when given none: each species' starting abundance in the
-# species list, placed by supply.
+# As a placement, the one a builder uses when given none: `BySupply()`'s default numbers, which the
+# builder's announcement has already stated, so without `BySupply()`'s own notice of them.
 function (::DefaultEcosystem)(species::SpeciesList, habitat::GridHabitat,
                               context::PlacementContext)
     allowed = _allowedmask(habitat, context.cells)
     weight = _weightof(BySupply(), species, habitat, context, allowed)
+    k = count(_activespecies(species))
+    counts = _splittotal(_default(Val(:individuals)).value * k, species,
+                         context)
     problems = Problem[]
-    table = _drawweighted(weight, species.abun, species, habitat, context,
-                          problems)
+    table = _drawweighted(weight, counts, species, habitat, context, problems)
     return PlacedAbundances(table, problems = problems)
 end
 
@@ -113,21 +115,14 @@ end
 _default(::Val{:numspecies}) = (value = 10,)
 
 function _default(::Val{:tolerance})
-    return (value = (298.0K, 2.0K),
+    return (value = ToleranceSpec(Temperature, μ = 298.0K, σ = 2.0K),
             phrase = "a (298.0 K, 2.0 K) temperature niche")
 end
 
-function _default(::Val{:toleranceaxis})
-    return (value = Temperature, phrase = "`Temperature`")
-end
-
 function _default(::Val{:demand})
-    return (value = 10.0 * canonicalunit(Resource, SolarRadiation),
+    return (value = DemandSpec(SolarRadiation,
+                               10.0 * canonicalunit(Resource, SolarRadiation)),
             phrase = "10× the canonical solar rate")
-end
-
-function _default(::Val{:demandaxis})
-    return (value = SolarRadiation, phrase = "`SolarRadiation`")
 end
 
 function _default(::Val{:dispersal})
@@ -153,8 +148,8 @@ _default(::Val{:individuals}) = (value = 1000,)
 
 function _default(::Val{:placement})
     return (value = DefaultEcosystem(),
-            phrase = "`DefaultEcosystem()`, each species' starting abundance in the species " *
-                     "list, placed by supply")
+            phrase = "`DefaultEcosystem()`, $(_default(Val(:individuals)).value) individuals " *
+                     "per active species, split among them at random and placed by supply")
 end
 
 # --- An existing habitat ----------------------------------------------------------------------

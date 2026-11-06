@@ -304,6 +304,10 @@ function _sharedreport end
 # returns. Every rank must call it.
 function _sharedpool end
 
+# A distributed ecosystem with no individuals yet, partitioned between the ranks, for
+# `build_ecosystem` to place into. The MPI extension supplies the sole method. Every rank must call it.
+function _emptympiecosystem end
+
 # --- Detecting it, on the parent's side ------------------------------------
 # Everything below is implemented here rather than declared. It lives with the hooks because it is
 # what asks whether they have arrived: both `Base.get_extension` calls in the package are here, and

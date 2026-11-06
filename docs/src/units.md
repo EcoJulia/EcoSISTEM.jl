@@ -442,7 +442,7 @@ side:
   - a **supply**'s type comes from `supplytype(axis)`, and an axis declaring no resource is refused
     by name;
   - a **demand**'s type comes from `demandtype(axis)`, with the axis named at the call site
-    (`demandaxis`), and the unit checked against it rather than consulted to choose it;
+    (`DemandSpec(axis, value)`), and the unit checked against it rather than consulted to choose it;
   - a **tolerance** is built in its axis's frame, as it always was;
   - the free/dimensionless family - the one entry that could not have an axis, because it meant
     "no axis" - was removed on both sides, which is what made deleting the tables possible at all.

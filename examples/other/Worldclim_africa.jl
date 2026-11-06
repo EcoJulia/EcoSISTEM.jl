@@ -53,13 +53,16 @@ env = GridHabitat(regime = temperature, supply = rainfall, area = area)
 # --- one species, tolerant of warmth and limited by water -------------------------
 # The tolerance is a `Temperature` and the demand a `Precipitation`, and each says so: meaning
 # comes from the declared axis, never from the values or their units.
-species = build_species(1, tolerance = (280.0K, 10.0K),
-                        toleranceaxis = Temperature,
-                        demand = 0.1Unitful.L / day,
-                        demandaxis = Precipitation,
-                        dispersal = 2CELLSIZE, abundance = 20_000, seed = 1)
+species = build_species(SpeciesPool(1),
+                        tolerance = ToleranceSpec(Temperature, μ = 280.0K,
+                                                  σ = 10.0K),
+                        demand = DemandSpec(Precipitation, 0.1Unitful.L / day),
+                        movement = MovementSpec(InsectDispersal(),
+                                                meandist = 2CELLSIZE),
+                        seed = 1)
 
-eco = build_ecosystem(species, env, seed = 1)
+# 20,000 individuals, placed by supply.
+eco = build_ecosystem(BySupply(total = 20_000), species, env, seed = 1)
 
 # --- run, recording monthly -------------------------------------------------------
 const INTERVAL = 1month_mean_duration

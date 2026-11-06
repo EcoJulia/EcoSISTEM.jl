@@ -18,7 +18,7 @@ habitat or an ecosystem.
     `extent` its cells cover, and how many `cells` it has and how many of them are `active`.
   - `run`: for an ecosystem, a named tuple of its `seed`, its `epoch` (`nothing` without one), the
     run `calendar` its dates were placed by, the time `elapsed`, and the `placement` its individuals
-    were placed by, as written (`nothing` for one built from a population function); `nothing` for a
+    were placed by, as written (`nothing` where it records none); `nothing` for a
     study area or a habitat.
 """
 struct GridContext <: AbstractProvenanceContext

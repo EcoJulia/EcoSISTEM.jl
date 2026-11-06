@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
 # Tests `src/Placement.jl` and the placing in `build_ecosystem` and `repopulate!`: the default placement
-# draw for draw against `populate!`, what each shipped placement places, a table's rows and the rows
+# and the one it equals, what each shipped placement places, a table's rows and the rows
 # it drops, a function as a placement, and what the ecosystem keeps of how it was placed. Run with
 #     julia --project -e 'using Pkg; Pkg.test(test_args = ["test_Placement.jl"])'
 
@@ -44,10 +44,12 @@ function _habitat(; regime = UniformSpec(298.0K, axis = Temperature),
                          verbosity = :silent)
 end
 
-function _species(n = 4; kw...)
-    return build_species(n; tolerance = (298.0K, 2.0K),
-                         toleranceaxis = Temperature, demand = 1.0e-4kJ / day,
-                         demandaxis = SolarRadiation, seed = 1, kw...)
+# `n` species from a pool, every one alike.
+function _species(n = 4; demand = DemandSpec(SolarRadiation, 1.0e-4kJ / day))
+    return build_species(SpeciesPool(n, verbosity = :silent),
+                         tolerance = ToleranceSpec(Temperature, μ = 298.0K,
+                                                   σ = 2.0K),
+                         demand = demand, seed = 1, verbosity = :silent)
 end
 
 # An ecosystem built quietly by a placement.
@@ -63,28 +65,33 @@ _perspecies(eco) = vec(sum(eco.abundances.matrix, dims = 2))
 # The storage column of the grid's inactive cell.
 const INACTIVE = LinearIndices(size(MASK))[1, 1]
 
-@testset "the default placement places as populate! does, draw for draw" begin
+@testset "the default placement places 1000 of each active species by supply, and says so" begin
     for (habitat, species) in ((_habitat(), _species()),
                                (_habitat(supply = (SOLAR,
                                                    GradientSpec(1.0mm / day,
                                                                 5.0mm / day,
                                                                 axis = Precipitation))),
-                                _species(demand = (1.0e-4kJ / day,
-                                                   1.0e-4Unitful.L / day),
-                                         demandaxis = (SolarRadiation,
-                                                       Precipitation))))
+                                _species(demand = (DemandSpec(SolarRadiation,
+                                                              1.0e-4kJ / day),
+                                                   DemandSpec(Precipitation,
+                                                              1.0e-4Unitful.L /
+                                                              day)))))
         placed = @test_logs (:info,
-                             r"`placement` defaulted to `DefaultEcosystem\(\)`") build_ecosystem(species,
-                                                                                                 habitat,
-                                                                                                 seed = 7)
-        populated = Ecosystem(species, habitat, placed.nichefit, seed = 7)
-        @test placed.abundances.matrix == populated.abundances.matrix
-        @test placed.rngs == populated.rngs
+                             r"`placement` defaulted to `DefaultEcosystem\(\)`, 1000 individuals per active species") build_ecosystem(species,
+                                                                                                                                      habitat,
+                                                                                                                                      seed = 7)
         @test placed.placement === DefaultEcosystem()
-        simulate!(placed, 3month_mean_duration, 1month_mean_duration)
-        simulate!(populated, 3month_mean_duration, 1month_mean_duration)
-        @test placed.abundances.matrix == populated.abundances.matrix
+        @test sum(placed.abundances.matrix) == 4000
+        # The community total `BySupply` is given, draw for draw.
+        bysupply = _placed(BySupply(total = 4000), species, habitat, seed = 7)
+        @test placed.abundances.matrix == bysupply.abundances.matrix
+        @test placed.rngs == bysupply.rngs
     end
+    # A species that is not active is placed none, and the rest 1000 each.
+    species = _species()
+    species.traits.active[2] = false
+    eco = _placed(DefaultEcosystem(), species, _habitat())
+    @test _perspecies(eco)[2] == 0 && sum(eco.abundances.matrix) == 3000
 end
 
 @testset "each placement places what it says" begin
@@ -143,11 +150,16 @@ end
 @testset "suitability places each species where it suits" begin
     habitat = _habitat(regime = GradientSpec(290.0K, 306.0K,
                                              axis = Temperature))
-    species = build_species(2, tolerance = ([291.0K, 305.0K], [1.0K, 1.0K]),
-                            toleranceaxis = Temperature,
-                            demand = 1.0e-4kJ / day,
-                            demandaxis = SolarRadiation,
-                            seed = 1)
+    pool = SpeciesPool(DataFrame(species = ["1", "2"],
+                                 optimum = [291.0, 305.0]),
+                       verbosity = :silent)
+    species = build_species(pool,
+                            tolerance = ToleranceSpec(Temperature,
+                                                      μ = TraitColumn(:optimum,
+                                                                      unit = K),
+                                                      σ = 1.0K),
+                            demand = DemandSpec(SolarRadiation, 1.0e-4kJ / day),
+                            seed = 1, verbosity = :silent)
     eco = _placed(BySuitability(each = 2_000), species, habitat)
     grids = [reshape(eco.abundances.matrix[sp, :], size(MASK)) for sp in 1:2]
     # The two species' warm and cool ends, whichever way the gradient runs.
@@ -340,9 +352,11 @@ end
                                  cell = CartesianIndex{2}[]),
                                 problems = [told])
     end
-    @test_throws "returned a Int64" build_ecosystem((_, _, _) -> 3, species,
-                                                    habitat,
-                                                    verbosity = :silent)
+    @test_throws "returned a value of type Int64" build_ecosystem((_, _,
+                                                                   _) -> 3,
+                                                                  species,
+                                                                  habitat,
+                                                                  verbosity = :silent)
 end
 
 @testset "repopulate! places again, by the ecosystem's placement or another" begin
@@ -363,9 +377,8 @@ end
     repopulate!(eco, NoAbundance(), verbosity = :silent)
     @test sum(eco.abundances.matrix) == 0 && eco.placement === NoAbundance()
     @test provenance(eco).context.run.placement == "NoAbundance()"
-    unplaced = Ecosystem(populate!, species, habitat, eco.nichefit)
-    @test isnothing(unplaced.placement)
-    @test_throws "records no placement" repopulate!(unplaced)
+    eco.placement = nothing
+    @test_throws "records no placement" repopulate!(eco)
 end
 
 @testset "a placement shows as it is written" begin

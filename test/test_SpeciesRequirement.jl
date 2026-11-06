@@ -105,16 +105,13 @@ end
 # This asserts that spelling still rejects the swap, which is what makes the merge free.
 @testset "SpeciesList still refuses the two sides swapped" begin
     tol, dem = _tol(), _dem()
-    abun = fill(10, NSP)
     movement = fill(InsectDispersal()(meandist = 1.0km,
                                       thresh = 10e-4),
                     NSP)
     param = EqualPop(0.1 / year, 0.1 / year, 1.0, 0.1)
-    native = fill(true, NSP)
-    @test_nowarn SpeciesList(NSP, tol, abun, dem, movement, param, native)
+    @test_nowarn SpeciesList(NSP, tol, dem, movement, param)
     # The swap is a `MethodError`, not a runtime check - the signature refuses it.
-    @test_throws MethodError SpeciesList(NSP, dem, abun, tol, movement, param,
-                                         native)
+    @test_throws MethodError SpeciesList(NSP, dem, tol, movement, param)
 end
 
 end

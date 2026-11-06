@@ -56,7 +56,7 @@ function _env(regime, supply; kw...)
     return GridHabitat(regime = regime, supply = supply,
                        area = _area(; regime = regime, kw...))
 end
-# The former `build_species` defaults, now that `tolerance`/`demand` are required - reused by the
-# many calls that only exercise the other keywords (movement, rates, abundance, ...).
+# A niche and a demand for species no test is about, reused by the many calls that exercise only
+# the other keywords.
 const TOL = (298.0K, 2.0K)
 const DEM = 10.0 * EcoSISTEM.canonicalunit(EcoSISTEM.Resource, SolarRadiation)

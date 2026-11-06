@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# HOW ABUNDANCES CHANGE. Everything that writes to an ecosystem's abundance matrix: `populate!` and
-# its relatives, which set it up, and `update!`, which is one timestep of the model - the demographic
-# draws, then dispersal, then the layer changes.
+# HOW ABUNDANCES CHANGE. Everything that writes to an ecosystem's abundance matrix: placing its
+# individuals, at build and by `repopulate!`, and `update!`, which is one timestep of the model - the
+# demographic draws, then dispersal, then the layer changes.
 #
 # `update!` is what `simulate!` calls repeatedly; the order within it is load-bearing and stated at
 # the function itself. Nothing here decides *what* a species needs or *where* it can live - that is
 # the species requirements and the niche fit; this is only what those imply for the numbers.
 #
-# The MPI extension **duplicates** `update!`, `move!` and `populate!` rather than calling them, so
+# The MPI extension **duplicates** `update!` and `update_resource_usage!` rather than calling them, so
 # a rule phrased as "the hot loop" has two places to apply and the second is in `ext/`.
 
 using StatsBase
@@ -20,75 +20,6 @@ using KahanSummation: sum_kbn
 using Random
 
 # == Functions ==================================================================================
-
-"""
-    populate!(ml::GridLandscape, spplist::SpeciesList, habitat::AbstractHabitat,
-              nichefit::AbstractNicheFit, rngs::Vector{Random.Xoshiro})
-    populate!(ml::GridLandscape, spplist::SpeciesList,
-              habitat::GridHabitat{H, <:LayerCollection{Resource}}, nichefit, rngs)
-
-Populate the grid landscape `ml` by randomly scattering each species' total
-abundance (taken from `spplist.abun`) across the grid cells, choosing each cell
-with probability proportional to its available resource supply. Inactive cells are
-given zero probability, so no individuals are placed outside the habitable
-region. Each species is drawn from its own generator in `rngs`, so the result is
-reproducible and independent of the number of threads or MPI processes.
-
-`nichefit` is unused by these resource-based methods; it is accepted only so that they
-share a signature with [`populate_by_tolerance!`](@ref) and can be passed
-interchangeably as the population function when constructing an
-[`Ecosystem`](@ref). For a multi-supply environment (a [`LayerCollection`](@ref)) the
-sampling weight of a cell is the product of its two separately normalised
-supplies.
-"""
-function populate!(ml::GridLandscape,
-                   spplist::SpeciesList,
-                   habitat::AB,
-                   nichefit::NF,
-                   rngs::Vector{Random.Xoshiro}) where {AB <: AbstractHabitat,
-                                                        NF <:
-                                                        AbstractNicheFit}
-    grid, activity = _gridactivity(habitat)
-    # Set up copy of supply
-    b = reshape(parent(ustrip.(_getsupply(habitat.supply))), length(grid))
-    units = unit(b[1])
-    b[.!activity] .= 0.0 * units
-    # A compensated sum, for the correctly rounded total: `sum` may reassociate once vectorised,
-    # and this sum affects reproducibility. For speed, we should revert to sum().
-    B = b ./ sum_kbn(b)
-    # Loop through species, drawing from each species' own RNG stream. Three per-species things
-    # walked in lockstep, so there is no index to keep: `eachrow` yields exactly the writable
-    # `@view ml.matrix[i, :]` that `rand!` needs.
-    for (rng, abun, row) in zip(rngs, spplist.abun, eachrow(ml.matrix))
-        rand!(rng, Multinomial(abun, B), row)
-    end
-end
-
-function populate!(ml::GridLandscape,
-                   spplist::SpeciesList,
-                   habitat::GridHabitat{H, <:LayerCollection{Resource}},
-                   nichefit::NF,
-                   rngs::Vector{Random.Xoshiro}) where {H <: AbstractRegime,
-                                                        NF <:
-                                                        AbstractNicheFit}
-    # Calculate size of regime
-    grid, activity = _gridactivity(habitat)
-    # Set up a copy of each supply, zeroed outside the active cells and normalised to its own
-    # total, then multiply them together so a cell needs every resource to be worth populating.
-    fractions = _zipmap(values(habitat.supply)) do supply
-        b = reshape(parent(copy(_getsupply(supply))), length(grid))
-        b[.!activity] .= zero(eltype(b))
-        return b ./ sum_kbn(b)
-    end
-    B = _fold(fractions) do f1, f2
-        return f1 .* f2
-    end
-    # Loop through species, drawing from each species' own RNG stream
-    for sp in eachindex(spplist.abun)
-        rand!(rngs[sp], Multinomial(spplist.abun[sp], B ./ sum_kbn(B)),
-              (@view ml.matrix[sp, :]))
-    end
-end
 
 """
     repopulate!(eco::AbstractEcosystem, placement = eco.placement; seed = eco.seed,
@@ -120,8 +51,8 @@ function repopulate!(eco::AbstractEcosystem, placement = eco.placement;
                      seed::Integer = eco.seed, verbosity::Symbol = :normal)
     _checkverbosity(verbosity)
     isnothing(placement) &&
-        error("this ecosystem was built from a population function, which records no placement " *
-              "to place by again; give one, as `repopulate!(eco, BySupply())`.")
+        error("this ecosystem records no placement to place by again; give one, as " *
+              "`repopulate!(eco, BySupply())`.")
     _checkplacement(placement)
     _reusable(placement) ||
         error("$(_placementphrase(placement)) reads a table that can be read only once, so it " *
@@ -146,84 +77,6 @@ function repopulate!(eco::Ecosystem, abun::Int64)
         return eco.abundances.matrix[end, p] += 1
     end
 end
-
-"""
-    populate_by_tolerance!(ml::GridLandscape, spplist::SpeciesList, habitat::AbstractHabitat,
-                   nichefit::AbstractNicheFit, rngs::Vector{Random.Xoshiro})
-
-Populate the grid landscape `ml` by scattering each species' total abundance
-(taken from `spplist.abun`) across the grid cells with probability proportional
-to how well the species tolerances match each cell's environment, as scored by the
-trait nichefit `nichefit` applied to `spplist.tolerance` and `habitat.regime`. Where a
-species matches no cell the distribution falls back to uniform. Only native
-species (those flagged in `spplist.native`) are placed; non-native species are
-left empty.
-
-This is the trait-based counterpart of [`populate!`](@ref), which instead weights
-cells by their available resource supply.
-"""
-function populate_by_tolerance!(ml::GridLandscape,
-                                spplist::SpeciesList,
-                                habitat::AB,
-                                nichefit::NF,
-                                rngs::Vector{Random.Xoshiro}) where {AB <:
-                                                                     AbstractHabitat,
-                                                                     NF <:
-                                                                     AbstractNicheFit}
-    # Calculate size of regime
-    dim = getgridshape(habitat)
-    numsquares = dim[1] * dim[2]
-    numspp = length(spplist.names)
-    probabilities = [_suitability(habitat.regime, spplist.tolerance, nichefit,
-                                  sc, sp)
-                     for sc in 1:numsquares,
-                         sp in 1:numspp]
-    # Loop through species, drawing from each species' own RNG stream
-    for sp in eachindex(spplist.abun)
-        if spplist.native[sp]
-            # Get abundance of species
-            probs = probabilities[:, sp] ./ sum(probabilities[:, sp])
-            probs[isnan.(probs)] .= 1 / numsquares
-            abun = rand(rngs[sp], Multinomial(spplist.abun[sp], probs))
-            # Add individual to this location
-            ml.matrix[sp, :] .+= abun
-        end
-    end
-end
-
-"""
-    repopulate_by_tolerance!(eco::Ecosystem)
-
-Repopulate an ecosystem `eco` according to how well species tolerances match their
-environment, redistributing the total abundance across species at random.
-"""
-function repopulate_by_tolerance!(eco::Ecosystem)
-    eco.abundances = empty_landscape(eco.habitat, eco.spplist)
-    eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun),
-                                        length(eco.spplist.abun)))
-    return populate_by_tolerance!(eco.abundances, eco.spplist, eco.habitat,
-                                  eco.nichefit, eco.rngs)
-end
-
-"""
-    emptypopulate!(ml::GridLandscape, spplist::SpeciesList, habitat::AB, nichefit::NF,
-                   rngs::Vector{Random.Xoshiro}) where {AB <: EcoSISTEM.AbstractHabitat, NF <: EcoSISTEM.AbstractNicheFit}
-
-Placeholder population function that leaves the landscape empty and warns.
-"""
-function emptypopulate!(ml::GridLandscape,
-                        spplist::SpeciesList,
-                        habitat::AB,
-                        nichefit::NF,
-                        rngs::Vector{Random.Xoshiro}) where {AB <:
-                                                             EcoSISTEM.AbstractHabitat,
-                                                             NF <:
-                                                             EcoSISTEM.AbstractNicheFit}
-    @warn "Ecosystem not populated!"
-end
-
-# A population function placing nothing, for an ecosystem its placement fills once it is built.
-_leaveempty(::Any, ::Any, ::Any, ::Any, ::Any) = nothing
 
 # The context of a placement in `eco`: its active cells, a stream per species from `streams`, the
 # community stream, and its nichefit, epoch and calendar, at its start.

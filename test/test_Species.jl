@@ -37,8 +37,6 @@ using Phylo
     # Collect model parameters together (in this order!!)
     param = EqualPop(birth, death, long, surv)
 
-    individuals = 100
-
     # Create ecosystem
     kernel = fill(GaussianKernel(meandist = 2.0km, thresh = 10e-4), numSpecies)
     movement = AlwaysDispersal().(kernel)
@@ -46,58 +44,60 @@ using Phylo
     opts = fill(5.0°C, numSpecies)
     vars = rand(Uniform(0, 25 / 9), numSpecies) * °C
     tolerance = NicheTolerance(Temperature, Normal, opts, vars)
-    abun = rand(Multinomial(individuals, numSpecies))
-    native = fill(true, numSpecies)
-    @test_nowarn sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
-                                    movement, param, native)
-    @test_nowarn sppl = SpeciesList(numSpecies, numTraits, abun, resource_vec,
-                                    movement, param, native)
+    @test_nowarn sppl = SpeciesList(numSpecies, tolerance, resource_vec,
+                                    movement, param)
+    @test_nowarn sppl = SpeciesList(numSpecies, numTraits, resource_vec,
+                                    movement, param)
 
-    sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec, movement,
-                       param,
-                       native)
+    sppl = SpeciesList(numSpecies, tolerance, resource_vec, movement, param)
     newsppl = SpeciesList{typeof(sppl.tolerance),
                           typeof(sppl.demand),
                           typeof(sppl.movement),
                           typeof(sppl.types),
-                          typeof(sppl.params)}(sppl.tolerance, sppl.abun,
+                          typeof(sppl.params)}(sppl.names, sppl.tolerance,
                                                sppl.demand, sppl.types,
-                                               sppl.movement, sppl.params,
-                                               sppl.native)
+                                               sppl.movement, sppl.params)
     @test newsppl.names == sppl.names
 
-    # The mass-based `SpeciesList` constructor is **commented out** in `src/Species.jl`,
-    # together with the `SizeDemand` it was the only caller of: with the free/dimensionless supply
-    # gone there was nothing for that demand to pair with, so a species list built this way could
-    # be constructed but never simulated. Both are parked against a metabolic reading of size that
-    # nobody has implemented - see the note above `SizeDemand` in `src/Layer.jl`.
+    # The mass-based `SpeciesList` constructor is **commented out** in
+    # `ext/EcoSISTEMPhyloExt/species_list.jl`, together with the `SizeDemand` it was the only caller
+    # of: with no free/dimensionless supply there is nothing for that demand to pair with, so a
+    # species list built this way could be constructed but never simulated. Both are parked against a
+    # metabolic reading of size that nobody has implemented - see the note above `SizeDemand` in
+    # `src/Demand.jl`.
     @test_throws MethodError SpeciesList(numSpecies, numTraits, 10.0, 10.0, 0.5,
-                                         100.0km^2, movement, param, native,
+                                         100.0km^2, movement, param,
                                          [0.5, 0.5])
 
     # Test
-    @test_nowarn sppl = SpeciesList(numSpecies, numTraits, abun, resource_vec,
-                                    movement, UniqueTypes(numSpecies), param,
-                                    native)
+    @test_nowarn sppl = SpeciesList(numSpecies, numTraits, resource_vec,
+                                    movement, UniqueTypes(numSpecies), param)
 end
 
-# **Species building must leave the global generator alone.** A seeded abundance split, or a seeded
-# phylogeny, comes from a stream of its own: it is the same whatever was drawn before it, and
-# drawing it moves nothing drawn after it. Unseeded, both come from the global generator, as an
-# unseeded `NicheSpec` does. A reseed of the global generator would pass the first two checks and
-# fail the third.
-@testset "species building draws from streams of its own" begin
+# **Species building, and placing them, must leave the global generator alone.** A seeded abundance
+# split, or a seeded phylogeny, comes from a stream of its own: it is the same whatever was drawn
+# before it, and drawing it moves nothing drawn after it. Unseeded, both come from the global
+# generator, as an unseeded `NicheSpec` does. A reseed of the global generator would pass the first
+# two checks and fail the third.
+@testset "species building and placing draw from streams of their own" begin
     n = 6
-    build(; kw...) = build_species(n, tolerance = (298.0K, 2.0K),
-                                   toleranceaxis = Temperature,
-                                   demand = 2.0kJ / day,
-                                   demandaxis = SolarRadiation,
-                                   abundance = 100_000; kw...)
+    species = build_species(SpeciesPool(n, verbosity = :silent),
+                            tolerance = ToleranceSpec(Temperature, μ = 298.0K,
+                                                      σ = 2.0K),
+                            demand = DemandSpec(SolarRadiation, 2.0kJ / day),
+                            verbosity = :silent)
+    habitat = build_habitat(EcoSISTEM.DefaultEcosystem(), verbosity = :silent)
+    # Each species' individuals, as a community total split across the species and placed.
+    function build(; kw...)
+        eco = build_ecosystem(BySupply(total = 100_000), species, habitat,
+                              verbosity = :silent; kw...)
+        return vec(sum(eco.abundances.matrix, dims = 2))
+    end
     Random.seed!(1)
-    seeded = build(seed = 7).abun
+    seeded = build(seed = 7)
     Random.seed!(2)
-    @test build(seed = 7).abun == seeded
-    @test build(seed = 8).abun != seeded
+    @test build(seed = 7) == seeded
+    @test build(seed = 8) != seeded
     @test sum(seeded) == 100_000
     Random.seed!(3)
     untouched = rand(UInt64)
@@ -105,9 +105,9 @@ end
     build(seed = 7)
     @test rand(UInt64) == untouched
     Random.seed!(4)
-    unseeded = build().abun
+    unseeded = build()
     Random.seed!(4)
-    @test build().abun == unseeded
+    @test build() == unseeded
 
     # The tree-growing constructors: the tree, and the tolerances evolved along it, from one stream.
     demand = Demand{SolarRadiation}(fill(2.0kJ / day, n))
@@ -115,8 +115,7 @@ end
                                       thresh = 10e-4),
                     n)
     param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2)
-    grow(abun = fill(10, n); kw...) = SpeciesList(n, 2, abun, demand, movement,
-                                                  param, fill(true, n); kw...)
+    grow(; kw...) = SpeciesList(n, 2, demand, movement, param; kw...)
     branchlengths(sl) = sort([getlength(sl.types.tree, b)
                               for b in getbranches(sl.types.tree)])
     Random.seed!(1)
@@ -131,14 +130,12 @@ end
     @test rand(UInt64) == untouched
     # The seed reaches the other two forms as well: the one taking the switch rates, and the one
     # taking a similarity structure, which keeps no tree but evolves the tolerances along one.
-    @test branchlengths(SpeciesList(n, 2, fill(10, n), demand, movement, param,
-                                    fill(true, n), [0.5], seed = 7)) ==
+    @test branchlengths(SpeciesList(n, 2, demand, movement, param, [0.5],
+                                    seed = 7)) ==
           branchlengths(tree)
-    @test SpeciesList(n, 2, fill(10, n), demand, movement, UniqueTypes(n),
-                      param, fill(true, n), seed = 7).tolerance.vals ==
+    @test SpeciesList(n, 2, demand, movement, UniqueTypes(n), param,
+                      seed = 7).tolerance.vals ==
           tree.tolerance.vals
-    # A short abundance vector is padded with zeros, as the tolerance-taking constructor pads it.
-    @test grow([10, 20], seed = 7).abun == [10, 20, 0, 0, 0, 0]
 end
 
 # **Diversity's API hooks drifted, and nothing noticed for a release.** `_calcsimilarity`'s second
@@ -154,9 +151,7 @@ end
     movement = fill(AlwaysDispersal()(meandist = 2.0km,
                                       thresh = 10e-4), n)
     param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2)
-    build(;
-          kw...) = SpeciesList(n, tolerance, fill(100, n), demand, movement,
-                               param, fill(true, n); kw...)
+    build(; kw...) = SpeciesList(n, tolerance, demand, movement, param; kw...)
     # Unset, the names are the positions, and the types say the same.
     anon = build()
     @test anon.names == ["1", "2", "3"]

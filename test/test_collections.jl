@@ -308,44 +308,48 @@ end
     @test keys(env.regime) == (:temperature, :rainfall)
     @test env.regime.temperature isa EcoSISTEM.ContinuousRegime
 
-    species = build_species(n,
-                            tolerance = (temperature = (298.0K, 2.0K),
-                                         rainfall = (50.0mm / day,
-                                                     5.0mm / day)),
-                            toleranceaxis = (Temperature, Precipitation),
-                            demand = 10.0kJ / day, demandaxis = SolarRadiation)
+    species = build_species(SpeciesPool(n),
+                            tolerance = (temperature = ToleranceSpec(Temperature,
+                                                                     μ = 298.0K,
+                                                                     σ = 2.0K),
+                                         rainfall = ToleranceSpec(Precipitation,
+                                                                  μ = 50.0mm /
+                                                                      day,
+                                                                  σ = 5.0mm /
+                                                                      day)),
+                            demand = DemandSpec(SolarRadiation, 10.0kJ / day),
+                            verbosity = :silent)
     @test keys(species.tolerance) == (:temperature, :rainfall)
 
-    eco = build_ecosystem(species, env)
+    eco = build_ecosystem(species, env, verbosity = :silent)
     @test eco.habitat.regime.temperature isa EcoSISTEM.ContinuousRegime
     @test keys(eco.nichefit) == (:temperature, :rainfall)
     @test EcoSISTEM.suitability(eco, 1, 1) > 0
     @test_nowarn simulate!(eco, 2month_mean_duration, 1month_mean_duration)
 
     @testset "paired structures must line up, and the error names both sides" begin
-        positional = build_species(n,
-                                   tolerance = ((298.0K, 2.0K),
-                                                (50.0mm / day, 5.0mm / day)),
-                                   toleranceaxis = (Temperature, Precipitation),
-                                   demand = 10.0kJ / day,
-                                   demandaxis = SolarRadiation)
+        temperature = ToleranceSpec(Temperature, μ = 298.0K, σ = 2.0K)
+        rainfall = ToleranceSpec(Precipitation, μ = 50.0mm / day,
+                                 σ = 5.0mm / day)
+        light = DemandSpec(SolarRadiation, 10.0kJ / day)
+        positional = build_species(SpeciesPool(n),
+                                   tolerance = (temperature, rainfall),
+                                   demand = light, verbosity = :silent)
         # named on one side, positional on the other is its own error
-        @test_throws ErrorException build_ecosystem(positional, env)
+        @test_throws ErrorException build_ecosystem(positional, env,
+                                                    verbosity = :silent)
         # so is the same arity under different names, in a different order
-        swapped = build_species(n,
-                                tolerance = (rainfall = (50.0mm / day,
-                                                         5.0mm / day),
-                                             temperature = (298.0K, 2.0K)),
-                                toleranceaxis = (Precipitation, Temperature),
-                                demand = 10.0kJ / day,
-                                demandaxis = SolarRadiation)
-        @test_throws ErrorException build_ecosystem(swapped, env)
+        swapped = build_species(SpeciesPool(n),
+                                tolerance = (rainfall = rainfall,
+                                             temperature = temperature),
+                                demand = light, verbosity = :silent)
+        @test_throws ErrorException build_ecosystem(swapped, env,
+                                                    verbosity = :silent)
         # and so is a plain arity mismatch
-        onetol = build_species(n, tolerance = (298.0K, 2.0K),
-                               toleranceaxis = Temperature,
-                               demand = 10.0kJ / day,
-                               demandaxis = SolarRadiation)
-        @test_throws ErrorException build_ecosystem(onetol, env)
+        onetol = build_species(SpeciesPool(n), tolerance = temperature,
+                               demand = light, verbosity = :silent)
+        @test_throws ErrorException build_ecosystem(onetol, env,
+                                                    verbosity = :silent)
     end
 
     @testset "a four-layer regime builds and simulates" for named in (false, true)
@@ -353,9 +357,10 @@ end
                  b = _reg(rain, axis = Precipitation),
                  c = _reg(temp, axis = Temperature),
                  d = _reg(rain, axis = Precipitation))
-        tols = ((298.0K, 2.0K), (50.0mm / day, 5.0mm / day), (298.0K, 2.0K),
-                (50.0mm / day, 5.0mm / day))
-        axes = (Temperature, Precipitation, Temperature, Precipitation)
+        temperature = ToleranceSpec(Temperature, μ = 298.0K, σ = 2.0K)
+        rainfall = ToleranceSpec(Precipitation, μ = 50.0mm / day,
+                                 σ = 5.0mm / day)
+        tols = (temperature, rainfall, temperature, rainfall)
         keys4 = (:summer, :wet, :winter, :dry)
         # **Both branches are named now, and they must be**: two of the four layers are on
         # `Temperature` and two on `Precipitation`, so derived names cannot tell them apart and the
@@ -364,12 +369,13 @@ end
         four = _env(named ? NamedTuple{keys4}(values(specs)) : specs, SUP)
         @test length(values(four.regime)) == 4
         @test keys(four.regime) == (named ? keys4 : keys(specs))
-        spp4 = build_species(n,
+        spp4 = build_species(SpeciesPool(n),
                              tolerance = named ? NamedTuple{keys4}(tols) :
                                          NamedTuple{keys(specs)}(tols),
-                             toleranceaxis = axes, demand = 10.0kJ / day,
-                             demandaxis = SolarRadiation)
-        eco4 = build_ecosystem(spp4, four)
+                             demand = DemandSpec(SolarRadiation,
+                                                 10.0kJ / day),
+                             verbosity = :silent)
+        eco4 = build_ecosystem(spp4, four, verbosity = :silent)
         named && @test eco4.habitat.regime.winter isa EcoSISTEM.ContinuousRegime
         @test EcoSISTEM.suitability(eco4, 1, 1) > 0
         @test_nowarn simulate!(eco4, 2month_mean_duration, 1month_mean_duration)
@@ -448,17 +454,19 @@ end
     specs = (a = _reg(temp, axis = Temperature),
              b = _reg(rain, axis = Precipitation),
              c = _reg(temp, axis = Temperature))
-    tols = (a = (298.0K, 2.0K), b = (50.0mm / day, 5.0mm / day),
-            c = (298.0K, 2.0K))
-    axes = (Temperature, Precipitation, Temperature)
+    tols = (a = ToleranceSpec(Temperature, μ = 298.0K, σ = 2.0K),
+            b = ToleranceSpec(Precipitation, μ = 50.0mm / day,
+                              σ = 5.0mm / day),
+            c = ToleranceSpec(Temperature, μ = 298.0K, σ = 2.0K))
 
     @testset "suitability over $nlayers layers" for nlayers in (2, 3)
         env = _env(_firstn(specs, nlayers), SUP)
-        species = build_species(5, tolerance = _firstn(tols, nlayers),
-                                toleranceaxis = axes[1:nlayers],
-                                demand = 10.0kJ / day,
-                                demandaxis = SolarRadiation)
-        eco = build_ecosystem(species, env)
+        species = build_species(SpeciesPool(5),
+                                tolerance = _firstn(tols, nlayers),
+                                demand = DemandSpec(SolarRadiation,
+                                                    10.0kJ / day),
+                                verbosity = :silent)
+        eco = build_ecosystem(species, env, verbosity = :silent)
         @test _suitalloc(eco) == 0
         @test @inferred(EcoSISTEM.suitability(eco, 1, 1)) isa Float64
     end
@@ -467,15 +475,18 @@ end
         sup = (a = UniformSpec(1.0kJ / (km^2 * day), axis = SolarRadiation),
                b = UniformSpec(1.0mm / day, axis = Precipitation),
                c = UniformSpec(2.0kJ / (km^2 * day), axis = SolarRadiation))
-        dem = (a = 10.0kJ / day, b = 1.0Unitful.L / day, c = 20.0kJ / day)
+        dem = (a = DemandSpec(SolarRadiation, 10.0kJ / day),
+               b = DemandSpec(Precipitation, 1.0Unitful.L / day),
+               c = DemandSpec(SolarRadiation, 20.0kJ / day))
         env = _env(_reg(temp, axis = Temperature),
                    _firstn(sup, nres))
-        species = build_species(5, tolerance = (298.0K, 2.0K),
-                                toleranceaxis = Temperature,
+        species = build_species(SpeciesPool(5),
+                                tolerance = ToleranceSpec(Temperature,
+                                                          μ = 298.0K,
+                                                          σ = 2.0K),
                                 demand = _firstn(dem, nres),
-                                demandaxis = (SolarRadiation, Precipitation,
-                                              SolarRadiation)[1:nres])
-        eco = build_ecosystem(species, env)
+                                verbosity = :silent)
+        eco = build_ecosystem(species, env, verbosity = :silent)
         EcoSISTEM.update_resource_usage!(eco)
         @test size(eco.cache.totaldemand, 2) == nres
         @test _adjustalloc(eco) == 0

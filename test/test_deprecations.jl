@@ -35,7 +35,7 @@ end
 
 # A list-wide movement is the vector of its species' movements, each in the mode the old type
 # named, with its own kernel, the kernel's type as the family and its own flag as the dead-cell
-# fate; given to `build_species`, each old name stands for its mode.
+# fate.
 @testset "list-wide movements forward to each species' movement" begin
     kernels = [GaussianKernel(meandist = 1.0u"km"),
         GaussianKernel(meandist = 2.0u"km")]
@@ -53,14 +53,92 @@ end
     @test_throws "one entry per species" EcoSISTEM._listmovement(SeedDispersal,
                                                                  kernels,
                                                                  [true])
-    species(movement) = build_species(DefaultEcosystem(), numspecies = 2,
-                                      movement = movement, verbosity = :silent)
-    for (old, mode) in ((BirthOnlyMovement, InsectDispersal()),
-        (AlwaysMovement, AlwaysDispersal()),
-        (NoMovement, NoDispersal()))
-        @test (@test_deprecated species(old)).movement ==
-              species(mode).movement
+end
+
+# A form that took a species list's starting abundances, or read them from one, raises an error saying
+# how to rewrite the call; `build_species(numspecies; ...)`'s is written from the keywords it was given.
+@testset "forms reading starting abundances are removed, each saying how to rewrite it" begin
+    rewrite(f) =
+        try
+            f()
+            ""
+        catch err
+            sprint(showerror, err)
+        end
+    message = rewrite() do
+        return build_species(5, tolerance = (290.0u"K", 2.0u"K"),
+                             toleranceaxis = Temperature,
+                             demand = 1.0e9u"kJ/d", demandaxis = SolarRadiation,
+                             dispersal = 5.0u"km", abundance = 500, seed = 1)
     end
+    @test occursin("`build_species(5; ...)` was removed in v0.11.0", message)
+    @test occursin("build_species(SpeciesPool(5); tolerance = ToleranceSpec(Temperature, " *
+                   "μ = 290.0 K, σ = 2.0 K)", message)
+    @test occursin("movement = MovementSpec(InsectDispersal(), meandist = 5.0 km), seed = 1)",
+                   message)
+    @test occursin("build_ecosystem(BySupply(total = 500), species, habitat)",
+                   message)
+    message = rewrite() do
+        return build_species(2, tolerance = ([290.0, 291.0]u"K", 2.0u"K"),
+                             toleranceaxis = Temperature, demand = 1.0u"kJ/d",
+                             demandaxis = SolarRadiation, abundance = [3, 4],
+                             native = [true, false])
+    end
+    @test occursin("μ = TraitColumn(:μ)", message)
+    @test occursin("BySupply(each = row -> abundance[row.key])", message)
+    @test occursin("deactivate_species!", message)
+    # The `DefaultEcosystem()` shorthand builds from a pool, refusing what only the removed form took.
+    @test_throws "builds species from a `SpeciesPool` since v0.11.0" build_species(DefaultEcosystem(),
+                                                                                   abundance = 10,
+                                                                                   verbosity = :silent)
+    @test_throws "builds species from a `SpeciesPool` since v0.11.0" build_species(DefaultEcosystem(),
+                                                                                   movement = BirthOnlyMovement,
+                                                                                   verbosity = :silent)
+    species = build_species(DefaultEcosystem(), numspecies = 3,
+                            verbosity = :silent)
+    habitat = build_habitat(DefaultEcosystem(), verbosity = :silent)
+    eco = build_ecosystem(NoAbundance(), species, habitat, verbosity = :silent)
+    @test_throws "`abun` and `native` arguments were removed" SpeciesList(3,
+                                                                          species.tolerance,
+                                                                          [
+                                                                              1,
+                                                                              2,
+                                                                              3
+                                                                          ],
+                                                                          species.demand,
+                                                                          species.movement,
+                                                                          species.params,
+                                                                          fill(true,
+                                                                               3))
+    @test_throws "`Ecosystem(spplist, habitat, nichefit)` was removed" Ecosystem(species,
+                                                                                 habitat,
+                                                                                 eco.nichefit)
+    @test_throws "`Ecosystem(popfun, spplist, habitat, nichefit)` was removed" Ecosystem(identity,
+                                                                                         species,
+                                                                                         habitat,
+                                                                                         eco.nichefit)
+    @test_throws "`MPIEcosystem(spplist, habitat, nichefit)` was removed" MPIEcosystem(species,
+                                                                                       habitat,
+                                                                                       eco.nichefit)
+    for (populate, placement) in ((populate!, "BySupply()"),
+        (populate_by_tolerance!, "BySuitability()"),
+        (emptypopulate!, "NoAbundance()"))
+        @test_throws "`$placement` places as" populate(eco.abundances, species,
+                                                       habitat, eco.nichefit,
+                                                       eco.rngs)
+    end
+end
+
+# Placing again by suitability is `repopulate!` with the suitability placement.
+@testset "repopulate_by_tolerance! places again by suitability" begin
+    species = build_species(DefaultEcosystem(), numspecies = 3,
+                            verbosity = :silent)
+    habitat = build_habitat(DefaultEcosystem(), verbosity = :silent)
+    eco = build_ecosystem(BySupply(total = 300), species, habitat, seed = 1,
+                          verbosity = :silent)
+    @test (@test_deprecated repopulate_by_tolerance!(eco)) === eco
+    @test sum(eco.abundances.matrix) == 3000
+    @test eco.placement == BySuitability()
 end
 
 @testset "InputRecord is ProvenanceRecord" begin

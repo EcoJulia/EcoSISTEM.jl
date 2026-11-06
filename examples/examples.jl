@@ -74,12 +74,11 @@ param = EqualPop(birth, death, long, surv)
 movement = InsectDispersal().(kernel)
 
 tolerance = NicheTolerance(Temperature, Normal, opts, vars)
-native = fill(true, numSpecies)
-abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
-                   movement, param, native)
+sppl = SpeciesList(numSpecies, tolerance, resource_vec, movement, param)
 nichefit = NicheSuitability{Temperature, typeof(first(opts))}()
-eco = Ecosystem(sppl, habitat, nichefit)
+# The individuals, split at random across the species and placed by supply.
+eco = build_ecosystem(BySupply(total = individuals), sppl, habitat,
+                      nichefit = nichefit)
 
 times = SMALL ? 2year : 10year;
 timestep = 1month_mean_duration;

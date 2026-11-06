@@ -85,8 +85,7 @@ corresponds to, or `nothing` for a run with no calendar - see [`simulationdate`]
 holds the [`ProvenanceRecord`](@ref)s of published data belonging to the run as a whole - those given to
 [`build_ecosystem`](@ref), those its placement read, and those of every intervention that has acted -
 which [`provenance`](@ref) lists. `placement` is the placement its individuals were placed by, as it
-was given (see [`AbstractPlacement`](@ref)), which [`repopulate!`](@ref) places by again; `nothing`
-for an ecosystem built from a population function.
+was given (see [`AbstractPlacement`](@ref)), which [`repopulate!`](@ref) places by again.
 """
 mutable struct Ecosystem{Part <: AbstractHabitat,
                          SL <: SpeciesList,
@@ -159,77 +158,6 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
                                  nothing)
     end
 end
-
-"""
-    Ecosystem(spplist::SpeciesList, habitat::GridHabitat,
-        nichefit::AbstractNicheFit)
-
-Create an `Ecosystem` given a species list, an abiotic environment and trait
-nichefit. An optional population function can be added, `popfun`, which
-defaults to generic random filling of the ecosystem. A `seed` may be supplied to
-make the run reproducible: it deterministically seeds one random number
-generator per species (see [`makerngs`](@ref)), so results are identical
-regardless of the number of threads used. If no `seed` is given, one is drawn at
-random.
-"""
-function Ecosystem(popfun::F,
-                   spplist::SpeciesList{TL, DM},
-                   habitat::GridHabitat,
-                   nichefit::AbstractNicheFit;
-                   seed::Integer = rand(UInt64)) where {F <: Function, TL, DM}
-    # **First, and before `genlookups` below.** The inner constructor checks this too, but it runs
-    # last - and `genlookups` divides the regime's cell size by a dispersal distance, so on a
-    # geographic grid (`size` in `°`) it raises `DimensionError: ° km^-1` before the tailored message
-    # is ever reached. That was invisible while the geographic cell size was silently converted to
-    # kilometres; making it honest is what exposed the ordering.
-    _checksimulatable(habitat)
-
-    # Check there is enough resource to support number of individuals at set up
-    # Commented out since before this rewrite, and left so deliberately - but note it would no
-    # longer typecheck: `getdemand` returns the demand now, not a total. The total is `_getdemand`.
-    #all(_getdemand(spplist.abun, spplist.demand) .<= totalsupply(habitat)) ||
-    #error("Environment does not have enough resource to support species")
-    # Create matrix landscape of zero abundances
-    ml = empty_landscape(habitat, spplist)
-    # One deterministically-seeded RNG per species, so births/deaths/dispersal
-    # and the initial population draw are reproducible across thread counts
-    rngs = makerngs(seed, size(ml.matrix, 1))
-    # Populate this matrix with species abundances
-    popfun(ml, spplist, habitat, nichefit, rngs)
-    # Create lookup table of all moves and their probabilities
-    lookup_tab = collect(map(k -> genlookups(habitat.regime, k),
-                             getkernels(spplist.movement)))
-    nm = zeros(Int64, size(ml.matrix))
-    totaldemand = zeros(Float64, (size(ml.matrix, 2), numdemands(DM)))
-    return Ecosystem{typeof(habitat), typeof(spplist), typeof(nichefit)}(ml,
-                                                                         spplist,
-                                                                         habitat,
-                                                                         nichefit,
-                                                                         lookup_tab,
-                                                                         Cache(nm,
-                                                                               totaldemand,
-                                                                               false),
-                                                                         rngs,
-                                                                         0.0s,
-                                                                         _storedseed(seed))
-end
-
-function Ecosystem(spplist::SpeciesList,
-                   habitat::GridHabitat,
-                   nichefit::AbstractNicheFit;
-                   seed::Integer = rand(UInt64))
-    eco = Ecosystem(populate!, spplist, habitat, nichefit, seed = seed)
-    # `populate!` places as the default placement does, so re-placing repeats it.
-    eco.placement = DefaultEcosystem()
-    return eco
-end
-
-# The constructor's own docstring, looked up by signature: `@doc Ecosystem` would return the type's
-# docstring and the constructor's together, which the documentation build cannot render as one.
-@doc (@doc Ecosystem(::Function, ::SpeciesList, ::GridHabitat,
-                     ::AbstractNicheFit)) Ecosystem(::SpeciesList,
-                                                    ::GridHabitat,
-                                                    ::AbstractNicheFit)
 
 """
     CachedEcosystem{Part <: AbstractHabitat, SL <: SpeciesList,
@@ -682,12 +610,10 @@ function makeunique(eco::Ecosystem)
                           UniqueTypes,
                           typeof(sppl.params)}(sppl.names,
                                                sppl.tolerance,
-                                               sppl.abun,
                                                sppl.demand,
                                                _uniquetypes(sppl.names),
                                                sppl.movement,
                                                sppl.params,
-                                               sppl.native,
                                                provenance = sppl.inputs,
                                                traits = sppl.traits,
                                                filled = sppl.filled,
@@ -765,6 +691,37 @@ function makerngs(seed::Integer, n::Integer)
     return [Random.Xoshiro(UInt64[seed % UInt64, j]) for j in 1:n]
 end
 
+# An ecosystem of `spplist` in `habitat` with no individuals yet, its streams made from `seed`: what
+# `build_ecosystem` places into.
+function _emptyecosystem(spplist::SpeciesList{TL, DM}, habitat::GridHabitat,
+                         nichefit::AbstractNicheFit;
+                         seed::Integer = rand(UInt64)) where {TL, DM}
+    # **First, and before `genlookups` below.** The inner constructor checks this too, but it runs
+    # last, and `genlookups` divides the regime's cell size by a dispersal distance, so on a
+    # geographic grid (`size` in `°`) it would raise `DimensionError: ° km^-1` before the tailored
+    # message is reached.
+    _checksimulatable(habitat)
+    ml = empty_landscape(habitat, spplist)
+    # One deterministically-seeded RNG per species, so births, deaths, dispersal and the placement
+    # are reproducible across thread counts.
+    rngs = makerngs(seed, size(ml.matrix, 1))
+    lookup_tab = collect(map(k -> genlookups(habitat.regime, k),
+                             getkernels(spplist.movement)))
+    nm = zeros(Int64, size(ml.matrix))
+    totaldemand = zeros(Float64, (size(ml.matrix, 2), numdemands(DM)))
+    return Ecosystem{typeof(habitat), typeof(spplist), typeof(nichefit)}(ml,
+                                                                         spplist,
+                                                                         habitat,
+                                                                         nichefit,
+                                                                         lookup_tab,
+                                                                         Cache(nm,
+                                                                               totaldemand,
+                                                                               false),
+                                                                         rngs,
+                                                                         0.0s,
+                                                                         _storedseed(seed))
+end
+
 # Narrow a user-supplied seed of any integer type to the `UInt64` the ecosystem stores. `%` rather
 # than `UInt64(...)`, so a negative seed reinterprets rather than throwing - `seed` only ever seeds
 # a stream, it is never used as a magnitude. `makerngs` narrows the same way, so the stored seed
@@ -800,9 +757,6 @@ function _addspecies!(eco::AbstractEcosystem, abun::Integer;
     repopulate!(eco, abun)
     push!(eco.spplist.names, isnothing(name) ? string(n + 1) : name)
     _addidentity!(eco.spplist, eco.spplist.names[end])
-    append!(eco.spplist.abun, abun)
-    # An arrival carrying its own traits is by definition not native.
-    append!(eco.spplist.native, all(isnothing, (tolerance, demand, dispersal)))
     push!(eco.spplist.susceptible, missing)
     _addtolerance!(eco.spplist.tolerance, tolerance)
     _addmovement!(eco.spplist.movement, dispersal)

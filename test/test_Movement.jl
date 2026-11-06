@@ -8,6 +8,7 @@ using EcoSISTEM
 using EcoSISTEM: Periodic, Bounded, EdgeTopology
 using Test
 using Distributions
+using DataFrames: DataFrame
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
 
@@ -55,11 +56,15 @@ end
                           supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                                axis = SolarRadiation),
                           area = area, topology = topology)
-        sp = build_species(1, tolerance = (298.0K, 3.0K),
-                           toleranceaxis = Temperature,
-                           demand = 1.0e9kJ / day, demandaxis = SolarRadiation,
-                           dispersal = 1.2km, abundance = 0, seed = 1)
-        eco = build_ecosystem(sp, env, seed = 1)
+        sp = build_species(SpeciesPool(1),
+                           tolerance = ToleranceSpec(Temperature, μ = 298.0K,
+                                                     σ = 3.0K),
+                           demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
+                           movement = MovementSpec(InsectDispersal(),
+                                                   meandist = 1.2km),
+                           seed = 1, verbosity = :silent)
+        eco = build_ecosystem(NoAbundance(), sp, env, seed = 1,
+                              verbosity = :silent)
         ny, nx = size(eco.abundances.grid, 2), size(eco.abundances.grid, 3)
         eco.abundances.grid .= 0
         eco.abundances.grid[1, 1, 1] = 100_000        # a corner
@@ -120,14 +125,17 @@ end
                 iseven(y + x) && (env.active[y, x] = false)
             end
         end
-        species = build_species(20, tolerance = (298.0K, 3.0K),
-                                toleranceaxis = Temperature,
-                                demand = 1.0e9kJ / day,
-                                demandaxis = SolarRadiation,
-                                movement = InsectDispersal(),
-                                disperse_safely = safely,
-                                abundance = 10_000, seed = 1)
-        eco = build_ecosystem(species, env, seed = 1)
+        species = build_species(SpeciesPool(20),
+                                tolerance = ToleranceSpec(Temperature,
+                                                          μ = 298.0K,
+                                                          σ = 3.0K),
+                                demand = DemandSpec(SolarRadiation,
+                                                    1.0e9kJ / day),
+                                movement = MovementSpec(InsectDispersal(disperse_safely = safely),
+                                                        meandist = 10.0km),
+                                seed = 1, verbosity = :silent)
+        eco = build_ecosystem(BySupply(total = 10_000), species, env, seed = 1,
+                              verbosity = :silent)
         simulate!(eco, 2.0year, 1.0month_mean_duration)
         return sum(eco.abundances.matrix)
     end
@@ -163,15 +171,25 @@ end
                       supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                            axis = SolarRadiation),
                       area = area)
-    mixed = build_species(2, tolerance = (298.0K, 3.0K),
-                          toleranceaxis = Temperature,
-                          demand = 1.0e9kJ / day, demandaxis = SolarRadiation,
-                          movement = InsectDispersal(),
-                          disperse_safely = [true, false],
-                          abundance = 10_000, seed = 1)
+    pool = SpeciesPool(DataFrame(species = ["1", "2"],
+                                 safely = [true, false]),
+                       verbosity = :silent)
+    mixed = build_species(pool,
+                          tolerance = ToleranceSpec(Temperature, μ = 298.0K,
+                                                    σ = 3.0K),
+                          demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
+                          movement = ChosenBy(:safely,
+                                              true =>
+                                                  MovementSpec(InsectDispersal(),
+                                                               meandist = 10.0km),
+                                              false =>
+                                                  MovementSpec(InsectDispersal(disperse_safely = false),
+                                                               meandist = 10.0km)),
+                          seed = 1, verbosity = :silent)
     @test [EcoSISTEM.dispersesafely(mixed.movement, sp) for sp in 1:2] ==
           [true, false]
-    eco = build_ecosystem(mixed, env, seed = 1)
+    eco = build_ecosystem(BySupply(total = 10_000), mixed, env, seed = 1,
+                          verbosity = :silent)
     simulate!(eco, 2.0year, 1.0month_mean_duration)
     # The lossy species must end up worse off than the safe one on the *same* grid, under the
     # same seed - which is only a meaningful comparison because they now genuinely differ.

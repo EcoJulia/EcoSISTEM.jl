@@ -99,7 +99,7 @@ function varying_optima(numspecies = VARYING_SPECIES)
                                      length = numspecies)
 end
 
-function varying_species(; numspecies = VARYING_SPECIES, seed = 0)
+function varying_species(; numspecies = VARYING_SPECIES)
     vars = fill(2.0K, numspecies)
     opts = varying_optima(numspecies)
     demand = SpeciesRequirementCollection((Demand{SolarRadiation}(fill(4.0e5kJ /
@@ -115,25 +115,30 @@ function varying_species(; numspecies = VARYING_SPECIES, seed = 0)
     movement = BirthOnlyMovement(GaussianKernel.(fill(1.5km, numspecies),
                                                  10e-10))
     param = EqualPop(0.15 / year, 0.15 / year, 1.0, 0.1)
-    # Drawn from the *seeded* stream, never the global RNG, or the starting state would differ
-    # between runs and nothing downstream could be blessed.
-    rng = Random.Xoshiro(seed)
-    abun = rand(rng, Multinomial(100_000, numspecies))
     tolerance = NicheTolerance(Temperature, Normal, opts, vars)
-    return SpeciesList(numspecies, tolerance, abun, demand, movement, param,
-                       fill(true, numspecies)), tolerance
+    return SpeciesList(numspecies, tolerance, demand, movement, param),
+           tolerance
+end
+
+# Each species' starting count, drawn from the *seeded* stream, never the global RNG, or the
+# starting state would differ between runs and nothing downstream could be blessed.
+function varying_abundances(; numspecies = VARYING_SPECIES, seed = 0)
+    return rand(Random.Xoshiro(seed), Multinomial(100_000, numspecies))
 end
 
 """
     varying_ecosystem(; seed = 0, numspecies = VARYING_SPECIES)
 
-Build the shared non-uniform, non-square, time-varying ecosystem. Returns a plain `Ecosystem`; the
-MPI test builds an `MPIEcosystem` from the same `SpeciesList`/environment instead.
+Build the shared non-uniform, non-square, time-varying ecosystem, each species' starting count placed
+by supply. Returns a plain `Ecosystem`, serial even under MPI.
 """
 function varying_ecosystem(; seed = 0, numspecies = VARYING_SPECIES)
     env = varying_environment()
-    sppl, tolerance = varying_species(numspecies = numspecies, seed = seed)
-    return Ecosystem(sppl, env, NicheSuitability(tolerance), seed = seed)
+    sppl, tolerance = varying_species(numspecies = numspecies)
+    abun = varying_abundances(numspecies = numspecies, seed = seed)
+    return build_ecosystem(BySupply(each = row -> abun[row.key]), sppl, env,
+                           nichefit = NicheSuitability(tolerance), seed = seed,
+                           distributed = false)
 end
 
 # -- The fixture the serial-versus-distributed pinning uses --------------------------------------
@@ -207,18 +212,18 @@ function mpifixture_generalspecies(; numspecies = VARYING_SPECIES,
     return SpeciesList{typeof(sppl.tolerance), typeof(sppl.demand),
                        typeof(sppl.movement), typeof(types),
                        typeof(sppl.params)}(sppl.names, sppl.tolerance,
-                                            sppl.abun, sppl.demand, types,
-                                            sppl.movement, sppl.params,
-                                            sppl.native), tolerance
+                                            sppl.demand, types, sppl.movement,
+                                            sppl.params), tolerance
 end
 
 # The serial ecosystem built on that dense similarity matrix, filled exactly as the distributed one
-# is. Uses `Ecosystem` directly rather than `build_ecosystem`, which would detect a live MPI session
-# and hand back a distributed ecosystem instead - so this stays serial on whichever rank calls it.
+# is. Serial whichever rank builds it, since a live MPI session would otherwise make it distributed.
 function mpifixture_generalecosystem(; seed = 0, numspecies = VARYING_SPECIES)
     sppl, _ = mpifixture_generalspecies(numspecies = numspecies)
-    eco = Ecosystem(sppl, varying_environment(), mpifixture_nichefit(),
-                    seed = seed)
+    eco = build_ecosystem(mpifixture_placement(numspecies), sppl,
+                          varying_environment(),
+                          nichefit = mpifixture_nichefit(), seed = seed,
+                          distributed = false)
     eco.abundances.matrix .= MPIFIXTURE_FILL
     return eco
 end
@@ -227,6 +232,14 @@ function mpifixture_intervention()
     return Intervention(AtTimes([3.0month_mean_duration,
                                     9.0month_mean_duration]),
                         AllCells(), AddAbundance(1, 5))
+end
+
+# The placement every MPI fixture is built with, serial or distributed, before its abundances are
+# overwritten with `MPIFIXTURE_FILL`. It places only to draw from the species' streams, which the
+# dynamics go on to draw from: the blessed `mpi/...` references were run from streams so advanced.
+function mpifixture_placement(numspecies = VARYING_SPECIES)
+    return BySupply(each = div(1_000,
+                               numspecies))
 end
 
 # The demographic parameters both MPI fixtures share, named once for the reason the kernels are.
@@ -248,10 +261,8 @@ function mpifixture_species(; numspecies = VARYING_SPECIES,
     # kill everything -- a run where nothing survives compares equal across ranks for the wrong reason.
     tolerance = NicheTolerance(Temperature, Normal, varying_optima(numspecies),
                                fill(2.0K, numspecies))
-    return SpeciesList(numspecies, tolerance,
-                       fill(div(1_000, numspecies), numspecies), demand,
-                       movement,
-                       params, fill(true, numspecies)), tolerance
+    return SpeciesList(numspecies, tolerance, demand, movement, params),
+           tolerance
 end
 
 mpifixture_nichefit() = NicheSuitability{Temperature, typeof(1.0K)}()
@@ -272,10 +283,12 @@ function mpifixture_ecosystem(; seed = 0, numspecies = VARYING_SPECIES,
                               params = mpifixture_params())
     sppl, _ = mpifixture_species(numspecies = numspecies, movement = movement,
                                  params = params)
-    eco = Ecosystem(sppl, varying_environment(), mpifixture_nichefit(),
-                    seed = seed)
-    # Filled artificially rather than populated, so the starting state is identical on every rank
-    # without depending on how `populate!` divided the draw.
+    eco = build_ecosystem(mpifixture_placement(numspecies), sppl,
+                          varying_environment(),
+                          nichefit = mpifixture_nichefit(), seed = seed,
+                          distributed = false)
+    # Filled artificially, so the starting state is identical on every rank whatever the placement
+    # drew.
     eco.abundances.matrix .= MPIFIXTURE_FILL
     return eco
 end

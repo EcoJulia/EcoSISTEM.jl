@@ -10,6 +10,7 @@
 using EcoSISTEM
 using EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
+using DataFrames: DataFrame
 using Distributions
 using Random
 
@@ -43,22 +44,29 @@ numspecies = 12
 
 # Each species gets its own random temperature niche (mean drawn across the gradient's own
 # range, so every niche is genuinely reachable somewhere on the grid) and its own random
-# dispersal distance - `build_species` accepts a per-species vector for any of these keywords.
+# dispersal distance, each a column of the species pool's table that the specs below read by name.
 # A tolerance's mean (a position) and width (an interval) must share one unit, so the °C means
 # (drawn across the gradient's 10-30 °C range) are converted to the K frame the widths use.
 niche_means = uconvert.(K, rand(Uniform(10, 30), numspecies) * °C)
 niche_widths = rand(Uniform(1.0, 4.0), numspecies) * K
 dispersal = rand(Uniform(1.0, 5.0), numspecies) * km
 
-species = build_species(numspecies, tolerance = (niche_means, niche_widths),
-                        toleranceaxis = Temperature, dispersal = dispersal,
-                        demand = 5.0kJ / day, demandaxis = SolarRadiation,
-                        # A total of 5000 individuals, split at random across species - genuinely
-                        # random initial abundances, reproducible via `seed`.
-                        abundance = 5000, seed = seed)
+pool = SpeciesPool(DataFrame(species = string.(1:numspecies),
+                             optimum = niche_means, width = niche_widths,
+                             dispersal = dispersal))
+species = build_species(pool,
+                        tolerance = ToleranceSpec(Temperature,
+                                                  μ = TraitColumn(:optimum),
+                                                  σ = TraitColumn(:width)),
+                        demand = DemandSpec(SolarRadiation, 5.0kJ / day),
+                        movement = MovementSpec(InsectDispersal(),
+                                                meandist = TraitColumn(:dispersal)),
+                        seed = seed, verbosity = :silent)
 
 # --- assemble and simulate ----------------------------------------------------
-eco = build_ecosystem(species, habitat, seed = seed, verbosity = :silent)
+# A total of 5000 individuals, split at random across species - genuinely random initial
+# abundances, reproducible via `seed` - and placed by supply.
+eco = build_ecosystem(BySupply(total = 5000), species, habitat, seed = seed)
 
 times = 10year
 timestep = 1month_mean_duration

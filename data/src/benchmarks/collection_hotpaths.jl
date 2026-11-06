@@ -44,8 +44,11 @@
 # `Threads.@threads`, and the scheduling noise swamps the millisecond differences this is looking for.
 #
 # This script is written against the current API, so it will not run unaltered against a tree
-# older than the one-type-per-family collections (v0.5.0). Four constructors need swapping for their
-# fixed-arity predecessors there, and nothing else: `LayerCollection((a, b))` ->
+# older than placements (v0.11.0), where the species list holds the starting abundances and the
+# ecosystem is built from it directly: `SpeciesList(NSPP, tolerance, abun, demand, movement, param,
+# fill(true, NSPP))` and `Ecosystem(species, habitat, nichefit, seed = SEED)`. Older than the
+# one-type-per-family collections (v0.5.0), four constructors also need swapping for their
+# fixed-arity predecessors, and nothing else: `LayerCollection((a, b))` ->
 # `RegimeCollection2(a, b)` for a regime and `SupplyCollection2(a, b)` for a supply,
 # `SpeciesRequirementCollection((a, b))` -> `ToleranceCollection2(a, b)`, `SpeciesRequirementCollection((a, b))` ->
 # `DemandCollection2(a, b)`, and `MultiplicativeFit((a, b))` -> `MultiplicativeFit2(a, b)`.
@@ -124,9 +127,9 @@ function build(nregimes::Int, nsupplies::Int)
                     NSPP)
     # `build_species`' own defaults - see the warning in the header about `survival = 0.0`.
     param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2)
-    species = SpeciesList(NSPP, tolerance, abun, demand, movement, param,
-                          fill(true, NSPP))
-    return Ecosystem(species, habitat, nichefit, seed = SEED)
+    species = SpeciesList(NSPP, tolerance, demand, movement, param)
+    return build_ecosystem(BySupply(each = row -> abun[row.key]), species,
+                           habitat, nichefit = nichefit, seed = SEED)
 end
 
 # The fastest of `REPEATS` timings, after one untimed call to pay for compilation. The minimum

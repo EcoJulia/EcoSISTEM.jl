@@ -100,6 +100,11 @@ else
                            topology = topology)
     end
 
+    # A per-species value as `build_species` reads it: one value for every species as it stands, and
+    # a vector as a function of the species' row of its pool, whose `key` is the species' position.
+    _pertrait(x::AbstractVector) = row -> x[row.key]
+    _pertrait(x) = x
+
     """
         community(env, opts, widths; kw...)
 
@@ -108,22 +113,30 @@ else
 
     Every per-species keyword takes a scalar or a length-`n` vector, so a test can vary body size,
     dispersal or mortality across the pool without a different builder. `individuals` is a **total**,
-    split across species from the seeded stream - so the starting state is identical on every run,
-    without which none of the assertions here are reproducible.
+    split across species from the seeded stream and placed by supply - so the starting state is
+    identical on every run, without which none of the assertions here are reproducible.
     """
     function community(env, opts, widths; dispersal = 2.4km,
                        individuals = 100_000_000,
                        birth = 0.15 / year, death = 0.15 / year,
                        sizes = 1.0m^2, seed = SEED)
-        species = build_species(length(opts), tolerance = (opts, widths),
-                                toleranceaxis = Temperature,
-                                demand = map(d -> d .* sizes, DEMAND),
-                                demandaxis = (sunlight = SolarRadiation,
-                                              water = Precipitation),
-                                dispersal = dispersal,
-                                birth = birth, death = death, survival = 0.1,
-                                abundance = individuals, seed = seed)
-        return build_ecosystem(species, env, seed = seed, verbosity = :silent)
+        species = build_species(SpeciesPool(length(opts)),
+                                tolerance = ToleranceSpec(Temperature,
+                                                          μ = _pertrait(opts),
+                                                          σ = _pertrait(widths)),
+                                demand = (sunlight = DemandSpec(SolarRadiation,
+                                                                _pertrait(DEMAND.sunlight .*
+                                                                          sizes)),
+                                          water = DemandSpec(Precipitation,
+                                                             _pertrait(DEMAND.water .*
+                                                                       sizes))),
+                                movement = MovementSpec(InsectDispersal(),
+                                                        meandist = _pertrait(dispersal)),
+                                birth = _pertrait(birth),
+                                death = _pertrait(death), survival = 0.1,
+                                seed = seed, verbosity = :silent)
+        return build_ecosystem(BySupply(total = individuals), species, env,
+                               seed = seed)
     end
 
     # Run for `times` and hand back the ecosystem, so each assertion reads as one statement.

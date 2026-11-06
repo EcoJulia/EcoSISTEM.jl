@@ -24,17 +24,20 @@ function climate_ecosystem(; numspecies = configuration().numspecies,
                       area = study_area())
     # Both sides named, and `build_ecosystem` insists: a named regime against a positional
     # tolerance is refused outright, because it cannot then check them layer for layer.
-    species = build_species(numspecies,
-                            tolerance = (temperature = (285.0K, 5.0K),
-                                         rainfall = (5.0mm / day,
-                                                     2.0mm / day)),
-                            toleranceaxis = (temperature = Temperature,
-                                             rainfall = Precipitation),
-                            demand = intervention_demand(),
-                            demandaxis = SolarRadiation,
-                            abundance = individuals,
-                            seed = seed)
-    return build_ecosystem(species, env, seed = seed, verbosity = :silent)
+    species = build_species(SpeciesPool(numspecies),
+                            tolerance = (temperature = ToleranceSpec(Temperature,
+                                                                     μ = 285.0K,
+                                                                     σ = 5.0K),
+                                         rainfall = ToleranceSpec(Precipitation,
+                                                                  μ = 5.0mm /
+                                                                      day,
+                                                                  σ = 2.0mm /
+                                                                      day)),
+                            demand = DemandSpec(SolarRadiation,
+                                                intervention_demand()),
+                            seed = seed, verbosity = :silent)
+    return build_ecosystem(BySupply(total = individuals), species, env,
+                           seed = seed)
 end
 
 # ---------------------------------------------------------------------------

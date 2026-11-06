@@ -114,37 +114,26 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
     end
 end
 
-EcoSISTEM.MPIEcosystem(args...; kwargs...) = MPIEcosystem(args...; kwargs...)
-
 # With the MPI extension loaded, auto-selection (in `build_ecosystem`) treats the process as
 # distributed only once MPI is initialised and there is more than one rank - so `mpirun -n 1` or a
 # plain `using MPI` still builds a serial `Ecosystem`.
 EcoSISTEM._should_mpi() = MPI.Initialized() && MPI.Comm_size(MPI.COMM_WORLD) > 1
 
 using EcoSISTEM: getkernels, genlookups, numdemands, _checksimulatable
-"""
-    MPIEcosystem(spplist::SpeciesList, habitat::GridHabitat,
-                 nichefit::AbstractNicheFit)
-
-Create an `MPIEcosystem` given a species list, an abiotic environment and trait
-nichefit.
-
-Every rank takes the first rank's species list and seed, so each simulates the same species from the
-same streams: with no `seed`, the first rank draws one; a `seed` given on some ranks and not others,
-or differently on different ranks, is an error on every rank. Every rank must make the call. The
-other ranks hold a copy of the first rank's list rather than the one they were given.
-"""
-function MPIEcosystem(popfun::F,
-                      spplist::EcoSISTEM.SpeciesList{T, DM},
-                      habitat::EcoSISTEM.GridHabitat,
-                      nichefit;
-                      seed::Union{Integer, Nothing} = nothing) where {F <:
-                                                                      Function,
-                                                                      T, DM}
-    # **First, exactly as in the serial `Ecosystem` constructor and for the same reason.**
+# An ecosystem of `spplist` in `habitat` with no individuals yet, distributed: what `build_ecosystem`
+# places into. Every rank takes the first rank's species list and seed, so each simulates the same
+# species from the same streams: with no `seed`, the first rank draws one; a `seed` given on some ranks
+# and not others, or differently on different ranks, is an error on every rank. Every rank must make
+# the call, and the other ranks hold a copy of the first rank's list rather than the one they were
+# given.
+function EcoSISTEM._emptympiecosystem(spplist::EcoSISTEM.SpeciesList{T, DM},
+                                      habitat::EcoSISTEM.GridHabitat, nichefit;
+                                      seed::Union{Integer, Nothing} = nothing) where {T,
+                                                                                      DM}
+    # **First, exactly as in the serial `_emptyecosystem` and for the same reason.**
     # `genlookups` below divides the regime's cell size by a dispersal distance, so on a geographic
     # grid (`size` in `°`) it raises `DimensionError: ° km^-1` before any tailored message is reached.
-    # **Keep it in step with the serial constructor by hand**: `test/SmallMPItest.jl` builds a
+    # **Keep it in step with the serial builder by hand**: `test/SmallMPItest.jl` builds a
     # synthetic grid, so the geographic case is never exercised under MPI and nothing would catch
     # this guard going missing.
     _checksimulatable(habitat)
@@ -177,9 +166,6 @@ function MPIEcosystem(popfun::F,
     # Create matrix landscape of zero abundances
     ml = EcoSISTEM.empty_landscape(habitat, spplist, sppcounts, sccounts)
 
-    # Populate this matrix with species abundances
-    popfun(ml, spplist, habitat, nichefit, rngs)
-
     rankspp = firstsp:sppindices[rank + 2]
     lookup_tab = collect(map(k -> genlookups(habitat.regime, k),
                              @view getkernels(spplist.movement)[rankspp]))
@@ -199,19 +185,6 @@ function MPIEcosystem(popfun::F,
                         0.0s,
                         EcoSISTEM._storedseed(seed))
 end
-
-function MPIEcosystem(spplist::EcoSISTEM.SpeciesList,
-                      habitat::EcoSISTEM.GridHabitat, nichefit;
-                      seed::Union{Integer, Nothing} = nothing)
-    eco = MPIEcosystem(EcoSISTEM.populate!, spplist, habitat, nichefit;
-                       seed = seed)
-    # `populate!` places as the default placement does, so re-placing repeats it.
-    eco.placement = EcoSISTEM.DefaultEcosystem()
-    return eco
-end
-@doc (@doc MPIEcosystem) MPIEcosystem(::EcoSISTEM.SpeciesList,
-                                      ::EcoSISTEM.GridHabitat,
-                                      ::Any)
 
 # The seed every rank uses: the one each rank was given, which must be the same everywhere, or
 # with none given anywhere, one the first rank draws. Collective. Every rank checks the same gathered

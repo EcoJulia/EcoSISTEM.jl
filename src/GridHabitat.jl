@@ -436,8 +436,8 @@ end
 # resource": supply constructors preserve their `NaN`s so the grid builder can *see* the gaps (they
 # mark cells inactive, warn, and trim the grid), and only once that has happened is the information
 # safe to discard. It keeps the defensive property that no `NaN` ever reaches the resource arithmetic
-# or `populate!`'s supply-weighted placement, where it would throw or silently spread every
-# individual onto nothing.
+# or a placement's supply weights, where it would throw or silently spread every individual onto
+# nothing.
 #
 # **It deliberately does NOT zero merely-inactive cells** - that is the `active` mask's job, and
 # `active` is read live. Zeroing them here would destroy the supply of any cell that might later be

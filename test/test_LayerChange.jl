@@ -45,7 +45,6 @@ end
 # fixture and so had never run.
 function _alignedspecies(demand)
     n = 3
-    abun = rand(Multinomial(100, n))
     tolerance = NicheTolerance(Temperature, Normal, fill(1.0K, n),
                                fill(0.1K, n))
     movement = fill(InsectDispersal()(meandist = 1.0km,
@@ -54,8 +53,7 @@ function _alignedspecies(demand)
     # `longevity`/`survival` are plain `Float64`s; only the two rates carry a unit.
     param = EqualPop(0.1 / month_mean_duration, 0.1 / month_mean_duration, 1.0,
                      0.1)
-    return SpeciesList(n, tolerance, abun, demand, movement, param,
-                       fill(true, n))
+    return SpeciesList(n, tolerance, demand, movement, param)
 end
 
 @testset "Condition update" begin
@@ -94,10 +92,14 @@ end
     @test varying.supply.change isa SeriesLayerChange
     # The species list is incidental to what is under test - a series-backed layer advancing by
     # elapsed time - so it only has to align with this habitat: one `SolarRadiation` demand.
-    eco = Ecosystem(_alignedspecies(Demand{SolarRadiation}(fill(2.0kJ / day, 3))),
-                    varying,
-                    NicheSuitability{EcoSISTEM.axisof(varying.regime),
-                                     eltype(varying.regime)}())
+    eco = build_ecosystem(BySupply(total = 100),
+                          _alignedspecies(Demand{SolarRadiation}(fill(2.0kJ /
+                                                                      day,
+                                                                      3))),
+                          varying,
+                          nichefit = NicheSuitability{EcoSISTEM.axisof(varying.regime),
+                                                      eltype(varying.regime)}(),
+                          verbosity = :silent)
     @test_nowarn EcoSISTEM.regimeupdate!(eco, 1month_mean_duration)
     @test_nowarn EcoSISTEM.supplyupdate!(eco, 1month_mean_duration)
 end
@@ -600,7 +602,7 @@ end
     # Regression. A supply's data gaps become "no resource" when it is placed in a habitat, but a
     # series holds the slices it will write on *later* steps. Cleaning only the matrix would let the
     # first update put the `NaN`s straight back - one step late, and where they reach the resource
-    # arithmetic and `populate!`'s supply-weighted placement.
+    # arithmetic and the supply-weighted placement.
     stack = cat(fill(10.0kJ / day, 3, 3), fill(20.0kJ / day, 3, 3), dims = 3)
     stack[1, 1, :] .= NaN * kJ / day
     supply = EcoSISTEM._setseries!(Supply{SolarRadiation}(_ongrid(stack[:, :,
@@ -901,11 +903,14 @@ end
                           supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                                axis = SolarRadiation),
                           area = area())
-        spp = build_species(3, tolerance = (285.0K, 30.0K),
-                            toleranceaxis = Temperature,
-                            demand = 1.0e5kJ / day, demandaxis = SolarRadiation,
-                            abundance = 100, seed = 1)
-        return build_ecosystem(spp, env; seed = 1, kw...)
+        spp = build_species(SpeciesPool(3),
+                            tolerance = ToleranceSpec(Temperature, μ = 285.0K,
+                                                      σ = 30.0K),
+                            demand = DemandSpec(SolarRadiation,
+                                                1.0e5kJ / day),
+                            seed = 1, verbosity = :silent)
+        return build_ecosystem(BySupply(total = 100), spp, env; seed = 1,
+                               verbosity = :silent, kw...)
     end
     shown(eco) = round(Int, ustrip(K, eco.habitat.regime.matrix[1, 1])) - 279
     month = 1.0month_mean_duration
@@ -1109,11 +1114,14 @@ end
                           supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                                axis = SolarRadiation),
                           area = area)
-        spp = build_species(3, tolerance = (285.0K, 5.0K),
-                            toleranceaxis = Temperature,
-                            demand = 1.0e9kJ / day, demandaxis = SolarRadiation,
-                            abundance = 300, seed = 1)
-        build_ecosystem(spp, env, seed = 1, verbosity = :silent)
+        spp = build_species(SpeciesPool(3),
+                            tolerance = ToleranceSpec(Temperature, μ = 285.0K,
+                                                      σ = 5.0K),
+                            demand = DemandSpec(SolarRadiation,
+                                                1.0e9kJ / day),
+                            seed = 1, verbosity = :silent)
+        build_ecosystem(BySupply(total = 300), spp, env, seed = 1,
+                        verbosity = :silent)
     end
 
     # Caught BEFORE the first timestep: a constant rate over a known duration has a predictable

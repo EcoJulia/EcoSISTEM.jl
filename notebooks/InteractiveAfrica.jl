@@ -99,15 +99,12 @@ begin
                   numSpecies)
     movement = AlwaysDispersal().(kernel)
 
-    # Create species list, including their temperature preferences, seed abundance and native status
+    # Create species list, including their temperature preferences
     opts = fill(274.0K, numSpecies)
     vars = fill(50.0K, numSpecies)
     vars[end] = (1 / niche_width) * K
     tolerance = NicheTolerance(Temperature, Normal, opts, vars)
-    native = fill(true, numSpecies)
-    abun = fill(div(individuals, numSpecies), numSpecies)
-    sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
-                       movement, param, native)
+    sppl = SpeciesList(numSpecies, tolerance, resource_vec, movement, param)
     sppl.params.birth
 
     # Create abiotic environment - an even grid of one temperature, on the Africa-shaped grid
@@ -122,9 +119,12 @@ begin
     # Set nichefit between species and environment (gaussian)
     nichefit = NicheSuitability{Temperature, typeof(1.0K)}()
 
-    # Create ecosystem
-    eco = Ecosystem(sppl, habitat, nichefit)
-    eco.abundances.matrix[end, :] .= 0
+    # Create ecosystem, every species but the invader (the last) starting with an equal share of
+    # the individuals, placed by supply
+    eco = build_ecosystem(BySupply(each = row -> row.key < numSpecies ?
+                                                 div(individuals, numSpecies) :
+                                                 0),
+                          sppl, habitat, nichefit = nichefit)
 
     # Simulation Parameters
     burnin = 1year
@@ -181,7 +181,7 @@ end
 begin
     # The grid is decided before anything is built on it. Real climate data has to be simulated on a
     # *projected* grid: dispersal assumes one uniform cell size, whereas a degree grid's cells shrink
-    # towards the poles, so `Ecosystem` refuses a geographic one. Africa Albers Equal Area Conic is
+    # towards the poles, so `build_ecosystem` refuses a geographic one. Africa Albers Equal Area Conic is
     # the natural choice for the whole continent - equal-area, so a cell really does mean the same
     # amount of ground everywhere, which is what the ecology depends on.
     albers_new = ProjString("+proj=aea +lat_1=20 +lat_2=-23 +lat_0=0 " *
@@ -218,14 +218,12 @@ begin
                       numSpecies)
     movement_new = AlwaysDispersal().(kernel)
 
-    # Create species list, including their temperature preferences, seed abundance and native status
+    # Create species list, including their temperature preferences
     opts_new = fill(meantemp * 1.0K, numSpecies)
     vars_new = fill(5.0K, numSpecies)
     trts_new = NicheTolerance(Temperature, Normal, opts_new, vars_new)
-    native_new = fill(true, numSpecies)
-    abun_new = fill(div(individuals_new, numSpecies), numSpecies)
-    sppl_new = SpeciesList(numSpecies, trts_new, abun_new, energy_vec_new,
-                           movement_new, param_new, native_new)
+    sppl_new = SpeciesList(numSpecies, trts_new, energy_vec_new, movement_new,
+                           param_new)
     sppl.params.birth
 
     # Build the environment on that decided grid: the regime is the real bio1 temperature layer,
@@ -237,8 +235,10 @@ begin
     # Set nichefit between species and environment (gaussian)
     rel_new = NicheSuitability{Temperature, typeof(1.0K)}()
 
-    # Create ecosystem
-    eco_new = Ecosystem(sppl_new, abenv_new, rel_new)
+    # Create ecosystem, every species starting with an equal share of the individuals, placed by
+    # supply
+    eco_new = build_ecosystem(BySupply(each = div(individuals_new, numSpecies)),
+                              sppl_new, abenv_new, nichefit = rel_new)
 
     # Simulation Parameters
     burnin_new = 1year

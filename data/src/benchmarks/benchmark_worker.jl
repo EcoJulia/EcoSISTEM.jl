@@ -88,24 +88,24 @@ function build_model(mode::AbstractString)
                                                    axis = SolarRadiation),
                               area = area)
 
-    # `abundance` is given as an explicit **even** split rather than the integer total, which
-    # `build_species` would instead divide up at random: every species doing the same work is what
-    # makes a short run a stable speed estimate.
-    species = build_species(NUM_SPECIES,
-                            tolerance = (274.0K, 0.5K),
-                            toleranceaxis = Temperature,
-                            demand = 1.0kJ / day, demandaxis = SolarRadiation,
-                            dispersal = 1.0km, pthresh = 10e-10,
-                            movement = InsectDispersal(),
+    species = build_species(SpeciesPool(NUM_SPECIES),
+                            tolerance = ToleranceSpec(Temperature, μ = 274.0K,
+                                                      σ = 0.5K),
+                            demand = DemandSpec(SolarRadiation, 1.0kJ / day),
+                            movement = MovementSpec(InsectDispersal(),
+                                                    meandist = 1.0km,
+                                                    thresh = 10e-10),
                             birth = 0.6 / year, death = 0.6 / year,
-                            longevity = 1.0, survival = 0.2,
-                            abundance = fill(div(INDIVIDUALS, NUM_SPECIES),
-                                             NUM_SPECIES),
-                            native = true)
+                            longevity = 1.0, survival = 0.2)
 
+    # Every species is given the same number of individuals (`each`) rather than a share of a
+    # community total, which `BySupply(total = ...)` would divide up at random: every species doing
+    # the same work is what makes a short run a stable speed estimate.
+    #
     # `distributed` is forced rather than left at `:auto`, which would build a serial `Ecosystem`
     # on a single rank and so quietly benchmark the wrong container.
-    return build_ecosystem(species, environment, seed = SEED,
+    return build_ecosystem(BySupply(each = div(INDIVIDUALS, NUM_SPECIES)),
+                           species, environment, seed = SEED,
                            distributed = mode == "mpi")
 end
 

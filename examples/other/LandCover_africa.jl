@@ -67,18 +67,20 @@ const LIVEABLE = (:needleleaf_trees, :evergreen_broadleaf_trees,
                   :herbaceous, :cultivated_and_managed, :regularly_flooded)
 
 # A **pre-built** tolerance, which `build_species` accepts as it stands: a land-cover tolerance is
-# a set of acceptable classes, not a mean and a width, so there is no `(mean, width)` form for it and
-# no `toleranceaxis` to give - the tolerance already carries its own meaning. It does still declare
-# its `axis`, which is what pairs it with the `LandCoverTypology` regime above.
+# a set of acceptable classes, not a distribution's parameters, so there is no `ToleranceSpec` for
+# it - the tolerance already carries its own meaning. It does still declare its `axis`, which is what
+# pairs it with the `LandCoverTypology` regime above.
 tolerance = SimpleCategoricalTolerance([collect(EcoSISTEM.landcoverclass.(LIVEABLE))],
                                        axis = LandCoverTypology)
 
-species = build_species(1, tolerance = tolerance,
-                        demand = 10.0Unitful.L / day,
-                        demandaxis = Precipitation,
-                        dispersal = 2CELLSIZE, abundance = 20_000, seed = 1)
+species = build_species(SpeciesPool(1), tolerance = tolerance,
+                        demand = DemandSpec(Precipitation, 10.0Unitful.L / day),
+                        movement = MovementSpec(InsectDispersal(),
+                                                meandist = 2CELLSIZE),
+                        seed = 1)
 
-eco = build_ecosystem(species, env, seed = 1)
+# 20,000 individuals, placed by supply.
+eco = build_ecosystem(BySupply(total = 20_000), species, env, seed = 1)
 
 # --- run, recording monthly -------------------------------------------------------
 const INTERVAL = 1month_mean_duration

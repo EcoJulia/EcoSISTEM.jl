@@ -78,16 +78,15 @@ function Test1Ecosystem(; seed = nothing, grid = (5, 7), numspecies = 15,
         return mixed && sp % 4 == 0 ? NoDispersal()() :
                modes[mod1(sp, length(modes))](k)
     end
-    native = fill(true, numSpecies)
     resource = Demand{SolarRadiation}(fill(2.0kJ / day, numSpecies))
-    sppl = SpeciesList(numSpecies, numNiches, abun, resource, movement, param,
-                       native)
+    sppl = SpeciesList(numSpecies, numNiches, resource, movement, param)
 
     nichefit = CategoricalSuitability{EcoSISTEM.axisof(habitat.regime),
                                       eltype(habitat.regime)}()
-    eco = isnothing(seed) ? Ecosystem(sppl, habitat, nichefit) :
-          Ecosystem(sppl, habitat, nichefit, seed = seed)
-    return eco
+    # Each species' drawn count placed by supply; serial even under MPI.
+    return build_ecosystem(BySupply(each = row -> abun[row.key]), sppl, habitat,
+                           nichefit = nichefit, seed = seed,
+                           distributed = false)
 end
 
 function TestMultiEcosystem()
@@ -120,17 +119,15 @@ function TestMultiEcosystem()
 
     kernel = fill(GaussianKernel(meandist = 1.0km, thresh = 10e-04), numSpecies)
     movement = InsectDispersal().(kernel)
-    native = fill(true, numSpecies)
     resource1 = Demand{SolarRadiation}(fill(2.0kJ / day, numSpecies))
     resource2 = Demand{Precipitation}(fill(2.0Unitful.L / day, numSpecies))
     resource = SpeciesRequirementCollection((resource1, resource2))
     tolerance = NicheTolerance(Temperature, Normal, fill(10.0K, numSpecies),
                                fill(0.1K, numSpecies))
-    sppl = SpeciesList(numSpecies, tolerance, abun, resource, movement, param,
-                       native)
+    sppl = SpeciesList(numSpecies, tolerance, resource, movement, param)
 
     nichefit = NicheSuitability{EcoSISTEM.axisof(habitat.regime),
                                 eltype(habitat.regime)}()
-    eco = Ecosystem(sppl, habitat, nichefit)
-    return eco
+    return build_ecosystem(BySupply(each = row -> abun[row.key]), sppl, habitat,
+                           nichefit = nichefit, distributed = false)
 end

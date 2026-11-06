@@ -27,9 +27,11 @@ makeeco() = begin
                             supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                                  axis = SolarRadiation),
                             area = area)
-    species = build_species(5, tolerance = (285.0K, 5.0K), toleranceaxis = Temperature, demand = 1.0e9kJ / day, demandaxis = SolarRadiation,
-                            abundance = 10_000, seed = 1)
-    build_ecosystem(species, env, seed = 1, verbosity = :silent)
+    species = build_species(SpeciesPool(5),
+                            tolerance = ToleranceSpec(Temperature, μ = 285.0K, σ = 5.0K),
+                            demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
+                            seed = 1, verbosity = :silent)
+    build_ecosystem(BySupply(total = 10_000), species, env, seed = 1)
 end
 ```
 

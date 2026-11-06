@@ -571,37 +571,3 @@ function _movementphrase(movement::AbstractVector{<:SpeciesDispersal})
     return join(("$(sprint(show, m)) for $(count(d -> d.mode == m, movement))"
                  for m in modes), ", ")
 end
-
-# A species list's movements from `build_species`' keywords. Given a mode, each species' kernel is
-# built from its mean distance, with the species' own `disperse_safely` where given and the mode's
-# otherwise; given the movements themselves, they are taken as they are, and the species list's
-# constructor checks their number.
-function _speciesmovement(mode::_KernelDispersal{K}, dispersal, disperse_safely,
-                          pthresh, n::Int64) where {K}
-    _builtfrommean(K) ||
-        throw(ArgumentError("`build_species` builds each species' kernel from its mean " *
-                            "`dispersal` distance alone, and a `$(nameof(K))` needs more: " *
-                            "give `movement` as the species' movements themselves, one " *
-                            "`SpeciesDispersal` each."))
-    distances = _tofield(dispersal, n, "dispersal")
-    safely = isnothing(disperse_safely) ? fill(mode.disperse_safely, n) :
-             _tofield(disperse_safely, n, "disperse_safely")
-    return map(distances, safely) do d, s
-        return _withsafely(mode, s)(meandist = d, thresh = pthresh)
-    end
-end
-_speciesmovement(mode::NoDispersal, _, _, _, n::Int64) = fill(mode(), n)
-function _speciesmovement(movement::AbstractVector{<:SpeciesDispersal}, _, _, _,
-                          ::Int64)
-    return movement
-end
-
-# Whether a kernel family is built from a mean distance alone, as `build_species` builds one.
-_builtfrommean(::Type{GaussianKernel}) = true
-_builtfrommean(::Type{<:AbstractKernel}) = false
-
-# A mode with another dead-cell fate, the same mode where it already has that one.
-function _withsafely(mode::_KernelDispersal{K}, safely::Bool) where {K}
-    safely == mode.disperse_safely && return mode
-    return Base.typename(typeof(mode)).wrapper(K, disperse_safely = safely)
-end

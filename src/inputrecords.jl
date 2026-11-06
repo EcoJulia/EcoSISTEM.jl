@@ -95,7 +95,7 @@ function _runrecord(eco::AbstractEcosystem)
 end
 
 # How a run was placed, as its provenance says it: the placement as written, a function by its
-# name, or `nothing` for one built from a population function.
+# name, or `nothing` where the ecosystem records none.
 _placementrecord(::Nothing) = nothing
 
 _placementrecord(placement) = _placementphrase(placement)

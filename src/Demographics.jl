@@ -160,17 +160,3 @@ function _speciesexponents(longevity, survival::Real, n::Integer)
         error("longevity and survival must not be negative")
     return lives, Float64(survival)
 end
-
-# Choose the parameter type from the shape of what was passed: scalar rates give an `EqualPop`, a
-# vector of either gives a `PopGrowth` of `n` species.
-function _params(birth, death, longevity, survival, n::Integer)
-    if birth isa AbstractVector || death isa AbstractVector
-        b = float.(_tofield(birth, n, "birth"))
-        d = float.(_tofield(death, n, "death"))
-        u = unit(first(b))
-        return PopGrowth{typeof(u)}(b, d, Float64(longevity), Float64(survival))
-    else
-        return EqualPop(float(birth), float(death), Float64(longevity),
-                        Float64(survival))
-    end
-end

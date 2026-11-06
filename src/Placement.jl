@@ -330,7 +330,7 @@ struct PlacedAbundances{T}
                               problems = Problem[])
         Tables.istable(table) ||
             error("`PlacedAbundances` holds a table of the individuals placed - a named tuple of " *
-                  "columns, a `DataFrame`, or any Tables.jl table; got a $(typeof(table)).")
+                  "columns, a `DataFrame`, or any Tables.jl table; got a value of type $(typeof(table)).")
         return new{typeof(table)}(table, _recordvector(records),
                                   collect(Problem, problems))
     end
@@ -407,7 +407,7 @@ end
 
 function _checkcount(x, what::AbstractString)
     return error("`$what` must be a whole number of individuals, or a density per area such as " *
-                 "`2.0/km^2`; got a $(typeof(x)).")
+                 "`2.0/km^2`; got a value of type $(typeof(x)).")
 end
 
 # Each species' own number as given: a number for all, or a form giving each its own.
@@ -506,7 +506,7 @@ _asplaced(placed::PlacedAbundances, ::Any) = placed
 function _asplaced(x, placement)
     Tables.istable(x) && return PlacedAbundances(x)
     return error("a placement returns a `PlacedAbundances`, or a table of the individuals it " *
-                 "places; $(_placementphrase(placement)) returned a $(typeof(x)).")
+                 "places; $(_placementphrase(placement)) returned a value of type $(typeof(x)).")
 end
 
 # A placement ready to call on every MPI rank's behalf: a layer weight's spec built on the habitat's
@@ -570,7 +570,7 @@ end
 function _checktabledata(table)
     Tables.istable(table) ||
         error("`FromTable` reads a path to a CSV file, a `ProvenanceRecord` of one, or a " *
-              "Tables.jl table; got a $(typeof(table)).")
+              "Tables.jl table; got a value of type $(typeof(table)).")
     return nothing
 end
 
@@ -881,7 +881,7 @@ function _eachvalue(c::TraitColumn, row, rng::AbstractRNG, name::AbstractString)
 end
 
 function _eachvalue(x, ::Any, ::AbstractRNG, name::AbstractString)
-    return error("`each` gave species `$name` a $(typeof(x)); a function given as `each` returns " *
+    return error("`each` gave species `$name` a value of type $(typeof(x)); a function given as `each` returns " *
                  "a number of individuals or a density.")
 end
 

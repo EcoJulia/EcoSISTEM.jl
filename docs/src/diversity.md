@@ -20,9 +20,11 @@ env = GridHabitat(regime = UniformSpec(285.0K, axis = Temperature),
                         supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                              axis = SolarRadiation),
                         area = area)
-species = build_species(10, tolerance = (285.0K, 3.0K), toleranceaxis = Temperature, demand = 1.0e9kJ / day, demandaxis = SolarRadiation,
-                        abundance = 10_000, seed = 1)
-eco = build_ecosystem(species, env, verbosity = :silent)
+species = build_species(SpeciesPool(10),
+                        tolerance = ToleranceSpec(Temperature, μ = 285.0K, σ = 3.0K),
+                        demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
+                        seed = 1, verbosity = :silent)
+eco = build_ecosystem(BySupply(total = 10_000), species, env, seed = 1)
 simulate!(eco, 1year, 1month_mean_duration)
 ```
 

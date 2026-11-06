@@ -43,15 +43,13 @@ end
     kernel = fill(GaussianKernel(meandist = 1.0km, thresh = 10e-10), numSpecies)
     movement = InsectDispersal().(kernel)
 
-    # Create species list, including their temperature preferences, seed abundance and native status
+    # Create species list, including their temperature preferences
     opts = fill(274.0K, numSpecies)
     vars = fill(0.5K, numSpecies)
     tolerance = NicheTolerance(Temperature, Normal, opts, vars)
-    native = fill(true, numSpecies)
-    # abun = rand(Multinomial(individuals, numSpecies))
-    abun = fill(div(individuals, numSpecies), numSpecies)
-    sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
-                       movement, param, native)
+    sppl = SpeciesList(numSpecies, tolerance, resource_vec, movement, param)
+    # An equal share of the individuals for each species, placed by supply
+    placement = BySupply(each = div(individuals, numSpecies))
 
     # Create abiotic environment - an even grid of one temperature. The study area decides the
     # grid; `GridHabitat` only samples onto it.
@@ -67,16 +65,18 @@ end
     nichefit = NicheSuitability{Temperature, typeof(1.0K)}()
 
     # build_ecosystem auto-selection: with MPI initialised but a single rank, `:auto` stays serial
-    # (Comm_size == 1) while `distributed = true` forces the distributed type - from the same
-    # SpeciesList + GridHabitat that MPIEcosystem takes directly.
-    @test build_ecosystem(sppl, habitat, nichefit = nichefit) isa Ecosystem
-    @test build_ecosystem(sppl, habitat, nichefit = nichefit,
-                          distributed = true) isa
+    # (Comm_size == 1) while `distributed = true` forces the distributed type.
+    @test build_ecosystem(placement, sppl, habitat, nichefit = nichefit,
+                          verbosity = :silent) isa Ecosystem
+    @test build_ecosystem(placement, sppl, habitat, nichefit = nichefit,
+                          distributed = true, verbosity = :silent) isa
           MPIEcosystem
 
     # Create ecosystem
-    @test_nowarn eco = MPIEcosystem(sppl, habitat, nichefit)
-    eco = MPIEcosystem(sppl, habitat, nichefit)
+    @test_nowarn build_ecosystem(placement, sppl, habitat, nichefit = nichefit,
+                                 distributed = true, verbosity = :silent)
+    eco = build_ecosystem(placement, sppl, habitat, nichefit = nichefit,
+                          distributed = true, verbosity = :silent)
     @test sum(eco.sppcounts) == length(eco.spplist.names)
     @test eco.firstsp == 1
     @test sum(eco.sccounts) == prod(size(eco.habitat.regime.matrix))

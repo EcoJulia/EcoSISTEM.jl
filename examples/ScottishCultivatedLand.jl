@@ -20,6 +20,7 @@ using EcoSISTEM.Units
 using RasterDataSources
 using Rasters: EPSG
 using Unitful, Unitful.DefaultSymbols
+using DataFrames: DataFrame
 using Distributions
 using Random
 using DimensionalData: lookup, Y, X
@@ -119,17 +120,24 @@ niche_widths = rand(Uniform(0.1, 0.25), numspecies)
 demand = rand(Uniform(2.0, 10.0), numspecies) * kJ / day
 dispersal = rand(Uniform(3.0, 15.0), numspecies) * km
 
-species = build_species(numspecies, tolerance = (niche_means, niche_widths),
-                        toleranceaxis = EcoSISTEM.SurfaceArea,
-                        dispersal = dispersal,
-                        demand = demand,
-                        demandaxis = SolarRadiation,
-                        # A total of 20000 individuals, split at random across species -
-                        # genuinely random initial abundances, reproducible via `seed`.
-                        abundance = 20_000, seed = seed)
+# Each per-species value is a column of the species pool's table, read by name.
+pool = SpeciesPool(DataFrame(species = string.(1:numspecies),
+                             optimum = niche_means, width = niche_widths,
+                             demand = demand, dispersal = dispersal))
+species = build_species(pool,
+                        tolerance = ToleranceSpec(EcoSISTEM.SurfaceArea,
+                                                  μ = TraitColumn(:optimum),
+                                                  σ = TraitColumn(:width)),
+                        demand = DemandSpec(SolarRadiation,
+                                            TraitColumn(:demand)),
+                        movement = MovementSpec(InsectDispersal(),
+                                                meandist = TraitColumn(:dispersal)),
+                        seed = seed, verbosity = :silent)
 
 # --- assemble and simulate ----------------------------------------------------
-eco = build_ecosystem(species, habitat, seed = seed, verbosity = :silent)
+# A total of 20000 individuals, split at random across species - genuinely random initial
+# abundances, reproducible via `seed` - and placed by supply.
+eco = build_ecosystem(BySupply(total = 20_000), species, habitat, seed = seed)
 
 # What this ecosystem was built from: the EarthEnv land-cover file and the NatureScot outline it
 # read, with each dataset's DOI, licence and citation where the catalogue knows them, the grid and

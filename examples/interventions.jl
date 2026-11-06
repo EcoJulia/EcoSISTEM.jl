@@ -80,7 +80,6 @@ let outcomes = map((:generalist, :specialist)) do kind
                   intervention = invasion(kind, at = 1.0month_mean_duration))
         @assert length(eco.spplist.names) == configuration().numspecies
         @assert last(eco.spplist.names) == string(kind)
-        @assert !last(eco.spplist.native)
         return sum(eco.abundances.matrix[end, :])
     end
     # The generalist, with the widest niche in the assemblage, outlasts the narrow specialist.
