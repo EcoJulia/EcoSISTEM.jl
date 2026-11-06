@@ -109,6 +109,24 @@ all(eco.abundances.matrix[5, converted] .>= 500)
 Two interventions could **not** do this: each resolves its own region, and a random one draws its
 own cells, so the crop would be planted somewhere other than the cleared ground.
 
+### Adding individuals by a placement
+
+`AddAbundance` also takes a placement - anything [`build_ecosystem`](@ref) takes first - and adds
+the individuals it places over the region's active cells each time the intervention fires. Wrapped in
+[`ToCapacity`](@ref) it tops each cell up to what its resources support, counting what already lives
+there, and a species' name places that species alone, so sowing a crop among the weeds and hedgerows
+of some fields is
+
+```julia
+Intervention(AtDates([Date(2030, 3, 1)]), CellMask(fields), AddAbundance(ToCapacity("wheat")))
+```
+
+A placement may be a function of the user's, which the operations otherwise refuse, because a placement
+only says where individuals go: it returns a table, which is checked before anything is written, and
+under MPI the first rank alone calls it and every rank adds its own species' rows. Each firing gives it
+random streams of its own, apart from the region's, so drawing only from its context's streams keeps
+a run replayable.
+
 ### Adding individuals from a table
 
 [`AddAbundanceTable`](@ref) adds individuals as a table lists them - which species, which cell, how

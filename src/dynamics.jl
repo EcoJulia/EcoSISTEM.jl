@@ -89,15 +89,18 @@ function _placementcontext(eco::AbstractEcosystem, seed::Integer)
 end
 
 # Place `placement`'s individuals in `eco`: called and checked first, its problems reported, then -
-# its abundances cleared, where `clear` - written, and the placement and its records kept.
+# its abundances cleared, where `clear` - written, and its records kept, the placement too where
+# `keep` (as at build, not at an intervention's firing). A dated table is refused where `undated`.
 function _placeinto!(eco::AbstractEcosystem, placement,
-                     context::PlacementContext, verbosity::Symbol; clear::Bool)
-    outcome = _resolveplacement(eco, placement, context, verbosity)
+                     context::PlacementContext, verbosity::Symbol; clear::Bool,
+                     keep::Bool = true, undated::Bool = false)
+    outcome = _resolveplacement(eco, placement, context, verbosity,
+                                undated = undated)
     _reportproblems(vcat(outcome.placed.problems, outcome.resolved.problems),
                     verbosity)
     clear && (_ownedabundances(eco).rows .= 0)
     _writeplaced!(eco, outcome.resolved)
-    eco.placement = placement
+    keep && (eco.placement = placement)
     eco.inputs = _uniqueinputs(vcat(eco.inputs, outcome.placed.records))
     return eco
 end
@@ -107,13 +110,18 @@ end
 # Under MPI the root alone calls it and matches its names - so only the root reads a name authority -
 # once every rank has built the layers it weights by together, and every rank takes the root's result.
 function _resolveplacement(eco::AbstractEcosystem, placement,
-                           context::PlacementContext, verbosity::Symbol)
+                           context::PlacementContext, verbosity::Symbol;
+                           undated::Bool = false)
     prepared = _prepared(placement, eco.habitat)
     placed = _sharedresult(eco, context) do
         raw = _callplacement(prepared, eco.spplist, eco.habitat, context)
+        undated && :time in Tables.columnnames(Tables.columns(raw.table)) &&
+            error("`AddAbundance` adds a placement's individuals at each firing, and this " *
+                  "placement's table is dated: give it no dates (`date = nothing`), or drop its " *
+                  "`time` column.")
         matched = _matchedtable(_canonicaltable(raw.table, eco.habitat,
-                                                context), eco.spplist,
-                                verbosity)
+                                                context),
+                                eco.spplist, verbosity)
         return PlacedAbundances(matched.table, records = raw.records,
                                 problems = vcat(raw.problems, matched.problems))
     end

@@ -457,6 +457,82 @@ function _tableadditions(eco, op, elapsed; kw...)
     end
 end
 
+@testset "AddAbundance adds a placement's individuals over the region at each firing" begin
+    month = 1.0month_mean_duration
+    fire!(eco, iv; step = 1) = EcoSISTEM.applyinterventions!(eco, iv, month,
+                                                             month, step)
+    mask = falses(10, 10)
+    mask[2:3, 4:6] .= true
+    linear = LinearIndices((10, 10))
+    added = Intervention(AtTime(month), CellMask(mask),
+                         AddAbundance(BySupply(total = 600)))
+    eco = _eco(abundance = 0)
+    eco.habitat.active[2, 4] = false
+    fire!(eco, added)
+    @test sum(eco.abundances.matrix) == 600
+    @test sum(eco.abundances.matrix[:, linear[.!mask]]) == 0
+    @test sum(eco.abundances.matrix[:, linear[2, 4]]) == 0
+    # The ecosystem keeps its own placement; the firing's streams are its own, step by step.
+    @test sprint(show, eco.placement) == "BySupply(total = 0)"
+    again = _eco(abundance = 0)
+    again.habitat.active[2, 4] = false
+    fire!(again, added)
+    @test again.abundances.matrix == eco.abundances.matrix
+    later = _eco(abundance = 0)
+    later.habitat.active[2, 4] = false
+    fire!(later, added, step = 2)
+    @test later.abundances.matrix != eco.abundances.matrix
+    # A placement draws nothing from the stream the region and the other operations draw from.
+    plain = Intervention(AtTime(month), RandomCells(5), AddAbundance("1", 3))
+    sown = Intervention(AtTime(month), RandomCells(5),
+                        AddAbundance(ToCapacity("2")), AddAbundance("1", 3))
+    one, two = _eco(abundance = 0), _eco(abundance = 0)
+    fire!(one, plain)
+    fire!(two, sown)
+    @test one.abundances.matrix[1, :] == two.abundances.matrix[1, :]
+    @test findall(>(0), two.abundances.matrix[2, :]) ==
+          findall(>(0), one.abundances.matrix[1, :])
+    # What it refuses: a dated table, and what is not a placement.
+    dated = Intervention(AtTime(month), AllCells(),
+                         AddAbundance(FromTable((species = ["1"],
+                                                 cell = [CartesianIndex(1, 1)],
+                                                 time = [0.0s]))))
+    @test_throws "this placement's table is dated" fire!(_eco(abundance = 0),
+                                                         dated)
+    @test_throws "a placement says how many individuals start where" AddAbundance(3)
+    @test sprint(show, AddAbundance(ToCapacity("wheat"))) ==
+          "AddAbundance(ToCapacity(\"wheat\"))"
+end
+
+@testset "ToCapacity at a firing tops each cell up, counting what is there" begin
+    month = 1.0month_mean_duration
+    fire!(eco, iv) = EcoSISTEM.applyinterventions!(eco, iv, month, month, 1)
+    # A cell holds 100 of any species: 1e11 kJ a day supplied, 1e9 demanded by each.
+    eco = _eco(abundance = 3000)
+    before = copy(eco.abundances.matrix)
+    fire!(eco,
+          Intervention(AtTime(month), AllCells(),
+                       AddAbundance(ToCapacity("2"))))
+    @test eco.abundances.matrix[[1, 3], :] == before[[1, 3], :]
+    @test all(==(100), sum(eco.abundances.matrix, dims = 1))
+    # To half capacity: a cell holding more already gets none.
+    half = _eco(abundance = 5000)
+    present = vec(sum(half.abundances.matrix, dims = 1))
+    @test any(>(50), present) && any(<(50), present)
+    fire!(half,
+          Intervention(AtTime(month), AllCells(),
+                       AddAbundance(ToCapacity("2", fraction = 0.5))))
+    @test vec(sum(half.abundances.matrix, dims = 1)) == max.(present, 50)
+    # A cell already full gets none.
+    full = _eco(abundance = 0)
+    repopulate!(full, ToCapacity("1"), verbosity = :silent)
+    @test all(==(100), full.abundances.matrix[1, :])
+    fire!(full,
+          Intervention(AtTime(month), AllCells(),
+                       AddAbundance(ToCapacity("2"))))
+    @test sum(full.abundances.matrix[2, :]) == 0
+end
+
 @testset "AddAbundanceTable adds each row on the step it falls in" begin
     eco = _eco()
     op = AddAbundanceTable(_abundancerows(eco))

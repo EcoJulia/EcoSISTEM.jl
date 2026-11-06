@@ -101,14 +101,22 @@ end
 
 """
     AddAbundance(species, count)
+    AddAbundance(placement)
 
-Add individuals to **each** cell of the region - an invasion, or a reintroduction.
+Add individuals to **each** cell of the region - an invasion, or a reintroduction - or, given a
+placement, the individuals it places over the region's active cells at each firing, as
+[`build_ecosystem`](@ref) places them at the start: `AddAbundance(ToCapacity("wheat"))` sows a crop,
+filling each cell to what its resources support given what already grows there.
 
 # Arguments
 
   - `species`: which species, by name or by index.
   - `count`: how many per cell. An `Integer` is an exact number; a quantity per unit time is a mean
     rate, drawn afresh each step.
+  - `placement`: a placement - a shipped one, or a function of `(species, habitat, context)` - called
+    at each firing with the region's active cells as its context's `cells` and random streams of that
+    firing's own, so it draws nothing a region's selection or a species' dynamics draw. Its table is
+    undated. Under MPI the first rank calls it, and every rank adds its own species' rows.
 """
 struct AddAbundance{S, C <: CELLCOUNT} <: AbstractOperation
     species::S
@@ -121,6 +129,16 @@ struct AddAbundance{S, C <: CELLCOUNT} <: AbstractOperation
     function AddAbundance(species::S, count::CELLCOUNT) where {S}
         return new{S, typeof(count)}(species, count)
     end
+end
+
+# The placement form of `AddAbundance`: a placement's individuals added over the region at each firing.
+struct _PlacementAddition{P} <: AbstractOperation
+    placement::P
+end
+
+function AddAbundance(placement)
+    _checkplacement(placement)
+    return _PlacementAddition(placement)
 end
 
 """
@@ -284,6 +302,9 @@ function Base.show(io::IO, o::SetChange)
 end
 function Base.show(io::IO, o::AddAbundance)
     return print(io, "AddAbundance($(repr(o.species)), $(o.count))")
+end
+function Base.show(io::IO, o::_PlacementAddition)
+    return print(io, "AddAbundance(", _placementphrase(o.placement), ")")
 end
 function Base.show(io::IO, o::RemoveAbundance)
     return print(io, "RemoveAbundance($(repr(o.species)), $(o.count))")

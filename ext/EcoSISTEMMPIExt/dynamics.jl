@@ -202,6 +202,11 @@ function EcoSISTEM._rowswritten!(eco::MPIEcosystem)
     return EcoSISTEM.synchronise_from_rows!(eco.abundances)
 end
 
+# Each rank's sums over its own species added across the ranks, so every rank holds the whole.
+function EcoSISTEM._sumacrossranks!(::MPIEcosystem, x::AbstractArray)
+    return MPI.Allreduce!(x, +, MPI.COMM_WORLD)
+end
+
 # **`AddSpecies` is the one operation that is genuinely not rank-local**, and the contrast with the
 # abundance operations is the point: those need no partition work at all, because a rank owns whole
 # species across every cell in `rows_matrix` whenever it is read. Adding a species

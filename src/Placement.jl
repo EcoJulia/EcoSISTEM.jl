@@ -343,7 +343,9 @@ A placement filling each cell to what its resources support, taking `placement`'
 of the species there: a cell holds individuals until, in its scarcest resource, what they demand is
 `fraction` of what the cell supplies - where, in the dynamics, births begin to be held back - each
 species keeping its share, rounded to the nearest whole individual. A cell `placement` puts nothing
-in stays empty. The shares may be whole counts or any non-negative weights, such as recency-weighted
+in stays empty. In an intervention ([`AddAbundance`](@ref)) a cell is topped up: what is already there
+counts against its supply, so a cell already full gets none. A species' name in place of a placement
+fills each cell with that species alone - `AddAbundance(ToCapacity("wheat"))` sows a crop. The shares may be whole counts or any non-negative weights, such as recency-weighted
 records from a [`FromOccurrences`](@ref) rule; their places and species are found as any placement's
 are, and a `time` column is ignored.
 
@@ -355,25 +357,32 @@ suitabilities set, and a run filled this way starts away from that.
 # Arguments
 
   - `placement`: the placement whose table gives the shares - a shipped one, `DefaultEcosystem()` or
-    a function of `(species, habitat, context)`.
+    a function of `(species, habitat, context)` - or a species' name, for that species alone in every
+    cell it may place in.
   - `fraction`: the share of capacity each cell is filled to, a non-negative number; `1`, the
     default, fills it.
 
 # Fields
 
-  - `placement`, `fraction`: as given.
+  - `placement`: the placement given, a species' name held as the placement of it alone.
+  - `fraction`: as given.
 """
 struct ToCapacity{P} <: AbstractPlacement
     placement::P
     fraction::Float64
 
     function ToCapacity(placement; fraction::Real = 1)
-        _checkplacement(placement)
+        filled = _capacityplacement(placement)
         (isfinite(fraction) && fraction >= 0) ||
             error("`fraction` is the share of capacity each cell is filled to, a finite, " *
                   "non-negative number; got $fraction.")
-        return new{typeof(placement)}(placement, Float64(fraction))
+        return new{typeof(filled)}(filled, Float64(fraction))
     end
+end
+
+# One species alone, in every cell a placement may place in: what `ToCapacity` fills given a name.
+struct _OnlySpecies
+    name::String
 end
 
 """
@@ -404,7 +413,7 @@ end
 
 """
     PlacementContext(; cells, streams, community, nichefit, epoch = nothing,
-                     calendar = ExactDates(), time = 0.0s)
+                     calendar = ExactDates(), time = 0.0s, demand = nothing)
 
 What a placement is given besides the species and the habitat: where it may place, the random
 streams it draws from, and when it is.
@@ -420,9 +429,12 @@ streams it draws from, and when it is.
   - `epoch`: the date the run starts on, or `nothing` for a run with no dates.
   - `calendar`: how dates become elapsed time.
   - `time`: the elapsed time the individuals are placed at, zero at build.
+  - `demand`: what the individuals already in each cell demand of each resource, a grid-shaped array
+    for each resource in the order of the supplies, where the placement fills to capacity (as
+    [`ToCapacity`](@ref) does); `nothing` otherwise, and at build, where the cells are empty.
 """
 struct PlacementContext{C <: AbstractVector, S <: AbstractDict,
-                        R <: AbstractRNG, NF <: AbstractNicheFit}
+                        R <: AbstractRNG, NF <: AbstractNicheFit, D}
     cells::C
     streams::S
     community::R
@@ -430,17 +442,20 @@ struct PlacementContext{C <: AbstractVector, S <: AbstractDict,
     epoch::Union{Nothing, Dates.TimeType}
     calendar::AbstractRunCalendar
     time::typeof(1.0s)
+    demand::D
 
     function PlacementContext(; cells::AbstractVector,
                               streams::AbstractDict, community::AbstractRNG,
                               nichefit::AbstractNicheFit,
                               epoch::Union{Nothing, Dates.TimeType} = nothing,
                               calendar::AbstractRunCalendar = ExactDates(),
-                              time::Unitful.Time = 0.0s)
+                              time::Unitful.Time = 0.0s,
+                              demand::Union{Nothing, Tuple} = nothing)
         return new{typeof(cells), typeof(streams), typeof(community),
-                   typeof(nichefit)}(cells, streams, community, nichefit,
-                                     epoch, calendar,
-                                     float(uconvert(s, time)))
+                   typeof(nichefit), typeof(demand)}(cells, streams, community,
+                                                     nichefit, epoch, calendar,
+                                                     float(uconvert(s, time)),
+                                                     demand)
     end
 end
 
@@ -647,6 +662,8 @@ _numbersphrase(n::_Each) = "each = $(n.value)"
 # A placement as a reader would recognise it: as written, or a function by its name.
 _placementphrase(p::AbstractPlacement) = sprint(show, p)
 
+_placementphrase(p::_OnlySpecies) = repr(p.name)
+
 function _placementphrase(f::Function)
     name = string(nameof(f))
     return startswith(name, '#') ? "an anonymous function" : "`$name`"
@@ -815,10 +832,17 @@ function (p::ToCapacity)(species::SpeciesList, habitat::GridHabitat,
                          context::PlacementContext)
     placed = _callplacement(p.placement, species, habitat, context)
     shares = _sharesof(placed.table, species, habitat, context)
-    filled = _filltocapacity(shares, species, habitat, p.fraction)
+    filled = _filltocapacity(shares, species, habitat, p.fraction,
+                             context.demand)
     return PlacedAbundances(filled.table, records = placed.records,
                             problems = vcat(placed.problems, shares.problems,
                                             filled.problems))
+end
+
+function (p::_OnlySpecies)(::SpeciesList, ::GridHabitat,
+                           context::PlacementContext)
+    return (species = fill(p.name, length(context.cells)),
+            cell = collect(CartesianIndex{2}, context.cells))
 end
 
 function (p::SumOfPlacements)(species::SpeciesList, habitat::GridHabitat,
@@ -1453,11 +1477,11 @@ function _placedshare(x, row::Int)
 end
 
 # Each cell filled to `fraction` of what its scarcest resource supports at the share-weighted mean
-# demand of the species in it, each species keeping its share, rounded to the nearest whole
-# individual: a placement's table, and the cells whose species demand nothing, which no supply can
-# bound, reported and left empty.
+# demand of the species in it, less what is `present` already, each species keeping its share,
+# rounded to the nearest whole individual: a placement's table, and the cells whose species demand
+# nothing, which no supply can bound, reported and left empty.
 function _filltocapacity(shares::NamedTuple, species::SpeciesList,
-                         habitat::GridHabitat, fraction::Float64)
+                         habitat::GridHabitat, fraction::Float64, present)
     rows = shares.rows
     incell = Dict{CartesianIndex{2}, Dict{Int, Float64}}()
     for (sp, cell, share) in zip(rows.species, rows.cells, rows.shares)
@@ -1472,13 +1496,14 @@ function _filltocapacity(shares::NamedTuple, species::SpeciesList,
         held = sort!(collect(incell[cell]))
         total = sum_kbn(last.(held))
         total > 0 || continue
-        capacity = _cellcapacity(supplies, demands, held, total, cell)
+        capacity = _cellcapacity(supplies, demands, held, total, cell, fraction,
+                                 present)
         if isinf(capacity)
             unbounded += 1
             continue
         end
         for (sp, share) in held
-            n = round(Int, share * fraction * capacity / total)
+            n = round(Int, share * capacity / total)
             n > 0 || continue
             push!(table.species, species.names[sp])
             push!(table.cell, cell)
@@ -1494,20 +1519,46 @@ function _filltocapacity(shares::NamedTuple, species::SpeciesList,
     return (table = table, problems = problems)
 end
 
-# How many individuals of a cell's species, in their shares, its scarcest resource supports: the
-# least, over the resources, of the cell's supply over the share-weighted mean demand, a resource the
-# species demand nothing of not binding.
+# How many more individuals of a cell's species, in their shares, its scarcest resource supports: the
+# least, over the resources, of `fraction` of the cell's supply less what is `present` already, over
+# the share-weighted mean demand, never below none; a resource the species demand nothing of does not
+# bind.
 function _cellcapacity(supplies::Tuple, demands::Tuple,
                        held::AbstractVector{<:Pair}, total::Float64,
-                       cell::CartesianIndex{2})
+                       cell::CartesianIndex{2}, fraction::Float64, present)
     capacity = Inf
-    for (supply, demand) in zip(supplies, demands)
+    for (r, (supply, demand)) in enumerate(zip(supplies, demands))
         mean = sum_kbn([share * demand[sp] for (sp, share) in held]) / total
         iszero(mean) && continue
-        capacity = min(capacity, uconvert(NoUnits, supply[cell] / mean))
+        room = fraction * supply[cell] - _presentat(present, r, cell, supply)
+        capacity = min(capacity, max(uconvert(NoUnits, room / mean), 0.0))
     end
     return capacity
 end
+
+# What the individuals in `cell` already demand of resource `r`: nothing, where none are there.
+function _presentat(::Nothing, ::Int, cell::CartesianIndex{2}, supply)
+    return zero(supply[cell])
+end
+
+function _presentat(present::Tuple, r::Int, cell::CartesianIndex{2}, _)
+    return present[r][cell]
+end
+
+# What `ToCapacity` fills: a placement as given, or a species' name, as that species alone.
+_capacityplacement(name::AbstractString) = _OnlySpecies(String(name))
+
+function _capacityplacement(placement)
+    _checkplacement(placement)
+    return placement
+end
+
+# Whether a placement fills to capacity, and so needs what is already in each cell.
+_needsdemand(::Any) = false
+
+_needsdemand(::ToCapacity) = true
+
+_needsdemand(p::SumOfPlacements) = any(_needsdemand, p.placements)
 
 # --- Checking a table ---------------------------------------------------------
 

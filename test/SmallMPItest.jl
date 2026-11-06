@@ -662,6 +662,20 @@ if rank == 0
     @test capped_start == cappedserial.abundances.matrix
 end
 
+# A crop sown by an intervention, topping each cell up to its capacity: what every rank's species
+# already demand there summed across the ranks, and the root filling, as serially.
+sow = Intervention(AtTime(MPIFIXTURE_TIMESTEP), AllCells(),
+                   AddAbundance(ToCapacity("3", fraction = 2.0e-3)))
+EcoSISTEM.applyinterventions!(cappedeco, sow, MPIFIXTURE_TIMESTEP,
+                              MPIFIXTURE_TIMESTEP, 1)
+EcoSISTEM.applyinterventions!(cappedserial, sow, MPIFIXTURE_TIMESTEP,
+                              MPIFIXTURE_TIMESTEP, 1)
+sown = gatherabundance(cappedeco)
+if rank == 0
+    @test sum(sown[3, :]) > sum(capped_start[3, :])
+    @test sown == cappedserial.abundances.matrix
+end
+
 # **An intervention is the only thing that can leave the two landscape layouts out of step**, and so
 # the only thing that exercises where `synchronise_from_rows!` sits in the timestep. It writes
 # `rows_matrix` after the dynamics; the next timestep opens with `update_resource_usage!`, which

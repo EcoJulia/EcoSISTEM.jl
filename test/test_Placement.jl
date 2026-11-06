@@ -627,6 +627,11 @@ _isfull(eco) = all(f -> abs(f.fullness - 1) <= f.slack, values(_fullness(eco)))
     @test mixed.abundances.matrix[1, linear[cell]] == round(Int, total / 4)
     @test mixed.abundances.matrix[2, linear[cell]] == round(Int, 3 * total / 4)
     @test _isfull(mixed)
+    # A species' name fills every active cell with that species alone.
+    wheat = _placed(ToCapacity("2"), species, habitat)
+    @test _perspecies(wheat)[[1, 3, 4]] == [0, 0, 0]
+    @test count(>(0), wheat.abundances.matrix[2, :]) == count(MASK)
+    @test _isfull(wheat)
     # Every active cell filled by a placement putting some of each species everywhere.
     full = _placed(ToCapacity(BySupply()), species, habitat)
     @test length(_fullness(full)) == count(MASK)

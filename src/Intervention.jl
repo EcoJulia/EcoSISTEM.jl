@@ -204,7 +204,8 @@ function applyinterventions!(eco::AbstractEcosystem, intervention,
         rng = _interventionrng(eco, k, step)
         # Resolved **once**, then every operation acts on the same cells - see `Intervention`.
         cells = _regioncells(iv.region, eco, rng, timestep)
-        _applyoperations!(iv, eco, cells, rng, elapsed, timestep)
+        _applyoperations!(iv, eco, cells, rng, elapsed, timestep,
+                          (k = k, step = step))
         _recordintervention!(eco, iv)
     end
     return eco
@@ -655,16 +656,79 @@ _fires(::_TableIntervention, ::AbstractEcosystem, _, _) = true
 
 # Apply an intervention's operations in order to its resolved cells.
 function _applyoperations!(iv::Intervention, eco::AbstractEcosystem, cells,
-                           rng, _, timestep)
-    foreach(op -> _applyoperation!(op, eco, cells, rng, timestep),
+                           rng, elapsed, timestep, firing::NamedTuple)
+    at = merge(firing, (elapsed = elapsed,))
+    foreach(op -> _applyoperation!(op, eco, cells, rng, timestep, at),
             iv.operations)
     return eco
 end
 
 function _applyoperations!(iv::_TableIntervention, eco::AbstractEcosystem,
-                           cells, _, elapsed, timestep)
+                           cells, _, elapsed, timestep, ::NamedTuple)
     return _addtablerows!(only(iv.operations), eco, cells, elapsed, timestep)
 end
+
+# An operation applied at a firing - which intervention, on which step, at what time. Every operation
+# but a placement's needs only its cells, the firing's stream and the timestep.
+function _applyoperation!(op::AbstractOperation, eco::AbstractEcosystem, cells,
+                          rng, timestep, ::NamedTuple)
+    return _applyoperation!(op, eco, cells, rng, timestep)
+end
+
+# A placement's individuals added over the region's active cells, as `build_ecosystem` places them,
+# its table undated: under MPI the root calls it and every rank adds its own species' rows.
+function _applyoperation!(op::_PlacementAddition, eco::AbstractEcosystem,
+                          cells, _, _, firing::NamedTuple)
+    context = _firingcontext(eco, op.placement, cells, firing)
+    return _placeinto!(eco, op.placement, context, :normal, clear = false,
+                       keep = false, undated = true)
+end
+
+# The context of a placement firing in intervention `firing.k` on step `firing.step` over `cells`, the
+# region's storage columns: the active ones among them, a stream per species, keyed on its key in its
+# pool as at build, and a community stream, all made for that firing and apart from the stream the
+# region was chosen from; and, where the placement fills to capacity, what is already in those cells.
+function _firingcontext(eco::AbstractEcosystem, placement, cells,
+                        firing::NamedTuple)
+    active = parent(eco.habitat.active)
+    grid = CartesianIndices(size(active))
+    incells = CartesianIndex{2}[grid[c] for c in cells if active[c]]
+    words = UInt64[eco.seed % UInt64, _INTERVENTION_STREAM, firing.k,
+                   firing.step,
+                   _PLACEMENT_STREAM]
+    streams = Dict(name => Random.Xoshiro(vcat(words, key % UInt64))
+                   for (name, key) in zip(eco.spplist.names,
+                                          eco.spplist.traits.key))
+    present = _needsdemand(placement) ? _presentdemand(eco, incells) : nothing
+    return PlacementContext(cells = incells, streams = streams,
+                            community = Random.Xoshiro(words),
+                            nichefit = eco.nichefit, epoch = eco.epoch,
+                            calendar = eco.calendar, time = firing.elapsed,
+                            demand = present)
+end
+
+# What the individuals already in each of `cells` demand of each resource, a grid-shaped array for
+# each in the order of the supplies, every species counted: each rank sums its own species, and the
+# ranks' sums are added.
+function _presentdemand(eco::AbstractEcosystem,
+                        cells::AbstractVector{CartesianIndex{2}})
+    owned = _ownedabundances(eco)
+    linear = LinearIndices(getgridshape(eco))
+    shape = getgridshape(eco)
+    return map(values(eco.spplist.demand)) do d
+        u = unit(eltype(d.resource))
+        present = zeros(shape)
+        for cell in cells, row in axes(owned.rows, 1)
+            sp = owned.firstspecies + row - 1
+            present[cell] += owned.rows[row, linear[cell]] *
+                             ustrip(u, d.resource[sp])
+        end
+        return _sumacrossranks!(eco, present) .* u
+    end
+end
+
+# Each rank's partial sums added across the ranks; serially, as they are.
+_sumacrossranks!(::AbstractEcosystem, x::AbstractArray) = x
 
 # Add a table's rows due on the step reaching `elapsed`, keeping those in the region and of this
 # process's species, each species and cell summed before rounding. Every row is checked before it is

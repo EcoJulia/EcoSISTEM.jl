@@ -42,7 +42,11 @@
       filters match and place them: one individual a record by default, `per_record`, a `total` spread
       over the records in proportion to them, or a `do` block making its own table. Optionally dated.
     - `ToCapacity(placement; fraction)`, filling each cell until what its species demand of its
-      scarcest resource is `fraction` of what it supplies, in the shares `placement` gives.
+      scarcest resource is `fraction` of what it supplies, in the shares `placement` gives; given a
+      species' name, that species alone.
+    - `AddAbundance(placement)`, adding a placement's individuals over an intervention's region at
+      each firing; `ToCapacity` there tops cells up, counting what is already there, so
+      `AddAbundance(ToCapacity("wheat"))` sows a crop.
   - Changed
     - `build_ecosystem(species, habitat)` places 1000 individuals of each active species, split at
       random and placed by supply, and announces it; it takes `verbosity`. `repopulate!(eco, placement = eco.placement; seed)` places again by the
