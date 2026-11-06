@@ -312,8 +312,8 @@ end
         @test species(movement = MovementSpec(NoDispersal())).movement ==
               fill(NoDispersal()(), 2)
         # A family needing more than a mean distance is refused, naming what it lacks.
-        @test_throws UndefKeywordError species(movement = MovementSpec(WindDispersal(),
-                                                                       meandist = 5.0km))
+        @test_throws "needs `scale` in its `MovementSpec`" species(movement = MovementSpec(WindDispersal(),
+                                                                                           meandist = 5.0km))
         # Each species' own distance is a column of the pool.
         distances = SpeciesPool(DataFrame(species = ["1", "2"],
                                           meandist = [1.0, 3.0]),

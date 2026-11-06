@@ -11,6 +11,7 @@ using Distributions
 using DataFrames: DataFrame
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
+using InteractiveUtils: subtypes
 
 @testset "Movement" begin
     numSpecies = 10
@@ -339,6 +340,31 @@ end
     # The variance is `meandist^3 / scale`, so the larger scale gathers the distances closer.
     @test spreadof(loose) ≈ sqrt(5.0^3 / 10.0) rtol = 0.05
     @test spreadof(tight) < spreadof(loose)
+end
+
+# Each kernel family's declared keywords are its constructor's: it builds given them, fails without
+# each one it must have, and refuses neither or both of a choice. Every family declares them, so a
+# `MovementSpec` can refuse what its family lacks where the spec is written.
+@testset "a kernel family's declared keywords are its constructor's" begin
+    families = subtypes(EcoSISTEM.AbstractKernel)
+    @test length(families) >= 3
+    value(k) = k === :shape ? 2.0 : 1.0km
+    for K in families
+        @test hasmethod(EcoSISTEM._kernelrequires, Tuple{Type{K}})
+        needs = EcoSISTEM._kernelrequires(K)
+        enough = (needs.all..., needs.oneof[1:min(1, length(needs.oneof))]...)
+        @test K(; (k => value(k) for k in enough)...) isa K
+        for k in needs.all
+            @test_throws UndefKeywordError K(;
+                                             (j => value(j)
+                                              for j in enough if j != k)...)
+        end
+        isempty(needs.oneof) && continue
+        @test_throws ArgumentError K(; (k => value(k) for k in needs.all)...)
+        @test_throws ArgumentError K(;
+                                     (k => value(k)
+                                      for k in (needs.all..., needs.oneof...))...)
+    end
 end
 
 end

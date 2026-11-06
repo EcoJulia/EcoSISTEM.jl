@@ -215,6 +215,7 @@ struct MovementSpec{M <: AbstractMovement, P <: NamedTuple} <: AbstractTraitSpec
                   (isempty(allowed) ? "no kernel keywords" :
                    "the kernel keywords $(join(("`$k`" for k in allowed), ", "))") *
                   "; $(join(("`$k`" for k in unknown), ", ")) is not one.")
+        _checkkernelkeywords(mode, keys(params))
         foreach(_checktraitvalue, values(params))
         return new{typeof(mode), typeof(params)}(mode, params)
     end
@@ -465,6 +466,23 @@ function _kernelkeywords(::_KernelDispersal{K}) where {K}
         isempty(names) || return names
     end
     return Symbol[]
+end
+
+# Refuse a movement spec without a keyword its mode's kernel family needs, naming what it lacks, before
+# a build would fail on it for every species.
+_checkkernelkeywords(::NoDispersal, ::Any) = nothing
+
+function _checkkernelkeywords(mode::_KernelDispersal{K}, given) where {K}
+    needs = _kernelrequires(K)
+    asked = String["`$k`" for k in needs.all if !(k in given)]
+    chosen = count(in(given), needs.oneof)
+    isempty(needs.oneof) || chosen == 1 ||
+        push!(asked,
+              "exactly one of " * join(("`$k`" for k in needs.oneof), " and ") *
+              (chosen == 0 ? "" : ", not both,"))
+    isempty(asked) && return nothing
+    return error("`$(nameof(typeof(mode)))` builds each species a `$(nameof(K))`, which needs " *
+                 join(asked, " and ") * " in its `MovementSpec`.")
 end
 
 # Refuse what is not a trait value, a vector above all: values per species are never taken by

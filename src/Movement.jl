@@ -517,6 +517,17 @@ function _onedistance(::Type{K}, given::NamedTuple) where {K <: AbstractKernel}
     return throw(ArgumentError("a `$(nameof(K))` takes exactly one of $names; got $got."))
 end
 
+# The keywords a kernel family must be given to build one: every one of `all`, and exactly one of
+# `oneof` where it names any. Kept in step with each constructor by `test_Movement.jl`.
+_kernelrequires(::Type{GaussianKernel}) = (all = (), oneof = (:meandist, :sd))
+
+function _kernelrequires(::Type{LongTailKernel})
+    return (all = (:shape,),
+            oneof = (:scale, :meandist))
+end
+
+_kernelrequires(::Type{WaldKernel}) = (all = (:meandist, :scale), oneof = ())
+
 # A kernel's distance keyword in kilometres, refused unless positive.
 function _kilometres(d::Unitful.Length, name::Symbol)
     d > zero(d) ||

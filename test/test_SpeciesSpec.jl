@@ -71,6 +71,14 @@ end
                                                    speed = 1.0km)
     @test_throws "no kernel keywords" MovementSpec(NoDispersal(),
                                                    meandist = 1.0km)
+    # A spec lacking what its family needs is refused where it is written, naming what it lacks.
+    @test_throws "a `WaldKernel`, which needs `scale` in its" MovementSpec(WindDispersal(),
+                                                                           meandist = 5.0km)
+    @test_throws "exactly one of `meandist` and `sd`, not both," MovementSpec(InsectDispersal(),
+                                                                              meandist = 1.0km,
+                                                                              sd = 1.0km)
+    @test_throws "needs `shape` and exactly one of `scale` and `meandist` in" MovementSpec(SeedDispersal(LongTailKernel,
+                                                                                                         disperse_safely = true))
     @test string(MovementSpec(WindDispersal(), meandist = 5.0km,
                               scale = 10.0km)) ==
           "MovementSpec(WindDispersal(WaldKernel, disperse_safely = false); " *
