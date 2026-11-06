@@ -271,8 +271,9 @@ streams it draws from, and when it is.
 # Arguments and fields
 
   - `cells`: the cells it may place in, as the grid's own keys - the active cells, at build.
-  - `streams`: a random stream per species, by name, so a species' draws do not depend on any other
-    species'.
+  - `streams`: a random stream per species, by name, made from the run's seed and the species' own key
+    in its pool, so a species' draws depend on no other species and leave the streams its dynamics
+    draw from as they were.
   - `community`: the stream a community `total` is split across the species from.
   - `nichefit`: the run's nichefit, which scores a species' suitability for a cell.
   - `epoch`: the date the run starts on, or `nothing` for a run with no dates.

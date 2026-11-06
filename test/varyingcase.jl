@@ -220,7 +220,7 @@ end
 # is. Serial whichever rank builds it, since a live MPI session would otherwise make it distributed.
 function mpifixture_generalecosystem(; seed = 0, numspecies = VARYING_SPECIES)
     sppl, _ = mpifixture_generalspecies(numspecies = numspecies)
-    eco = build_ecosystem(mpifixture_placement(numspecies), sppl,
+    eco = build_ecosystem(NoAbundance(), sppl,
                           varying_environment(),
                           nichefit = mpifixture_nichefit(), seed = seed,
                           distributed = false)
@@ -232,14 +232,6 @@ function mpifixture_intervention()
     return Intervention(AtTimes([3.0month_mean_duration,
                                     9.0month_mean_duration]),
                         AllCells(), AddAbundance(1, 5))
-end
-
-# The placement every MPI fixture is built with, serial or distributed, before its abundances are
-# overwritten with `MPIFIXTURE_FILL`. It places only to draw from the species' streams, which the
-# dynamics go on to draw from: the blessed `mpi/...` references were run from streams so advanced.
-function mpifixture_placement(numspecies = VARYING_SPECIES)
-    return BySupply(each = div(1_000,
-                               numspecies))
 end
 
 # The demographic parameters both MPI fixtures share, named once for the reason the kernels are.
@@ -283,12 +275,11 @@ function mpifixture_ecosystem(; seed = 0, numspecies = VARYING_SPECIES,
                               params = mpifixture_params())
     sppl, _ = mpifixture_species(numspecies = numspecies, movement = movement,
                                  params = params)
-    eco = build_ecosystem(mpifixture_placement(numspecies), sppl,
+    eco = build_ecosystem(NoAbundance(), sppl,
                           varying_environment(),
                           nichefit = mpifixture_nichefit(), seed = seed,
                           distributed = false)
-    # Filled artificially, so the starting state is identical on every rank whatever the placement
-    # drew.
+    # Filled artificially, so the starting state is identical on every rank.
     eco.abundances.matrix .= MPIFIXTURE_FILL
     return eco
 end

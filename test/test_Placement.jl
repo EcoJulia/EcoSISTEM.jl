@@ -44,12 +44,18 @@ function _habitat(; regime = UniformSpec(298.0K, axis = Temperature),
                          verbosity = :silent)
 end
 
-# `n` species from a pool, every one alike.
-function _species(n = 4; demand = DemandSpec(SolarRadiation, 1.0e-4kJ / day))
-    return build_species(SpeciesPool(n, verbosity = :silent),
+# The species of `pool`, every one alike.
+function _species(pool::SpeciesPool;
+                  demand = DemandSpec(SolarRadiation, 1.0e-4kJ / day))
+    return build_species(pool,
                          tolerance = ToleranceSpec(Temperature, μ = 298.0K,
                                                    σ = 2.0K),
                          demand = demand, seed = 1, verbosity = :silent)
+end
+
+# `n` species from a pool, every one alike.
+function _species(n = 4; demand = DemandSpec(SolarRadiation, 1.0e-4kJ / day))
+    return _species(SpeciesPool(n, verbosity = :silent), demand = demand)
 end
 
 # An ecosystem built quietly by a placement.
@@ -357,6 +363,35 @@ end
                                                                   species,
                                                                   habitat,
                                                                   verbosity = :silent)
+end
+
+@testset "each species is placed from a stream of its own, keyed on its key in the pool" begin
+    habitat = _habitat()
+    placement = BySupply(each = 50) + BySuitability(each = 10)
+    eco = _placed(placement, _species(), habitat)
+    # Placing leaves the streams the dynamics draw from at their seeded start.
+    @test eco.rngs == EcoSISTEM.makerngs(1, 4)
+    # A species more, or one made inactive, leaves every other species' placement as it is.
+    more = _placed(placement, _species(5), habitat)
+    @test more.abundances.matrix[1:4, :] == eco.abundances.matrix
+    fewer = _species()
+    fewer.traits.active[2] = false
+    lessone = _placed(placement, fewer, habitat)
+    @test _perspecies(lessone)[2] == 0
+    @test lessone.abundances.matrix[[1, 3, 4], :] ==
+          eco.abundances.matrix[[1, 3, 4], :]
+    # A species removed from the pool moves the rest up a position but leaves their keys, and so their
+    # placements.
+    pool = SpeciesPool(4, verbosity = :silent)
+    remove_species!(pool, "2", verbosity = :silent)
+    removed = _placed(placement, _species(pool), habitat)
+    @test removed.abundances.matrix == eco.abundances.matrix[[1, 3, 4], :]
+    # A copy is placed from its own key's stream, after its original's.
+    pool = SpeciesPool(4, verbosity = :silent)
+    copy_species!(pool, "2", as = "2 copy")
+    copied = _placed(placement, _species(pool), habitat)
+    @test copied.abundances.matrix[5, :] == more.abundances.matrix[5, :]
+    @test copied.abundances.matrix[5, :] != copied.abundances.matrix[2, :]
 end
 
 @testset "repopulate! places again, by the ecosystem's placement or another" begin

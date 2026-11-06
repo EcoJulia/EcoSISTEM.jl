@@ -287,12 +287,11 @@ expected = MPI.Comm_size(comm) > 1 ? MPIEcosystem : Ecosystem
 @test build_ecosystem(sppl, habitat, nichefit = nichefit, seed = 0,
                       distributed = true, verbosity = :silent) isa MPIEcosystem
 
-# Create ecosystem, placed as the serial twin and the blessed references are, so the species'
-# streams stand where theirs do when the fill below overwrites what was placed.
-@test_nowarn build_ecosystem(mpifixture_placement(), sppl, habitat,
+# Create ecosystem, placing nothing, since the fill below sets every abundance.
+@test_nowarn build_ecosystem(NoAbundance(), sppl, habitat,
                              nichefit = nichefit, distributed = true,
                              verbosity = :silent)
-eco = build_ecosystem(mpifixture_placement(), sppl, habitat,
+eco = build_ecosystem(NoAbundance(), sppl, habitat,
                       nichefit = nichefit, seed = 0, distributed = true,
                       verbosity = :silent)
 
@@ -393,10 +392,10 @@ habitat = varying_environment()
 nichefit = NicheSuitability{Temperature, typeof(1.0K)}()
 
 # Create ecosystem
-@test_nowarn build_ecosystem(mpifixture_placement(), sppl, habitat,
+@test_nowarn build_ecosystem(NoAbundance(), sppl, habitat,
                              nichefit = nichefit, distributed = true,
                              verbosity = :silent)
-eco = build_ecosystem(mpifixture_placement(), sppl, habitat,
+eco = build_ecosystem(NoAbundance(), sppl, habitat,
                       nichefit = nichefit, seed = 0, distributed = true,
                       verbosity = :silent)
 
@@ -502,7 +501,7 @@ rank == 0 && checkblessed(true_abuns, "mpi")
 # `Multinomial` on a negative count. That is why this is pinned to a blessed serial number and
 # asserted at every rank count, rather than compared against a serial run at one.
 alwayssppl, _ = mpifixture_species(movement = mpifixture_always())
-alwayseco = build_ecosystem(mpifixture_placement(), alwayssppl,
+alwayseco = build_ecosystem(NoAbundance(), alwayssppl,
                             varying_environment(), nichefit = nichefit,
                             seed = 0, distributed = true, verbosity = :silent)
 alwayseco.abundances.rows_matrix .= MPIFIXTURE_FILL
@@ -536,7 +535,7 @@ function mpifixture_mixed(numspecies = VARYING_SPECIES)
 end
 mixedsppl, _ = mpifixture_species(movement = mpifixture_mixed())
 @test length(Base.uniontypes(eltype(mixedsppl.movement))) == 4
-mixedeco = build_ecosystem(mpifixture_placement(), mixedsppl,
+mixedeco = build_ecosystem(NoAbundance(), mixedsppl,
                            varying_environment(), nichefit = nichefit,
                            seed = 0, distributed = true, verbosity = :silent)
 mixedeco.abundances.rows_matrix .= MPIFIXTURE_FILL
@@ -560,7 +559,7 @@ function mpifixture_longevity(numspecies = VARYING_SPECIES)
                         collect(range(0.5, 1.5, length = numspecies)), 0.2)
 end
 longsppl, _ = mpifixture_species(params = mpifixture_longevity())
-longeco = build_ecosystem(mpifixture_placement(), longsppl,
+longeco = build_ecosystem(NoAbundance(), longsppl,
                           varying_environment(), nichefit = nichefit,
                           seed = 0, distributed = true, verbosity = :silent)
 longeco.abundances.rows_matrix .= MPIFIXTURE_FILL
@@ -577,10 +576,10 @@ if rank == 0
 end
 
 # **A placement, against the serial twin at every rank count.** Under MPI the first rank alone calls
-# it, so every other rank takes its rows and the states its draws left the species' streams in: a
-# rank keeping its own streams' states would run apart from the serial twin from the first step. Its
-# layer weight is built on every rank first, since that build is collective, and `repopulate!` is a
-# collective call placing the same again.
+# it and every other rank takes its rows. It draws from streams of its own, so every rank's dynamics
+# start from their seeded streams, as the serial twin's do. Its layer weight is built on every rank
+# first, since that build is collective, and `repopulate!` is a collective call placing the same
+# again.
 placement = Weighted(BySupply(SolarRadiation), BySuitability(),
                      ByLayer(UniformSpec(1.0, axis = EcoSISTEM.NicheAxis)),
                      total = 5_000) +
@@ -590,6 +589,7 @@ placesppl, _ = mpifixture_species()
 placedeco = build_ecosystem(placement, placesppl, varying_environment(),
                             nichefit = nichefit, seed = 0, distributed = true,
                             verbosity = :silent)
+@test placedeco.rngs == EcoSISTEM.makerngs(0, length(placesppl.names))
 placed_start = gatherabundance(placedeco)
 MPI.Barrier(comm)
 @test_nowarn simulate!(placedeco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
@@ -622,7 +622,7 @@ end
 # 1752458039 -- at a **single rank**, so it was the ordering rather than the partition. No other test
 # in the suite runs an intervention under MPI at all, which is why nothing caught it.
 ivsppl, _ = mpifixture_species()
-iveco = build_ecosystem(mpifixture_placement(), ivsppl,
+iveco = build_ecosystem(NoAbundance(), ivsppl,
                         varying_environment(), nichefit = nichefit,
                         seed = 0, distributed = true, verbosity = :silent)
 iveco.abundances.rows_matrix .= MPIFIXTURE_FILL
@@ -639,7 +639,7 @@ rank == 0 && checkblessed(iv_abuns, "mpi/intervention")
 # fixture at any rank count: the distributed loop is a duplicate of the serial one, and a duplicate is
 # only ever checked against the original.
 cbsppl, _ = mpifixture_species()
-cbeco = build_ecosystem(mpifixture_placement(), cbsppl,
+cbeco = build_ecosystem(NoAbundance(), cbsppl,
                         varying_environment(), nichefit = nichefit,
                         seed = 0, distributed = true, verbosity = :silent)
 cbeco.abundances.rows_matrix .= MPIFIXTURE_FILL
@@ -687,7 +687,7 @@ function tableiv(source)
 end
 function tablerun(source)
     sppl, _ = mpifixture_species()
-    built = build_ecosystem(mpifixture_placement(), sppl,
+    built = build_ecosystem(NoAbundance(), sppl,
                             varying_environment(), nichefit = nichefit,
                             seed = 0, distributed = true, verbosity = :silent)
     built.abundances.rows_matrix .= MPIFIXTURE_FILL
@@ -711,7 +711,7 @@ end
 # gathers to the root, the diversity recorder to every rank, so both must reproduce the serial
 # recording, and each keeps the same record of the run on every rank.
 recsppl, _ = mpifixture_species()
-receco = build_ecosystem(mpifixture_placement(), recsppl,
+receco = build_ecosystem(NoAbundance(), recsppl,
                          varying_environment(), nichefit = nichefit,
                          seed = 0, distributed = true, verbosity = :silent)
 receco.abundances.rows_matrix .= MPIFIXTURE_FILL
@@ -850,7 +850,7 @@ for divmeasure in (norm_sub_alpha, sub_gamma)
 end
 
 gensppl, _ = mpifixture_generalspecies()
-geneco = build_ecosystem(mpifixture_placement(), gensppl,
+geneco = build_ecosystem(NoAbundance(), gensppl,
                          varying_environment(), nichefit = nichefit,
                          seed = 0, distributed = true, verbosity = :silent)
 geneco.abundances.rows_matrix .= MPIFIXTURE_FILL
@@ -913,7 +913,7 @@ end
 
 function _mpiecosystem(numspecies; movement = mpifixture_movement(numspecies))
     sppl, _ = mpifixture_species(numspecies = numspecies, movement = movement)
-    built = build_ecosystem(mpifixture_placement(numspecies), sppl,
+    built = build_ecosystem(NoAbundance(), sppl,
                             varying_environment(), nichefit = nichefit,
                             seed = 0, distributed = true, verbosity = :silent)
     built.abundances.rows_matrix .= MPIFIXTURE_FILL
@@ -996,7 +996,7 @@ end
 
     # No seed: the first rank draws one, and a random selection is the same everywhere.
     sppl, _ = mpifixture_species()
-    unseeded = build_ecosystem(mpifixture_placement(), sppl,
+    unseeded = build_ecosystem(NoAbundance(), sppl,
                                varying_environment(), nichefit = nichefit,
                                distributed = true, verbosity = :silent)
     @test agree(everyone(unseeded.seed))

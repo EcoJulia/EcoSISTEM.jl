@@ -377,9 +377,7 @@ function build_ecosystem(placement, species::SpeciesList,
     eco.epoch = resolved
     eco.calendar = calendar
     eco.inputs = _uniqueinputs(records)
-    # Placed from the streams the dynamics go on to draw from, and a community total split from a
-    # stream of its own made from the run's seed.
-    context = _placementcontext(eco, eco.rngs, _abundancerng(eco.seed))
+    context = _placementcontext(eco, eco.seed)
     return _placeinto!(eco, placement, context, verbosity, clear = false)
 end
 

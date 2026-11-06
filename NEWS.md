@@ -37,6 +37,9 @@
       random and placed by supply, and announces it; it takes `verbosity`. `repopulate!(eco, placement = eco.placement; seed)` places again by the
       ecosystem's own placement, or another, from streams of its own: it no longer re-splits the
       species' totals at random, and leaves the dynamics' streams alone.
+    - Placing draws from a stream per species keyed on its key in the pool, never from the streams
+      its dynamics use, so a `seed` gives a different run from v0.10's, and adding, removing or
+      deactivating a species leaves every other species' placement by `each` as it was.
     - `PopGrowth` and `NoGrowth` hold one `longevity` per species, a vector, which the step reads per
       species; their constructors still take one number for all. `EqualPop` keeps one.
     - `GaussianKernel` and `LongTailKernel` take their distances by keyword, each named for what it

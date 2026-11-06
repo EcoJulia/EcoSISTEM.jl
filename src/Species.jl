@@ -306,6 +306,19 @@ _tofield(x, n::Integer, name::AbstractString) = fill(x, n)
 # Julia versions and the split must not.
 const _ABUNDANCE_STREAM = 0x6162756e64
 
+# The word standing for placement in a stream's seed - "place" in ASCII - distinct from the other
+# tags for the same reason.
+const _PLACEMENT_STREAM = 0x706c616365
+
+# One generator per species for placing its individuals, keyed on its key in the pool it came from (a
+# copy on its own), so that a species' placement depends neither on its position nor on any other
+# species, and draws nothing from the streams its dynamics use.
+function _placementrngs(seed::Integer, species::SpeciesList)
+    return [Random.Xoshiro(UInt64[seed % UInt64, _PLACEMENT_STREAM,
+                                  key % UInt64])
+            for key in species.traits.key]
+end
+
 # The generator a placement's community `total` is split across the species from, a stream of its
 # own made from the run's seed.
 function _abundancerng(seed::Integer)

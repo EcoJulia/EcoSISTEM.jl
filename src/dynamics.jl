@@ -57,8 +57,7 @@ function repopulate!(eco::AbstractEcosystem, placement = eco.placement;
     _reusable(placement) ||
         error("$(_placementphrase(placement)) reads a table that can be read only once, so it " *
               "cannot place again; give `FromTable` a path, a record or a table of columns.")
-    streams = makerngs(seed, length(eco.spplist.names))
-    context = _placementcontext(eco, streams, _abundancerng(seed))
+    context = _placementcontext(eco, seed)
     _placeinto!(eco, placement, context, verbosity, clear = true)
     invalidatecaches!(eco)
     return eco
@@ -78,14 +77,15 @@ function repopulate!(eco::Ecosystem, abun::Int64)
     end
 end
 
-# The context of a placement in `eco`: its active cells, a stream per species from `streams`, the
-# community stream, and its nichefit, epoch and calendar, at its start.
-function _placementcontext(eco::AbstractEcosystem, streams::AbstractVector,
-                           community::AbstractRNG)
+# The context of a placement in `eco`: its active cells, a placement stream per species and the
+# community stream, both made from `seed`, and its nichefit, epoch and calendar, at its start.
+function _placementcontext(eco::AbstractEcosystem, seed::Integer)
+    streams = _placementrngs(seed, eco.spplist)
     return PlacementContext(cells = findall(parent(eco.habitat.active)),
                             streams = Dict(zip(eco.spplist.names, streams)),
-                            community = community, nichefit = eco.nichefit,
-                            epoch = eco.epoch, calendar = eco.calendar)
+                            community = _abundancerng(seed),
+                            nichefit = eco.nichefit, epoch = eco.epoch,
+                            calendar = eco.calendar)
 end
 
 # Place `placement`'s individuals in `eco`: called and checked first, its problems reported, then -

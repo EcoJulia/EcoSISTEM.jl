@@ -39,25 +39,18 @@ function EcoSISTEM._sharedpool(build)
     end
 end
 
-# A placement's result, made on the root and sent whole with the states the species' streams were
-# left in: only the root drew from them, and every rank goes on drawing from its own copies.
+# A placement's result, made on the root and sent whole. Its streams are its own, which no rank draws
+# from again, so nothing of them need be sent.
 function EcoSISTEM._sharedresult(build, ::MPIEcosystem,
-                                 context::EcoSISTEM.PlacementContext)
-    streams = context.streams
-    return _sharedbuild(build, placed -> _placedpayload(placed, streams),
-                        nothing) do skeleton, _
-        for (name, state) in skeleton.states
-            copy!(streams[name], state)
-        end
-        return skeleton.placed
+                                 ::EcoSISTEM.PlacementContext)
+    return _sharedbuild(build, _placedpayload, nothing) do skeleton, _
+        return skeleton
     end
 end
 
-# A placement's result and its streams' states as a payload: all skeleton.
-function _placedpayload(placed::EcoSISTEM.PlacedAbundances, streams)
-    states = Dict(name => copy(rng) for (name, rng) in streams)
-    return (skeleton = (placed = placed, states = states), descriptors = (),
-            arrays = ())
+# A placement's result as a payload: all skeleton.
+function _placedpayload(placed::EcoSISTEM.PlacedAbundances)
+    return (skeleton = placed, descriptors = (), arrays = ())
 end
 
 # A pool as a payload: all skeleton, no arrays to send in place.
