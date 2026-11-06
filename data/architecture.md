@@ -954,6 +954,7 @@ classDiagram
     class ByLayer~L, N~
     class Weighted~W, N~
     class FromTable~D~
+    class FromOccurrences~R, D, T, S, N, L~
     class SumOfPlacements~P~
     class PlacementContext~C, S, R, NF~
     class PlacedAbundances~T~
@@ -963,6 +964,7 @@ classDiagram
     AbstractPlacement <|-- Weighted
     AbstractPlacement <|-- NoAbundance
     AbstractPlacement <|-- FromTable
+    AbstractPlacement <|-- FromOccurrences
     AbstractPlacement <|-- SumOfPlacements
     Weighted "1" *-- "*" AbstractPlacement : weights
     SumOfPlacements "1" *-- "*" AbstractPlacement : placements
@@ -1001,8 +1003,10 @@ species by the same matcher - a species' own name, a name the pool's data used, 
 name the authority resolves to one of the species - so a filter and a placement say the same of the
 same rows. `InActiveCell` keeps the rows whose position lies in an active cell - of a study area as it
 was decided, or of a habitat as it stands - or within `snap`, a ground distance, of one;
-the placement given the same `snap` moves such a row into that cell, and the filter moves nothing.
-Under MPI each filter is a collective call, the first rank deciding for every rank.
+`FromOccurrences` given the same `snap` moves such a row into that cell, and the filter moves
+nothing. Under MPI each filter is a collective call, the first rank deciding for every rank.
+`FromOccurrences` matches and places its records by the same code, so filtering first changes only
+what is reported, and at what level.
 
 ## Demands
 

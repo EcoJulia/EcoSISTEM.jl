@@ -14,7 +14,8 @@ using Tables: Tables
 
 A rule saying how many individuals of each species start in each cell: [`BySupply`](@ref),
 [`BySuitability`](@ref), [`ByLayer`](@ref), [`Weighted`](@ref), [`FromTable`](@ref),
-[`NoAbundance`](@ref), and several added with `+` ([`SumOfPlacements`](@ref)). Called with
+[`FromOccurrences`](@ref), [`NoAbundance`](@ref), and several added with `+`
+([`SumOfPlacements`](@ref)). Called with
 `(species, habitat, context)` - a [`SpeciesList`](@ref), a [`GridHabitat`](@ref) and a
 [`PlacementContext`](@ref) - one returns a [`PlacedAbundances`](@ref). [`build_ecosystem`](@ref) takes
 one as its first argument, as it takes `DefaultEcosystem()` or any function of the same three
@@ -33,6 +34,11 @@ struct _Each{T}
 end
 
 struct _DefaultCount end
+
+# How many individuals `FromOccurrences` places for each record it places.
+struct _PerRecord
+    value::Int
+end
 
 """
     BySupply(axes...; total = nothing, each = nothing)
@@ -231,10 +237,104 @@ struct FromTable{D} <: AbstractPlacement
     records::Vector{ProvenanceRecord}
 
     function FromTable(data; provenance = ProvenanceRecord[])
-        _checktabledata(data)
+        _checktabledata(data, "FromTable")
         return new{typeof(data)}(data, _recordvector(provenance))
     end
 end
+
+"""
+    FromOccurrences(data; species = :species, latitude = :decimalLatitude,
+                    longitude = :decimalLongitude, date = nothing, time = nothing, snap = 0.0km,
+                    total = nothing, per_record = nothing, level = ProblemWarning(),
+                    provenance = ProvenanceRecord[])
+    FromOccurrences(rule, data; ...)
+
+A placement reading the individuals from a table of occurrence records, a row for each record of a
+species at a place, as a download from GBIF has them. Each record's species is found as
+[`IsActiveSpecies`](@ref) finds it and its place as [`InActiveCell`](@ref) places it, a record in an
+inactive cell moved into the nearest active cell within `snap`; the records that cannot be placed are
+reported at `level`. By default each record is one individual, so a cell holds as many of a species as
+it has records of it, and the species are in the proportions their records give them. `per_record`
+places that many individuals for each record instead; `total` spreads a number of individuals over all
+the records in proportion to them, drawn from the run's community stream, so a species with no records
+gets none. `rule`, a function usually written as a `do` block, makes any other table from the records.
+
+Records are undated unless `date` or `time` names a column. At build every dated record must be at or
+before the run's start; a record whose date cannot be read is dropped, counted in a notice.
+
+# Arguments
+
+  - `rule`: a function of `(rows, habitat, context)` returning what a placement returns - a table of
+    species, place, count and, where dated, time, as [`FromTable`](@ref) reads one, or a
+    [`PlacedAbundances`](@ref). `rows` is a `DataFrame` of the records placed: every column of the
+    data, with each record's `species` as the species list names it, its `cell` (after `snap`) and,
+    where dated, its `time` as elapsed time, in place of any columns of those names. Not with `total`
+    or `per_record`.
+  - `data`: a path to a CSV file, a [`ProvenanceRecord`](@ref) of one, or a Tables.jl table, as for
+    [`FromTable`](@ref).
+  - `species`, `latitude`, `longitude`: the columns naming each record's species and giving its
+    position in degrees; Darwin Core's names by default.
+  - `date`: the column of each record's date - dates, or Darwin Core's `eventDate` text, where a
+    partial date or a range is taken at its start - or a tuple of columns, `(:year, :month)` or
+    `(:year, :month, :day)`; placed through the run's epoch and calendar. Not with `time`.
+  - `time`: the column of each record's elapsed time. Not with `date`.
+  - `snap`: as for [`InActiveCell`](@ref).
+  - `total`: a whole number of individuals for the community, spread over the records; not a
+    density, since records have no area for one to multiply.
+  - `per_record`: a whole number of individuals for each record. Not with `total`.
+  - `level`: how the records that cannot be placed are reported, a [`ProblemWarning`](@ref) by
+    default, as for [`IsActiveSpecies`](@ref).
+  - `provenance`: [`ProvenanceRecord`](@ref)s of the data the table was made from.
+
+# Fields
+
+  - `rule`: the function given, or `nothing`.
+  - `data`, `species`, `latitude`, `longitude`, `date`, `time`, `snap`, `level`: as given.
+  - `numbers`: the `total` or `per_record` given, or neither.
+  - `records`: the records given as `provenance`.
+"""
+struct FromOccurrences{R, D, T, S <: Unitful.Length, N,
+                       L <: AbstractProblemSeverity} <: AbstractPlacement
+    rule::R
+    data::D
+    species::Symbol
+    latitude::Symbol
+    longitude::Symbol
+    date::T
+    time::Union{Nothing, Symbol}
+    snap::S
+    numbers::N
+    level::L
+    records::Vector{ProvenanceRecord}
+
+    function FromOccurrences(rule::Union{Nothing, Function}, data;
+                             species::Symbol = :species,
+                             latitude::Symbol = :decimalLatitude,
+                             longitude::Symbol = :decimalLongitude,
+                             date::Union{Nothing, Symbol,
+                                         Tuple{Vararg{Symbol}}} = nothing,
+                             time::Union{Nothing, Symbol} = nothing,
+                             snap::Unitful.Length = 0.0km,
+                             total = nothing, per_record = nothing,
+                             level::AbstractProblemSeverity = ProblemWarning(),
+                             provenance = ProvenanceRecord[])
+        _checktabledata(data, "FromOccurrences")
+        _checkdatecolumns(date, time)
+        _checksnap(snap)
+        isnothing(rule) || (isnothing(total) && isnothing(per_record)) ||
+            error("`FromOccurrences` takes a rule making the table, or `total` or `per_record` " *
+                  "giving its numbers, not both.")
+        _refusedensity(total, "total")
+        numbers = _occurrencenumbers(total, per_record)
+        return new{typeof(rule), typeof(data), typeof(date), typeof(snap),
+                   typeof(numbers), typeof(level)}(rule, data, species,
+                                                   latitude, longitude, date,
+                                                   time, snap, numbers, level,
+                                                   _recordvector(provenance))
+    end
+end
+
+FromOccurrences(data; kw...) = FromOccurrences(nothing, data; kw...)
 
 """
     SumOfPlacements(placements...)
@@ -370,6 +470,26 @@ function Base.show(io::IO, p::FromTable)
     return print(io, "FromTable(", _dataphrase(p.data), ")")
 end
 
+function Base.show(io::IO, p::FromOccurrences)
+    print(io, "FromOccurrences(")
+    isnothing(p.rule) || print(io, _placementphrase(p.rule), ", ")
+    print(io, _dataphrase(p.data))
+    p.species === :species || print(io, ", species = ", repr(p.species))
+    p.latitude === :decimalLatitude ||
+        print(io, ", latitude = ", repr(p.latitude))
+    p.longitude === :decimalLongitude ||
+        print(io, ", longitude = ", repr(p.longitude))
+    isnothing(p.date) || print(io, ", date = ", repr(p.date))
+    isnothing(p.time) || print(io, ", time = ", repr(p.time))
+    iszero(p.snap) || print(io, ", snap = ", p.snap)
+    for (k, v) in pairs(_numberkeywords(p.numbers))
+        print(io, ", ", k, " = ", v)
+    end
+    p.level isa ProblemWarning ||
+        print(io, ", level = ", nameof(typeof(p.level)), "()")
+    return print(io, ")")
+end
+
 function Base.show(io::IO, p::SumOfPlacements)
     return join(io, (sprint(show, q) for q in p.placements), " + ")
 end
@@ -429,6 +549,8 @@ _numberkeywords(::_DefaultCount) = NamedTuple()
 _numberkeywords(n::_Total) = (total = n.value,)
 
 _numberkeywords(n::_Each) = (each = n.value,)
+
+_numberkeywords(n::_PerRecord) = (per_record = n.value,)
 
 # The three placements that are also weights, which `Weighted` multiplies.
 const _Weight = Union{BySupply, BySuitability, ByLayer}
@@ -548,6 +670,8 @@ _reusable(::Any) = true
 
 _reusable(p::FromTable) = _rereadable(p.data)
 
+_reusable(p::FromOccurrences) = _rereadable(p.data)
+
 _reusable(p::SumOfPlacements) = all(_reusable, p.placements)
 
 # Whether a table's data can be read again: a file, a vector of rows, or a table of columns.
@@ -555,24 +679,25 @@ _rereadable(::Union{AbstractString, ProvenanceRecord, AbstractVector}) = true
 
 _rereadable(table) = Tables.columnaccess(table)
 
-# A table's data checked as it is given: a file that exists, a record naming one, or a table.
-function _checktabledata(path::AbstractString)
+# A table's data checked as it is given to the placement `name`: a file that exists, a record naming
+# one, or a table.
+function _checktabledata(path::AbstractString, name::AbstractString)
     isfile(path) ||
-        error("`FromTable` was given the path $(repr(path)), and there is no file there.")
+        error("`$name` was given the path $(repr(path)), and there is no file there.")
     return nothing
 end
 
-function _checktabledata(record::ProvenanceRecord)
+function _checktabledata(record::ProvenanceRecord, name::AbstractString)
     isnothing(record.location) &&
         error("$record names no file: a record `Provenancer.record_provenance` returned, or " *
-              "`provenance(path)` read, says where its file is, and `FromTable` takes one of those.")
+              "`provenance(path)` read, says where its file is, and `$name` takes one of those.")
     return nothing
 end
 
-function _checktabledata(table)
+function _checktabledata(table, name::AbstractString)
     Tables.istable(table) ||
-        error("`FromTable` reads a path to a CSV file, a `ProvenanceRecord` of one, or a " *
-              "Tables.jl table; got a value of type $(typeof(table)).")
+        error("`$name` reads a path to a CSV file, a `ProvenanceRecord` of one, or a Tables.jl " *
+              "table; got a value of type $(typeof(table)).")
     return nothing
 end
 
@@ -612,6 +737,26 @@ end
 function (p::FromTable)(::SpeciesList, ::GridHabitat, ::PlacementContext)
     got = _readtable(p.data, :abundance)
     return PlacedAbundances(got.table, records = vcat(got.records, p.records))
+end
+
+function (p::FromOccurrences)(species::SpeciesList, habitat::GridHabitat,
+                              context::PlacementContext)
+    got = _readtable(p.data, :abundance, column = p.species)
+    resolved = _occurrencerows(p, got.table, species, habitat, context)
+    records = vcat(got.records, p.records)
+    if !isnothing(p.rule)
+        placed = _asplaced(p.rule(resolved.rows, habitat, context), p.rule)
+        return PlacedAbundances(placed.table,
+                                records = vcat(records, placed.records),
+                                problems = vcat(resolved.problems,
+                                                placed.problems))
+    end
+    dated = !(isnothing(p.date) && isnothing(p.time))
+    dated && _checkstarted(resolved.rows, context)
+    table = _occurrencecounts(p.numbers, resolved.rows, species, context,
+                              resolved.problems, dated)
+    return PlacedAbundances(table, records = records,
+                            problems = resolved.problems)
 end
 
 function (p::SumOfPlacements)(species::SpeciesList, habitat::GridHabitat,
@@ -939,6 +1084,255 @@ function _listphrase(pairs::AbstractVector{<:Pair})
     shown = join(("`$(first(p))` ($(last(p)))" for p in first(pairs, 10)), ", ")
     more = length(pairs) - 10
     return shown * (more > 0 ? " and $more more species" : "")
+end
+
+# --- Placing from occurrence records ----------------------------------------------
+
+# Refuse a record's date and its time both, or a `date` tuple that is not a year with a month and a
+# day or fewer.
+_checkdatecolumns(::Nothing, ::Nothing) = nothing
+
+_checkdatecolumns(::Nothing, ::Symbol) = nothing
+
+_checkdatecolumns(::Symbol, ::Nothing) = nothing
+
+function _checkdatecolumns(date::Tuple, ::Nothing)
+    1 <= length(date) <= 3 ||
+        error("`date` as a tuple names a record's year, month and day columns, as `(:year, :month)` " *
+              "or `(:year, :month, :day)`; got $(repr(date)).")
+    return nothing
+end
+
+function _checkdatecolumns(::Union{Symbol, Tuple}, ::Symbol)
+    return error("`FromOccurrences` dates its records by `date` or by `time`, not both.")
+end
+
+# Refuse a density as `total`: a record has no area for one to multiply.
+_refusedensity(::Any, ::AbstractString) = nothing
+
+function _refusedensity(x::Unitful.AbstractQuantity, what::AbstractString)
+    return error("`FromOccurrences` spreads whole numbers of individuals over its records, which have " *
+                 "no area for a density to multiply; give `$what` as a number of individuals, not " *
+                 "$x.")
+end
+
+# `FromOccurrences`' numbers as given: a community `total`, a number `per_record`, or the default, one.
+_occurrencenumbers(::Nothing, ::Nothing) = _DefaultCount()
+
+_occurrencenumbers(total, ::Nothing) = _Total(_checkcount(total, "total"))
+
+function _occurrencenumbers(::Nothing, n)
+    (n isa Real && isinteger(n) && n >= 0) ||
+        error("`per_record` is a whole number of individuals for each record; got $(repr(n)).")
+    return _PerRecord(Int(n))
+end
+
+function _occurrencenumbers(total, n)
+    return error("give `FromOccurrences` a `total` or a number `per_record`, not both: `total` is the " *
+                 "community's, spread over the records, and `per_record` each record's.")
+end
+
+# The records of `data` that can be placed, as a `DataFrame` of every column of the data with each
+# record's `species` as the species list names it, its `cell` after snapping and, where dated, its
+# `time` as elapsed time; and the problems of those that cannot be placed, at the placement's level,
+# those whose date cannot be read in a notice.
+function _occurrencerows(p::FromOccurrences, data::DataFrame,
+                         species::SpeciesList, habitat::GridHabitat,
+                         context::PlacementContext)
+    _checkoccurrencecolumns(p, data)
+    index = _matchindex(species)
+    given = data[!, p.species]
+    matched = _matchspecies(given, Iterators.repeated(1, length(given)), index,
+                            _nameanswers(index, given))
+    problems = _matchproblems(matched.dropped, p.level, "record", "not placed",
+                              index, :normal)
+    named = findall(!isnothing, matched.rows)
+    placed = _snapcells(habitat, data[named, p.latitude],
+                        data[named, p.longitude], p.snap)
+    append!(problems,
+            _placingproblems(placed, p.level, p.snap, "record", "not placed",
+                             "moved into it"))
+    located = findall(!isnothing, placed.cells)
+    keep = named[located]
+    rows = data[keep, :]
+    rows.species = species.names[Vector{Int}(matched.rows[keep])]
+    rows.cell = Vector{CartesianIndex{2}}(placed.cells[located])
+    times = _recordtimes(p.date, p.time, rows, context)
+    isnothing(times) && return (rows = rows, problems = problems)
+    dated = .!isnothing.(times)
+    undated = count(!, dated)
+    iszero(undated) ||
+        push!(problems,
+              Problem(ProblemNotice(), :undated,
+                      "$(_countword(undated, "record")) with no date that could be read " *
+                      "$(_were(undated)) not placed."))
+    rows = rows[dated, :]
+    rows.time = [t for t in times if !isnothing(t)]
+    return (rows = rows, problems = problems)
+end
+
+# Refuse occurrence records lacking a column the placement reads, naming the columns they have.
+function _checkoccurrencecolumns(p::FromOccurrences, data::DataFrame)
+    needed = Symbol[p.species, p.latitude, p.longitude]
+    isnothing(p.date) || append!(needed, p.date isa Symbol ? (p.date,) : p.date)
+    isnothing(p.time) || push!(needed, p.time)
+    absent = setdiff(needed, propertynames(data))
+    isempty(absent) && return nothing
+    return error("the occurrence records have no $(join(("`$c`" for c in absent), ", ")) " *
+                 "column; they have $(_columnsphrase(propertynames(data))). Name the columns " *
+                 "holding them as `species`, `latitude`, `longitude`, `date` or `time`.")
+end
+
+# Each record's time as elapsed time - from its date through the run's epoch and calendar, or as
+# given - or `nothing` where it cannot be read; `nothing` for all when the records are undated.
+_recordtimes(::Nothing, ::Nothing, ::DataFrame, ::PlacementContext) = nothing
+
+function _recordtimes(date::Symbol, ::Nothing, rows::DataFrame,
+                      context::PlacementContext)
+    return _datedtimes([_recorddate(d) for d in rows[!, date]], context)
+end
+
+function _recordtimes(date::Tuple, ::Nothing, rows::DataFrame,
+                      context::PlacementContext)
+    parts = [rows[!, c] for c in date]
+    return _datedtimes([_partsdate(v...) for v in zip(parts...)], context)
+end
+
+function _recordtimes(::Nothing, time::Symbol, rows::DataFrame,
+                      context::PlacementContext)
+    return [ismissing(t) ? nothing : _placementtime(t, context, r)
+            for (r, t) in enumerate(rows[!, time])]
+end
+
+# Dates placed through the run's epoch and calendar, each distinct date once, `nothing` staying so.
+function _datedtimes(dates::AbstractVector, context::PlacementContext)
+    times = Vector{Union{Nothing, typeof(1.0s)}}(nothing, length(dates))
+    placed = Dict{Dates.Date, typeof(1.0s)}()
+    for (r, date) in enumerate(dates)
+        isnothing(date) && continue
+        times[r] = get!(placed, date) do
+            return _placementtime(date, context, r)
+        end
+    end
+    return times
+end
+
+# A record's date, or `nothing` where it has none that can be read: a date as it is, or Darwin
+# Core's `eventDate` text, a partial date (`2001`, `2001-03`) or a range (`2001-03/2001-05`) taken at
+# its start.
+_recorddate(::Missing) = nothing
+
+_recorddate(date::Dates.TimeType) = Dates.Date(date)
+
+function _recorddate(text::AbstractString)
+    start = strip(first(split(first(split(text, '/')), 'T')))
+    parts = count(==('-'), start)
+    parts <= 2 || return nothing
+    format = (Dates.dateformat"yyyy", Dates.dateformat"yyyy-mm",
+              Dates.dateformat"yyyy-mm-dd")[parts + 1]
+    return tryparse(Dates.Date, start, format)
+end
+
+function _recorddate(x)
+    return error("a `date` column holds dates or dates written as text, and this one holds " *
+                 "$(repr(x)); give a year's, a month's and a day's columns as a tuple, " *
+                 "`date = (:year, :month, :day)`.")
+end
+
+# A record's date from its year, month and day, a month or a day left out taking the start of the
+# year or the month; `nothing` where they make no date.
+function _partsdate(year, month = missing, day = missing)
+    y = _datepart(year)
+    m = ismissing(month) ? 1 : _datepart(month)
+    d = ismissing(day) ? 1 : _datepart(day)
+    (isnothing(y) || isnothing(m) || isnothing(d)) && return nothing
+    (1 <= m <= 12 && 1 <= d <= Dates.daysinmonth(y, m)) || return nothing
+    return Dates.Date(y, m, d)
+end
+
+# One part of a date as a whole number, or `nothing` where it is not one.
+_datepart(::Missing) = nothing
+
+_datepart(x::Integer) = Int(x)
+
+_datepart(x::Real) = isinteger(x) ? Int(x) : nothing
+
+_datepart(x::AbstractString) = tryparse(Int, strip(x))
+
+_datepart(::Any) = nothing
+
+# Refuse records dated after a build's start, saying how to place them.
+function _checkstarted(rows::DataFrame, context::PlacementContext)
+    late = count(>(context.time), rows.time)
+    iszero(late) && return nothing
+    return error("$(_countword(late, "record")) $(late == 1 ? "is" : "are") dated after the run's " *
+                 "start, and a placement at build places the starting state: give `date = " *
+                 "nothing` to place every record at the start, or a `do` block that drops or " *
+                 "redates them.")
+end
+
+# How many records each species has in each cell and, where dated, at each time: the groups' keys,
+# sorted, their counts, and each species' range of them.
+function _recordgroups(rows::DataFrame, dated::Bool)
+    all = dated ? collect(zip(rows.species, rows.cell, rows.time)) :
+          collect(zip(rows.species, rows.cell))
+    tally = Dict{eltype(all), Int}()
+    for k in all
+        tally[k] = get(tally, k, 0) + 1
+    end
+    sorted = sort!(collect(keys(tally)))
+    ranges = Dict{String, UnitRange{Int}}()
+    for (i, k) in enumerate(sorted)
+        r = get(ranges, first(k), i:(i - 1))
+        ranges[first(k)] = first(r):i
+    end
+    return (keys = sorted, counts = [tally[k] for k in sorted],
+            ranges = ranges)
+end
+
+# The groups' individuals as a placement's table, the empty ones left out.
+function _grouptable(groups::NamedTuple, counts::AbstractVector{<:Integer},
+                     dated::Bool)
+    kept = findall(>(0), counts)
+    ks = groups.keys[kept]
+    table = (species = String[first(k) for k in ks],
+             cell = CartesianIndex{2}[k[2] for k in ks], count = counts[kept])
+    return dated ? merge(table, (time = [k[3] for k in ks],)) : table
+end
+
+# The individuals the records place: one for each record by default, or `per_record`; or the
+# community's `total` spread over every record, from the community stream, so a species with more
+# records gets more.
+function _occurrencecounts(::_DefaultCount, rows::DataFrame,
+                           ::SpeciesList, ::PlacementContext,
+                           ::Vector{Problem}, dated::Bool)
+    groups = _recordgroups(rows, dated)
+    return _grouptable(groups, groups.counts, dated)
+end
+
+function _occurrencecounts(numbers::_PerRecord, rows::DataFrame,
+                           ::SpeciesList, ::PlacementContext, ::Vector{Problem},
+                           dated::Bool)
+    groups = _recordgroups(rows, dated)
+    return _grouptable(groups, groups.counts .* numbers.value, dated)
+end
+
+function _occurrencecounts(numbers::_Total, rows::DataFrame, ::SpeciesList,
+                           context::PlacementContext, problems::Vector{Problem},
+                           dated::Bool)
+    groups = _recordgroups(rows, dated)
+    n = Int(numbers.value)
+    if isempty(groups.keys)
+        n > 0 &&
+            push!(problems,
+                  Problem(ProblemWarning(), :nowhere_to_place,
+                          "$(_individualsword(n)) were not placed: no record could be placed to " *
+                          "place them by."))
+        return _grouptable(groups, Int[], dated)
+    end
+    counts = groups.counts
+    drawn = rand(context.community, Multinomial(n, counts ./ sum(counts)))
+    return _grouptable(groups, drawn, dated)
 end
 
 # --- Checking a table ---------------------------------------------------------

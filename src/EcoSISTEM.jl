@@ -473,7 +473,7 @@ export GridLandscape, CachedGridLandscape
 include("Placement.jl")
 
 export BySupply, BySuitability, ByLayer, Weighted, NoAbundance, FromTable,
-       SumOfPlacements, PlacementContext, PlacedAbundances
+       FromOccurrences, SumOfPlacements, PlacementContext, PlacedAbundances
 
 public AbstractPlacement
 

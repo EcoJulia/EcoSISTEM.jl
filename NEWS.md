@@ -38,6 +38,9 @@
     - `InActiveCell(area, habitat or ecosystem)` for `filter!` and `filter`, keeping the rows whose
       latitude and longitude lie in an active cell, or within `snap` (a ground distance) of one. Under
       MPI every filter is a collective call.
+    - `FromOccurrences(records)`, a placement reading occurrence records, matched and placed as the
+      filters match and place them: one individual a record by default, `per_record`, a `total` spread
+      over the records in proportion to them, or a `do` block making its own table. Optionally dated.
   - Changed
     - `build_ecosystem(species, habitat)` places 1000 individuals of each active species, split at
       random and placed by supply, and announces it; it takes `verbosity`. `repopulate!(eco, placement = eco.placement; seed)` places again by the

@@ -73,6 +73,19 @@ cell - is kept where an active cell lies within `snap`, a ground distance:
 filter!(InActiveCell(habitat, snap = 10km), occurrences)
 ```
 
+[`FromOccurrences`](@ref) places a run's starting individuals from such records, matching and placing
+them as the filters do. Each record is one individual by default, so the species keep the
+proportions their records give them; `per_record` places that many for each record instead, and
+`total` spreads a number over all the records in proportion to them; and a `do` block makes any other
+table from the records, each with its species, its `cell` and, where dated, its `time`:
+
+```julia
+eco = build_ecosystem(FromOccurrences(occurrences, snap = 10km, total = 100_000), species, habitat)
+recent = FromOccurrences(occurrences) do rows, habitat, context
+    return rows[rows.year .>= 2000, [:species, :cell]]    # one individual a record since 2000
+end
+```
+
 ## Species from a pool
 
 Each trait is a spec: [`ToleranceSpec`](@ref) names a response family's parameters as the family

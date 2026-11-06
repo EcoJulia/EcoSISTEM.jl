@@ -73,6 +73,49 @@ _perspecies(eco) = vec(sum(eco.abundances.matrix, dims = 2))
 # The storage column of the grid's inactive cell.
 const INACTIVE = LinearIndices(size(MASK))[1, 1]
 
+# A 9 x 9 grid of 2.5 km cells over central Scotland in British National Grid, its centre cell
+# inactive, where occurrence records place, since an ecosystem refuses a geographic grid.
+function _bnghabitat()
+    mask = trues(9, 9)
+    mask[5, 5] = false
+    return _env(_reg(_bngraster(WorldClim{BioClim}, fill(298.0K, 9, 9)),
+                     axis = Temperature), SUP, within = mask)
+end
+
+# A latitude and longitude in each cell of `habitat`'s grid, from a lattice over central Scotland.
+function _positions(habitat)
+    lattice = [(lat, long) for lat in 55.6:0.005:56.0
+               for long in -4.7:0.005:-3.8]
+    cells = getcellat(habitat,
+                      [LatLong(lat * 1.0°, long * 1.0°)
+                       for (lat, long) in lattice])
+    found = Dict{CartesianIndex{2}, Tuple{Float64, Float64}}()
+    for (place, cell) in zip(lattice, cells)
+        isnothing(cell) || get!(found, cell, place)
+    end
+    return found
+end
+
+# Occurrence records of the four species of `_species()`, the fourth to be made inactive: species 1
+# three times in cell `A` and once in `B`, species 2 twice in `B`, species 3 once in the inactive cell
+# `C`; then records of the inactive species, of a name the list does not hold, off the grid and with
+# no position; `n` numbers them.
+const A, B, C = CartesianIndex(2, 3), CartesianIndex(6, 7), CartesianIndex(5,
+                                                                           5)
+
+function _records(habitat)
+    at = _positions(habitat)
+    where = [A, A, A, B, B, B, C, A, A]
+    return DataFrame(species = ["1", "1", "1", "1", "2", "2", "3", "4", "zz",
+                         "1",
+                         "1"],
+                     decimalLatitude = vcat([at[c][1] for c in where], 10.0,
+                                            missing),
+                     decimalLongitude = vcat([at[c][2] for c in where], 0.0,
+                                             1.0),
+                     n = 1:11)
+end
+
 @testset "the default placement places 1000 of each active species by supply, and says so" begin
     for (habitat, species) in ((_habitat(), _species()),
                                (_habitat(supply = (SOLAR,
@@ -348,6 +391,185 @@ end
     end
 end
 
+@testset "occurrence records place an individual each, by their names and places" begin
+    habitat = _bnghabitat()
+    species = _species()
+    species.traits.active[4] = false
+    records = _records(habitat)
+    linear = LinearIndices(EcoSISTEM.getgridshape(habitat))
+    eco = @test_logs((:warn,
+                      r"^1 record of 1 name of no species in the species list was not placed: `zz` \(1\)\.$"),
+                     (:warn,
+                      r"^1 record of 1 species not active was not placed: `4` \(1\)\..*activate_species!"),
+                     (:warn, r"^1 record off the grid was not placed\.$"),
+                     (:warn,
+                      r"^1 record in an inactive cell was not placed\.$"),
+                     (:warn, r"^1 record with no position was not placed\.$"),
+                     _placed(FromOccurrences(records), species, habitat))
+    @test eco.abundances.matrix[1, linear[A]] == 3
+    @test eco.abundances.matrix[1, linear[B]] == 1
+    @test eco.abundances.matrix[2, linear[B]] == 2
+    @test sum(eco.abundances.matrix) == 6
+    # Filtered first, only what is left is reported; `snap` moves a record into an active cell, and
+    # a placement at a lower level says so as it does.
+    kept = filter(IsActiveSpecies(species, verbosity = :silent), records)
+    kept = filter(InActiveCell(habitat, snap = 3km, verbosity = :silent), kept)
+    snapped = @test_logs((:info,
+                          r"^1 record in an inactive cell within 3 km of an active cell was moved into it\.$"),
+                         build_ecosystem(FromOccurrences(kept, snap = 3km),
+                                         species,
+                                         habitat, seed = 1))
+    @test sum(snapped.abundances.matrix[3, :]) == 1
+    @test snapped.abundances.matrix[3, linear[C]] == 0
+    @test_logs((:info, r"^1 record off the grid was not placed\.$"),
+               build_ecosystem(FromOccurrences(records[10:10, :],
+                                               level = EcoSISTEM.ProblemNotice()),
+                               species, habitat, seed = 1))
+    # From a CSV file, its record kept; and placed again by `repopulate!`.
+    mktempdir() do dir
+        path = joinpath(dir, "occurrences.csv")
+        CSV.write(path, records[1:6, :])
+        eco = _placed(FromOccurrences(path), species, habitat)
+        @test sum(eco.abundances.matrix) == 6
+        @test any(r -> r.role == :abundance && r.path == "occurrences.csv",
+                  eco.inputs)
+        repopulate!(eco, verbosity = :silent)
+        @test sum(eco.abundances.matrix) == 6
+    end
+end
+
+@testset "occurrence records give `per_record` each, or share a `total` in proportion" begin
+    habitat = _bnghabitat()
+    species = _species()
+    records = _records(habitat)[1:6, :]
+    linear = LinearIndices(EcoSISTEM.getgridshape(habitat))
+    # A number for each record: three of species 1's in `A`, one in `B`, two of species 2's in `B`.
+    tripled = _placed(FromOccurrences(records, per_record = 3), species,
+                      habitat)
+    @test tripled.abundances.matrix[1, linear[A]] == 9
+    @test tripled.abundances.matrix[1, linear[B]] == 3
+    @test tripled.abundances.matrix[2, linear[B]] == 6
+    @test _placed(FromOccurrences(records, per_record = 1), species,
+                  habitat).abundances.matrix ==
+          _placed(FromOccurrences(records), species, habitat).abundances.matrix
+    # The community's number over every record, so species 1, with twice species 2's records, gets
+    # about twice as many, and each cell about its share of the records - not equally over the species,
+    # nor over the cells they occupy.
+    big = _placed(FromOccurrences(records, total = 60_000), species, habitat)
+    @test sum(big.abundances.matrix) == 60_000
+    @test _perspecies(big)[1] ≈ 40_000 rtol = 0.02
+    @test big.abundances.matrix[1, linear[A]] ≈ 30_000 rtol = 0.02
+    @test big.abundances.matrix[1, linear[B]] ≈ 10_000 rtol = 0.05
+    @test big.abundances.matrix[2, linear[B]] ≈ 20_000 rtol = 0.03
+    @test big.abundances.matrix ==
+          _placed(FromOccurrences(records, total = 60_000), species,
+                  habitat).abundances.matrix
+    @test big.abundances.matrix !=
+          _placed(FromOccurrences(records, total = 60_000), species, habitat,
+                  seed = 2).abundances.matrix
+    # What is refused: a density, which records have no area for; both numbers; a number that is not
+    # whole; a number with a rule, which makes its own.
+    @test_throws "no area for a density to multiply" FromOccurrences(records,
+                                                                     total = 2.0 /
+                                                                             km^2)
+    @test_throws "a `total` or a number `per_record`, not both" FromOccurrences(records,
+                                                                                total = 10,
+                                                                                per_record = 2)
+    @test_throws "`per_record` is a whole number" FromOccurrences(records,
+                                                                  per_record = 1.5)
+    @test_throws "not both" FromOccurrences(records, per_record = 2
+                                            ) do rows, _, _
+        return rows
+    end
+    @test_throws "`FromOccurrences` was given the path" FromOccurrences("nowhere.csv")
+end
+
+@testset "a rule places what it makes of the occurrence records" begin
+    habitat = _bnghabitat()
+    species = _species()
+    records = _records(habitat)[1:6, :]
+    linear = LinearIndices(EcoSISTEM.getgridshape(habitat))
+    seen = Ref{Any}()
+    byn = FromOccurrences(records) do rows, habitat, context
+        seen[] = rows
+        return DataFrames.combine(DataFrames.groupby(rows, [:species, :cell]),
+                                  :n => sum => :count)
+    end
+    eco = _placed(byn, species, habitat)
+    @test eco.abundances.matrix[1, linear[A]] == 1 + 2 + 3
+    @test eco.abundances.matrix[1, linear[B]] == 4
+    @test eco.abundances.matrix[2, linear[B]] == 5 + 6
+    @test Set(propertynames(seen[])) ==
+          Set([:species, :decimalLatitude, :decimalLongitude, :n, :cell])
+    @test seen[].cell[1] == A
+    @test_throws "returned a value of type Int64" _placed(FromOccurrences((_, _,
+                                                                           _) -> 3,
+                                                                          records),
+                                                          species, habitat)
+end
+
+@testset "occurrence records are dated through the run's epoch and calendar" begin
+    habitat = _bnghabitat()
+    species = _species()
+    at = _positions(habitat)[A]
+    function records(column, values)
+        n = length(values)
+        table = DataFrame(species = fill("1", n),
+                          decimalLatitude = fill(at[1], n),
+                          decimalLongitude = fill(at[2], n))
+        table[!, column] = values
+        return table
+    end
+    seen = Ref{Any}()
+    keep = (rows, _, _) -> (seen[] = rows; rows)
+    epoch = Date(2020, 1, 1)
+    # A date, a month, a year and a range each at its start; what is not a date dropped in a notice.
+    dated = records(:eventDate,
+                    [
+                        "2019-05-03",
+                        "2019-05",
+                        "2019",
+                        "2019-03/2019-05",
+                        "",
+                        "nope"
+                    ])
+    @test_logs((:info,
+                r"^2 records with no date that could be read were not placed\.$"),
+               build_ecosystem(FromOccurrences(keep, dated, date = :eventDate),
+                               species, habitat, seed = 1, epoch = epoch))
+    elapsed(d) = EcoSISTEM._elapsedat(epoch, d, EcoSISTEM.ExactDates())
+    @test seen[].time ≈
+          elapsed.([Date(2019, 5, 3), Date(2019, 5, 1), Date(2019, 1, 1),
+                       Date(2019, 3, 1)])
+    # A year's, a month's and a day's columns, a month left out taking the year's start.
+    parts = DataFrame(species = ["1", "1"], decimalLatitude = [at[1], at[1]],
+                      decimalLongitude = [at[2], at[2]], year = [2018, 2019],
+                      month = [6, missing])
+    @test_throws "no epoch" _placed(FromOccurrences(parts,
+                                                    date = (:year, :month)),
+                                    species, habitat)
+    eco = build_ecosystem(FromOccurrences(keep, parts, date = (:year, :month)),
+                          species, habitat, seed = 1, epoch = epoch,
+                          verbosity = :silent)
+    @test seen[].time ≈ elapsed.([Date(2018, 6, 1), Date(2019, 1, 1)])
+    # Elapsed times as given; and at build, nothing after the start.
+    timed = records(:elapsed, [-1.0year, -2.0year])
+    eco = _placed(FromOccurrences(timed, time = :elapsed), species, habitat)
+    @test sum(eco.abundances.matrix) == 2
+    @test_throws "dated after the run's start" build_ecosystem(FromOccurrences(records(:eventDate,
+                                                                                       ["2021-01-01"]),
+                                                                               date = :eventDate),
+                                                               species, habitat,
+                                                               epoch = epoch,
+                                                               verbosity = :silent)
+    @test_throws "by `date` or by `time`, not both" FromOccurrences(timed,
+                                                                    date = :eventDate,
+                                                                    time = :elapsed)
+    @test_throws "no `eventDate` column" _placed(FromOccurrences(timed,
+                                                                 date = :eventDate),
+                                                 species, habitat)
+end
+
 @testset "a function places what it returns, given the context" begin
     habitat = _habitat()
     species = _species()
@@ -449,6 +671,22 @@ end
           "BySupply() + NoAbundance() + BySuitability()"
     @test BySupply() + (NoAbundance() + BySuitability()) isa
           SumOfPlacements{<:NTuple{3, Any}}
+    mktempdir() do dir
+        path = joinpath(dir, "records.csv")
+        write(path, "species\n")
+        @test sprint(show, FromOccurrences(path)) ==
+              "FromOccurrences($(repr(path)))"
+        @test sprint(show,
+                     FromOccurrences(path, species = :scientificName,
+                                     date = (:year, :month), snap = 3km,
+                                     per_record = 10,
+                                     level = EcoSISTEM.ProblemNotice())) ==
+              "FromOccurrences($(repr(path)), species = :scientificName, date = (:year, :month), snap = 3 km, per_record = 10, level = ProblemNotice())"
+    end
+    @test startswith(sprint(show,
+                            FromOccurrences((_, _, _) -> nothing,
+                                            (species = ["a"],))),
+                     "FromOccurrences(an anonymous function, a NamedTuple")
     @test sprint(show,
                  FromTable((species = ["a", "b"],
                             cell = [CartesianIndex(1, 1),

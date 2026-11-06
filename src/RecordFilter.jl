@@ -356,7 +356,7 @@ function _keptrows(f::InActiveCell, table)
     keep = _madeonroot() do
         placed = _snapcells(f.cells, latitudes, longitudes, f.snap)
         _reportproblems(_placingproblems(placed, f.level, f.snap, "record",
-                                         "removed"), f.verbosity)
+                                         "removed", "kept"), f.verbosity)
         return .!isnothing.(placed.cells)
     end
     length(keep) == length(latitudes) ||
@@ -490,12 +490,13 @@ function _grounddistance(φ1::Unitful.DimensionlessQuantity, λ1, φ2, λ2)
     return _arc(2 * asin(sqrt(min(h, 1.0))) * u"rad")
 end
 
-# The report of what placing records on a grid removed, at `level`: records off the grid, in inactive
-# cells with no active cell within `snap`, and with no position; and, as a notice, those an active
-# cell within `snap` kept.
+# The report of what placing records on a grid dropped, at `level`: records off the grid, in inactive
+# cells with no active cell within `snap`, and with no position, saying what became of them (`done`);
+# and, as a notice, those an active cell within `snap` saved, saying what became of those (`snapped`:
+# a filter keeps them, a placement moves them).
 function _placingproblems(placed::NamedTuple, level::AbstractProblemSeverity,
                           snap::Unitful.Length, noun::AbstractString,
-                          done::AbstractString)
+                          done::AbstractString, snapped::AbstractString)
     near = iszero(snap) ? "" : ", with no active cell within $snap,"
     problems = Problem[]
     for (n, code, where) in ((placed.offgrid, :off_grid, "off the grid"),
@@ -511,7 +512,7 @@ function _placingproblems(placed::NamedTuple, level::AbstractProblemSeverity,
         push!(problems,
               Problem(ProblemNotice(), :snapped,
                       "$(_countword(placed.snapped, noun)) $(_inactivecells(placed.snapped)) " *
-                      "within $snap of an active cell $(_were(placed.snapped)) kept."))
+                      "within $snap of an active cell $(_were(placed.snapped)) $snapped."))
     return problems
 end
 

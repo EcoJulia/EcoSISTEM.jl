@@ -123,7 +123,8 @@ sum(eco3.abundances.matrix)
 [`BySupply`](@ref), [`BySuitability`](@ref) and [`ByLayer`](@ref) (any layer of your own, such as a
 vegetation index) each weight the cells, and [`Weighted`](@ref) multiplies several. Each takes a
 community `total` or `each` species' own, as a count or as a density (`2.0/km^2`).
-[`FromTable`](@ref) reads rows of species, place and count; [`NoAbundance`](@ref) places nothing;
+[`FromTable`](@ref) reads rows of species, place and count; [`FromOccurrences`](@ref) reads
+occurrence records, one individual each by default; [`NoAbundance`](@ref) places nothing;
 and placements add with `+`. Any function of the species, the habitat and a
 [`PlacementContext`](@ref) is a placement too, written as a `do` block returning a table:
 
