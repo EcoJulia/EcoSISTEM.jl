@@ -647,6 +647,21 @@ if rank == 0
     @test sum(placed_again) == 5_050
 end
 
+# The same placement filled to a fraction of capacity: its layer weight still built on every rank,
+# though it sits inside another placement, and the fill the serial twin's.
+capped = ToCapacity(placement, fraction = 1.0e-3)
+cappedeco = build_ecosystem(capped, placesppl, varying_environment(),
+                            nichefit = nichefit, seed = 0, distributed = true,
+                            verbosity = :silent)
+capped_start = gatherabundance(cappedeco)
+cappedserial = build_ecosystem(capped, placesppl, varying_environment(),
+                               nichefit = nichefit, seed = 0,
+                               distributed = false, verbosity = :silent)
+if rank == 0
+    @test sum(capped_start) > 0
+    @test capped_start == cappedserial.abundances.matrix
+end
+
 # **An intervention is the only thing that can leave the two landscape layouts out of step**, and so
 # the only thing that exercises where `synchronise_from_rows!` sits in the timestep. It writes
 # `rows_matrix` after the dynamics; the next timestep opens with `update_resource_usage!`, which

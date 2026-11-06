@@ -283,7 +283,8 @@ and passes `seed` through for reproducibility.
 
 `placement` says how many individuals of each species start in each cell: a shipped placement -
 [`BySupply`](@ref), [`BySuitability`](@ref), [`ByLayer`](@ref), [`Weighted`](@ref),
-[`FromTable`](@ref), [`FromOccurrences`](@ref), [`NoAbundance`](@ref), or several added with `+` -
+[`FromTable`](@ref), [`FromOccurrences`](@ref), [`NoAbundance`](@ref), any filled to capacity by
+[`ToCapacity`](@ref), or several added with `+` -
 or any function of `(species, habitat, context)`, as a `do` block, returning a
 [`PlacedAbundances`](@ref) or a table of the individuals it places. It is called with the species list, the environment and a
 [`PlacementContext`](@ref) - the cells it may place in (the active ones), a random stream per

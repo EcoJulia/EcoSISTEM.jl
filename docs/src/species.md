@@ -86,6 +86,11 @@ recent = FromOccurrences(occurrences) do rows, habitat, context
 end
 ```
 
+To start each cell as full as its resources allow, wrap a placement in [`ToCapacity`](@ref): its
+numbers become the shares of the species in each cell, and the cell is filled until what they demand
+of its scarcest resource is what it supplies - `ToCapacity(recent)`, say, or
+`ToCapacity(FromOccurrences(occurrences))`.
+
 ## Species from a pool
 
 Each trait is a spec: [`ToleranceSpec`](@ref) names a response family's parameters as the family

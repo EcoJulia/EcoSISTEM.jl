@@ -41,6 +41,8 @@
     - `FromOccurrences(records)`, a placement reading occurrence records, matched and placed as the
       filters match and place them: one individual a record by default, `per_record`, a `total` spread
       over the records in proportion to them, or a `do` block making its own table. Optionally dated.
+    - `ToCapacity(placement; fraction)`, filling each cell until what its species demand of its
+      scarcest resource is `fraction` of what it supplies, in the shares `placement` gives.
   - Changed
     - `build_ecosystem(species, habitat)` places 1000 individuals of each active species, split at
       random and placed by supply, and announces it; it takes `verbosity`. `repopulate!(eco, placement = eco.placement; seed)` places again by the

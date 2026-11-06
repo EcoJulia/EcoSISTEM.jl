@@ -125,6 +125,8 @@ vegetation index) each weight the cells, and [`Weighted`](@ref) multiplies sever
 community `total` or `each` species' own, as a count or as a density (`2.0/km^2`).
 [`FromTable`](@ref) reads rows of species, place and count; [`FromOccurrences`](@ref) reads
 occurrence records, one individual each by default; [`NoAbundance`](@ref) places nothing;
+[`ToCapacity`](@ref) fills each cell to what its resources support, in the shares another placement
+gives;
 and placements add with `+`. Any function of the species, the habitat and a
 [`PlacementContext`](@ref) is a placement too, written as a `do` block returning a table:
 

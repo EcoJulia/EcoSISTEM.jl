@@ -14,8 +14,8 @@ using Tables: Tables
 
 A rule saying how many individuals of each species start in each cell: [`BySupply`](@ref),
 [`BySuitability`](@ref), [`ByLayer`](@ref), [`Weighted`](@ref), [`FromTable`](@ref),
-[`FromOccurrences`](@ref), [`NoAbundance`](@ref), and several added with `+`
-([`SumOfPlacements`](@ref)). Called with
+[`FromOccurrences`](@ref), [`NoAbundance`](@ref), any of them filled to capacity by
+[`ToCapacity`](@ref), and several added with `+` ([`SumOfPlacements`](@ref)). Called with
 `(species, habitat, context)` - a [`SpeciesList`](@ref), a [`GridHabitat`](@ref) and a
 [`PlacementContext`](@ref) - one returns a [`PlacedAbundances`](@ref). [`build_ecosystem`](@ref) takes
 one as its first argument, as it takes `DefaultEcosystem()` or any function of the same three
@@ -337,6 +337,46 @@ end
 FromOccurrences(data; kw...) = FromOccurrences(nothing, data; kw...)
 
 """
+    ToCapacity(placement; fraction = 1)
+
+A placement filling each cell to what its resources support, taking `placement`'s table as the shares
+of the species there: a cell holds individuals until, in its scarcest resource, what they demand is
+`fraction` of what the cell supplies - where, in the dynamics, births begin to be held back - each
+species keeping its share, rounded to the nearest whole individual. A cell `placement` puts nothing
+in stays empty. The shares may be whole counts or any non-negative weights, such as recency-weighted
+records from a [`FromOccurrences`](@ref) rule; their places and species are found as any placement's
+are, and a `time` column is ignored.
+
+A filled cell is at its equilibrium only where suitability does not enter - `survival` zero, or a
+suitability of one - and births and deaths have equal base rates: births then balance deaths exactly
+when demand meets supply. Otherwise a cell settles above or below capacity, as its species' rates and
+suitabilities set, and a run filled this way starts away from that.
+
+# Arguments
+
+  - `placement`: the placement whose table gives the shares - a shipped one, `DefaultEcosystem()` or
+    a function of `(species, habitat, context)`.
+  - `fraction`: the share of capacity each cell is filled to, a non-negative number; `1`, the
+    default, fills it.
+
+# Fields
+
+  - `placement`, `fraction`: as given.
+"""
+struct ToCapacity{P} <: AbstractPlacement
+    placement::P
+    fraction::Float64
+
+    function ToCapacity(placement; fraction::Real = 1)
+        _checkplacement(placement)
+        (isfinite(fraction) && fraction >= 0) ||
+            error("`fraction` is the share of capacity each cell is filled to, a finite, " *
+                  "non-negative number; got $fraction.")
+        return new{typeof(placement)}(placement, Float64(fraction))
+    end
+end
+
+"""
     SumOfPlacements(placements...)
 
 Several placements added: each places its individuals as it would alone, and their rows add, a
@@ -487,6 +527,12 @@ function Base.show(io::IO, p::FromOccurrences)
     end
     p.level isa ProblemWarning ||
         print(io, ", level = ", nameof(typeof(p.level)), "()")
+    return print(io, ")")
+end
+
+function Base.show(io::IO, p::ToCapacity)
+    print(io, "ToCapacity(", _placementphrase(p.placement))
+    isone(p.fraction) || print(io, ", fraction = ", p.fraction)
     return print(io, ")")
 end
 
@@ -648,6 +694,10 @@ function _prepared(p::Weighted, habitat::GridHabitat)
                     _numberkeywords(p.numbers)...)
 end
 
+function _prepared(p::ToCapacity, habitat::GridHabitat)
+    return ToCapacity(_prepared(p.placement, habitat), fraction = p.fraction)
+end
+
 function _prepared(p::SumOfPlacements, habitat::GridHabitat)
     return SumOfPlacements(map(q -> _prepared(q, habitat), p.placements)...)
 end
@@ -671,6 +721,8 @@ _reusable(::Any) = true
 _reusable(p::FromTable) = _rereadable(p.data)
 
 _reusable(p::FromOccurrences) = _rereadable(p.data)
+
+_reusable(p::ToCapacity) = _reusable(p.placement)
 
 _reusable(p::SumOfPlacements) = all(_reusable, p.placements)
 
@@ -757,6 +809,16 @@ function (p::FromOccurrences)(species::SpeciesList, habitat::GridHabitat,
                               resolved.problems, dated)
     return PlacedAbundances(table, records = records,
                             problems = resolved.problems)
+end
+
+function (p::ToCapacity)(species::SpeciesList, habitat::GridHabitat,
+                         context::PlacementContext)
+    placed = _callplacement(p.placement, species, habitat, context)
+    shares = _sharesof(placed.table, species, habitat, context)
+    filled = _filltocapacity(shares, species, habitat, p.fraction)
+    return PlacedAbundances(filled.table, records = placed.records,
+                            problems = vcat(placed.problems, shares.problems,
+                                            filled.problems))
 end
 
 function (p::SumOfPlacements)(species::SpeciesList, habitat::GridHabitat,
@@ -1335,13 +1397,125 @@ function _occurrencecounts(numbers::_Total, rows::DataFrame, ::SpeciesList,
     return _grouptable(groups, drawn, dated)
 end
 
+# --- Filling to capacity -----------------------------------------------------------
+
+# A table's shares resolved against the species and the grid: each row's species row, cell and share,
+# its time ignored, and the rows that could not be resolved reported as warnings, counted in rows.
+function _sharesof(table, species::SpeciesList, habitat::GridHabitat,
+                   context::PlacementContext)
+    canonical = _canonicaltable(table, habitat, context, times = false)
+    shares = [_placedshare(x, row) for (row, x) in enumerate(canonical.count)]
+    index = _matchindex(species)
+    matched = _matchspecies(canonical.species,
+                            Iterators.repeated(1, length(shares)), index,
+                            _nameanswers(index, canonical.species))
+    problems = _matchproblems(matched.dropped, ProblemWarning(), "row",
+                              "not placed", index, :normal)
+    allowed = _allowedmask(habitat, context.cells)
+    linear = LinearIndices(getgridshape(habitat))
+    rows = (species = Int[], cells = CartesianIndex{2}[], shares = Float64[])
+    offgrid = outside = 0
+    for (sp, cell, share) in zip(matched.rows, canonical.cell, shares)
+        isnothing(sp) && continue
+        if isnothing(cell)
+            offgrid += 1
+        elseif !allowed[linear[cell]]
+            outside += 1
+        else
+            push!(rows.species, sp)
+            push!(rows.cells, cell)
+            push!(rows.shares, share)
+        end
+    end
+    iszero(offgrid) ||
+        push!(problems,
+              Problem(ProblemWarning(), :off_grid,
+                      "$(_countword(offgrid, "row")) naming a place off the grid " *
+                      "$(_were(offgrid)) not placed."))
+    iszero(outside) ||
+        push!(problems,
+              Problem(ProblemWarning(), :not_allowed,
+                      "$(_countword(outside, "row")) naming a cell the placement may not place " *
+                      "in $(_were(outside)) not placed."))
+    return (rows = rows, problems = problems)
+end
+
+# A row's share as a number, refused where it is not a finite, non-negative one.
+function _placedshare(x::Real, row::Int)
+    (isfinite(x) && x >= 0) ||
+        error("row $row of a placement's table gives a share of $x: a share is a finite, " *
+              "non-negative number.")
+    return Float64(x)
+end
+
+function _placedshare(x, row::Int)
+    return error("row $row of a placement's table gives its count as `$(repr(x))`: give a number.")
+end
+
+# Each cell filled to `fraction` of what its scarcest resource supports at the share-weighted mean
+# demand of the species in it, each species keeping its share, rounded to the nearest whole
+# individual: a placement's table, and the cells whose species demand nothing, which no supply can
+# bound, reported and left empty.
+function _filltocapacity(shares::NamedTuple, species::SpeciesList,
+                         habitat::GridHabitat, fraction::Float64)
+    rows = shares.rows
+    incell = Dict{CartesianIndex{2}, Dict{Int, Float64}}()
+    for (sp, cell, share) in zip(rows.species, rows.cells, rows.shares)
+        bycell = get!(Dict{Int, Float64}, incell, cell)
+        bycell[sp] = get(bycell, sp, 0.0) + share
+    end
+    supplies = map(_getsupply, values(habitat.supply))
+    demands = map(d -> d.resource, values(species.demand))
+    table = (species = String[], cell = CartesianIndex{2}[], count = Int[])
+    unbounded = 0
+    for cell in sort!(collect(keys(incell)))
+        held = sort!(collect(incell[cell]))
+        total = sum_kbn(last.(held))
+        total > 0 || continue
+        capacity = _cellcapacity(supplies, demands, held, total, cell)
+        if isinf(capacity)
+            unbounded += 1
+            continue
+        end
+        for (sp, share) in held
+            n = round(Int, share * fraction * capacity / total)
+            n > 0 || continue
+            push!(table.species, species.names[sp])
+            push!(table.cell, cell)
+            push!(table.count, n)
+        end
+    end
+    problems = Problem[]
+    iszero(unbounded) ||
+        push!(problems,
+              Problem(ProblemWarning(), :unbounded,
+                      "$(_countword(unbounded, "cell")) whose species demand nothing of any " *
+                      "resource, which no supply can fill to, $(_were(unbounded)) left empty."))
+    return (table = table, problems = problems)
+end
+
+# How many individuals of a cell's species, in their shares, its scarcest resource supports: the
+# least, over the resources, of the cell's supply over the share-weighted mean demand, a resource the
+# species demand nothing of not binding.
+function _cellcapacity(supplies::Tuple, demands::Tuple,
+                       held::AbstractVector{<:Pair}, total::Float64,
+                       cell::CartesianIndex{2})
+    capacity = Inf
+    for (supply, demand) in zip(supplies, demands)
+        mean = sum_kbn([share * demand[sp] for (sp, share) in held]) / total
+        iszero(mean) && continue
+        capacity = min(capacity, uconvert(NoUnits, supply[cell] / mean))
+    end
+    return capacity
+end
+
 # --- Checking a table ---------------------------------------------------------
 
 # A placement's table in one form, whatever form it came in: `species` as given, `cell` as the
 # grid's own key (`nothing` for a place off the grid), `count` (one each where the table has none)
-# and, where it is dated, `time` as elapsed time.
+# and, where it is dated and `times` asks for them, `time` as elapsed time.
 function _canonicaltable(table, habitat::GridHabitat,
-                         context::PlacementContext)
+                         context::PlacementContext; times::Bool = true)
     columns = Tables.columns(table)
     names = Tables.columnnames(columns)
     :species in names ||
@@ -1351,11 +1525,11 @@ function _canonicaltable(table, habitat::GridHabitat,
     cells = _gridkeys(habitat, columns, names)
     counts = :count in names ? collect(Tables.getcolumn(columns, :count)) :
              fill(1, length(species))
-    :time in names ||
+    (times && :time in names) ||
         return (species = species, cell = cells, count = counts)
-    times = [_placementtime(t, context, row)
-             for (row, t) in enumerate(Tables.getcolumn(columns, :time))]
-    return (species = species, cell = cells, count = counts, time = times)
+    elapsed = [_placementtime(t, context, row)
+               for (row, t) in enumerate(Tables.getcolumn(columns, :time))]
+    return (species = species, cell = cells, count = counts, time = elapsed)
 end
 
 # Each row's cell as the grid's own key, from whichever place the table gives.

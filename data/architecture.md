@@ -955,6 +955,7 @@ classDiagram
     class Weighted~W, N~
     class FromTable~D~
     class FromOccurrences~R, D, T, S, N, L~
+    class ToCapacity~P~
     class SumOfPlacements~P~
     class PlacementContext~C, S, R, NF~
     class PlacedAbundances~T~
@@ -965,9 +966,11 @@ classDiagram
     AbstractPlacement <|-- NoAbundance
     AbstractPlacement <|-- FromTable
     AbstractPlacement <|-- FromOccurrences
+    AbstractPlacement <|-- ToCapacity
     AbstractPlacement <|-- SumOfPlacements
     Weighted "1" *-- "*" AbstractPlacement : weights
     SumOfPlacements "1" *-- "*" AbstractPlacement : placements
+    ToCapacity "1" *-- "1" AbstractPlacement : placement
     PlacedAbundances "1" *-- "*" ProvenanceRecord : records
 ```
 
@@ -984,7 +987,9 @@ the grid stores its cells.
 cells, and each is a placement on its own; `Weighted` multiplies several, each normalised first, so a
 cell must score on every weight to be worth placing in. `+` adds placements' rows, as a
 `SumOfPlacements`. The numbers belong to the weighted placement - a community `total` split across the
-species, or `each` species' own - and never to a weight inside one.
+species, or `each` species' own - and never to a weight inside one. `ToCapacity` takes another
+placement's numbers as shares and fills each cell until what its species demand of the scarcest
+resource is what the cell supplies.
 
 ```mermaid
 classDiagram

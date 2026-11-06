@@ -570,6 +570,130 @@ end
                                                  species, habitat)
 end
 
+# How far each occupied cell of `eco` is filled - the largest, over the resources, of what its
+# individuals demand over what it supplies - and how far rounding each species to whole individuals can
+# move that: half of every species' demand, over the supply.
+function _fullness(eco)
+    supplies = map(b -> b.matrix, values(EcoSISTEM.getsupply(eco.habitat)))
+    demands = map(d -> d.resource, values(eco.spplist.demand))
+    linear = LinearIndices(EcoSISTEM.getgridshape(eco.habitat))
+    abundances = eco.abundances.matrix
+    filled = Dict{CartesianIndex{2}, NamedTuple}()
+    for cell in CartesianIndices(size(MASK))
+        (MASK[cell] && sum(abundances[:, linear[cell]]) > 0) || continue
+        ratios = [ustrip(NoUnits,
+                         sum(abundances[sp, linear[cell]] * d[sp]
+                             for sp in axes(abundances, 1)) / b[cell])
+                  for (b, d) in zip(supplies, demands)]
+        slack = maximum(ustrip(NoUnits, sum(d) / 2 / b[cell])
+                        for (b, d) in zip(supplies, demands))
+        filled[cell] = (fullness = maximum(ratios), slack = slack)
+    end
+    return filled
+end
+
+# Whether every occupied cell of `eco` is full to within rounding.
+_isfull(eco) = all(f -> abs(f.fullness - 1) <= f.slack, values(_fullness(eco)))
+
+@testset "ToCapacity fills each cell to what its scarcest resource supports" begin
+    habitat = _habitat()
+    demand = 1.0e3kJ / day
+    species = _species(demand = DemandSpec(SolarRadiation, demand))
+    supply = EcoSISTEM.getsupply(habitat).matrix
+    linear = LinearIndices(size(MASK))
+    cell = CartesianIndex(3, 4)
+    capacity = ustrip(NoUnits, supply[cell] / demand)
+    shares = (species = ["1", "2"], cell = [cell, cell], count = [1, 3])
+    eco = _placed(ToCapacity(FromTable(shares)), species, habitat)
+    @test eco.abundances.matrix[1, linear[cell]] == round(Int, capacity / 4)
+    @test eco.abundances.matrix[2, linear[cell]] == round(Int, 3 * capacity / 4)
+    @test sum(eco.abundances.matrix) ==
+          round(Int, capacity / 4) + round(Int, 3 * capacity / 4)
+    # A fraction of capacity; weights for shares; a time ignored, with no epoch to place it.
+    half = _placed(ToCapacity(FromTable(shares), fraction = 0.5), species,
+                   habitat)
+    @test half.abundances.matrix[2, linear[cell]] ==
+          round(Int, 3 * capacity / 8)
+    weighted = _placed(ToCapacity((_, _, _) -> (species = ["1", "2"],
+                                                cell = [cell, cell],
+                                                count = [0.25, 0.75],
+                                                time = [Date(2030), Date(2031)])),
+                       species, habitat)
+    @test weighted.abundances.matrix == eco.abundances.matrix
+    # Species demanding more take more of the supply each: the cell holds fewer of them.
+    species.demand.resource[2] = 3 * demand
+    mixed = _placed(ToCapacity(FromTable(shares)), species, habitat)
+    total = capacity / ((1 + 3 * 3) / 4)
+    @test mixed.abundances.matrix[1, linear[cell]] == round(Int, total / 4)
+    @test mixed.abundances.matrix[2, linear[cell]] == round(Int, 3 * total / 4)
+    @test _isfull(mixed)
+    # Every active cell filled by a placement putting some of each species everywhere.
+    full = _placed(ToCapacity(BySupply()), species, habitat)
+    @test length(_fullness(full)) == count(MASK)
+    @test _isfull(full)
+    @test sum(full.abundances.matrix[:, INACTIVE]) == 0
+end
+
+@testset "ToCapacity is bound by the scarcest resource" begin
+    water = GradientSpec(1.0mm / day, 5.0mm / day, axis = Precipitation)
+    habitat = _habitat(supply = (SOLAR, water))
+    species = _species(demand = (DemandSpec(SolarRadiation, 1.0e3kJ / day),
+                                 DemandSpec(Precipitation,
+                                            7.0e3Unitful.L / day)))
+    eco = _placed(ToCapacity(BySupply()), species, habitat)
+    @test _isfull(eco)
+    # Each resource alone would hold more somewhere than the two together: each binds somewhere.
+    supplies = map(b -> b.matrix, values(EcoSISTEM.getsupply(habitat)))
+    ratio = [ustrip(NoUnits, supplies[1][c] / 1.0e3kJ * day) /
+             ustrip(NoUnits, supplies[2][c] / (7.0e3Unitful.L) * day)
+             for c in CartesianIndices(size(MASK)) if MASK[c]]
+    @test minimum(ratio) < 1 < maximum(ratio)
+end
+
+@testset "ToCapacity reports what it cannot fill, and refuses what is not a placement" begin
+    habitat = _habitat()
+    species = _species(demand = DemandSpec(SolarRadiation, 1.0e3kJ / day))
+    shares = (species = ["1", "zz", "2"],
+              cell = [
+                  CartesianIndex(3, 4),
+                  CartesianIndex(3, 4),
+                  CartesianIndex(1, 1)
+              ],
+              count = [1, 1, 1])
+    eco = @test_logs((:warn,
+                      r"^1 row of 1 name of no species in the species list was not placed: `zz` \(1\)\.$"),
+                     (:warn,
+                      r"^1 row naming a cell the placement may not place in was not placed\.$"),
+                     _placed(ToCapacity(FromTable(shares)), species, habitat))
+    @test _perspecies(eco)[[2, 3, 4]] == [0, 0, 0] && _perspecies(eco)[1] > 0
+    # Species demanding nothing are bounded by no supply.
+    free = _species(demand = DemandSpec(SolarRadiation, 0.0kJ / day))
+    empty = @test_logs((:warn,
+                        r"^1 cell whose species demand nothing of any resource"),
+                       _placed(ToCapacity(FromTable((species = ["1"],
+                                                     cell = [CartesianIndex(3,
+                                                                            4)],
+                                                     count = [1]))), free,
+                               habitat))
+    @test sum(empty.abundances.matrix) == 0
+    @test_throws "finite, non-negative number; got -1" ToCapacity(BySupply(),
+                                                                  fraction = -1)
+    @test_throws "a placement says how many individuals start where" ToCapacity(3)
+    @test_throws "a share is a finite, non-negative number" _placed(ToCapacity((_,
+                                                                                _,
+                                                                                _) -> (species = ["1"],
+                                                                                       cell = [CartesianIndex(3,
+                                                                                                              4)],
+                                                                                       count = [-1.0])),
+                                                                    species,
+                                                                    habitat)
+    # Placed again by `repopulate!`, as it was.
+    eco = _placed(ToCapacity(BySupply(), fraction = 0.5), species, habitat)
+    start = copy(eco.abundances.matrix)
+    repopulate!(eco, verbosity = :silent)
+    @test eco.abundances.matrix == start
+end
+
 @testset "a function places what it returns, given the context" begin
     habitat = _habitat()
     species = _species()
@@ -667,6 +791,9 @@ end
           "BySuitability(each = TraitColumn(:n))"
     @test sprint(show, Weighted(BySupply(), BySuitability(), total = 9)) ==
           "Weighted(BySupply(), BySuitability(), total = 9)"
+    @test sprint(show, ToCapacity(BySupply())) == "ToCapacity(BySupply())"
+    @test sprint(show, ToCapacity(BySupply(), fraction = 0.5)) ==
+          "ToCapacity(BySupply(), fraction = 0.5)"
     @test sprint(show, BySupply() + NoAbundance() + BySuitability()) ==
           "BySupply() + NoAbundance() + BySuitability()"
     @test BySupply() + (NoAbundance() + BySuitability()) isa
