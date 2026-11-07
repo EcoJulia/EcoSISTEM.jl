@@ -423,6 +423,8 @@ function simulate!(eco::AbstractEcosystem, duration::Unitful.Time,
     for _ in 1:_stepcount(duration, timestep)
         update!(eco, timestep, intervention)
     end
+    _finishinterventions!(eco, intervention)
+    return nothing
 end
 
 """
@@ -488,6 +490,7 @@ function simulate!(f, eco::AbstractEcosystem, duration::Unitful.Time,
         _step!(eco, timestep, intervention)
         count = _occur(f, schedule, eco, timestep, count)
     end
+    _finishinterventions!(eco, intervention)
     return nothing
 end
 

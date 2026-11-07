@@ -110,6 +110,20 @@ function Base.show(io::IO, ::MIME"text/plain", s::InterventionSet)
     return nothing
 end
 
+# A dated placement's rows for one ecosystem, this rank's species only, in time order: each one's row
+# in this rank's abundances, storage column, count and elapsed time; the elapsed time served through,
+# `nothing` before the first firing; and the individuals passed over at a continuing run's start and
+# due in cells deactivated since, until a run's end notes them.
+mutable struct _ServedRows
+    rows::Vector{Int}
+    cells::Vector{Int}
+    counts::Vector{Int}
+    times::Vector{typeof(1.0s)}
+    servedthrough::Union{Nothing, typeof(1.0s)}
+    skipped::Int
+    deactivated::Int
+end
+
 using Unitful
 
 using Unitful.DefaultSymbols
@@ -639,12 +653,20 @@ const _TableIntervention = Intervention{EveryStep, <:AbstractRegion,
 # A table stands alone in an intervention scheduled every step: a schedule firing less often would
 # skip rows, and an operation sharing it would act at the start as well.
 function _checktableintervention(schedule::AbstractSchedule, operations::Tuple)
-    any(op -> op isa AddAbundanceTable, operations) || return nothing
+    any(_istimed, operations) || return nothing
     schedule isa EveryStep && length(operations) == 1 && return nothing
-    return error("an `AddAbundanceTable` carries its own times, so it goes in an `Intervention` of " *
-                 "its own with `EveryStep()`, whose region filters its rows; this one has " *
-                 "`$(sprint(show, schedule))` and $(length(operations)) operations.")
+    return error("an `AddAbundanceTable`, or an `AddAbundance` of a dated placement, carries its own " *
+                 "times, so it goes in an `Intervention` of its own with `EveryStep()`, whose region " *
+                 "filters its rows; this one has `$(sprint(show, schedule))` and " *
+                 "$(length(operations)) operations.")
 end
+
+# Whether an operation carries its own times, its rows served as they fall due.
+_istimed(::AbstractOperation) = false
+
+_istimed(::AddAbundanceTable) = true
+
+_istimed(op::_PlacementAddition) = op.dated
 
 # Whether an intervention fires on the step reaching `elapsed`: when its schedule does, except that
 # a table's fires at the start too, to add the rows due at or before it.
@@ -653,6 +675,13 @@ function _fires(iv::Intervention, eco::AbstractEcosystem, elapsed, timestep)
 end
 
 _fires(::_TableIntervention, ::AbstractEcosystem, _, _) = true
+
+function _fires(iv::Intervention{EveryStep, <:AbstractRegion,
+                                 <:Tuple{_PlacementAddition}},
+                eco::AbstractEcosystem, elapsed, timestep)
+    return only(iv.operations).dated ||
+           _fires(iv.schedule, eco, elapsed, timestep)
+end
 
 # Apply an intervention's operations in order to its resolved cells.
 function _applyoperations!(iv::Intervention, eco::AbstractEcosystem, cells,
@@ -678,7 +707,8 @@ end
 # A placement's individuals added over the region's active cells, as `build_ecosystem` places them,
 # its table undated: under MPI the root calls it and every rank adds its own species' rows.
 function _applyoperation!(op::_PlacementAddition, eco::AbstractEcosystem,
-                          cells, _, _, firing::NamedTuple)
+                          cells, _, timestep, firing::NamedTuple)
+    op.dated && return _servedated!(op, eco, cells, timestep, firing)
     context = _firingcontext(eco, op.placement, cells, firing)
     return _placeinto!(eco, op.placement, context, :normal, clear = false,
                        keep = false, undated = true)
@@ -729,6 +759,116 @@ end
 
 # Each rank's partial sums added across the ranks; serially, as they are.
 _sumacrossranks!(::AbstractEcosystem, x::AbstractArray) = x
+
+# Whether this is the rank that reports what every rank found; serially, the one there is.
+_isrootrank(::AbstractEcosystem) = true
+
+# A dated placement's rows falling due on the step reaching `firing.elapsed` added where they fall in
+# the region's still-active cells: at the start every row at or before it, otherwise those in
+# `(elapsed - timestep, elapsed]`. At a continuing run's first firing the rows it has passed are
+# counted, as are those due in cells deactivated since the ecosystem was built.
+function _servedated!(op::_PlacementAddition, eco::AbstractEcosystem, cells,
+                      timestep::Unitful.Time, firing::NamedTuple)
+    state = _servedrows!(op, eco, firing)
+    elapsed = firing.elapsed
+    from = iszero(elapsed) ? 1 :
+           searchsortedlast(state.times, elapsed - timestep) + 1
+    isnothing(state.servedthrough) &&
+        (state.skipped += sum(view(state.counts, 1:(from - 1)), init = 0))
+    to = searchsortedlast(state.times, elapsed)
+    owned = _ownedabundances(eco)
+    active = vec(parent(eco.habitat.active))
+    inregion = falses(length(active))
+    inregion[cells] .= true
+    for i in from:to
+        cell = state.cells[i]
+        inregion[cell] || continue
+        if active[cell]
+            owned.rows[state.rows[i], cell] += state.counts[i]
+        else
+            state.deactivated += state.counts[i]
+        end
+    end
+    state.servedthrough = elapsed
+    return eco
+end
+
+# A dated placement's rows for `eco`, resolved at its first firing on it and kept: another ecosystem
+# resolves them afresh.
+function _servedrows!(op::_PlacementAddition, eco::AbstractEcosystem,
+                      firing::NamedTuple)
+    held = op.served[]
+    !isnothing(held) && held.owner.value === eco && return held.rows
+    rows = _resolvedated(op.placement, eco, firing)
+    op.served[] = (owner = WeakRef(eco), rows = rows)
+    return rows
+end
+
+# A dated placement resolved as `build_ecosystem` resolves a placement - under MPI the root calling it
+# and every rank taking the table - but over the cells the ecosystem was built with, keeping every row
+# whatever its time, with streams of the intervention's own; this rank's species' rows in time order.
+function _resolvedated(placement, eco::AbstractEcosystem, firing::NamedTuple)
+    built = parent(eco.habitat.area.report.active)
+    words = UInt64[eco.seed % UInt64, _INTERVENTION_STREAM, firing.k, 0,
+                   _PLACEMENT_STREAM]
+    streams = Dict(name => Random.Xoshiro(vcat(words, key % UInt64))
+                   for (name, key) in zip(eco.spplist.names,
+                                          eco.spplist.traits.key))
+    context = PlacementContext(cells = findall(built), streams = streams,
+                               community = Random.Xoshiro(words),
+                               nichefit = eco.nichefit, epoch = eco.epoch,
+                               calendar = eco.calendar, time = Inf * s)
+    outcome = _resolveplacement(eco, placement, context, :normal)
+    _reportproblems(vcat(outcome.placed.problems, outcome.resolved.problems),
+                    :normal)
+    eco.inputs = _uniqueinputs(vcat(eco.inputs, outcome.placed.records))
+    resolved = outcome.resolved
+    isnothing(resolved.times) &&
+        error("$(_placementphrase(placement)) is dated, but its table has no `time` column, so " *
+              "no row says when it falls due.")
+    owned = _ownedabundances(eco)
+    rows = resolved.species .- owned.firstspecies .+ 1
+    mine = findall(in(axes(owned.rows, 1)), rows)
+    order = mine[sortperm(resolved.times[mine])]
+    return _ServedRows(rows[order], resolved.cells[order],
+                       resolved.counts[order], resolved.times[order], nothing,
+                       0, 0)
+end
+
+# At a run's end, a notice for each dated placement of what it did not add: individuals dated after
+# the run's end, passed over at a continuing run's start, or due in cells deactivated since - every
+# rank's counted, the root reporting.
+function _finishinterventions!(eco::AbstractEcosystem, intervention)
+    for iv in _interventions(intervention), op in iv.operations
+        (op isa _PlacementAddition && op.dated) || continue
+        held = op.served[]
+        (!isnothing(held) && held.owner.value === eco) || continue
+        state = held.rows
+        late = sum(state.counts[i]
+                   for i in eachindex(state.times)
+                   if state.times[i] > simulationtime(eco); init = 0)
+        counts = _sumacrossranks!(eco, [late, state.skipped, state.deactivated])
+        state.skipped = state.deactivated = 0
+        _isrootrank(eco) || continue
+        problems = Problem[]
+        for (n, what) in ((counts[1],
+            "dated after the run's end $(_were(counts[1])) not added"),
+            (counts[2],
+            "dated at or before the run's start $(_were(counts[2])) not added: a run " *
+            "continuing another adds only what falls due as it runs, so give the " *
+            "intervention to the run before it too"),
+            (counts[3],
+            "due in cells deactivated since the ecosystem was built " *
+            "$(_were(counts[3])) not added"))
+            iszero(n) ||
+                push!(problems,
+                      Problem(ProblemNotice(), :not_added,
+                              "$(_individualsword(n)) $what."))
+        end
+        _reportproblems(problems, :normal)
+    end
+    return eco
+end
 
 # Add a table's rows due on the step reaching `elapsed`, keeping those in the region and of this
 # process's species, each species and cell summed before rounding. Every row is checked before it is

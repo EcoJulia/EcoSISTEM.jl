@@ -1553,6 +1553,36 @@ function _capacityplacement(placement)
     return placement
 end
 
+# Whether a placement's table is dated, so that an intervention serves its rows as they fall due: a
+# `FromOccurrences` given its records' dates or times, a `FromTable` whose data has a `time` column,
+# and a sum holding one, all of whose parts must then be. Any other placement is undated, a function's
+# included.
+_isdated(::Any) = false
+
+_isdated(p::FromOccurrences) = !(isnothing(p.date) && isnothing(p.time))
+
+_isdated(p::FromTable) = :time in _datacolumns(p.data)
+
+function _isdated(p::SumOfPlacements)
+    dated = map(_isdated, p.placements)
+    all(dated) || !any(dated) ||
+        error("a sum of placements is served by its rows' dates only if every placement in it is " *
+              "dated, and $(sprint(show, p)) mixes dated and undated ones.")
+    return all(dated)
+end
+
+# The column names of a table's data: a CSV file's header, the file a record names, or a table's own,
+# read without consuming a table that can be read only once.
+_datacolumns(path::AbstractString) = propertynames(CSV.File(path, limit = 1))
+
+_datacolumns(record::ProvenanceRecord) = _datacolumns(record.location)
+
+function _datacolumns(table)
+    schema = Tables.schema(table)
+    return isnothing(schema) ? Tables.columnnames(Tables.columns(table)) :
+           schema.names
+end
+
 # Whether a placement fills to capacity, and so needs what is already in each cell.
 _needsdemand(::Any) = false
 
@@ -1681,7 +1711,8 @@ function _resolveplaced(placed::PlacedAbundances, habitat::GridHabitat,
     table = placed.table
     allowed = _allowedmask(habitat, context.cells)
     linear = LinearIndices(getgridshape(habitat))
-    resolved = (species = Int[], cells = Int[], counts = Int[])
+    resolved = (species = Int[], cells = Int[], counts = Int[],
+                times = typeof(1.0s)[])
     offgrid = (rows = 0, individuals = 0)
     outside = (rows = 0, individuals = 0)
     dated = haskey(table, :time)
@@ -1708,6 +1739,7 @@ function _resolveplaced(placed::PlacedAbundances, habitat::GridHabitat,
         push!(resolved.species, sp)
         push!(resolved.cells, column)
         push!(resolved.counts, n)
+        dated && push!(resolved.times, table.time[row])
     end
     problems = Problem[]
     iszero(offgrid.rows) ||
@@ -1722,7 +1754,8 @@ function _resolveplaced(placed::PlacedAbundances, habitat::GridHabitat,
                       "cell the placement may not place in - an inactive cell, at build - were " *
                       "not placed."))
     return (species = resolved.species, cells = resolved.cells,
-            counts = resolved.counts, problems = problems)
+            counts = resolved.counts,
+            times = dated ? resolved.times : nothing, problems = problems)
 end
 
 # A row's count as a whole number, refused where it is not a non-negative one.

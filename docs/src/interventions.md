@@ -121,6 +121,19 @@ of some fields is
 Intervention(AtDates([Date(2030, 3, 1)]), CellMask(fields), AddAbundance(ToCapacity("wheat")))
 ```
 
+A dated placement - a [`FromTable`](@ref) with a `time` column, or a [`FromOccurrences`](@ref) given
+its records' `date` or `time` - is served by its dates instead, as [`AddAbundanceTable`](@ref) is: alone
+in an `Intervention` with `EveryStep()`, its rows are added as the clock reaches them, those at or before
+the start onto the starting state. It is read once for an ecosystem, over the cells the ecosystem was
+built with; each step adds the rows falling due in the region's cells still active, and the run's end
+notes what it did not add - rows dated after the end, rows a continuing run started past, and rows due
+in cells deactivated since:
+
+```julia
+arrivals = Intervention(EveryStep(), ActiveCells(),
+                        AddAbundance(FromOccurrences(records, date = (:year, :month))))
+```
+
 A placement may be a function of the user's, which the operations otherwise refuse, because a placement
 only says where individuals go: it returns a table, which is checked before anything is written, and
 under MPI the first rank alone calls it and every rank adds its own species' rows. Each firing gives it

@@ -106,7 +106,10 @@ end
 Add individuals to **each** cell of the region - an invasion, or a reintroduction - or, given a
 placement, the individuals it places over the region's active cells at each firing, as
 [`build_ecosystem`](@ref) places them at the start: `AddAbundance(ToCapacity("wheat"))` sows a crop,
-filling each cell to what its resources support given what already grows there.
+filling each cell to what its resources support given what already grows there. A dated placement - a
+[`FromTable`](@ref) with a `time` column, or a [`FromOccurrences`](@ref) given `date` or `time` - is
+served instead: alone in an `Intervention` with `EveryStep()`, its rows are added as the clock
+reaches them, those at or before the start onto the starting state.
 
 # Arguments
 
@@ -115,8 +118,12 @@ filling each cell to what its resources support given what already grows there.
     rate, drawn afresh each step.
   - `placement`: a placement - a shipped one, or a function of `(species, habitat, context)` - called
     at each firing with the region's active cells as its context's `cells` and random streams of that
-    firing's own, so it draws nothing a region's selection or a species' dynamics draw. Its table is
-    undated. Under MPI the first rank calls it, and every rank adds its own species' rows.
+    firing's own, so it draws nothing a region's selection or a species' dynamics draw. Under MPI the
+    first rank calls it, and every rank adds its own species' rows. A dated placement is called once
+    for an ecosystem, at its first firing, over the cells the ecosystem was built with; each step adds
+    its rows falling due in the region's cells still active, and a run's end notes what it did not
+    add - rows dated after it, rows a continuing run started past, and rows due in cells deactivated
+    since.
 """
 struct AddAbundance{S, C <: CELLCOUNT} <: AbstractOperation
     species::S
@@ -131,14 +138,18 @@ struct AddAbundance{S, C <: CELLCOUNT} <: AbstractOperation
     end
 end
 
-# The placement form of `AddAbundance`: a placement's individuals added over the region at each firing.
+# The placement form of `AddAbundance`: a placement's individuals added over the region at each firing,
+# or, where its table is `dated`, its rows as they fall due, resolved once for the ecosystem `served`
+# holds them for.
 struct _PlacementAddition{P} <: AbstractOperation
     placement::P
+    dated::Bool
+    served::Base.RefValue{Any}
 end
 
 function AddAbundance(placement)
     _checkplacement(placement)
-    return _PlacementAddition(placement)
+    return _PlacementAddition(placement, _isdated(placement), Ref{Any}(nothing))
 end
 
 """

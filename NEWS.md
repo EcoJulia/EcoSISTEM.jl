@@ -46,7 +46,8 @@
       species' name, that species alone.
     - `AddAbundance(placement)`, adding a placement's individuals over an intervention's region at
       each firing; `ToCapacity` there tops cells up, counting what is already there, so
-      `AddAbundance(ToCapacity("wheat"))` sows a crop.
+      `AddAbundance(ToCapacity("wheat"))` sows a crop. A dated placement (`FromTable` with times,
+      `FromOccurrences` with dates) is served as the clock reaches its rows, in an `EveryStep()` one.
   - Changed
     - `build_ecosystem(species, habitat)` places 1000 individuals of each active species, split at
       random and placed by supply, and announces it; it takes `verbosity`. `repopulate!(eco, placement = eco.placement; seed)` places again by the

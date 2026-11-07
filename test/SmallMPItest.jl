@@ -676,6 +676,33 @@ if rank == 0
     @test sown == cappedserial.abundances.matrix
 end
 
+# A dated table served as the clock reaches its rows: resolved once on the root, each rank keeping its
+# own species' rows, and the run as serially.
+arrivals = Intervention(EveryStep(), AllCells(),
+                        AddAbundance(FromTable((species = ["1", "4", "7", "2"],
+                                                cell = [CartesianIndex(1, 1),
+                                                    CartesianIndex(2, 3),
+                                                    CartesianIndex(3, 2),
+                                                    CartesianIndex(1, 2)],
+                                                count = [50, 40, 30, 20],
+                                                time = [0.0, 1.0, 2.0, 100.0] .*
+                                                       MPIFIXTURE_TIMESTEP))))
+arrivedeco = build_ecosystem(NoAbundance(), placesppl, varying_environment(),
+                             nichefit = nichefit, seed = 0, distributed = true,
+                             verbosity = :silent)
+arrivedserial = build_ecosystem(NoAbundance(), placesppl, varying_environment(),
+                                nichefit = nichefit, seed = 0,
+                                distributed = false, verbosity = :silent)
+simulate!(arrivedeco, 3 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP,
+          intervention = arrivals)
+simulate!(arrivedserial, 3 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP,
+          intervention = arrivals)
+arrived = gatherabundance(arrivedeco)
+if rank == 0
+    @test sum(arrived) > 0
+    @test arrived == arrivedserial.abundances.matrix
+end
+
 # **An intervention is the only thing that can leave the two landscape layouts out of step**, and so
 # the only thing that exercises where `synchronise_from_rows!` sits in the timestep. It writes
 # `rows_matrix` after the dynamics; the next timestep opens with `update_resource_usage!`, which

@@ -493,15 +493,78 @@ end
     @test findall(>(0), two.abundances.matrix[2, :]) ==
           findall(>(0), one.abundances.matrix[1, :])
     # What it refuses: a dated table, and what is not a placement.
-    dated = Intervention(AtTime(month), AllCells(),
-                         AddAbundance(FromTable((species = ["1"],
-                                                 cell = [CartesianIndex(1, 1)],
-                                                 time = [0.0s]))))
-    @test_throws "this placement's table is dated" fire!(_eco(abundance = 0),
-                                                         dated)
+    timed = (_, _, _) -> (species = ["1"], cell = [CartesianIndex(1, 1)],
+                          time = [0.0s])
+    @test_throws "its table is dated" fire!(_eco(abundance = 0),
+                                            Intervention(AtTime(month),
+                                                         AllCells(),
+                                                         AddAbundance(timed)))
     @test_throws "a placement says how many individuals start where" AddAbundance(3)
     @test sprint(show, AddAbundance(ToCapacity("wheat"))) ==
           "AddAbundance(ToCapacity(\"wheat\"))"
+end
+
+@testset "AddAbundance serves a dated placement's rows as the clock reaches them" begin
+    month = 1.0month_mean_duration
+    fire!(eco, iv, elapsed, step) = EcoSISTEM.applyinterventions!(eco, iv,
+                                                                  elapsed,
+                                                                  month,
+                                                                  step)
+    linear = LinearIndices((10, 10))
+    table = (species = ["1", "2", "1", "3"],
+             cell = [CartesianIndex(1, 1), CartesianIndex(2, 2),
+                 CartesianIndex(3, 3), CartesianIndex(4, 4)],
+             count = [5, 7, 3, 4],
+             time = [-1.0, 0.0, 1.0, 2.5] .* month)
+    served = Intervention(EveryStep(), AllCells(),
+                          AddAbundance(FromTable(table)))
+    eco = _eco(abundance = 0)
+    # The start takes every row at or before it; each step, those in its window.
+    fire!(eco, served, 0.0s, 0)
+    @test eco.abundances.matrix[1, linear[1, 1]] == 5
+    @test eco.abundances.matrix[2, linear[2, 2]] == 7
+    @test sum(eco.abundances.matrix) == 12
+    fire!(eco, served, month, 1)
+    @test eco.abundances.matrix[1, linear[3, 3]] == 3
+    fire!(eco, served, 2month, 2)
+    @test sum(eco.abundances.matrix) == 15
+    rows = only(served.operations).served[].rows
+    fire!(eco, served, 3month, 3)
+    @test eco.abundances.matrix[3, linear[4, 4]] == 4
+    @test only(served.operations).served[].rows === rows
+    # The region filters each step's rows.
+    mask = trues(10, 10)
+    mask[2, 2] = false
+    inregion = Intervention(EveryStep(), CellMask(mask),
+                            AddAbundance(FromTable(table)))
+    eco = _eco(abundance = 0)
+    fire!(eco, inregion, 0.0s, 0)
+    @test sum(eco.abundances.matrix) == 5
+    # A run's end notes what it did not add: rows after it, and rows due in cells deactivated since.
+    eco = _eco(abundance = 0)
+    eco.habitat.active[3, 3] = false
+    @test_logs((:info,
+                r"^3 individuals due in cells deactivated since the ecosystem was built were not added\.$"),
+               (:info,
+                r"^4 individuals dated after the run's end were not added\.$"),
+               match_mode = :any,
+               simulate!(eco, 2month, month, intervention = served))
+    # A run continuing another adds only what falls due as it runs.
+    eco = _eco(abundance = 0)
+    simulate!(eco, 1month, month)
+    @test_logs((:info,
+                r"^15 individuals dated at or before the run's start were not added"),
+               match_mode = :any,
+               simulate!(eco, 2month, month, intervention = served))
+    # What is refused: a dated placement scheduled otherwise or sharing its intervention, and a sum
+    # mixing dated and undated placements.
+    @test_throws "carries its own times" Intervention(AtTime(month), AllCells(),
+                                                      AddAbundance(FromTable(table)))
+    @test_throws "carries its own times" Intervention(EveryStep(), AllCells(),
+                                                      AddAbundance(FromTable(table)),
+                                                      Deactivate())
+    @test_throws "mixes dated and undated ones" AddAbundance(FromTable(table) +
+                                                             BySupply())
 end
 
 @testset "ToCapacity at a firing tops each cell up, counting what is there" begin

@@ -116,9 +116,10 @@ function _resolveplacement(eco::AbstractEcosystem, placement,
     placed = _sharedresult(eco, context) do
         raw = _callplacement(prepared, eco.spplist, eco.habitat, context)
         undated && :time in Tables.columnnames(Tables.columns(raw.table)) &&
-            error("`AddAbundance` adds a placement's individuals at each firing, and this " *
-                  "placement's table is dated: give it no dates (`date = nothing`), or drop its " *
-                  "`time` column.")
+            error("`AddAbundance` adds this placement's individuals at each firing, and its table is " *
+                  "dated: a table served by its dates is a `FromTable` with a `time` column or a " *
+                  "`FromOccurrences` given `date` or `time`, alone in an `Intervention` with " *
+                  "`EveryStep()`.")
         matched = _matchedtable(_canonicaltable(raw.table, eco.habitat,
                                                 context),
                                 eco.spplist, verbosity)

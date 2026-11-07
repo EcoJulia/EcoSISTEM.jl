@@ -207,6 +207,9 @@ function EcoSISTEM._sumacrossranks!(::MPIEcosystem, x::AbstractArray)
     return MPI.Allreduce!(x, +, MPI.COMM_WORLD)
 end
 
+# The rank reporting what every rank found: the first.
+EcoSISTEM._isrootrank(::MPIEcosystem) = MPI.Comm_rank(MPI.COMM_WORLD) == 0
+
 # **`AddSpecies` is the one operation that is genuinely not rank-local**, and the contrast with the
 # abundance operations is the point: those need no partition work at all, because a rank owns whole
 # species across every cell in `rows_matrix` whenever it is read. Adding a species
