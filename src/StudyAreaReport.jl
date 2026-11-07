@@ -67,11 +67,12 @@ end
 """
     Problem
 
-One thing worth telling the user about a study area.
+One thing worth telling the user about what is being built: a study area, or a species pool and the
+names it was given.
 
 # Fields
 
-  - `severity`: a [`ProblemNotice`](@ref) or a [`ProblemWarning`](@ref).
+  - `severity`: a [`ProblemNotice`](@ref), a [`ProblemWarning`](@ref) or a [`ProblemError`](@ref).
   - `code`: names the kind of problem, so that it can be tested for and filtered on without matching
     against the prose.
   - `message`: the prose itself.
@@ -235,10 +236,14 @@ _severitytag(::ProblemNotice) = "info"
 
 _severitytag(::ProblemWarning) = "warn"
 
+_severitytag(::ProblemError) = "error"
+
 # Raise a problem at its own severity - one method each, rather than a conditional on the value.
 _report(::ProblemNotice, message) = @info message
 
 _report(::ProblemWarning, message) = @warn message
+
+_report(::ProblemError, message) = error(message)
 
 # Every record a report answers for: those carried past a discarded cache, and those its live cache
 # holds, one per file.

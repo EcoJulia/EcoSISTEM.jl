@@ -165,11 +165,11 @@ A generous or irrelevant resource therefore costs nothing but is also doing noth
 
 An areal rate becomes an absolute per-cell one by multiplying by the cell's area, so a
 coarser grid gives each cell more of everything, as it should. On the species side
-[`build_species`](@ref) takes the axis explicitly, as `demandaxis`:
+[`build_species`](@ref) takes the axis explicitly, as each spec's first argument:
 
 ```julia
-build_species(n, tolerance = (298.0K, 2.0K), toleranceaxis = Temperature,
-                 demand = 10.0kJ / day,      demandaxis = SolarRadiation, ...)
+build_species(pool, tolerance = ToleranceSpec(Temperature, μ = 298.0K, σ = 2.0K),
+                    demand = DemandSpec(SolarRadiation, 10.0kJ / day), ...)
 ```
 
 The unit is still **checked** against the axis - a `L/day` demand declared on
@@ -253,8 +253,10 @@ Three rules follow, and they are the whole of it:
     @nicheaxis(SurveyedEnergy <: EcoSISTEM.NicheAxis, condition = u"kJ^2",
                densitywidth = 1.0u"kJ^2")
     odd = UniformSpec(2.0u"kJ^2", axis = SurveyedEnergy)
-    species = build_species(n, tolerance = (2.0u"kJ^2", 0.5u"kJ^2"),
-                            toleranceaxis = SurveyedEnergy, demand = ..., demandaxis = ...)
+    species = build_species(pool,
+                            tolerance = ToleranceSpec(SurveyedEnergy, μ = 2.0u"kJ^2",
+                                                      σ = 0.5u"kJ^2"),
+                            demand = ...)
     ```
 
     The same line declares one variable beneath a shipped axis -

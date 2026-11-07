@@ -27,12 +27,12 @@ module EcoSISTEMPhyloExt
 using EcoSISTEM
 # Named explicitly: every abstract type in this package is `public` rather than exported, so
 # `using EcoSISTEM` does not bring them in - and the constructors moved here name several.
-using EcoSISTEM: AbstractDemand, AbstractMovement, AbstractParams,
-                 SimpleCategoricalTolerance, SpeciesList
+using EcoSISTEM: AbstractDemand, AbstractParams, SimpleCategoricalTolerance,
+                 SpeciesDispersal, SpeciesList
 # The private helpers too: the moved bodies call each other by bare name, and a method defined as
 # `EcoSISTEM.foo(...)` does not bind `foo` inside this module.
 using EcoSISTEM: arenoderecordsempty, pair, root_to_tips, brownian_motion
-# The phylogenetic trait set is `public` rather than exported (`[C7-VIS]`), so `using EcoSISTEM`
+# The phylogenetic trait set is `public` rather than exported, so `using EcoSISTEM`
 # above does not reach it - and several bodies here call these by bare name. The rest of the set
 # (`resettraits!`, `reroot!`, `discrete_evolve`, `continuous_evolve`) is only ever *defined* here, with
 # a qualified name, which binds nothing locally and so needs no import.
@@ -40,6 +40,11 @@ using EcoSISTEM: arenoderecordsempty, pair, root_to_tips, brownian_motion
 # fitters' unqualified calls to it would be an `UndefVarError`. Naming it here is the same fix the
 # line above makes for `gettraits`/`assigntraits!`.
 using EcoSISTEM: gettraits, assigntraits!, varcovar
+# The stream the tree-growing constructors draw from, keyed on their `seed`; the tag it carries
+# lives beside the abundance split's in `src/Species.jl`, so every tagged stream is declared in
+# the parent. And the narrowing of their movements to the union the step loop splits.
+using EcoSISTEM: _dispersalvector, _phylogenyrng
+using Random: AbstractRNG, default_rng
 using Phylo
 using Phylo: NodeNameIterator
 using Optim

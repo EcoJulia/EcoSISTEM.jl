@@ -1,15 +1,14 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# The distributed hot loop: its own `_startrun!`, `_step!` (the per-species birth and death draws),
-# `update_resource_usage!` and `populate!`, and the hooks through which the shared code - the generic
+# The distributed hot loop: its own `_startrun!`, `_step!` (the per-species birth and death draws)
+# and `update_resource_usage!`, and the hooks through which the shared code - the generic
 # `update!`, the serial `move!` and the interventions - reaches a distributed ecosystem's layout
 # (`_landscaperow`, `_standingpopulation`, `getlookup`, `_ownedabundances`).
 #
-# **The four DUPLICATE the serial implementations in `src/dynamics.jl` rather than calling them**, and
+# **The three DUPLICATE the serial implementations in `src/dynamics.jl` rather than calling them**, and
 # that is the file's defining hazard: a rule phrased as "the hot loop" has two places to apply, and a
-# `grep` over `src/` finds only one of them. A change to the start of a run, the demographics, the
-# resource accounting or the founding population must be made here as well, or the two diverge
-# silently - a distributed run would then disagree with a serial one on the same seed, which is the
+# `grep` over `src/` finds only one of them. A change to the start of a run, the demographics or the
+# resource accounting must be made here as well, or the two diverge silently - a distributed run would then disagree with a serial one on the same seed, which is the
 # property the whole design exists to guarantee. Dispersal is not duplicated: `move!` and `_move!`
 # are one body serving both sides, through the hooks.
 #
@@ -136,7 +135,7 @@ function EcoSISTEM._step!(eco::MPIEcosystem, timestep::Unitful.Time,
 
                 # Calculate moves and write to cache
                 EcoSISTEM.move!(eco,
-                                eco.spplist.movement,
+                                eco.spplist.movement[truesp],
                                 sc,
                                 truesp,
                                 eco.cache.netmigration,
@@ -196,6 +195,20 @@ end
 function EcoSISTEM._ownedabundances(eco::MPIEcosystem)
     return (rows = eco.abundances.rows_matrix, firstspecies = eco.firstsp)
 end
+
+# Once a placement has written each rank's own species, the columns are rebuilt from the rows: the
+# first step reads the column layout.
+function EcoSISTEM._rowswritten!(eco::MPIEcosystem)
+    return EcoSISTEM.synchronise_from_rows!(eco.abundances)
+end
+
+# Each rank's sums over its own species added across the ranks, so every rank holds the whole.
+function EcoSISTEM._sumacrossranks!(::MPIEcosystem, x::AbstractArray)
+    return MPI.Allreduce!(x, +, MPI.COMM_WORLD)
+end
+
+# The rank reporting what every rank found: the first.
+EcoSISTEM._isrootrank(::MPIEcosystem) = MPI.Comm_rank(MPI.COMM_WORLD) == 0
 
 # **`AddSpecies` is the one operation that is genuinely not rank-local**, and the contrast with the
 # abundance operations is the point: those need no partition work at all, because a rank owns whole
@@ -276,82 +289,10 @@ end
 # onto a local row of `rows_matrix` and of `netmigration`.
 EcoSISTEM._landscaperow(eco::MPIEcosystem, sp::Int64) = sp - eco.firstsp + 1
 
-# And the population `AlwaysMovement` disperses is read from that same rank-local row, where the
+# And the population `AlwaysDispersal` disperses is read from that same rank-local row, where the
 # serial landscape offers a whole `matrix`. Because the row and `netmigration` are both this rank's,
 # moving an established individual between cells needs no more communication than moving a newborn:
 # only the field name differs, never the reach.
 function EcoSISTEM._standingpopulation(eco::MPIEcosystem, sc::Int64, sp::Int64)
     return eco.abundances.rows_matrix[EcoSISTEM._landscaperow(eco, sp), sc]
-end
-
-using EcoSISTEM: _getsupply
-"""
-    populate!(ml::MPIGridLandscape, spplist::SpeciesList, habitat::AB, nichefit::NF)
-
-Populate an `MPIGridLandscape` by distributing each species' abundance across
-active grid cells proportionally to the available supply, then synchronising
-from rows to columns across all MPI nodes.
-"""
-function EcoSISTEM.populate!(ml::MPIGridLandscape,
-                             spplist::EcoSISTEM.SpeciesList,
-                             habitat::AB,
-                             nichefit::NF,
-                             rngs::Vector{Random.Xoshiro}) where {AB <:
-                                                                  AbstractHabitat,
-                                                                  NF <:
-                                                                  AbstractNicheFit}
-    grid, activity = EcoSISTEM._gridactivity(habitat)
-    # Set up copy of supply
-    b = reshape(parent(ustrip.(_getsupply(habitat.supply))), length(grid))
-    units = unit(b[1])
-    b[.!activity] .= 0.0 * units
-    # A compensated sum, for the correctly rounded total: `sum` may reassociate once vectorised,
-    # and this sum affects reproducibility. For speed, we should revert to sum().
-    B = b ./ sum_kbn(b)
-    # Loop through owned species, drawing from each species' global RNG stream
-    abundances = @view spplist.abun[(ml.rows_tuple.first):(ml.rows_tuple.last)]
-    for mpisp in eachindex(abundances)
-        truesp = ml.rows_tuple.first + mpisp - 1
-        rand!(rngs[truesp], Multinomial(abundances[mpisp], B),
-              (@view ml.rows_matrix[mpisp, :]))
-    end
-    return EcoSISTEM.synchronise_from_rows!(ml)
-end
-
-"""
-    populate!(ml::MPIGridLandscape, spplist::SpeciesList,
-        habitat::GridHabitat{H, <:LayerCollection{Resource}}, nichefit::NF)
-
-Multi-supply variant of `populate!`; distributes abundances proportionally to the
-product of the normalised supply fractions.
-"""
-function EcoSISTEM.populate!(ml::MPIGridLandscape,
-                             spplist::EcoSISTEM.SpeciesList,
-                             habitat::EcoSISTEM.GridHabitat{H,
-                                                            <:LayerCollection{Resource}},
-                             nichefit::NF,
-                             rngs::Vector{Random.Xoshiro}) where {H <:
-                                                                  AbstractRegime,
-                                                                  NF <:
-                                                                  AbstractNicheFit}
-    grid, activity = EcoSISTEM._gridactivity(habitat)
-    # Set up a copy of each supply, zeroed outside the active cells and normalised to its own
-    # total, then multiply them together so a cell needs every resource to be worth populating.
-    fractions = EcoSISTEM._zipmap(values(habitat.supply)) do supply
-        b = reshape(parent(copy(_getsupply(supply))), length(grid))
-        b[.!activity] .= zero(eltype(b))
-        return b ./ sum_kbn(b)
-    end
-    B = EcoSISTEM._fold(fractions) do f1, f2
-        return f1 .* f2
-    end
-    # Loop through owned species, drawing from each species' global RNG stream
-    abundances = @view spplist.abun[(ml.rows_tuple.first):(ml.rows_tuple.last)]
-    for mpisp in eachindex(abundances)
-        truesp = ml.rows_tuple.first + mpisp - 1
-        rand!(rngs[truesp],
-              Multinomial(abundances[mpisp], B ./ sum_kbn(B)),
-              (@view ml.rows_matrix[mpisp, :]))
-    end
-    return EcoSISTEM.synchronise_from_rows!(ml)
 end

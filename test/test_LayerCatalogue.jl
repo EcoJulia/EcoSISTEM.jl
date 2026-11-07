@@ -157,12 +157,11 @@ end
     # `gsl` is catalogued `range`, not `stock`, and the reason is worth stating because it accrues
     # qualifying days and so invites the wrong one. So does `ngd0`, which is a `count`; and `gsl` is
     # `lgd - fgd`, a *span* between two `DayOfYear` positions rather than an accumulation.
-    # Decisively, `gsl` is the layer other layers measure their
-    # accumulation period *by* (`gsp` is precipitation per growing season), and an interval cannot
-    # itself be measured over an interval. It was named
-    # `DayRange` until 2026-08-04, which put it in that sweep by its name alone while meaning
-    # something else entirely - so the name is pinned here too, and renaming it back would fail this
-    # test loudly rather than silently start demanding `:range` of a day count.
+    # Decisively, `gsl` is the layer other layers measure their accumulation period *by* (`gsp` is
+    # precipitation per growing season), and an interval cannot itself be measured over an interval.
+    # Its axis's name is pinned here too: a name ending `Range` would put it in that sweep by its
+    # name alone while meaning something else entirely, and this fails loudly rather than silently
+    # demanding `:range` of a day count.
     @test !endswith(string(DayCount), "Range")
     @test all(r -> r.category === :count,
               filter(r -> r.axis === DayCount, CP._catalogue()))
@@ -418,10 +417,10 @@ end
           Unitful.L * m^-2
 end
 
-# **The divisors are the whole point of the subproject**, so they are pinned here directly rather
-# than only through a read: dividing a monthly total by a fixed 30.4375-day month is 7.7% wrong for
-# February, and these numbers are what make it right. No data is downloaded - the divisors come from
-# the catalogue and the calendar, not from any raster.
+# **The divisors are pinned here directly** rather than only through a read: dividing a monthly
+# total by a fixed 30.4375-day month is 7.7% wrong for February, and these numbers are what make it
+# right. No data is downloaded - the divisors come from the catalogue and the calendar, not from any
+# raster.
 @testset "accumulation-period divisors" begin
     CP = EcoSISTEM
     rec(ds,
@@ -576,14 +575,15 @@ end
 @testset "guard: datasets.csv reconciles to the layer tables" begin
     E = EcoSISTEM
     rows = E._datasets()
-    @test length(rows) == 14
+    @test length(rows) == 15
     for r in rows
         # every row names a loaded source type, spelled as the loader spells it back - Natural
-        # Earth's being the level type its downloads are owned by
+        # Earth's being the level type its downloads are owned by, and the WFO Plant List's the
+        # name authority its release is read by
         T = r.dataset == "NaturalEarth" ? E.NaturalEarthLevel :
             _datasetnamed(r.dataset)
         @test T <: RasterDataSources.RasterDataSource || T <: EcoSISTEMSource ||
-              T === E.NaturalEarthLevel
+              T === E.NaturalEarthLevel || T === WFOPlantList
         @test E._datasetkey(T) == r.dataset
         # a fetchable row is a RasterDataSources type; the package's own sources are not
         @test (r.fetch === :getraster) ==

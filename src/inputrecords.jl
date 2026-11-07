@@ -91,8 +91,14 @@ end
 # how far it has run.
 function _runrecord(eco::AbstractEcosystem)
     return (seed = eco.seed, epoch = eco.epoch, calendar = eco.calendar,
-            elapsed = eco.elapsed)
+            elapsed = eco.elapsed, placement = _placementrecord(eco.placement))
 end
+
+# How a run was placed, as its provenance says it: the placement as written, a function by its
+# name, or `nothing` where the ecosystem records none.
+_placementrecord(::Nothing) = nothing
+
+_placementrecord(placement) = _placementphrase(placement)
 
 # What a provenance listing adds about the run calendar: nothing for exact dates, and that months
 # were counted as mean months otherwise.

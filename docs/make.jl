@@ -33,6 +33,7 @@ makedocs(modules = [EcoSISTEM],
              ],
              "Building a model" => [
                  "Layers" => "layers.md",
+                 "Species" => "species.md",
                  "Axes, units and roles" => "units.md",
                  "Time" => "time.md",
                  "Interventions" => "interventions.md",

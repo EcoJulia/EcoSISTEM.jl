@@ -16,9 +16,9 @@
 #
 # **The filenames mirror `src/` deliberately.** `Landscape.jl`, `Ecosystem.jl`,
 # `DiversityInterface.jl` and `dynamics.jl` are each named for the serial file they duplicate or
-# conform alongside, so the two can be diffed by name. `dynamics.jl` was called `generate.jl` until
-# 2026-08-30, after a `src/Generate.jl` that no longer exists -- which is the kind of drift that let
-# a four-year-old divergence in the hot loop go unnoticed.
+# conform alongside, so the two can be diffed by name - and a rename on one side must be made on the
+# other: a duplicate named for a serial file that no longer exists is how a divergence in the hot
+# loop goes unnoticed.
 
 module EcoSISTEMMPIExt
 

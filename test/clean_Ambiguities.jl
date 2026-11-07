@@ -12,8 +12,7 @@
 # multi-method function, even when that annotation is correct in isolation - specificity is a
 # relation between methods, so narrowing one changes how the whole family resolves. Nothing else
 # reports it: the package loads cleanly, method counts are unchanged, and the failure only appears
-# when a call lands on the ambiguous pair. Two were introduced this way during the signature audit
-# of 2026-08-23, and cost a full test run each to find.
+# when a call lands on the ambiguous pair, and each costs a full test run to find any other way.
 #
 # It is fast (about a second) and needs no network.
 

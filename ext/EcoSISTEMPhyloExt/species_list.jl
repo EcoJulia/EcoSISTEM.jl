@@ -3,29 +3,31 @@
 # --- The tree-generating `SpeciesList` constructors --------------------------------------------------
 #
 # These two do not merely *accept* a phylogeny - they **build** one
-# (`rand(Ultrametric{BinaryTree{...}}(names))`) and derive a `PhyloBranches` similarity from it, so
-# they cannot work without `Phylo`. Every other `SpeciesList` constructor is untouched and stays
+# (`rand(rng, Ultrametric{BinaryTree{...}}(names))`) and derive a `PhyloBranches` similarity from
+# it, so they cannot work without `Phylo`. The tree and the traits evolved along it come from one
+# stream, `_phylogenyrng(seed)`, so a seed fixes both and an unseeded build draws from the global
+# generator without ever reseeding it. Every other `SpeciesList` constructor is untouched and stays
 # in `src/Species.jl`, including the one `build_species` uses; their docstrings stay there too.
 
 function EcoSISTEM.SpeciesList(numspecies::Int64,
                                numtraits::Int64,
-                               abun::Vector{Int64},
                                demand::DM,
                                movement::MO,
                                params::P,
-                               native::Vector{Bool},
-                               switch::Vector{Float64}) where {DM <:
-                                                               AbstractDemand,
-                                                               MO <:
-                                                               AbstractMovement,
-                                                               P <:
-                                                               AbstractParams}
+                               switch::Vector{Float64};
+                               seed = nothing) where {DM <: AbstractDemand,
+                                                      MO <:
+                                                      AbstractVector{<:SpeciesDispersal},
+                                                      P <: AbstractParams}
     names = map(x -> "$x", 1:numspecies)
+    movement = _dispersalvector(movement)
+    rng = _phylogenyrng(seed)
     # Create tree
-    tree = rand(Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(names))
+    tree = rand(rng,
+                Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(names))
     # Create tolerance and assign to tips
     traits = DataFrame(trait1 = collect(1:numtraits))
-    assigntraits!(tree, switch, traits)
+    assigntraits!(rng, tree, switch, traits)
     # Get tolerance from tree
     # `penalty = 0.5` is **soft** exclusion, and must be stated rather than left to the default:
     # this evolves a *niche* label, and a species outside its niche should do worse there rather than
@@ -36,13 +38,6 @@ function EcoSISTEM.SpeciesList(numspecies::Int64,
                                         penalty = 0.5)
     # Create similarity matrix (for now identity)
     phy = PhyloBranches(tree)
-    # Draw random set of abundances from distribution
-    if length(abun) < numspecies
-        abun = vcat(abun, repmat([0], numspecies - length(abun)))
-    end
-    # error out when abun dist and NumberSpecies are not the same (same for resource dist)
-    length(abun) == numspecies || throw(DimensionMismatch("Abundance vector
-                                            doesn't match number species"))
     counttypes(demand) == numspecies ||
         throw(DimensionMismatch("Demand vector
  doesn't match number species"))
@@ -52,33 +47,32 @@ function EcoSISTEM.SpeciesList(numspecies::Int64,
                        typeof(phy),
                        typeof(params)}(names,
                                        sp_trt,
-                                       abun,
                                        demand,
                                        phy,
                                        movement,
-                                       params,
-                                       native)
+                                       params)
 end
 
 function EcoSISTEM.SpeciesList(numspecies::Int64,
                                numtraits::Int64,
-                               abun::Vector{Int64},
                                demand::DM,
                                movement::MO,
                                phy::T,
-                               params::P,
-                               native::Vector{Bool}) where {DM <:
-                                                            AbstractDemand,
-                                                            MO <:
-                                                            AbstractMovement,
-                                                            T <: AbstractTypes,
-                                                            P <: AbstractParams}
+                               params::P;
+                               seed = nothing) where {DM <: AbstractDemand,
+                                                      MO <:
+                                                      AbstractVector{<:SpeciesDispersal},
+                                                      T <: AbstractTypes,
+                                                      P <: AbstractParams}
     names = map(x -> "$x", 1:numspecies)
+    movement = _dispersalvector(movement)
+    rng = _phylogenyrng(seed)
     # Create tree
-    tree = rand(Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(names))
+    tree = rand(rng,
+                Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(names))
     # Create tolerance and assign to tips
     traits = DataFrame(trait1 = collect(1:numtraits))
-    assigntraits!(tree, 0.5, traits)
+    assigntraits!(rng, tree, 0.5, traits)
     # Get tolerance from tree
     # `penalty = 0.5` is **soft** exclusion, and must be stated rather than left to the default:
     # this evolves a *niche* label, and a species outside its niche should do worse there rather than
@@ -87,13 +81,6 @@ function EcoSISTEM.SpeciesList(numspecies::Int64,
     sp_trt = SimpleCategoricalTolerance(Array(gettraits(tree, true)[:, 1]),
                                         axis = EcoSISTEM.TypologyAxis,
                                         penalty = 0.5)
-    # Draw random set of abundances from distribution
-    if length(abun) < numspecies
-        abun = vcat(abun, repmat([0], numspecies - length(abun)))
-    end
-    # error out when abun dist and NumberSpecies are not the same (same for resource dist)
-    length(abun) == numspecies || throw(DimensionMismatch("Abundance vector
-                                            doesn't match number species"))
     counttypes(demand) == numspecies ||
         throw(DimensionMismatch("Demand vector
  doesn't match number species"))
@@ -103,12 +90,10 @@ function EcoSISTEM.SpeciesList(numspecies::Int64,
                        typeof(phy),
                        typeof(params)}(names,
                                        sp_trt,
-                                       abun,
                                        demand,
                                        phy,
                                        movement,
-                                       params,
-                                       native)
+                                       params)
 end
 
 # ---------------------------------------------------------------------------
@@ -116,8 +101,8 @@ end
 # ---------------------------------------------------------------------------
 # **Here rather than in `src/Species.jl` because uncommenting it would need `Phylo`**: it
 # evolves body mass as a continuous trait along a phylogeny, exactly as the two live tree-generating
-# constructors above do. It is *parked*, not dead - see `SizeDemand` in `src/Demand.jl` and
-# **A44** in the master plan. Keeping the two halves of that decision together is the point.
+# constructors above do. It is *parked*, not dead - see `SizeDemand` in `src/Demand.jl`. Keeping
+# the two halves of that decision together is the point.
 
 # The size-based `SpeciesList` constructor - COMMENTED OUT with `SizeDemand`
 # ---------------------------------------------------------------------------
@@ -128,8 +113,7 @@ end
 # **The part worth not losing** is the allometry on the `density` line below: the mass-abundance
 # (self-thinning) relation `size^pop_mass / km^2`. It is computed here, used once for abundance, and
 # then thrown away - which is exactly the material a metabolic (or footprint) reading of
-# `SizeDemand` would need. See the note above `SizeDemand` in `Demand.jl`, **A44** in the master
-# plan, and **A1** in `~/.claude/plans/ecosistem-axes-units-and-roles.md`.
+# `SizeDemand` would need. See the note above `SizeDemand` in `src/Demand.jl`.
 #
 # `continuous_evolve`/`assigntraits!`/`resettraits!` are NOT affected - all are public and
 # used elsewhere; checked before commenting this out.
@@ -154,7 +138,7 @@ end
 #                      movement::MO,
 #                      params::P,
 #                      native::Vector{Bool},
-#                      switch::Vector{Float64}) where {MO <: AbstractMovement,
+#                      switch::Vector{Float64}) where {MO <: AbstractVector{<:SpeciesDispersal},
 #                                                      P <: AbstractParams}
 #     names = map(x -> "$x", 1:numspecies)
 #     # Create tree

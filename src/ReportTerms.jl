@@ -68,9 +68,9 @@ struct AsBuilt <: AbstractReportStage end
 """
     AbstractProblemSeverity
 
-How much a [`Problem`](@ref) matters: a [`ProblemNotice`](@ref) or a [`ProblemWarning`](@ref). A
-type rather than a symbol, so an unrecognised severity is refused by the signature where it is
-written rather than by a check inside the constructor.
+How much a [`Problem`](@ref) matters: a [`ProblemNotice`](@ref), a [`ProblemWarning`](@ref) or a
+[`ProblemError`](@ref). A type rather than a symbol, so an unrecognised severity is refused by the
+signature where it is written rather than by a check inside the constructor.
 """
 abstract type AbstractProblemSeverity end
 
@@ -79,6 +79,9 @@ struct ProblemNotice <: AbstractProblemSeverity end
 
 """    ProblemWarning <: AbstractProblemSeverity - it will work, but is probably not what you want. """
 struct ProblemWarning <: AbstractProblemSeverity end
+
+"""    ProblemError <: AbstractProblemSeverity - it cannot go on: raising one stops with its message. """
+struct ProblemError <: AbstractProblemSeverity end
 
 # --- Saying it in prose ------------------------------------------------------
 # How each term reads in a report a person is shown, given the term itself.

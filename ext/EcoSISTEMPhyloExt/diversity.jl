@@ -6,10 +6,11 @@
 # slot - a `SpeciesList` *is* an `AbstractTypes` (so the declaration is legal) but is never a
 # `PhyloBranches`; the phylogeny sits one level further in, as `SpeciesList`'s fourth type
 # parameter. So the constraint is expressible, just not where Diversity looks for it.
-# This is the same *holds-versus-is* distinction that produced seven silent Diversity defects
-# (`[TF-FORWARD]`): a `SpeciesList` **holds** an `AbstractTypes` and must forward everything about
-# it. Faith's PD is the one hook that cannot be forwarded, because the requirement is on the
-# concrete type rather than on a value the wrapper could pass along.
+# This is the same *holds-versus-is* distinction behind every forwarding hook: a `SpeciesList`
+# **holds** an `AbstractTypes` and must forward everything about it, since Diversity's defaults are
+# not neutral and a hook left unforwarded fails silently. Faith's PD is the one hook that cannot be
+# forwarded, because the requirement is on the concrete type rather than on a value the wrapper
+# could pass along.
 
 # **From `Diversity.Ecology`, not `Diversity`.** `Diversity` re-exports both names but does not
 # own the bindings, and importing from a re-exporter cannot extend them - Julia refuses with

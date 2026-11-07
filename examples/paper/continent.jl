@@ -49,21 +49,22 @@ function continent_environment(continent)
                        area = area, topology = Island())
 end
 
-# `n` species of the given niche widths about the continent's own temperature, with the abundances
-# given per species, so an invader can start absent: `BirthOnlyMovement`, with the continent's
-# dispersal, demand and demographic values.
-function continent_species(widths, abundances)
-    n = length(widths)
-    return build_species(n, tolerance = (fill(PAPER_TEMPERATURE, n), widths),
-                         toleranceaxis = Temperature,
-                         demand = CONTINENT.demand,
-                         demandaxis = SolarRadiation,
-                         dispersal = CONTINENT.dispersal,
-                         movement = BirthOnlyMovement, birth = CONTINENT.birth,
+# `n` species of the given niche widths about the continent's own temperature: dispersing at birth,
+# with the continent's dispersal, demand and demographic values. Where each starts is the placement
+# its run gives, so an invader can start absent.
+function continent_species(widths)
+    return build_species(SpeciesPool(length(widths)),
+                         tolerance = ToleranceSpec(Temperature,
+                                                   μ = PAPER_TEMPERATURE,
+                                                   σ = row -> widths[row.key]),
+                         demand = DemandSpec(SolarRadiation, CONTINENT.demand),
+                         movement = MovementSpec(InsectDispersal(),
+                                                 meandist = CONTINENT.dispersal),
+                         birth = CONTINENT.birth,
                          death = CONTINENT.death,
                          longevity = CONTINENT.longevity,
                          survival = CONTINENT.survival,
-                         abundance = abundances, seed = PAPER_SEED)
+                         seed = PAPER_SEED, verbosity = :silent)
 end
 
 # The plants the continent's light can support: every active cell's supply over what one plant
@@ -105,8 +106,8 @@ function continent_run(continent, env)
     widths = vcat(fill(continent.generalist_width, n - 1),
                   continent.specialist_width)
     abundances = vcat(fill(div(continent_capacity(env), n - 1), n - 1), 0)
-    eco = build_ecosystem(continent_species(widths, abundances), env,
-                          seed = PAPER_SEED)
+    eco = build_ecosystem(BySupply(each = row -> abundances[row.key]),
+                          continent_species(widths), env, seed = PAPER_SEED)
     introduction = continent.burnin + PAPER_TIMESTEP
     invasion = Intervention(AtTime(introduction),
                             CellMask(origin_mask(env.active)),
@@ -174,8 +175,8 @@ end
 # over the cells it occupies at the end, per year since its introduction.
 function invasion_speed(continent, env, width)
     mask = origin_mask(env.active)
-    eco = build_ecosystem(continent_species([continent.generalist_width, width],
-                                            [0, 0]),
+    eco = build_ecosystem(NoAbundance(),
+                          continent_species([continent.generalist_width, width]),
                           env, seed = PAPER_SEED)
     arrivals = InterventionSet(Intervention(AtTime(0year), CellMask(mask),
                                             AddAbundance(1, continent.founders)),

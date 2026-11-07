@@ -3,7 +3,7 @@
 module TestIntervention
 
 using EcoSISTEM
-# `[C7-VIS]` C: these are `public` rather than exported - a spec is what a user writes,
+# These are `public` rather than exported - a spec is what a user writes,
 # and these are what it materialises into.
 using EcoSISTEM: SteadyLayerChange
 using EcoSISTEM.Units
@@ -25,11 +25,13 @@ function _eco(; abundance = 3000, seed = 1, kw...)
                       supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                            axis = SolarRadiation),
                       area = area)
-    spp = build_species(3, tolerance = (285.0K, 5.0K),
-                        toleranceaxis = Temperature, demand = 1.0e9kJ / day,
-                        demandaxis = SolarRadiation,
-                        abundance = abundance, seed = seed)
-    return build_ecosystem(spp, env; seed = seed, kw...)
+    spp = build_species(SpeciesPool(3),
+                        tolerance = ToleranceSpec(Temperature, μ = 285.0K,
+                                                  σ = 5.0K),
+                        demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
+                        seed = seed, verbosity = :silent)
+    return build_ecosystem(BySupply(total = abundance), spp, env; seed = seed,
+                           verbosity = :silent, kw...)
 end
 _active(eco) = count(parent(eco.habitat.active))
 
@@ -427,124 +429,169 @@ end
     @test sum(eco.abundances.matrix[1, :]) == before + 200
 end
 
-# `AddAbundanceTable` is applied by hand here, at chosen elapsed times, so each step's additions can
-# be read off the abundance matrix exactly: the dynamics never run between them.
-const MONTH = 1.0month_mean_duration
-
-function _applytable!(eco, op, elapsed; timestep = MONTH, region = AllCells())
-    return EcoSISTEM.applyinterventions!(eco,
-                                         Intervention(EveryStep(), region, op),
-                                         elapsed, timestep, 0)
-end
-
-# Rows out of time order, naming species by index and by name and cells by linear index and by
-# `CartesianIndex`, with two fractional rows of one species and cell in the same step.
-function _abundancerows(eco)
-    return (species = Any[2, 1, 1, eco.spplist.names[3], 1],
-            cell = Any[5, CartesianIndex(3, 4), 5, 7, 5],
-            count = [2, 3, 0.3, 0.4, 0.3],
-            time = [2.0, 0.0, 1.0, 1.0, 1.0] .* month_mean_duration)
-end
-
-# What each of the elapsed times adds, as the change in the abundance matrix after each.
-function _tableadditions(eco, op, elapsed; kw...)
-    before = copy(eco.abundances.matrix)
-    return map(elapsed) do t
-        _applytable!(eco, op, t; kw...)
-        return eco.abundances.matrix - before
-    end
-end
-
-@testset "AddAbundanceTable adds each row on the step it falls in" begin
-    eco = _eco()
-    op = AddAbundanceTable(_abundancerows(eco))
-    @test sprint(show, op) == "AddAbundanceTable(5 rows)"
-    start, one, two = _tableadditions(eco, op, (0.0, 1.0, 2.0) .* MONTH)
-    # The start takes every row at or before it; `CartesianIndex(3, 4)` is column-major cell 33.
-    @test start[1, 33] == 3 && sum(start) == 3
-    # Species 1's two rows of 0.3 in cell 5 sum to one individual; species 3's 0.4 rounds to none.
-    @test one[1, 5] == 1 && one[3, 7] == 0 && sum(one) == 4
-    @test two[2, 5] == 2 && sum(two) == 6
-
-    # Holding no state, the same operation serves a second run identically.
-    again = _tableadditions(_eco(), op, (0.0, 1.0, 2.0) .* MONTH)
-    @test last(again) == two
-
-    # Timestep independence: one two-month step adds what two one-month steps do.
-    long = _tableadditions(_eco(), op, (0.0, 2.0) .* MONTH, timestep = 2MONTH)
-    @test last(long) == two
-
-    # A table of another kind, offering columns, gives the same rows.
-    rows = _abundancerows(eco)
-    frame = DataFrame(species = rows.species, cell = rows.cell,
-                      count = rows.count, time = rows.time)
-    @test last(_tableadditions(_eco(), AddAbundanceTable(frame),
-                               (0.0, 1.0, 2.0) .* MONTH)) == two
-
-    # With no count column every row is one individual.
-    single = AddAbundanceTable((species = [1, 1], cell = [9, 9],
-                                time = [MONTH, MONTH]))
-    @test only(_tableadditions(_eco(), single, (MONTH,)))[1, 9] == 2
-end
-
-@testset "AddAbundanceTable reads a stream of rows once, in time order" begin
-    eco = _eco()
-    rows = _abundancerows(eco)
-    order = sortperm(rows.time)
-    stream = ((species = rows.species[i], cell = rows.cell[i],
-               count = rows.count[i], time = rows.time[i]) for i in order)
-    op = AddAbundanceTable(stream)
-    @test sprint(show, op) == "AddAbundanceTable(streamed rows)"
-    streamed = _tableadditions(eco, op, (0.0, 1.0, 2.0) .* MONTH)
-    columns = _tableadditions(_eco(), AddAbundanceTable(rows),
-                              (0.0, 1.0, 2.0) .* MONTH)
-    @test streamed == columns
-
-    # First used part way through a run, it passes over the rows before the step as a table of
-    # columns does, including one on the step's lower edge.
-    late = ((species = 1, cell = 9, count = n, time = t * MONTH)
-            for (n, t) in ((5, 1.0), (7, 2.0)))
-    latestream = _tableadditions(_eco(), AddAbundanceTable(late), (2.0MONTH,))
-    latecolumns = _tableadditions(_eco(),
-                                  AddAbundanceTable((species = [1, 1],
-                                                     cell = [9, 9],
-                                                     count = [5, 7],
-                                                     time = [MONTH, 2MONTH])),
-                                  (2.0MONTH,))
-    @test only(latestream)[1, 9] == 7
-    @test latestream == latecolumns
-
-    # Its rows are spent, so it cannot go back for a second run.
-    @test_throws "serves one run" _applytable!(_eco(), op, 0.0 * MONTH)
-    backwards = ((species = 1, cell = 1, time = t * MONTH) for t in (1.0, 0.0))
-    @test_throws "must be in time order" _applytable!(_eco(),
-                                                      AddAbundanceTable(backwards),
-                                                      MONTH)
-end
-
-@testset "AddAbundanceTable's region filters its rows" begin
-    op = AddAbundanceTable(_abundancerows(_eco()))
+@testset "AddAbundance adds a placement's individuals over the region at each firing" begin
+    month = 1.0month_mean_duration
+    fire!(eco, iv; step = 1) = EcoSISTEM.applyinterventions!(eco, iv, month,
+                                                             month, step)
     mask = falses(10, 10)
-    mask[5] = true
-    masked = last(_tableadditions(_eco(), op, (0.0, 1.0, 2.0) .* MONTH,
-                                  region = CellMask(mask)))
-    @test masked[1, 5] == 1 && masked[2, 5] == 2 && sum(masked) == 3
-
-    eco = _eco()
-    parent(eco.habitat.active)[5] = false
-    active = last(_tableadditions(eco, op, (0.0, 1.0, 2.0) .* MONTH,
-                                  region = ActiveCells()))
-    @test active[1, 33] == 3 && sum(active) == 3
+    mask[2:3, 4:6] .= true
+    linear = LinearIndices((10, 10))
+    added = Intervention(AtTime(month), CellMask(mask),
+                         AddAbundance(BySupply(total = 600)))
+    eco = _eco(abundance = 0)
+    eco.habitat.active[2, 4] = false
+    fire!(eco, added)
+    @test sum(eco.abundances.matrix) == 600
+    @test sum(eco.abundances.matrix[:, linear[.!mask]]) == 0
+    @test sum(eco.abundances.matrix[:, linear[2, 4]]) == 0
+    # The ecosystem keeps its own placement; the firing's streams are its own, step by step.
+    @test sprint(show, eco.placement) == "BySupply(total = 0)"
+    again = _eco(abundance = 0)
+    again.habitat.active[2, 4] = false
+    fire!(again, added)
+    @test again.abundances.matrix == eco.abundances.matrix
+    later = _eco(abundance = 0)
+    later.habitat.active[2, 4] = false
+    fire!(later, added, step = 2)
+    @test later.abundances.matrix != eco.abundances.matrix
+    # A placement draws nothing from the stream the region and the other operations draw from.
+    plain = Intervention(AtTime(month), RandomCells(5), AddAbundance("1", 3))
+    sown = Intervention(AtTime(month), RandomCells(5),
+                        AddAbundance(ToCapacity("2")), AddAbundance("1", 3))
+    one, two = _eco(abundance = 0), _eco(abundance = 0)
+    fire!(one, plain)
+    fire!(two, sown)
+    @test one.abundances.matrix[1, :] == two.abundances.matrix[1, :]
+    @test findall(>(0), two.abundances.matrix[2, :]) ==
+          findall(>(0), one.abundances.matrix[1, :])
+    # What it refuses: a dated table, and what is not a placement.
+    timed = (_, _, _) -> (species = ["1"], cell = [CartesianIndex(1, 1)],
+                          time = [0.0s])
+    @test_throws "its table is dated" fire!(_eco(abundance = 0),
+                                            Intervention(AtTime(month),
+                                                         AllCells(),
+                                                         AddAbundance(timed)))
+    @test_throws "a placement says how many individuals start where" AddAbundance(3)
+    @test sprint(show, AddAbundance(ToCapacity("wheat"))) ==
+          "AddAbundance(ToCapacity(\"wheat\"))"
 end
 
-@testset "AddAbundanceTable acts on the starting state in a run" begin
+@testset "AddAbundance serves a dated placement's rows as the clock reaches them" begin
+    month = 1.0month_mean_duration
+    fire!(eco, iv, elapsed, step) = EcoSISTEM.applyinterventions!(eco, iv,
+                                                                  elapsed,
+                                                                  month,
+                                                                  step)
+    linear = LinearIndices((10, 10))
+    table = (species = ["1", "2", "1", "3"],
+             cell = [CartesianIndex(1, 1), CartesianIndex(2, 2),
+                 CartesianIndex(3, 3), CartesianIndex(4, 4)],
+             count = [5, 7, 3, 4],
+             time = [-1.0, 0.0, 1.0, 2.5] .* month)
+    served = Intervention(EveryStep(), AllCells(),
+                          AddAbundance(FromTable(table)))
+    eco = _eco(abundance = 0)
+    # The start takes every row at or before it; each step, those in its window.
+    fire!(eco, served, 0.0s, 0)
+    @test eco.abundances.matrix[1, linear[1, 1]] == 5
+    @test eco.abundances.matrix[2, linear[2, 2]] == 7
+    @test sum(eco.abundances.matrix) == 12
+    fire!(eco, served, month, 1)
+    @test eco.abundances.matrix[1, linear[3, 3]] == 3
+    fire!(eco, served, 2month, 2)
+    @test sum(eco.abundances.matrix) == 15
+    rows = only(served.operations).served[].rows
+    fire!(eco, served, 3month, 3)
+    @test eco.abundances.matrix[3, linear[4, 4]] == 4
+    @test only(served.operations).served[].rows === rows
+    # The region filters each step's rows.
+    mask = trues(10, 10)
+    mask[2, 2] = false
+    inregion = Intervention(EveryStep(), CellMask(mask),
+                            AddAbundance(FromTable(table)))
+    eco = _eco(abundance = 0)
+    fire!(eco, inregion, 0.0s, 0)
+    @test sum(eco.abundances.matrix) == 5
+    # A run's end notes what it did not add: rows after it, and rows due in cells deactivated since.
+    eco = _eco(abundance = 0)
+    eco.habitat.active[3, 3] = false
+    @test_logs((:info,
+                r"^3 individuals due in cells deactivated since the ecosystem was built were not added\.$"),
+               (:info,
+                r"^4 individuals dated after the run's end were not added\.$"),
+               match_mode = :any,
+               simulate!(eco, 2month, month, intervention = served))
+    # A run continuing another adds only what falls due as it runs.
+    eco = _eco(abundance = 0)
+    simulate!(eco, 1month, month)
+    @test_logs((:info,
+                r"^15 individuals dated at or before the run's start were not added"),
+               match_mode = :any,
+               simulate!(eco, 2month, month, intervention = served))
+    # What is refused: a dated placement scheduled otherwise or sharing its intervention, and a sum
+    # mixing dated and undated placements.
+    @test_throws "carries its own times" Intervention(AtTime(month), AllCells(),
+                                                      AddAbundance(FromTable(table)))
+    @test_throws "carries its own times" Intervention(EveryStep(), AllCells(),
+                                                      AddAbundance(FromTable(table)),
+                                                      Deactivate())
+    @test_throws "mixes dated and undated ones" AddAbundance(FromTable(table) +
+                                                             BySupply())
+end
+
+@testset "A dated placement follows the run's calendar, any steps, and any ecosystem" begin
+    month = 1.0month_mean_duration
+    fire!(eco, iv, elapsed, step;
+          timestep = month) = EcoSISTEM.applyinterventions!(eco,
+                                                            iv,
+                                                            elapsed,
+                                                            timestep,
+                                                            step)
+    # Stepped on the run's own clock, each first of the month lands on its own step.
+    epoch = Dates.Date(2000, 1, 1)
+    dates = [epoch + Dates.Month(k) for k in 0:23]
+    monthly = Intervention(EveryStep(), AllCells(),
+                           AddAbundance(FromTable((species = fill("1", 24),
+                                                   cell = fill(CartesianIndex(10,
+                                                                              1),
+                                                               24),
+                                                   count = fill(7, 24),
+                                                   time = dates))))
+    eco = _eco(abundance = 0, epoch = epoch, calendar = MeanMonths())
+    added = map(0:24) do k
+        before = eco.abundances.matrix[1, 10]
+        fire!(eco, monthly, EcoSISTEM.simulationtime(eco), k)
+        EcoSISTEM._advanceclock!(eco, month)
+        return (eco.abundances.matrix[1, 10] - before) / 7
+    end
+    @test added == [ones(24); 0]
+    @test_throws "no epoch" fire!(_eco(abundance = 0), monthly, 0.0s, 0)
+    # One two-month step adds what two one-month steps do, and any ecosystem gets the same rows.
+    table = (species = ["1", "2", "3"],
+             cell = [CartesianIndex(1, 1), CartesianIndex(2, 2),
+                 CartesianIndex(3, 3)],
+             count = [3, 4, 5], time = [0.0, 1.0, 2.0] .* month)
+    timed = Intervention(EveryStep(), AllCells(),
+                         AddAbundance(FromTable(table)))
+    short, long = _eco(abundance = 0), _eco(abundance = 0)
+    for (k, t) in enumerate((0.0, 1.0, 2.0) .* month)
+        fire!(short, timed, t, k - 1)
+    end
+    fire!(long, timed, 0.0s, 0, timestep = 2month)
+    fire!(long, timed, 2month, 1, timestep = 2month)
+    @test long.abundances.matrix == short.abundances.matrix
+    @test sum(short.abundances.matrix) == 12
+    # The starting state, as a run's callback first sees it, holds the rows at the start.
     eco = _eco()
     before = sum(eco.abundances.matrix[1, :])
-    table = AddAbundanceTable((species = [1], cell = [1], count = [40],
-                               time = [0.0 * MONTH]))
     atstart = Ref(0)
-    simulate!(eco, MONTH, MONTH,
-              intervention = Intervention(EveryStep(), AllCells(), table)
+    simulate!(eco, month, month,
+              intervention = Intervention(EveryStep(), AllCells(),
+                                          AddAbundance(FromTable((species = ["1"],
+                                                                  cell = [CartesianIndex(1,
+                                                                                         1)],
+                                                                  count = [40],
+                                                                  time = [0.0s]))))
               ) do occurrence
         occurrence.count == 1 && (atstart[] = sum(eco.abundances.matrix[1, :]))
         return nothing
@@ -552,103 +599,33 @@ end
     @test atstart[] == before + 40
 end
 
-@testset "AddAbundanceTable places dated rows through the run's calendar" begin
-    epoch = Dates.Date(2000, 1, 1)
-    dates = [epoch + Dates.Month(k) for k in 0:23]
-    dated = AddAbundanceTable((species = fill(1, 24), cell = fill(10, 24),
-                               count = fill(7, 24), time = dates))
-    eco = _eco(epoch = epoch, calendar = MeanMonths())
-    iv = Intervention(EveryStep(), AllCells(), dated)
-    # Stepped on the run's own clock, each first of the month lands on its own step.
-    added = map(0:24) do k
-        before = eco.abundances.matrix[1, 10]
-        EcoSISTEM.applyinterventions!(eco, iv, EcoSISTEM.simulationtime(eco),
-                                      MONTH, k)
-        EcoSISTEM._advanceclock!(eco, MONTH)
-        return (eco.abundances.matrix[1, 10] - before) / 7
-    end
-    @test added == [ones(24); 0]
-
-    midmonth = AddAbundanceTable((species = [1], cell = [1],
-                                  time = [Dates.Date(2000, 2, 15)]))
-    @test_throws "falls inside a step" _applytable!(_eco(epoch = epoch,
-                                                         calendar = MeanMonths()),
-                                                    midmonth, 2MONTH)
-    @test_throws "no epoch" _applytable!(_eco(), midmonth, 2MONTH)
-end
-
-@testset "AddAbundanceTable refuses what it cannot add" begin
-    table(; kw...) = AddAbundanceTable((species = [1], cell = [1],
-                                        time = [0.0 * MONTH], kw...))
-    @test_throws "of its own" Intervention(AtTime(MONTH), AllCells(), table())
-    @test_throws "of its own" Intervention(EveryStep(), AllCells(), table(),
-                                           Deactivate())
-    @test_throws "no `cell`" AddAbundanceTable((species = [1],
-                                                time = [0.0 * MONTH]))
-    @test_throws "not in the species list" _applytable!(_eco(),
-                                                        table(species = ["nosuch"]),
-                                                        0.0 * MONTH)
-    @test_throws "species list has 3" _applytable!(_eco(), table(species = [4]),
-                                                   0.0 * MONTH)
-    @test_throws "grid has 100 cells" _applytable!(_eco(), table(cell = [101]),
-                                                   0.0 * MONTH)
-    @test_throws "off the 10 by 10 grid" _applytable!(_eco(),
-                                                      table(cell = [CartesianIndex(11,
-                                                                                   1)]),
-                                                      0.0 * MONTH)
-    @test_throws "a count must be" _applytable!(_eco(), table(count = [-1]),
-                                                0.0 * MONTH)
-end
-
-@testset "build_abundance_table indexes, sums and sorts" begin
-    # Non-square, so a `y` and an `x` exchanged give a different cell rather than the same one.
-    area = StudyArea(extent = (7.0km, 5.0km), cellsize = 1.0km,
-                     verbosity = :silent)
-    env = GridHabitat(regime = UniformSpec(285.0K, axis = Temperature),
-                      supply = UniformSpec(1.0e5kJ / (m^2 * day),
-                                           axis = SolarRadiation),
-                      area = area)
-    spp = build_species(3, tolerance = (285.0K, 5.0K),
-                        toleranceaxis = Temperature, demand = 1.0e9kJ / day,
-                        demandaxis = SolarRadiation, abundance = 3000, seed = 1)
-    eco = build_ecosystem(spp, env, seed = 1)
-    height, width = Base.size(parent(eco.habitat.active))
-    @test height != width
-    cells = LinearIndices((height, width))
-    names = eco.spplist.names
-    records = (species = [names[3], names[1], names[3], names[3]],
-               y = [height, 1, height, 1], x = [1, width, 1, width],
-               time = [1.0, 0.0, 1.0, 2.0] .* MONTH)
-    table = build_abundance_table(eco, records)
-    @test table.species == [1, 3, 3]
-    @test table.cell == [cells[1, width], cells[height, 1], cells[1, width]]
-    @test table.count == [1, 2, 1] && table.count isa Vector{Int}
-    @test table.time == uconvert.(s, [0.0, 1.0, 2.0] .* MONTH)
-
-    # Its output is the operation's input.
-    added = _tableadditions(eco, AddAbundanceTable(table), (0.0, 1.0) .* MONTH)
-    @test last(added)[3, cells[height, 1]] == 2
-
-    fractional = build_abundance_table(eco,
-                                       (species = [1, 1], y = [1, 1],
-                                        x = [1, 1],
-                                        count = [0.25, 0.5],
-                                        time = [MONTH, MONTH]))
-    @test fractional.count == [0.75]
-
-    @test_throws "not in the species list" build_abundance_table(eco,
-                                                                 (species = ["nosuch"],
-                                                                  y = [1],
-                                                                  x = [1],
-                                                                  time = [MONTH]))
-    @test_throws "off the" build_abundance_table(eco,
-                                                 (species = [1], y = [height],
-                                                  x = [width + 1],
-                                                  time = [MONTH]))
-    @test_throws "no rows" build_abundance_table(eco,
-                                                 (species = Int[], y = Int[],
-                                                  x = Int[],
-                                                  time = typeof(MONTH)[]))
+@testset "ToCapacity at a firing tops each cell up, counting what is there" begin
+    month = 1.0month_mean_duration
+    fire!(eco, iv) = EcoSISTEM.applyinterventions!(eco, iv, month, month, 1)
+    # A cell holds 100 of any species: 1e11 kJ a day supplied, 1e9 demanded by each.
+    eco = _eco(abundance = 3000)
+    before = copy(eco.abundances.matrix)
+    fire!(eco,
+          Intervention(AtTime(month), AllCells(),
+                       AddAbundance(ToCapacity("2"))))
+    @test eco.abundances.matrix[[1, 3], :] == before[[1, 3], :]
+    @test all(==(100), sum(eco.abundances.matrix, dims = 1))
+    # To half capacity: a cell holding more already gets none.
+    half = _eco(abundance = 5000)
+    present = vec(sum(half.abundances.matrix, dims = 1))
+    @test any(>(50), present) && any(<(50), present)
+    fire!(half,
+          Intervention(AtTime(month), AllCells(),
+                       AddAbundance(ToCapacity("2", fraction = 0.5))))
+    @test vec(sum(half.abundances.matrix, dims = 1)) == max.(present, 50)
+    # A cell already full gets none.
+    full = _eco(abundance = 0)
+    repopulate!(full, ToCapacity("1"), verbosity = :silent)
+    @test all(==(100), full.abundances.matrix[1, :])
+    fire!(full,
+          Intervention(AtTime(month), AllCells(),
+                       AddAbundance(ToCapacity("2"))))
+    @test sum(full.abundances.matrix[2, :]) == 0
 end
 
 end

@@ -176,24 +176,25 @@ const ENVIRONMENT = GridHabitat(regime = TEMPERATURE, supply = SUNLIGHT,
 
 # Generalists: a wide 50 K tolerance about 274 K, as in the original, so the pool coexists rather
 # than partitioning the continent between narrow specialists.
-const SPECIES = build_species(NUMSPECIES,
-                              tolerance = (274.0K, 50.0K),
-                              toleranceaxis = Temperature,
-                              demand = 10.0kJ / month_mean_duration,
-                              demandaxis = SolarRadiation,
-                              dispersal = 15.0km,
-                              movement = BirthOnlyMovement,
-                              survival = 0.1,
-                              abundance = SMALL ? 10^6 : 3 * 10^8,
-                              seed = 1)
+const SPECIES = build_species(SpeciesPool(NUMSPECIES),
+                              tolerance = ToleranceSpec(Temperature,
+                                                        μ = 274.0K, σ = 50.0K),
+                              demand = DemandSpec(SolarRadiation,
+                                                  10.0kJ / month_mean_duration),
+                              movement = MovementSpec(InsectDispersal(),
+                                                      meandist = 15.0km),
+                              survival = 0.1, seed = 1,
+                              verbosity = ISROOT ? :normal : :silent)
 
 # `distributed = :auto` is the whole point of one file for both: an `MPIEcosystem` when the
-# process is a live multi-rank MPI session, a serial `Ecosystem` otherwise.
+# process is a live multi-rank MPI session, a serial `Ecosystem` otherwise. The individuals are
+# split at random across the species and placed by supply.
 #
 # `MeanMonths()` counts every month as `month_mean_duration`, so each 1 January in `SAVE_DATES` is a
 # whole number of monthly steps from the epoch. Under exact dates it falls inside a step, and a run
 # recording on those dates is refused before it starts.
-const ECO = build_ecosystem(SPECIES, ENVIRONMENT, seed = 1, epoch = EPOCH,
+const ECO = build_ecosystem(BySupply(total = SMALL ? 10^6 : 3 * 10^8), SPECIES,
+                            ENVIRONMENT, seed = 1, epoch = EPOCH,
                             calendar = MeanMonths(), distributed = :auto)
 
 if ISROOT

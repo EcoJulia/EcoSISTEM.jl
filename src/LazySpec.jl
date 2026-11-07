@@ -1326,9 +1326,9 @@ function _desugarsupply(spec::RasterSpec)
     rec = _percellrecord(spec)
     isnothing(rec) && return spec
     divisor = SourceSpec(spec.source, rec.period.code, track = spec.track)
-    # `Precipitation`, not `GrowingSeasonPrecipitation` (user, 2026-08-05): a Resource-role axis
-    # says *which resource*, not which layer it came from, and water is water. The provenance
-    # therefore lives in the spec, not in the built layer - and this now matters, because the built
+    # `Precipitation`, not `GrowingSeasonPrecipitation`: a Resource-role axis says *which
+    # resource*, not which layer it came from, and water is water. The provenance
+    # therefore lives in the spec, not in the built layer - and this matters, because the built
     # layer is `Supply{Precipitation}` *because the axis said so*, not because its values happened
     # to come out as `L/day`.
     # A combine is handed `ClimateRaster`s and must return one - the wrapper carries the source and

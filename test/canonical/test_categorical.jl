@@ -94,13 +94,13 @@ function categorical_ecosystem(penalty)
 
     rng = Random.Xoshiro(SEED)
     abun = rand(rng, Multinomial(70_000, NSPECIES))
-    sppl = SpeciesList(NSPECIES, tolerance, abun, demand, movement, param,
-                       fill(true, NSPECIES))
+    sppl = SpeciesList(NSPECIES, tolerance, demand, movement, param)
     # Through `build_ecosystem` rather than `Ecosystem(..., nichefit)`, so the run also exercises
     # `_defaultsuitability` **inferring** `CategoricalSuitability` and checking the tolerance's axis
     # against the regime's - a check the categorical branch could not have at all until the merge
     # gave these tolerances an axis.
-    return build_ecosystem(sppl, habitat, seed = SEED)
+    return build_ecosystem(BySupply(each = row -> abun[row.key]), sppl, habitat,
+                           seed = SEED)
 end
 
 # The share of each species' abundance sitting in cells whose class it actually tolerates. This is

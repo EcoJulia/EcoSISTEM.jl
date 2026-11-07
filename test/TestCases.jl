@@ -17,13 +17,16 @@ using Unitful
 using Random
 
 """
-    Test1Ecosystem(seed = nothing)
+    Test1Ecosystem(seed = nothing, grid = (5, 7), numspecies = 15, mixed = false)
 
 Build a small test ecosystem. If `seed` is supplied, the initial per-species
 abundance totals and the per-species simulation RNGs are both made deterministic,
-so the whole run is reproducible regardless of the number of threads.
+so the whole run is reproducible regardless of the number of threads. With
+`mixed`, the species take four kinds of movement in turn - dispersing at birth in
+two modes, always, and not at all - the most the step loop splits.
 """
-function Test1Ecosystem(; seed = nothing, grid = (5, 7), numspecies = 15)
+function Test1Ecosystem(; seed = nothing, grid = (5, 7), numspecies = 15,
+                        mixed = false)
     # **Non-square, and that is not incidental.** The old grid was 10 × 10; a square fixture
     # cannot see a y/x transposition.
     #
@@ -66,18 +69,24 @@ function Test1Ecosystem(; seed = nothing, grid = (5, 7), numspecies = 15)
     isnothing(seed) || Random.seed!(seed)
     abun = rand(Multinomial(individuals, numSpecies))
 
-    kernel = GaussianKernel.(fill(1.0km, numSpecies), 10e-04)
-    movement = BirthOnlyMovement(kernel)
-    native = fill(true, numSpecies)
+    kernel = fill(GaussianKernel(meandist = 1.0km, thresh = 10e-04), numSpecies)
+    modes = mixed ?
+            (InsectDispersal(), AlwaysDispersal(),
+             WindDispersal(GaussianKernel)) :
+            (InsectDispersal(),)
+    movement = map(enumerate(kernel)) do (sp, k)
+        return mixed && sp % 4 == 0 ? NoDispersal()() :
+               modes[mod1(sp, length(modes))](k)
+    end
     resource = Demand{SolarRadiation}(fill(2.0kJ / day, numSpecies))
-    sppl = SpeciesList(numSpecies, numNiches, abun, resource, movement, param,
-                       native)
+    sppl = SpeciesList(numSpecies, numNiches, resource, movement, param)
 
     nichefit = CategoricalSuitability{EcoSISTEM.axisof(habitat.regime),
                                       eltype(habitat.regime)}()
-    eco = isnothing(seed) ? Ecosystem(sppl, habitat, nichefit) :
-          Ecosystem(sppl, habitat, nichefit, seed = seed)
-    return eco
+    # Each species' drawn count placed by supply; serial even under MPI.
+    return build_ecosystem(BySupply(each = row -> abun[row.key]), sppl, habitat,
+                           nichefit = nichefit, seed = seed,
+                           distributed = false)
 end
 
 function TestMultiEcosystem()
@@ -108,19 +117,17 @@ function TestMultiEcosystem()
 
     abun = rand(Multinomial(individuals, numSpecies))
 
-    kernel = GaussianKernel.(fill(1.0km, numSpecies), 10e-04)
-    movement = BirthOnlyMovement(kernel)
-    native = fill(true, numSpecies)
+    kernel = fill(GaussianKernel(meandist = 1.0km, thresh = 10e-04), numSpecies)
+    movement = InsectDispersal().(kernel)
     resource1 = Demand{SolarRadiation}(fill(2.0kJ / day, numSpecies))
     resource2 = Demand{Precipitation}(fill(2.0Unitful.L / day, numSpecies))
     resource = SpeciesRequirementCollection((resource1, resource2))
     tolerance = NicheTolerance(Temperature, Normal, fill(10.0K, numSpecies),
                                fill(0.1K, numSpecies))
-    sppl = SpeciesList(numSpecies, tolerance, abun, resource, movement, param,
-                       native)
+    sppl = SpeciesList(numSpecies, tolerance, resource, movement, param)
 
     nichefit = NicheSuitability{EcoSISTEM.axisof(habitat.regime),
                                 eltype(habitat.regime)}()
-    eco = Ecosystem(sppl, habitat, nichefit)
-    return eco
+    return build_ecosystem(BySupply(each = row -> abun[row.key]), sppl, habitat,
+                           nichefit = nichefit, distributed = false)
 end

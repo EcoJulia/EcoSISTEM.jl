@@ -145,7 +145,7 @@ const NOTES = Dict(:Base => """
                `DiversitySet`'s `append!` are not in `src/BaseInterface.jl`.
                """,
                    :Diversity => """
-               🔴 **The `Diversity.API` hooks split exactly along the `[TF-FORWARD]` rule**: `SpeciesList <:
+               🔴 **The `Diversity.API` hooks split exactly along the forwarding rule**: `SpeciesList <:
                AbstractTypes` but it *holds* the real types in `sl.types`, so every hook on it delegates there.
                Eleven do. ⚠️ Every breach of that rule was silent, because Diversity's defaults are not neutral —
                `_hassimilarity` defaults to **true**. A test sweeps `Diversity.API` rather than listing the hooks,

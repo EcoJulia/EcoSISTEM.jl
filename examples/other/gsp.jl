@@ -29,6 +29,7 @@ using RasterDataSources
 using Rasters: EPSG
 using Extents: Extent
 using Unitful, Unitful.DefaultSymbols
+using DataFrames: DataFrame
 using Distributions
 using Random
 using DimensionalData
@@ -117,21 +118,41 @@ tempwidths = rand(Uniform(1.0, 3.0), numspecies)
 waterdemand = rand(Uniform(500.0, 1500.0), numspecies) * Unitful.L / day
 solardemand = rand(Uniform(0.5e6, 1.5e6), numspecies) * kJ / day
 
-species = build_species(numspecies,
-                        tolerance = (water = (watermeans, waterwidths),
-                                     temperature = (tempmeans, tempwidths)),
-                        toleranceaxis = (water = EcoSISTEM.GrowingSeasonPrecipitation,
-                                         temperature = Temperature),
-                        demand = (water = waterdemand, solar = solardemand),
-                        demandaxis = (water = Precipitation,
-                                      solar = SolarRadiation),
-                        dispersal = rand(Uniform(5.0, 20.0), numspecies) * km,
-                        abundance = 200_000, seed = seed)
+dispersal = rand(Uniform(5.0, 20.0), numspecies) * km
+
+# Every per-species value is a column of the species pool's table. The niche columns are plain
+# numbers, so each is read with the unit it is in.
+pool = SpeciesPool(DataFrame(species = string.(1:numspecies),
+                             watermean = watermeans, waterwidth = waterwidths,
+                             tempmean = tempmeans, tempwidth = tempwidths,
+                             waterdemand = waterdemand,
+                             solardemand = solardemand, dispersal = dispersal))
+species = build_species(pool,
+                        tolerance = (water = ToleranceSpec(EcoSISTEM.GrowingSeasonPrecipitation,
+                                                           μ = TraitColumn(:watermean,
+                                                                           unit = Unitful.L /
+                                                                                  m^2),
+                                                           σ = TraitColumn(:waterwidth,
+                                                                           unit = Unitful.L /
+                                                                                  m^2)),
+                                     temperature = ToleranceSpec(Temperature,
+                                                                 μ = TraitColumn(:tempmean,
+                                                                                 unit = K),
+                                                                 σ = TraitColumn(:tempwidth,
+                                                                                 unit = K))),
+                        demand = (water = DemandSpec(Precipitation,
+                                                     TraitColumn(:waterdemand)),
+                                  solar = DemandSpec(SolarRadiation,
+                                                     TraitColumn(:solardemand))),
+                        movement = MovementSpec(InsectDispersal(),
+                                                meandist = TraitColumn(:dispersal)),
+                        seed = seed)
 
 # --- simulate -----------------------------------------------------------------
-eco = build_ecosystem(species, habitat, seed = seed)
+# 200,000 individuals, split at random across the species and placed by supply.
+eco = build_ecosystem(BySupply(total = 200_000), species, habitat, seed = seed)
 
-# The starting distribution, before anything has moved: `populate!` places individuals in
+# The starting distribution, before anything has moved: `BySupply` places individuals in
 # proportion to supply, so this already reflects where the water and light are.
 startgrid = dropdims(sum(eco.abundances.dimgrid, dims = :species),
                      dims = :species)

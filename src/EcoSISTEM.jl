@@ -326,10 +326,11 @@ export CombiningFit, MultiplicativeFit, CategoricalSuitability, NoFitContinuous,
 # environment, so they sit here rather than beside the habitat that carries the topology.
 include("Movement.jl")
 
-export GaussianKernel, LongTailKernel, BirthOnlyMovement, AlwaysMovement,
-       NoMovement
+export GaussianKernel, LongTailKernel, WaldKernel
+export SeedDispersal, WindDispersal, InsectDispersal, VertebrateDispersal,
+       AlwaysDispersal, NoDispersal, SpeciesDispersal
 
-# `getkernels` reaches inside a movement type, which is what writing a new one needs.
+# `getkernels` reads each species' kernel out of a species list's movements.
 public AbstractMovement, AbstractKernel, getkernels
 include("Demographics.jl")
 
@@ -340,8 +341,8 @@ public AbstractParams
 include("Topology.jl")
 
 # The three aliases are the API. They cover three of the four combinations -
-# `EdgeTopology{Periodic, Bounded}` has no name - and the maintainer's rule is that a fourth would get
-# an **exported alias of its own** rather than callers reaching for the underlying type. So the alias
+# `EdgeTopology{Periodic, Bounded}` has no name - and a fourth would get an **exported alias of its
+# own** rather than callers reaching for the underlying type. So the alias
 # layer stays the surface, and what it is built from does not.
 export Torus, Cylinder, Island
 
@@ -363,7 +364,7 @@ include("ReportTerms.jl")
 
 # What a report says about each decision and each layer. `public`, not exported, to match
 # `Problem`/`LayerPlan`/`StudyAreaReport` themselves - these are read off a report, not written.
-public AbstractProblemSeverity, ProblemNotice, ProblemWarning
+public AbstractProblemSeverity, ProblemNotice, ProblemWarning, ProblemError
 
 public AbstractLayerFate, LayerKeptExactly, LayerAggregated, LayerResampled
 
@@ -424,15 +425,58 @@ include("cellgeometry.jl")
 public getcellareas, getcellsizes, getcellarea, getcellsize, getcellat,
        getgridarea,
        getgridshape, getcellcount
+# **The species a run may hold, and what their names mean**: a name authority standardises names to
+# its identifiers, and a pool declares every species before the run, built from a table, names or a
+# count. Both precede `Species.jl`, whose species list is built from a pool.
+include("NameAuthority.jl")
+
+export WFOPlantList
+
+# An authority's interface is what another authority implements, not what a model calls.
+public AbstractNameAuthority, resolve_name, lineage
+
+include("SpeciesPool.jl")
+
+export SpeciesPool, RefuseMerge, MergeWith
+export deactivate_species!, activate_species!, remove_species!, copy_species!,
+       add_trait!, name_table
+
+public AbstractMergeRule
+
+# What a species list is built from, one spec per trait, each parameter a value for all, a column of
+# the pool, a draw or a function of the species' row.
+include("SpeciesSpec.jl")
+
+export TraitColumn, DrawFrom, ToleranceSpec, DemandSpec, MovementSpec, ChosenBy,
+       fill_traits
+
+public AbstractTraitSpec
+
 include("Species.jl")
 
 export SpeciesList
 
 public getdemand
 
+# Which rows of a table of records a run can use, decided before anything is placed from it.
+include("RecordFilter.jl")
+
+export IsActiveSpecies, InActiveCell
+
+public AbstractRecordFilter
+
 include("Landscape.jl")
 
 export GridLandscape, CachedGridLandscape
+
+# Where a run's individuals start: what `build_ecosystem` takes first.
+include("Placement.jl")
+
+export BySupply, BySuitability, ByLayer, Weighted, NoAbundance, FromTable,
+       FromOccurrences, ToCapacity, SumOfPlacements, PlacementContext,
+       PlacedAbundances
+
+public AbstractPlacement
 
 include("Ecosystem.jl")
 
@@ -464,14 +508,11 @@ export Ecosystem, CachedEcosystem, resettime!
 # `gettolerance`/`getdemand`, which have always been `public`.
 public getnichefit
 
-# **How abundances change** - `populate!` sets them up, `update!` advances them one timestep.
+# **How abundances change** - placed by a placement, and advanced a timestep by `update!`.
 include("dynamics.jl")
 
-# These five are the shipped values of a *user-selectable strategy*, not machinery: they share
-# one signature so that any of them can be passed to `Ecosystem(popfun, ...)`, and a user may write
-# a sixth. They stay exported.
-export populate!, repopulate!, populate_by_tolerance!, repopulate_by_tolerance!,
-       emptypopulate!
+# Placing an ecosystem's individuals again, by its own placement or another.
+export repopulate!
 
 # `update!` is the timestep loop rather than a strategy - `simulate!` calls it, and
 # nothing outside the package does.
@@ -502,16 +543,14 @@ include("Operation.jl")
 
 # what - the closed set of operations
 export Deactivate, Reactivate, SetLandCover, SetChange, AddAbundance,
-       RemoveAbundance, AddAbundanceTable,
-       AddSpecies
+       RemoveAbundance, AddSpecies
 
 public AbstractOperation
 
 include("Intervention.jl")
 
-# Ecosystem-level intervention: the declarative replacement for the scenario callbacks above, which
-# stay as deprecated shims. Included before `deprecations.jl`, because those shims forward onto it.
-export Intervention, InterventionSet, build_abundance_table
+# Ecosystem-level intervention. Included before `deprecations.jl`, whose table shims forward onto it.
+export Intervention, InterventionSet
 
 public applyinterventions!
 
@@ -646,8 +685,8 @@ include("extensions.jl")
 
 # The whole phylogenetic trait-evolution set is `public` rather than exported.
 # Not because it is machinery - a user running a phylogenetic model calls these - but because it
-# is **on its way out of this package**: the maintainer intends it to move to `Phylo` itself, and
-# `public` de-prioritises it here without withdrawing support meanwhile.
+# belongs in `Phylo` rather than here: `public` keeps it supported without making it part of what
+# `using EcoSISTEM` brings in.
 public assigntraits!, resettraits!, reroot!, gettraits
 public discrete_evolve, continuous_evolve
 

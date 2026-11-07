@@ -20,8 +20,24 @@ using RasterDataSources
 using ArchGDAL
 using Distributions: Normal
 using Extents: Extent
+using DataFrames: DataFrame
 include("rasterfixtures.jl")
 include("buildfixtures.jl")
+
+# `TOL` and `DEM` as specs, for the species whose niche and demand no test here is about.
+const TOLSPEC = ToleranceSpec(Temperature, μ = TOL[1], σ = TOL[2])
+const DEMSPEC = DemandSpec(SolarRadiation, DEM)
+
+# Species built quietly from a pool, or from a pool of `n`, taking `TOLSPEC` and `DEMSPEC` unless
+# given others.
+function _species(pool::SpeciesPool; kw...)
+    return build_species(pool; tolerance = TOLSPEC, demand = DEMSPEC,
+                         verbosity = :silent, kw...)
+end
+
+function _species(n::Integer; kw...)
+    return _species(SpeciesPool(n, verbosity = :silent); kw...)
+end
 
 @testset "Simulate functions" begin
     eco = Test1Ecosystem()
@@ -130,22 +146,24 @@ end
 
 @testset "build_species" begin
     @testset "scalar fill and defaults" begin
-        spp = build_species(10, tolerance = TOL, toleranceaxis = Temperature,
-                            demand = DEM,
-                            demandaxis = SolarRadiation, abundance = 5000,
-                            seed = 1)
+        spp = _species(10, seed = 1)
         @test spp isa SpeciesList
-        @test length(spp.abun) == 10
-        @test sum(spp.abun) == 5000
+        @test length(spp.names) == 10
         @test spp.demand isa Demand{SolarRadiation}       # kJ/day demand
         @test length(spp.tolerance.dists) == 10
     end
 
-    @testset "vectors passed through" begin
+    @testset "per-species values from the pool's columns" begin
         means = [290.0K, 295.0K, 300.0K]
-        spp = build_species(3, tolerance = (means, 1.0K),
-                            toleranceaxis = Temperature,
-                            demand = 8.0kJ / day, demandaxis = SolarRadiation)
+        pool = SpeciesPool(DataFrame(species = ["1", "2", "3"],
+                                     mean = ustrip.(K, means)),
+                           verbosity = :silent)
+        spp = _species(pool,
+                       tolerance = ToleranceSpec(Temperature,
+                                                 μ = TraitColumn(:mean,
+                                                                 unit = K),
+                                                 σ = 1.0K),
+                       demand = DemandSpec(SolarRadiation, 8.0kJ / day))
         # the built NicheTolerance stores bare means in the canonical (K) frame
         @test EcoSISTEM._nichemeans(spp.tolerance) == ustrip.(K, means)
     end
@@ -181,167 +199,133 @@ end
     end
 
     # **A pre-built tolerance is accepted, and that is what makes an axis-less united layer
-    # matchable at all.** The pre-built case must be tested *before* the single-vs-collection
-    # branches, which reach inside the object with `first(...)`: on a `NicheTolerance` that gives
-    # `MethodError: no method matching iterate(::NicheTolerance{...})`, naming `iterate` rather than
-    # the mistake.
+    # matchable at all.**
     @testset "a pre-built tolerance is used as given" begin
         tol = NicheTolerance(Temperature, Normal, [298.0 2.0; 299.0 2.0])
-        sp = build_species(2, tolerance = tol, demand = DEM,
-                           demandaxis = SolarRadiation, abundance = 100,
-                           seed = 1)
+        sp = _species(2, tolerance = tol, seed = 1)
         @test sp.tolerance === tol
-        # `toleranceaxis` is not required here: a built tolerance carries its own, so demanding a
-        # second statement of it would be ceremony that could also disagree.
+        # A built tolerance carries its own axis.
         @test EcoSISTEM.axisof(sp.tolerance) === Temperature
 
         # It is used **as given**, so it must already cover every species - a silent mismatch
         # would pair species with the wrong niches.
-        @test_throws "must already have one entry per species" build_species(5,
-                                                                             tolerance = tol,
-                                                                             demand = DEM,
-                                                                             demandaxis = SolarRadiation,
-                                                                             abundance = 100,
-                                                                             seed = 1)
+        @test_throws "must hold one entry per species" _species(5,
+                                                                tolerance = tol,
+                                                                seed = 1)
 
-        # A pre-built tolerance is used as given, in a frame `build_species` cannot express through
-        # keywords - here a real unit on `EcoSISTEM.NicheAxis`, where the axis declares none.
+        # A pre-built tolerance is used as given, in a frame a `ToleranceSpec` cannot express - here
+        # a real unit on `EcoSISTEM.NicheAxis`, where the axis declares none.
         united = NicheTolerance(EcoSISTEM.NicheAxis, Normal,
                                 [2.0 0.5; 2.1 0.5], support = u"kJ^2")
-        @test build_species(2, tolerance = united, demand = DEM,
-                            demandaxis = SolarRadiation, abundance = 100,
-                            seed = 1).tolerance === united
-
-        # ...and the ordinary route is unchanged, axis still required.
-        @test_throws "toleranceaxis" build_species(2, tolerance = TOL,
-                                                   demand = DEM,
-                                                   demandaxis = SolarRadiation,
-                                                   abundance = 100, seed = 1)
+        @test _species(2, tolerance = united, seed = 1).tolerance === united
     end
 
-    # **A demand's type comes from `demandaxis`, never from its unit.** There is no unit-keyed
-    # table to pick it, and there must not be: two quantities can share a unit. The unit is
-    # *checked* against the axis, which is a different job from deciding it.
+    # **A demand's type comes from its axis, never from its unit.** There is no unit-keyed table to
+    # pick it, and there must not be: two quantities can share a unit. The unit is *checked* against
+    # the axis, which is a different job from deciding it.
     @testset "demand type from the named axis" begin
-        @test build_species(4, tolerance = TOL, toleranceaxis = Temperature,
-                            demand = 2.0Unitful.L / day,
-                            demandaxis = Precipitation).demand isa
+        @test _species(4,
+                       demand = DemandSpec(Precipitation,
+                                           2.0Unitful.L / day)).demand isa
               Demand{Precipitation}
-        @test build_species(4, tolerance = TOL, toleranceaxis = Temperature,
-                            demand = 2.0g / day, demandaxis = CarbonFlux).demand isa
+        @test _species(4, demand = DemandSpec(CarbonFlux, 2.0g / day)).demand isa
               Demand{CarbonFlux}
 
-        # **The axis decides, and the unit must agree with it** - the check runs the other way
-        # round from before. A solar-dimensioned demand declared on the water axis is refused,
-        # where the old table would simply have built a solar demand and ignored what was written.
-        @test_throws "measured in `L d⁻¹`" build_species(4, tolerance = TOL,
-                                                         toleranceaxis = Temperature,
-                                                         demand = 2.0kJ / day,
-                                                         demandaxis = Precipitation)
+        # **The axis decides, and the unit must agree with it.** A solar-dimensioned demand
+        # declared on the water axis is refused, rather than built as a solar demand.
+        @test_throws "needs a value in L d⁻¹" _species(4,
+                                                       demand = DemandSpec(Precipitation,
+                                                                           2.0kJ /
+                                                                           day))
 
-        # A **bare number still cannot be a demand**, but the refusal now comes from the axis
-        # rather than from a missing table entry: the axis says what unit it expects, and a bare
+        # A **bare number cannot be a demand**: the axis says what unit it expects, and a bare
         # number carries none to compare.
-        @test_throws "carry no unit at all" build_species(4, tolerance = TOL,
-                                                          toleranceaxis = Temperature,
-                                                          demand = 3.0,
-                                                          demandaxis = SolarRadiation)
+        @test_throws "needs a value in kJ d⁻¹" _species(4,
+                                                        demand = DemandSpec(SolarRadiation,
+                                                                            3.0))
 
-        # ...and omitting the axis is refused outright. That is the point: there must be no route
-        # by which a demand's meaning can be guessed.
-        @test_throws "demandaxis" build_species(4, tolerance = TOL,
-                                                toleranceaxis = Temperature,
-                                                demand = 2.0kJ / day)
-    end
-
-    @testset "explicit abundance vector" begin
-        spp = build_species(3, tolerance = TOL, toleranceaxis = Temperature,
-                            demand = DEM,
-                            demandaxis = SolarRadiation,
-                            abundance = [10, 20, 30])
-        @test spp.abun == [10, 20, 30]
-    end
-
-    @testset "length mismatch errors clearly" begin
-        @test_throws DimensionMismatch build_species(3, demand = DEM,
-                                                     demandaxis = SolarRadiation,
-                                                     tolerance = ([290.0K,
-                                                                      295.0K], 1.0K),
-                                                     toleranceaxis = Temperature)
-        @test_throws DimensionMismatch build_species(3, tolerance = TOL,
-                                                     toleranceaxis = Temperature,
-                                                     demand = DEM,
-                                                     demandaxis = SolarRadiation,
-                                                     abundance = [1, 2, 3, 4])
+        # ...and the axis cannot be left out. That is the point: there must be no route by which a
+        # demand's meaning can be guessed.
+        @test_throws MethodError DemandSpec(2.0kJ / day)
     end
 
     @testset "names" begin
-        anon = build_species(3, tolerance = TOL, toleranceaxis = Temperature,
-                             demand = DEM, demandaxis = SolarRadiation)
+        anon = _species(3)
         @test anon.names == ["1", "2", "3"]
         binomials = ["Quercus robur", "Fagus sylvatica", "Betula pendula"]
-        named = build_species(3, tolerance = TOL, toleranceaxis = Temperature,
-                              demand = DEM, demandaxis = SolarRadiation,
-                              names = binomials)
+        named = _species(SpeciesPool(binomials, verbosity = :silent))
         @test named.names == binomials
         @test gettypenames(named.types, true) == binomials
-        @test_throws DimensionMismatch build_species(3, tolerance = TOL,
-                                                     toleranceaxis = Temperature,
-                                                     demand = DEM,
-                                                     demandaxis = SolarRadiation,
-                                                     names = ["a", "b"])
     end
 
     @testset "tolerance and demand are required" begin
-        @test_throws ErrorException build_species(2, demand = DEM,
-                                                  demandaxis = SolarRadiation)
-        @test_throws ErrorException build_species(2, tolerance = TOL,
-                                                  toleranceaxis = Temperature)
+        @test_throws ErrorException build_species(SpeciesPool(2,
+                                                              verbosity = :silent),
+                                                  demand = DEMSPEC,
+                                                  verbosity = :silent)
+        @test_throws ErrorException build_species(SpeciesPool(2,
+                                                              verbosity = :silent),
+                                                  tolerance = TOLSPEC,
+                                                  verbosity = :silent)
     end
 
-    @testset "scalar rates fill, vectors are per-species" begin
+    @testset "one rate fills, a column is per species" begin
         # SpeciesList always stores per-species PopGrowth internally
-        s_scalar = build_species(2, tolerance = TOL,
-                                 toleranceaxis = Temperature, demand = DEM,
-                                 demandaxis = SolarRadiation,
-                                 birth = 0.6 / year)
+        s_scalar = _species(2, birth = 0.6 / year)
         @test s_scalar.params.birth == fill(0.6 / year, 2)
-        s_vec = build_species(2, tolerance = TOL, toleranceaxis = Temperature,
-                              demand = DEM,
-                              demandaxis = SolarRadiation,
-                              birth = [0.6, 0.5] ./ year, death = 0.6 / year)
+        pool = SpeciesPool(DataFrame(species = ["1", "2"], birth = [0.6, 0.5]),
+                           verbosity = :silent)
+        s_vec = _species(pool, birth = TraitColumn(:birth, unit = year^-1),
+                         death = 0.6 / year)
         @test s_vec.params.birth == [0.6, 0.5] ./ year
     end
 
-    @testset "movement type selection" begin
-        @test build_species(2, tolerance = TOL, toleranceaxis = Temperature,
-                            demand = DEM, demandaxis = SolarRadiation).movement isa
-              BirthOnlyMovement
-        @test build_species(2, tolerance = TOL, toleranceaxis = Temperature,
-                            demand = DEM,
-                            demandaxis = SolarRadiation,
-                            movement = AlwaysMovement).movement isa
-              AlwaysMovement
+    @testset "movement mode selection" begin
+        species(; kw...) = _species(2; kw...)
+        safely(sl) = [EcoSISTEM.dispersesafely(sl.movement, sp) for sp in 1:2]
+        @test all(d -> d.mode ==
+                       InsectDispersal(),
+                  species().movement)
+        @test all(d -> d.mode isa AlwaysDispersal,
+                  species(movement = MovementSpec(AlwaysDispersal(),
+                                                  meandist = 10.0km)).movement)
         # The topology is a property of the **habitat**, not of a species, so what `build_species`
-        # decides here is only the movement *type* and the per-species `disperse_safely` flag.
-        # Whether the world wraps belongs to the map; whether a disperser survives aiming off it
-        # belongs to the disperser.
-        safe = build_species(2, tolerance = TOL, toleranceaxis = Temperature,
-                             demand = DEM, demandaxis = SolarRadiation,
-                             movement = AlwaysMovement,
-                             disperse_safely = [true, false])
-        @test safe.movement.disperse_safely == [true, false]
-        # NoMovement accepts and ignores it - nothing disperses, so nothing can be lost
-        nomove = build_species(2, tolerance = TOL, toleranceaxis = Temperature,
-                               demand = DEM,
-                               demandaxis = SolarRadiation,
-                               movement = NoMovement)
-        @test nomove.movement isa NoMovement
-        @test_throws TypeError build_species(2, tolerance = TOL,
-                                             toleranceaxis = Temperature,
-                                             demand = DEM,
-                                             demandaxis = SolarRadiation,
-                                             movement = :birth)
+        # decides here is only each species' mode and its `disperse_safely` flag, which the mode
+        # carries. Whether the world wraps belongs to the map; whether a disperser survives aiming
+        # off it belongs to the disperser.
+        fates = SpeciesPool(DataFrame(species = ["1", "2"],
+                                      fate = ["safe", "lost"]),
+                            verbosity = :silent)
+        chosen = ChosenBy(:fate,
+                          "safe" =>
+                              MovementSpec(AlwaysDispersal(disperse_safely = true),
+                                           meandist = 10.0km),
+                          "lost" =>
+                              MovementSpec(AlwaysDispersal(disperse_safely = false),
+                                           meandist = 10.0km))
+        @test safely(_species(fates, movement = chosen)) == [true, false]
+        # Left unset, the flag is the mode's own: a wind-blown seed aimed at a dead cell is lost.
+        @test safely(species(movement = MovementSpec(WindDispersal(GaussianKernel),
+                                                     meandist = 10.0km))) ==
+              [false, false]
+        # Nothing disperses, so no distance is read and nothing can be lost.
+        @test species(movement = MovementSpec(NoDispersal())).movement ==
+              fill(NoDispersal()(), 2)
+        # A family needing more than a mean distance is refused, naming what it lacks.
+        @test_throws "needs `scale` in its `MovementSpec`" species(movement = MovementSpec(WindDispersal(),
+                                                                                           meandist = 5.0km))
+        # Each species' own distance is a column of the pool.
+        distances = SpeciesPool(DataFrame(species = ["1", "2"],
+                                          meandist = [1.0, 3.0]),
+                                verbosity = :silent)
+        given = [WindDispersal()(meandist = 1.0km, scale = 2.0km),
+            WindDispersal()(meandist = 3.0km, scale = 2.0km)]
+        @test _species(distances,
+                       movement = MovementSpec(WindDispersal(),
+                                               meandist = TraitColumn(:meandist,
+                                                                      unit = km),
+                                               scale = 2.0km)).movement == given
+        @test_throws "`movement` is a `MovementSpec`" species(movement = :birth)
     end
 end
 @testset "build_ecosystem" begin
@@ -349,24 +333,29 @@ end
                       supply = SUP,
                       area = _area(extent = (5km, 5km),
                                    cellsize = 1km))
-    spp = build_species(10, tolerance = TOL, toleranceaxis = Temperature,
-                        demand = DEM,
-                        demandaxis = SolarRadiation, abundance = 5000,
-                        seed = 1)
+    spp = _species(10, seed = 1)
 
     @testset "assembly and nichefit inference" begin
-        eco = build_ecosystem(spp, env, seed = 1)
+        eco = build_ecosystem(BySupply(total = 5000), spp, env, seed = 1)
         @test eco isa Ecosystem
         @test eco.nichefit isa NicheSuitability
+        @test sum(eco.abundances.matrix) == 5000
+    end
+
+    @testset "an explicit abundance per species" begin
+        counts = [10, 20, 30]
+        eco = build_ecosystem(BySupply(each = row -> counts[row.key]),
+                              _species(3), env, seed = 1)
+        @test vec(sum(eco.abundances.matrix, dims = 2)) == counts
     end
 
     @testset "demand/supply mismatch errors" begin
-        water_spp = build_species(10, tolerance = TOL,
-                                  toleranceaxis = Temperature,
-                                  demand = 2.0Unitful.L / day,
-                                  demandaxis = Precipitation,
-                                  abundance = 5000, seed = 1)
-        @test_throws ErrorException build_ecosystem(water_spp, env)
+        water_spp = _species(10,
+                             demand = DemandSpec(Precipitation,
+                                                 2.0Unitful.L / day),
+                             seed = 1)
+        @test_throws ErrorException build_ecosystem(BySupply(total = 5000),
+                                                    water_spp, env)
     end
 
     @testset "a built model simulates" begin
@@ -376,24 +365,27 @@ end
                                                 axis = SolarRadiation),
                            area = _area(extent = (10km, 10km),
                                         cellsize = 1km))
-        spp2 = build_species(5, tolerance = TOL, toleranceaxis = Temperature,
-                             demand = 1.0kJ / day,
-                             demandaxis = SolarRadiation,
-                             abundance = 500, seed = 2)
-        eco = build_ecosystem(spp2, env2, seed = 2)
+        spp2 = _species(5, demand = DemandSpec(SolarRadiation, 1.0kJ / day),
+                        seed = 2)
+        eco = build_ecosystem(BySupply(total = 500), spp2, env2, seed = 2)
         @test_nowarn simulate!(eco, 2month_mean_duration, 1month_mean_duration)
     end
 
     @testset "distributed kwarg (serial process)" begin
         # With MPI not loaded, :auto and false both build a serial Ecosystem; true errors
         # because the MPI extension is absent; a bad value is rejected.
-        @test build_ecosystem(spp, env, seed = 1, distributed = :auto) isa
+        placement = BySupply(total = 5000)
+        @test build_ecosystem(placement, spp, env, seed = 1,
+                              distributed = :auto) isa
               Ecosystem
-        @test build_ecosystem(spp, env, seed = 1, distributed = false) isa
+        @test build_ecosystem(placement, spp, env, seed = 1,
+                              distributed = false) isa
               Ecosystem
-        @test_throws ErrorException build_ecosystem(spp, env, seed = 1,
+        @test_throws ErrorException build_ecosystem(placement, spp, env,
+                                                    seed = 1,
                                                     distributed = true)
-        @test_throws ErrorException build_ecosystem(spp, env, seed = 1,
+        @test_throws ErrorException build_ecosystem(placement, spp, env,
+                                                    seed = 1,
                                                     distributed = :nonsense)
     end
 end
@@ -403,13 +395,14 @@ end
     temp = _bngraster(WorldClim{BioClim}, fill(290.0K, 9, 9))
     rain = _bngraster(WorldClim{BioClim}, fill(50.0mm / day, 9, 9))
 
-    spp = build_species(5,
-                        tolerance = ((290.0K, 2.0K),
-                                     (50.0mm / day, 10.0mm / day)),
-                        toleranceaxis = (Temperature, Precipitation),
-                        demand = (10.0kJ / day, 5.0Unitful.L / day),
-                        demandaxis = (SolarRadiation, Precipitation),
-                        abundance = 500, seed = 1)
+    spp = _species(5,
+                   tolerance = (ToleranceSpec(Temperature, μ = 290.0K,
+                                              σ = 2.0K),
+                                ToleranceSpec(Precipitation, μ = 50.0mm / day,
+                                              σ = 10.0mm / day)),
+                   demand = (DemandSpec(SolarRadiation, 10.0kJ / day),
+                             DemandSpec(Precipitation, 5.0Unitful.L / day)),
+                   seed = 1)
     @test length(values(spp.tolerance)) == 2
     @test length(values(spp.demand)) == 2
 
@@ -417,7 +410,7 @@ end
                 _reg(rain, axis = Precipitation)),
                (UniformSpec(10.0kJ / (km^2 * day), axis = SolarRadiation),
                 UniformSpec(10.0mm / day, axis = Precipitation)))
-    eco = build_ecosystem(spp, env, seed = 1)
+    eco = build_ecosystem(BySupply(total = 500), spp, env, seed = 1)
     @test eco.nichefit isa MultiplicativeFit
     @test length(values(eco.nichefit)) == 2
     @test_nowarn simulate!(eco, 2month_mean_duration, 1month_mean_duration)
@@ -429,18 +422,19 @@ end
                                             axis = Temperature),
                       supply = SUP, area = toy)
     @test EcoSISTEM.axisof(env.regime) === Temperature
-    # a trait carries the axis passed to build_species
-    sp = build_species(2, tolerance = (288.0K, 5.0K), demand = DEM,
-                       demandaxis = SolarRadiation,
-                       toleranceaxis = Temperature, seed = 1)
+    # a trait carries the axis its spec names
+    sp = _species(2,
+                  tolerance = ToleranceSpec(Temperature, μ = 288.0K, σ = 5.0K),
+                  seed = 1)
     @test sp.tolerance isa NicheTolerance{Temperature}
     @test EcoSISTEM.axisof(sp.tolerance) === Temperature
     # matched axes assemble an ecosystem
     @test build_ecosystem(sp, env, seed = 1) isa Ecosystem
     # a mismatched axis is a clear build-time error (not a silent by-unit match)
-    spP = build_species(2, tolerance = (50.0mm / day, 10.0mm / day),
-                        demand = DEM, demandaxis = SolarRadiation,
-                        toleranceaxis = Precipitation, seed = 1)
+    spP = _species(2,
+                   tolerance = ToleranceSpec(Precipitation, μ = 50.0mm / day,
+                                             σ = 10.0mm / day),
+                   seed = 1)
     @test_throws ErrorException build_ecosystem(spP, env, seed = 1)
     # **The root is an axis like any other, and matching is IDENTITY** - so a `Temperature`
     # species against a root-axis environment is refused: `NicheAxis` means *"I claim nothing"*,
@@ -449,22 +443,19 @@ end
     rootenv = GridHabitat(regime = GradientSpec(274.0K, 303.0K,
                                                 axis = EcoSISTEM.NicheAxis),
                           supply = SUP, area = toy)
-    @test_throws ErrorException build_ecosystem(build_species(2,
-                                                              tolerance = (288.0K,
-                                                                           5.0K),
-                                                              toleranceaxis = Temperature,
-                                                              demand = DEM,
-                                                              demandaxis = SolarRadiation,
-                                                              seed = 1),
+    @test_throws ErrorException build_ecosystem(_species(2,
+                                                         tolerance = ToleranceSpec(Temperature,
+                                                                                   μ = 288.0K,
+                                                                                   σ = 5.0K),
+                                                         seed = 1),
                                                 rootenv, seed = 1)
     # Both sides on the root is identity too, and pairs - but the root declares no density width,
     # so a *continuous* tolerance there is refused where its fit is built, naming the remedy: an
     # axis of one's own beneath it. The tolerance carries its own `support`, since the root
-    # declares no canonical unit for `build_species` to read bare parameters in.
+    # declares no canonical unit for a `ToleranceSpec` to build in.
     roottol = NicheTolerance(EcoSISTEM.NicheAxis, Normal, fill(288.0, 2),
                              fill(5.0, 2), support = K)
-    rootspp = build_species(2, tolerance = roottol, demand = DEM,
-                            demandaxis = SolarRadiation, seed = 1)
+    rootspp = _species(2, tolerance = roottol, seed = 1)
     @test_throws "declares no `densitywidth`" build_ecosystem(rootspp, rootenv,
                                                               seed = 1)
     @nicheaxis(TestSurveyed<:EcoSISTEM.NicheAxis, condition=K,
@@ -472,25 +463,27 @@ end
     ownenv = GridHabitat(regime = GradientSpec(274.0K, 303.0K,
                                                axis = TestSurveyed),
                          supply = SUP, area = toy)
-    ownspp = build_species(2, tolerance = (288.0K, 5.0K),
-                           toleranceaxis = TestSurveyed, demand = DEM,
-                           demandaxis = SolarRadiation, seed = 1)
+    ownspp = _species(2,
+                      tolerance = ToleranceSpec(TestSurveyed, μ = 288.0K,
+                                                σ = 5.0K),
+                      seed = 1)
     @test build_ecosystem(ownspp, ownenv, seed = 1) isa Ecosystem
 end
-# **The regression test for `[TF-BYPASS]`, and it must use the EXPLICIT-`nichefit` route.**
-# A caller-supplied `nichefit` walks straight past `_defaultsuitability`, so the inferred route -
-# which already refused this - proves nothing about it. And the two axes must **share a unit**:
-# `Temperature` and `TemperatureRange` are both `K`, so the `eltype` comparison passes them and the
-# axis comparison is the only thing that can catch it. That is precisely the hole: before the axes
-# were compared in `_checkmembers`, this assembled an ecosystem pairing a temperature *range*
-# tolerance with an absolute temperature regime, silently.
+# **An explicit `nichefit` must not bypass the axis check, so this must use the EXPLICIT-`nichefit`
+# route.** A caller-supplied `nichefit` walks straight past `_defaultsuitability`, so the inferred
+# route - which refuses this anyway - proves nothing about it. And the two axes must **share a
+# unit**: `Temperature` and `TemperatureRange` are both `K`, so the `eltype` comparison passes them
+# and the axis comparison in `_checkmembers` is the only thing that can catch it. Without it, this
+# would assemble an ecosystem pairing a temperature *range* tolerance with an absolute temperature
+# regime, silently.
 @testset "an explicit nichefit cannot bypass the axis check" begin
     toy = _area(extent = (5km, 5km), cellsize = 1km)
     env = GridHabitat(regime = UniformSpec(290.0K, axis = Temperature),
                       supply = SUP, area = toy)
-    sp = build_species(2, tolerance = (5.0K, 1.0K), demand = DEM,
-                       demandaxis = SolarRadiation,
-                       toleranceaxis = TemperatureRange, seed = 1)
+    sp = _species(2,
+                  tolerance = ToleranceSpec(TemperatureRange, μ = 5.0K,
+                                            σ = 1.0K),
+                  seed = 1)
     # The units really do agree, so nothing but the axis distinguishes these.
     @test eltype(sp.tolerance) === eltype(env.regime)
     @test EcoSISTEM.axisof(sp.tolerance) !== EcoSISTEM.axisof(env.regime)
@@ -506,10 +499,11 @@ end
     @test occursin("TemperatureRange", msg) && occursin("Temperature", msg)
     # ...and the same pairing on one axis assembles, so the refusal is about the axes and not the
     # explicit `nichefit`.
-    @test build_ecosystem(build_species(2, tolerance = (290.0K, 2.0K),
-                                        demand = DEM,
-                                        demandaxis = SolarRadiation,
-                                        toleranceaxis = Temperature, seed = 1),
+    @test build_ecosystem(_species(2,
+                                   tolerance = ToleranceSpec(Temperature,
+                                                             μ = 290.0K,
+                                                             σ = 2.0K),
+                                   seed = 1),
                           env, nichefit = fit, seed = 1) isa Ecosystem
 end
 @testset "niche-axis threading through the data path" begin
@@ -533,15 +527,14 @@ end
     # the axis threading being tested is CRS-independent.
     env = _env(_reg(_bngraster(WorldClim{BioClim}, fill(290.0K, 9, 9)),
                     axis = Temperature), SUP)
-    sp = build_species(3, tolerance = (290.0K, 2.0K),
-                       toleranceaxis = Temperature,
-                       demand = 8.0kJ / day, demandaxis = SolarRadiation,
-                       seed = 1)
+    sp = _species(3,
+                  tolerance = ToleranceSpec(Temperature, μ = 290.0K, σ = 2.0K),
+                  demand = DemandSpec(SolarRadiation, 8.0kJ / day), seed = 1)
     @test build_ecosystem(sp, env, seed = 1) isa Ecosystem
-    spP = build_species(3, tolerance = (50.0mm / day, 10.0mm / day),
-                        toleranceaxis = Precipitation,
-                        demand = 8.0kJ / day, demandaxis = SolarRadiation,
-                        seed = 1)
+    spP = _species(3,
+                   tolerance = ToleranceSpec(Precipitation, μ = 50.0mm / day,
+                                             σ = 10.0mm / day),
+                   demand = DemandSpec(SolarRadiation, 8.0kJ / day), seed = 1)
     @test_throws ErrorException build_ecosystem(spP, env, seed = 1)
 end
 @testset "DefaultEcosystem fills omitted required inputs" begin
@@ -552,13 +545,13 @@ end
 
     sp = @test_logs (:info,) (:info,) (:info,) match_mode=:any build_species(DefaultEcosystem())
     @test sp isa SpeciesList
-    @test length(sp.abun) == 10
+    @test length(sp.names) == 10
     @test sp.demand isa Demand{SolarRadiation}
 
     # An input passed explicitly is not defaulted (and is honoured); only the rest are filled.
     sp3 = build_species(DefaultEcosystem(), numspecies = 3,
-                        demand = 2.0Unitful.L / day, demandaxis = Precipitation)
-    @test length(sp3.abun) == 3
+                        demand = DemandSpec(Precipitation, 2.0Unitful.L / day))
+    @test length(sp3.names) == 3
     @test sp3.demand isa Demand{Precipitation}
 
     # The full trio assembles into a runnable ecosystem end-to-end.
@@ -613,18 +606,15 @@ end
     @test occursin("cannot take defaults from a Symbol", err)
 end
 @testset "a demand on a non-resource axis is refused, not a MethodError" begin
-    # `demandtype` returns `nothing` for an axis that declares no resource, so `_demand` must not
+    # `demandtype` returns `nothing` for an axis that declares no resource, so `DemandSpec` must not
     # invoke it directly: that gives `MethodError: objects of type Nothing are not callable` rather
     # than the one wording `_notaresource` owns. `_demandtype` mirrors `_supplytype`, which does the
     # same job on the supply side.
     err = try
-        build_species(4, tolerance = (fill(293.0K, 4), fill(3.0K, 4)),
-                      toleranceaxis = Temperature, dispersal = fill(1.0km, 4),
-                      demand = 5.0kJ / day, demandaxis = Temperature,
-                      abundance = 400, seed = 1)
+        DemandSpec(Temperature, 5.0kJ / day)
         nothing
     catch e
-        # The assertion is that it is NOT a `MethodError`: that is precisely what the bug was.
+        # The assertion is that it is NOT a `MethodError`, which would name `Nothing`, not the axis.
         @test !(e isa MethodError)
         sprint(showerror, e)
     end
@@ -632,10 +622,61 @@ end
     @test occursin("not a consumable resource", err)
     @test occursin("demand", err)
     # And a genuine resource axis still builds, so the guard has not become a blanket refusal.
-    @test build_species(4, tolerance = (fill(293.0K, 4), fill(3.0K, 4)),
-                        toleranceaxis = Temperature, dispersal = fill(1.0km, 4),
-                        demand = 5.0kJ / day, demandaxis = SolarRadiation,
-                        abundance = 400, seed = 1) isa SpeciesList
+    @test _species(4,
+                   tolerance = ToleranceSpec(Temperature, μ = 293.0K, σ = 3.0K),
+                   movement = MovementSpec(InsectDispersal(), meandist = 1.0km),
+                   demand = DemandSpec(SolarRadiation, 5.0kJ / day),
+                   seed = 1) isa SpeciesList
+end
+
+# Each removed way of building species or an ecosystem raises an error saying how to rewrite the
+# call, and the rewrite of a removed `build_species` call is the call itself in the pool's form.
+@testset "a removed form says how to rewrite the call" begin
+    rewrite = try
+        build_species(3, tolerance = TOL, toleranceaxis = Temperature,
+                      demand = DEM, demandaxis = SolarRadiation,
+                      abundance = 300)
+        ""
+    catch e
+        sprint(showerror, e)
+    end
+    @test occursin("`build_species(3; ...)` was removed in v0.11.0", rewrite)
+    @test occursin("build_species(SpeciesPool(3); tolerance = " *
+                   "ToleranceSpec(Temperature, μ = 298.0 K, σ = 2.0 K)",
+                   rewrite)
+    @test occursin("build_ecosystem(BySupply(total = 300), species, habitat)",
+                   rewrite)
+    # A keyword only the removed form took is refused by the `DefaultEcosystem()` shorthand too.
+    @test_throws "builds species from a `SpeciesPool` since v0.11.0" build_species(DefaultEcosystem(),
+                                                                                   demand = DEM,
+                                                                                   demandaxis = SolarRadiation,
+                                                                                   verbosity = :silent)
+    tol = NicheTolerance(Temperature, Normal, fill(298.0K, 2), fill(2.0K, 2))
+    dem = Demand{SolarRadiation}(fill(DEM, 2))
+    movement = fill(InsectDispersal()(meandist = 1.0km), 2)
+    params = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2)
+    @test_throws "`abun` and `native` arguments were removed in v0.11.0" SpeciesList(2,
+                                                                                     tol,
+                                                                                     [
+                                                                                         10,
+                                                                                         10
+                                                                                     ],
+                                                                                     dem,
+                                                                                     movement,
+                                                                                     params,
+                                                                                     [
+                                                                                         true,
+                                                                                         true
+                                                                                     ])
+    spp = SpeciesList(2, tol, dem, movement, params)
+    habitat = build_habitat(DefaultEcosystem(), verbosity = :silent)
+    fit = NicheSuitability{Temperature, typeof(1.0K)}()
+    @test_throws "was removed in v0.11.0" Ecosystem(spp, habitat, fit)
+    @test_throws "was removed in v0.11.0" MPIEcosystem(spp, habitat, fit)
+    for populate in (populate!, populate_by_tolerance!, emptypopulate!)
+        @test_throws "was removed in v0.11.0" populate(nothing, spp, habitat,
+                                                       fit, nothing)
+    end
 end
 
 end

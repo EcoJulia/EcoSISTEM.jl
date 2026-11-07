@@ -36,21 +36,10 @@ using .TypeOrderAudit
     # reported a clean bill of health the whole time.
     @test isempty(report.unplaced)
 
-    # **The Phase A progress meter, as a RATCHET.** Every `src/_*.jl` is a file whose
-    # declarations have not yet been redistributed into the concept-named files
-    # (`docs/type_partition.md`). **Lower this number as each file moves** - that is what stops
-    # the work silently going backwards, and it is the same discipline as the named exception lists
-    # in `test_EcoSISTEM.jl`: a bound that has to shrink, not a count that can drift.
-    # **When it reaches 0, replace this with `@test isempty(report.legacy)`** - that is the
-    # completion test for Phase A.
-    # `src/deprecations.jl` is deliberately unprefixed and never counts: it is the one file the
-    # reorganisation does not touch.
-    # **Value constants are NOT counted** - `report.legacyvalues` holds those separately. A
-    # `const` that specialises no type (`_WINDOW_PAD`, `px`, `_SUPPLY_SIZE`) belongs to the functions
-    # that read it and travels in Phase B, so counting it here would give this ratchet a floor it
-    # could never reach.
-    # **PHASE A IS COMPLETE (2026-08-21): this is now the completion test, not a ratchet.**
-    # Every type and every type alias the package owns lives in a concept-named file.
+    # **Every type and every type alias the package owns lives in a concept-named file**: none is
+    # declared in a `src/_*.jl` (`src/deprecations.jl` is unprefixed and never counts). Value
+    # constants are not counted - `report.legacyvalues` holds those separately - since a `const`
+    # that specialises no type belongs with the functions that read it.
     @test isempty(report.legacy)
 
     # **And the detector is not vacuous** - the failure it guards against is an audit that checks

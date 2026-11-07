@@ -180,7 +180,8 @@ layer row carries, returned by [`datasetinfo`](@ref).
 
   - `dataset`: the source type as it is written - `WorldClim{BioClim}`, `CHELSA{Climate}`, `ERA`.
   - `format`: how the files are encoded, `:GeoTIFF` or `:netCDF`, which chooses the backend that
-    opens them, or `:Shapefile` for a source of zipped vector outlines.
+    opens them, `:Shapefile` for a source of zipped vector outlines, or `:DwCA` for a name
+    authority's Darwin Core archive.
   - `longituderange`: the longitude convention the files use, `(-180°, 180°)` or `(0°, 360°)`, or
     `nothing` to read it off each file.
   - `crs`: the coordinate reference system, an `EPSG` code or a `WellKnownText`, or `nothing`.
@@ -316,7 +317,7 @@ const _DATASETS = DatasetRecord[]
 # The closed vocabularies of the two `datasets.csv` columns that choose behaviour: `Format` picks
 # the backend a file is opened with, `Fetch` the hook that resolves files. `Shapefile` is a source
 # of vector outlines rather than rasters, whose files are zipped shapefiles.
-const _FORMATS = (:GeoTIFF, :netCDF, :Shapefile)
+const _FORMATS = (:GeoTIFF, :netCDF, :Shapefile, :DwCA)
 
 const _FETCHES = (:getraster, :cds, :https, :none)
 
@@ -1380,8 +1381,8 @@ end
 
 function _checkaxisunit(u, period, axis, code, thickness = nothing)
     isnothing(axis) && return nothing
-    # **Deliberately the Condition unit only, NOT `layerrate`'s Resource fallback** - I tried that
-    # and it is wrong. A catalogue row states an **areal flux density** (`npp` is `g*m^-2`), while a
+    # **Deliberately the Condition unit only, NOT `layerrate`'s Resource fallback**, which would be
+    # wrong here. A catalogue row states an **areal flux density** (`npp` is `g*m^-2`), while a
     # Resource-role canonical unit is a **per-cell rate** (`g*day^-1`); the two differ by the cell area
     # on purpose, so comparing them reports a dimension mismatch on a correct pair. `layerrate` can
     # consult the Resource unit because it only asks *whether the dimensions differ* in order to

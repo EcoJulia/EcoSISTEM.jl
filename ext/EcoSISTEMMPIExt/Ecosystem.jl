@@ -66,6 +66,9 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
     # set by `build_ecosystem`, and added to by every intervention that acts, which every rank does
     # on the same step.
     inputs::Vector{EcoSISTEM.ProvenanceRecord}
+    # The placement its individuals were placed by, as on the serial `Ecosystem`, and as there
+    # abstract on purpose: nothing in the step reads it.
+    placement::Any
 
     function MPIEcosystem(abundances::MPIGL,
                           spplist::SL,
@@ -106,11 +109,10 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
                                         seed,
                                         epoch,
                                         EcoSISTEM.ExactDates(),
-                                        EcoSISTEM.ProvenanceRecord[])
+                                        EcoSISTEM.ProvenanceRecord[],
+                                        nothing)
     end
 end
-
-EcoSISTEM.MPIEcosystem(args...; kwargs...) = MPIEcosystem(args...; kwargs...)
 
 # With the MPI extension loaded, auto-selection (in `build_ecosystem`) treats the process as
 # distributed only once MPI is initialised and there is more than one rank - so `mpirun -n 1` or a
@@ -118,32 +120,22 @@ EcoSISTEM.MPIEcosystem(args...; kwargs...) = MPIEcosystem(args...; kwargs...)
 EcoSISTEM._should_mpi() = MPI.Initialized() && MPI.Comm_size(MPI.COMM_WORLD) > 1
 
 using EcoSISTEM: getkernels, genlookups, numdemands, _checksimulatable
-"""
-    MPIEcosystem(spplist::SpeciesList, habitat::GridHabitat,
-                 nichefit::AbstractNicheFit)
-
-Create an `MPIEcosystem` given a species list, an abiotic environment and trait
-nichefit.
-
-Every rank takes the first rank's species list and seed, so each simulates the same species from the
-same streams: with no `seed`, the first rank draws one; a `seed` given on some ranks and not others,
-or differently on different ranks, is an error on every rank. Every rank must make the call. The
-other ranks hold a copy of the first rank's list rather than the one they were given.
-"""
-function MPIEcosystem(popfun::F,
-                      spplist::EcoSISTEM.SpeciesList{T, DM},
-                      habitat::EcoSISTEM.GridHabitat,
-                      nichefit;
-                      seed::Union{Integer, Nothing} = nothing) where {F <:
-                                                                      Function,
-                                                                      T, DM}
-    # **First, exactly as in the serial `Ecosystem` constructor and for the same reason.**
+# An ecosystem of `spplist` in `habitat` with no individuals yet, distributed: what `build_ecosystem`
+# places into. Every rank takes the first rank's species list and seed, so each simulates the same
+# species from the same streams: with no `seed`, the first rank draws one; a `seed` given on some ranks
+# and not others, or differently on different ranks, is an error on every rank. Every rank must make
+# the call, and the other ranks hold a copy of the first rank's list rather than the one they were
+# given.
+function EcoSISTEM._emptympiecosystem(spplist::EcoSISTEM.SpeciesList{T, DM},
+                                      habitat::EcoSISTEM.GridHabitat, nichefit;
+                                      seed::Union{Integer, Nothing} = nothing) where {T,
+                                                                                      DM}
+    # **First, exactly as in the serial `_emptyecosystem` and for the same reason.**
     # `genlookups` below divides the regime's cell size by a dispersal distance, so on a geographic
     # grid (`size` in `°`) it raises `DimensionError: ° km^-1` before any tailored message is reached.
-    # **This guard was missing here.** It was added to the serial constructor on 2026-08-12, when
-    # `[GEO-SIZE]` made a geographic cell size honest and exposed the ordering; the MPI constructor
-    # has the identical fault and was overlooked. Nothing caught it because `test/SmallMPItest.jl`
-    # builds a synthetic grid, so the geographic case is never exercised under MPI.
+    # **Keep it in step with the serial builder by hand**: `test/SmallMPItest.jl` builds a
+    # synthetic grid, so the geographic case is never exercised under MPI and nothing would catch
+    # this guard going missing.
     _checksimulatable(habitat)
 
     comm = MPI.COMM_WORLD
@@ -174,9 +166,6 @@ function MPIEcosystem(popfun::F,
     # Create matrix landscape of zero abundances
     ml = EcoSISTEM.empty_landscape(habitat, spplist, sppcounts, sccounts)
 
-    # Populate this matrix with species abundances
-    popfun(ml, spplist, habitat, nichefit, rngs)
-
     rankspp = firstsp:sppindices[rank + 2]
     lookup_tab = collect(map(k -> genlookups(habitat.regime, k),
                              @view getkernels(spplist.movement)[rankspp]))
@@ -196,16 +185,6 @@ function MPIEcosystem(popfun::F,
                         0.0s,
                         EcoSISTEM._storedseed(seed))
 end
-
-function MPIEcosystem(spplist::EcoSISTEM.SpeciesList,
-                      habitat::EcoSISTEM.GridHabitat, nichefit;
-                      seed::Union{Integer, Nothing} = nothing)
-    return MPIEcosystem(EcoSISTEM.populate!, spplist, habitat, nichefit;
-                        seed = seed)
-end
-@doc (@doc MPIEcosystem) MPIEcosystem(::EcoSISTEM.SpeciesList,
-                                      ::EcoSISTEM.GridHabitat,
-                                      ::Any)
 
 # The seed every rank uses: the one each rank was given, which must be the same everywhere, or
 # with none given anywhere, one the first rank draws. Collective. Every rank checks the same gathered

@@ -4,8 +4,8 @@
 # (exported, `public`, private) and within that by **kind**, with a one-line description taken from
 # the name's own docstring or from the `#` comment above its definition.
 #
-# It exists as the working document for two audits: `[C7-VIS]` (which exported names belong in the
-# `using EcoSISTEM` namespace at all) and `[COMMENTS]` (which private helpers are undocumented).
+# It exists as the working document for two audits: which exported names belong in the
+# `using EcoSISTEM` namespace at all, and which private helpers are undocumented.
 # Nothing here judges either question; it lays out the surface so a person can.
 #
 # Must run with the weak dependencies loaded, or the extensions never load and their private helpers
@@ -237,7 +237,7 @@ function docsentence(m::Module, n::Symbol)
 end
 
 # The `#` comment block immediately above a definition, which is how a private helper is documented
-# (`CLAUDE.md`: "every private helper gets a `#` comment -- no exceptions"). Read upwards from the
+# (every private helper gets a `#` comment, with no exceptions). Read upwards from the
 # definition line, stopping at the first line that is neither a comment nor blank-inside-a-block.
 function commentsentence(location::AbstractString)
     return first(commentabove(location))
@@ -297,7 +297,7 @@ end
 
 # One row of the report. `public` means visible-and-supported, so its description comes from the
 # docstring; a private helper's comes from the `#` comment above it, and a docstring found on one is
-# itself the finding `[COMMENTS]` is looking for.
+# itself a finding of the second audit.
 function entry(m::Module, n::Symbol, vis::Symbol, consts)
     k = kindof(m, n)
     k === :missing && return nothing
@@ -308,7 +308,7 @@ function entry(m::Module, n::Symbol, vis::Symbol, consts)
     end
     doc = docsentence(m, n)
     if vis === :private
-        # `CLAUDE.md`'s rule is about `_`-prefixed helpers specifically, so only those are held to
+        # The rule is about `_`-prefixed helpers specifically, so only those are held to
         # "a `#` comment, never a docstring". An internal name without the prefix -- `bounds`, kept
         # non-public because `DimensionalData` and `Rasters` both export it -- is documented prose
         # deliberately, and flagging it would bury the real findings among false ones.
@@ -392,11 +392,11 @@ Descriptions are the first sentence of the name's own docstring — or, for priv
 `#` comment above it. None are invented. *(undocumented)* means there is neither.
 """,
                                    :exported => """
-Reached by `using EcoSISTEM` alone. This is the surface `[C7-VIS]` audits: the question to ask of
-each name is *"do you need this to **use** the package, or only to **extend** it?"* — the first
-belongs here, the second belongs under `public`.
+Reached by `using EcoSISTEM` alone. This is the surface the export audit examines: the question
+to ask of each name is *"do you need this to **use** the package, or only to **extend** it?"* —
+the first belongs here, the second belongs under `public`.
 
-⚠️ Every abstract type in this section is already known to be misplaced: `CLAUDE.md` says every
+⚠️ Every abstract type in this section is already known to be misplaced: the rule is that every
 abstract type is `public`, never exported, because a supertype is what you dispatch on or subtype
 when extending the package rather than when using it.
 """,
@@ -408,7 +408,7 @@ Supported and documented, but **not** in the `using EcoSISTEM` namespace — rea
 report uses `Base.isexported`, and anything checking the split must do the same.
 """,
                                    :private => """
-Not part of the API. Listed because `[COMMENTS]` audits them against `CLAUDE.md`'s rule that **every
+Not part of the API. Listed because the comment audit checks them against the rule that **every
 private helper gets a `#` comment** and that private functions are **not** given docstrings — so a
 row marked *(undocumented)* or *(docstring, not a `#` comment)* is a finding, and the rest are
 confirmation.
@@ -551,7 +551,7 @@ open(joinpath(ROOT, "data", "api_surface.md"), "w") do io
             "`Base.isdeprecated` and a `depwarn` scan; value identity across our modules), so " *
             "neither depends on a list that could rot.")
     println(io,
-            "\n⭐ **`[COMMENTS]` at a glance**: of ",
+            "\n⭐ **The comment audit at a glance**: of ",
             count(e -> e.kind === :function, surface.private),
             " private functions, **", nundoc,
             "** carry no documentation at all and **", ndoc,

@@ -53,10 +53,11 @@ classDiagram
 
     SpeciesList "1" *-- "1" AbstractTolerance : tolerance
     SpeciesList "1" *-- "1" AbstractDemand : demand
-    SpeciesList "1" *-- "1" AbstractMovement : movement
+    SpeciesList "1" *-- "*" SpeciesDispersal : movement
     SpeciesList "1" *-- "1" AbstractParams : params
 
-    AbstractMovement "1" *-- "*" AbstractKernel : kernels
+    SpeciesDispersal "1" *-- "1" AbstractMovement : mode
+    SpeciesDispersal "1" *-- "0..1" AbstractKernel : kernel
     GridHabitat "1" *-- "1" AbstractTopology : topology
     GridHabitat "1" *-- "1" StudyArea : area
     StudyArea "1" *-- "1" StudyAreaReport : report
@@ -384,7 +385,6 @@ classDiagram
     AbstractOperation <|-- SetChange
     AbstractOperation <|-- AddAbundance
     AbstractOperation <|-- RemoveAbundance
-    AbstractOperation <|-- AddAbundanceTable
     AbstractOperation <|-- AddSpecies
     Intervention "1" *-- "1" AbstractSchedule : schedule
     Intervention "1" *-- "1" AbstractRegion : region
@@ -396,7 +396,9 @@ classDiagram
 be applied redundantly on every MPI rank and still agree. An *intervention* mutates the ecosystem -
 the active mask, abundances, the species list - so it must be applied once and identically
 everywhere. That is also why the operation set is **closed**: a user callback could draw from the
-global RNG or write a layer's matrix directly, both of which desynchronise ranks. Selections come
+global RNG or write a layer's matrix directly, both of which desynchronise ranks. A placement given to
+`AddAbundance`, a function included, only returns a table, checked before anything is written and
+called by the root alone, so it cannot. Selections come
 from a counter-based stream seeded from `(seed, :intervention, k, step)`, generalising the
 per-species scheme.
 
@@ -408,10 +410,10 @@ restock - recolonisation is by dispersal.
 binomially - and **operations after the first share one resolved region**, which is the only way to
 act twice on the same random cells (clear ground, then plant it).
 
-**`AddAbundanceTable` carries its own times**, one per row, so it stands alone in an intervention
-scheduled `EveryStep()`, which also fires at the start for the rows due there; the region filters its
-rows rather than choosing cells to act on. It is still rank-local: each rank adds only its own
-species' rows.
+**A dated placement carries its own times**, one per row, so `AddAbundance` of one stands alone in an
+intervention scheduled `EveryStep()`, which also fires at the start for the rows due there; the region
+filters its rows rather than choosing cells to act on. The root resolves it once for an ecosystem,
+and each rank keeps and adds only its own species' rows.
 
 ## Tolerances
 
@@ -826,6 +828,7 @@ classDiagram
     AbstractLayerFate <|-- LayerResampled
     AbstractProblemSeverity <|-- ProblemNotice
     AbstractProblemSeverity <|-- ProblemWarning
+    AbstractProblemSeverity <|-- ProblemError
     StudyAreaReport "1" *-- "1" AbstractDecisionSource : crssource
     StudyAreaReport "1" *-- "1" AbstractDecisionSource : cellsizesource
     StudyAreaReport "1" *-- "*" LayerPlan : layers
@@ -887,6 +890,130 @@ traced to the decision that produced it. **`AbstractLayerFate`** says what the g
 and carries the data each case means something by: `LayerAggregated` holds its whole-number factor,
 `LayerResampled` its reason, `LayerKeptExactly` neither.
 
+## The species pool and name authorities
+
+```mermaid
+classDiagram
+    class SpeciesPool~A~
+    class AbstractNameAuthority
+    class AbstractMergeRule
+    class MergeWith~F~
+    class ProvenanceRecord
+    AbstractNameAuthority <|-- WFOPlantList
+    AbstractMergeRule <|-- RefuseMerge
+    AbstractMergeRule <|-- MergeWith
+    SpeciesPool "1" *-- "0..1" AbstractNameAuthority : authority
+    SpeciesPool "1" *-- "*" ProvenanceRecord : inputs
+```
+
+```mermaid
+classDiagram
+    class AbstractTraitSpec
+    class ToleranceSpec~A, D, P~
+    class DemandSpec~A, V~
+    class MovementSpec~M, P~
+    class ChosenBy~K, C~
+    class TraitColumn~U, F~
+    class DrawFrom~D, U~
+    AbstractTraitSpec <|-- ToleranceSpec
+    AbstractTraitSpec <|-- DemandSpec
+    AbstractTraitSpec <|-- MovementSpec
+    AbstractTraitSpec <|-- ChosenBy
+    ToleranceSpec "1" *-- "*" TraitColumn : params
+    MovementSpec "1" *-- "*" DrawFrom : params
+```
+
+**A `SpeciesPool` declares every species a run may hold before the run is built**, so its arrays,
+its random streams and its partition between MPI ranks are fixed from the start: a species is
+deactivated or activated, not appended. Each species keeps a key - its position in the table the
+pool was made from - that removing another species does not change, which is what leaves every
+other species' streams as they were when one is taken out.
+
+**An `AbstractNameAuthority` says which species a name means, by the authority's own identifiers**,
+so tables naming species differently meet on one identifier; `WFOPlantList` is the plant one, a
+catalogued source read from its Darwin Core release. Each name reaches one species: a homonym keeps
+its own name with its identifiers joined, so a table naming it by name alone still finds exactly
+one. Which of several rows reaching one species supplies its values is not the authority's
+question, since it turns on which names the data holds, and the pool's `AbstractMergeRule` answers
+it.
+
+**A species list is built from a pool one `AbstractTraitSpec` per trait**, each parameter a trait
+value: one value for every species, a `TraitColumn` of the pool, a `DrawFrom` a distribution, or a
+function of the species' row. Nothing takes values per species by position, so no order can be got
+wrong: values per species reach the pool keyed by species, and a spec names their column. A
+`ChosenBy` picks each species' spec by a key of its row, which is how species of one pool disperse
+by different modes. Missing values are filled, and values drawn, each from a stream of the species'
+own key, so a species' values do not depend on how many others were filled.
+
+## Placing a run's individuals
+
+```mermaid
+classDiagram
+    class AbstractPlacement
+    class BySupply~A, N~
+    class BySuitability~A, N~
+    class ByLayer~L, N~
+    class Weighted~W, N~
+    class FromTable~D~
+    class FromOccurrences~R, D, T, S, N, L~
+    class ToCapacity~P~
+    class SumOfPlacements~P~
+    class PlacementContext~C, S, R, NF~
+    class PlacedAbundances~T~
+    AbstractPlacement <|-- BySupply
+    AbstractPlacement <|-- BySuitability
+    AbstractPlacement <|-- ByLayer
+    AbstractPlacement <|-- Weighted
+    AbstractPlacement <|-- NoAbundance
+    AbstractPlacement <|-- FromTable
+    AbstractPlacement <|-- FromOccurrences
+    AbstractPlacement <|-- ToCapacity
+    AbstractPlacement <|-- SumOfPlacements
+    Weighted "1" *-- "*" AbstractPlacement : weights
+    SumOfPlacements "1" *-- "*" AbstractPlacement : placements
+    ToCapacity "1" *-- "1" AbstractPlacement : placement
+    PlacedAbundances "1" *-- "*" ProvenanceRecord : records
+```
+
+**A placement says how many individuals of each species start in each cell**, and is
+`build_ecosystem`'s first argument. Called with the species, the habitat and a `PlacementContext` -
+the cells it may place in, a random stream per species, the run's dates - it returns a
+`PlacedAbundances`: rows of species, place and count, the records of what it read, and the problems
+it found. The rows are checked before anything is written, so a function of the user's own is a
+placement on the same terms as a shipped one, and one check covers both. A row names its cell by a
+location or by the grid's own key, never by a storage position, so a table means the same however
+the grid stores its cells.
+
+**Weights multiply and placements add.** `BySupply`, `BySuitability` and `ByLayer` each weight the
+cells, and each is a placement on its own; `Weighted` multiplies several, each normalised first, so a
+cell must score on every weight to be worth placing in. `+` adds placements' rows, as a
+`SumOfPlacements`. The numbers belong to the weighted placement - a community `total` split across the
+species, or `each` species' own - and never to a weight inside one. `ToCapacity` takes another
+placement's numbers as shares and fills each cell until what its species demand of the scarcest
+resource is what the cell supplies.
+
+```mermaid
+classDiagram
+    class AbstractRecordFilter
+    class IsActiveSpecies~S, L~
+    class InActiveCell~C, S, L~
+    AbstractRecordFilter <|-- IsActiveSpecies
+    AbstractRecordFilter <|-- InActiveCell
+```
+
+**A record filter decides which rows of a table of records a run can use**, before anything is placed
+from them, for `filter!` and `filter`. `IsActiveSpecies` keeps the rows naming one of the active
+species of a pool or a species list, and reports what it removes by kind: names the name authority
+does not recognise, names of species not held, species not active. A placement finds its table's
+species by the same matcher - a species' own name, a name the pool's data used, an identifier, or any
+name the authority resolves to one of the species - so a filter and a placement say the same of the
+same rows. `InActiveCell` keeps the rows whose position lies in an active cell - of a study area as it
+was decided, or of a habitat as it stands - or within `snap`, a ground distance, of one;
+`FromOccurrences` given the same `snap` moves such a row into that cell, and the filter moves
+nothing. Under MPI each filter is a collective call, the first rank deciding for every rank.
+`FromOccurrences` matches and places its records by the same code, so filtering first changes only
+what is reported, and at what level.
+
 ## Demands
 
 ```mermaid
@@ -912,14 +1039,23 @@ ignored *there*, and only there.
 
 ```mermaid
 classDiagram
-    class BirthOnlyMovement~K, B~
-    class AlwaysMovement~K, B~
-    class NoMovement~K~
-    AbstractMovement  <|-- BirthOnlyMovement
-    AbstractMovement  <|-- AlwaysMovement
-    AbstractMovement  <|-- NoMovement
+    class SeedDispersal~K~
+    class WindDispersal~K~
+    class InsectDispersal~K~
+    class VertebrateDispersal~K~
+    class AlwaysDispersal~K~
+    class SpeciesDispersal~M, K~
+    AbstractMovement  <|-- SeedDispersal
+    AbstractMovement  <|-- WindDispersal
+    AbstractMovement  <|-- InsectDispersal
+    AbstractMovement  <|-- VertebrateDispersal
+    AbstractMovement  <|-- AlwaysDispersal
+    AbstractMovement  <|-- NoDispersal
+    SpeciesDispersal "1" *-- "1" AbstractMovement : mode
+    SpeciesDispersal "1" *-- "0..1" AbstractKernel : kernel
     AbstractKernel    <|-- GaussianKernel
     AbstractKernel    <|-- LongTailKernel
+    AbstractKernel    <|-- WaldKernel
     AbstractTopology <|-- EdgeTopology
     EdgeTopology <|-- Torus
     EdgeTopology <|-- Cylinder
@@ -927,6 +1063,14 @@ classDiagram
     AbstractBoundaryCondition <|-- Periodic
     AbstractBoundaryCondition <|-- Bounded
 ```
+
+A species' movement is a [`SpeciesDispersal`](@ref): a **dispersal mode** and a kernel of the mode's
+family, the mode called with the kernel's parameters. The mode says which individuals disperse - the
+newly born under the four seed modes, any individual under `AlwaysDispersal`, none under
+`NoDispersal` - and what becomes of one aimed at a dead cell, so species sharing a mode differ only in
+their kernels. Each species has its own, and a species list may mix at most four kinds, mode and
+kernel together: the step loop picks each species' `move!` from that union, which the compiler
+splits at the call rather than dispatching dynamically.
 
 A grid's topology is one [`AbstractBoundaryCondition`](@ref) **per axis** - `EdgeTopology{BCY, BCX}`,
 each axis `Periodic` (its edges join) or `Bounded` (they do not). `Torus`, `Cylinder` and `Island` are
@@ -940,8 +1084,8 @@ topology on a study area with a real-world position warns that it misstates the 
 `Cylinder` on a grid spanning the whole longitude sweep, where east-west wrapping is exactly right.
 
 What becomes of an individual whose dispersal is aimed at a **dead cell** - off the grid, or an
-inactive one - is a separate question and a property of the **disperser**, so `disperse_safely` is one
-entry per species on the movement rather than a field of the topology. `true` (the default)
+inactive one - is a separate question and a property of the **disperser**, so `disperse_safely` is part
+of each species' mode rather than a field of the topology. `true` (the default)
 redistributes it among the destinations it can reach, making `Island()` a *reflecting* edge rather
 than a lossy one; `false` loses it. That is a real ecological distinction - a wind-dispersed seed
 blown out to sea is gone, an animal-dispersed one is carried somewhere reachable - and it applies to a

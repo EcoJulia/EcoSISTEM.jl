@@ -22,18 +22,8 @@ using Extents: Extent
 include("rasterfixtures.jl")
 include("buildfixtures.jl")
 
-# **Six testsets removed 2026-08-13** - `simplehabitat`, `simplenichehabitat`, `erahabitat`,
-# `worldclimhabitat`, `bioclimhabitat` and `landcoverhabitat`. They tested **deprecated builders**,
-# whose home is `test_deprecations.jl`; that file already covers the `*AE -> *habitat` chain and both
-# gradient families, so no current behaviour lost coverage. They also read ERA, twelve months of
-# WorldClim climate, BioClim and EarthEnv land cover between them, which is what made this file
-# expensive.
-#
-# `getraster(WorldClim{Climate}, :wind, month = 1:12)` and `getraster(EarthEnv{LandCover})` went
-# with them: only those testsets needed them, and `test_datasetread.jl` fetches both regardless - so the
-# CI cache is unchanged and only the processing is saved.
 if !Sys.iswindows()
-    # `bio1` is what the one surviving testset here reads.
+    # `bio1` is the one layer the testset below reads.
     getraster(WorldClim{BioClim}, :bio1)
 
     @testset "GridHabitat from source type" begin
@@ -83,7 +73,7 @@ if !Sys.iswindows()
     end
 end
 
-# R3/R6, decided with the user 2026-08-05: masking is the `active` array's job and nothing else's.
+# Masking is the `active` array's job and nothing else's.
 # A habitat keeps every cell's supply, including the inactive ones, so a cell that is reactivated
 # later still has resource - and `totalsupply` applies the mask itself rather than relying on
 # the values having been destroyed.
@@ -91,10 +81,9 @@ end
 # The bug this prevents is not "a reactivated cell is barren". `death_resource` is `E / K`, so a
 # zeroed supply in a cell holding individuals gives `Inf` and a death probability of exactly 1: the
 # cell would kill everything that dispersed into it, every step, silently.
-# **Converted 2026-08-13 off a hand-built `active` matrix.** What this needs is *an inactive
-# cell*, not an arbitrary mask, and a `CircleMaskSpec` gives one honestly: cells outside the disc are
-# genuinely inactive, decided by the study area rather than asserted afterwards. That keeps the
-# testset working when `GridHabitat` becomes the sole way to make a `GridHabitat`.
+# What this needs is *an inactive cell*, not an arbitrary mask, and a `CircleMaskSpec` gives one
+# honestly: cells outside the disc are genuinely inactive, decided by the study area rather than
+# asserted afterwards.
 @testset "an inactive cell keeps its supply; `available` applies the mask" begin
     # A 4 × 4 km grid of 1 km cells, with a disc about the centre leaving the corners outside it.
     area = StudyArea(extent = (4.0km, 4.0km), cellsize = 1.0km,
@@ -141,11 +130,10 @@ end
     @test iszero(cleaned.matrix[2, 2])
 end
 
-# The multi-resource shape had **no** coverage through this accessor before 2026-08-05 - every
-# assertion elsewhere in this file uses a single-supply habitat - so the path that returns one total
-# per resource was exercised by nothing.
+# Every other assertion in this file uses a single-supply habitat, so this is the only test of the
+# path that returns one total per resource.
 @testset "available supply is one named total per resource" begin
-    # Converted off a hand-built mask 2026-08-13, as above - the disc supplies the inactive cells.
+    # The disc supplies the inactive cells, as above.
     area = StudyArea(extent = (4.0km, 4.0km), cellsize = 1.0km,
                      within = CircleMaskSpec(radius = 1.9km),
                      verbosity = :silent)
@@ -285,10 +273,10 @@ end
 
     @testset "a multi-variable synthetic environment" begin
         # Every combination of one/several regimes and one/several supplies on a synthetic area.
-        # The 2-regime cases were refused outright until 2026-08-05 - `_shapesgrid`'s `::Any`
-        # fallback reads "data-backed", so handing it a *tuple* of synthetic specs classified the
-        # whole regime as data-backed and produced an error blaming the caller for passing data they
-        # had not passed. Both halves are pinned here: the count, and that the names survive.
+        # The 2-regime cases matter most: `_shapesgrid`'s `::Any` fallback reads "data-backed", so
+        # a *tuple* of synthetic specs handed to it whole would be classified as data and refused,
+        # with an error blaming the caller for passing data they had not passed. Both halves are
+        # pinned here: the count, and that the names survive.
         rain = UniformSpec(2.0mm / day, axis = Precipitation)
         water = UniformSpec(2.0mm / day, axis = Precipitation)
 
@@ -377,10 +365,8 @@ end
 
     # The magnitude is the latitude factor itself, not merely "some variation": over this extent
     # `f` runs 1.087 -> 0.910, so the southern cell is ~19% larger than the northern one.
-    # **These two numbers moved half a cell north on 2026-08-13**, when `_testraster` was corrected
-    # to the `Intervals(Start)` its readers actually produce: the first cell now spans 54.6°-55.5°
-    # rather than 54.15°-55.05°, and the last 60.9°-61.8°. Both recomputed from the fixture's own
-    # `_cellintervals`, not read off the failure.
+    # With the `Intervals(Start)` its readers produce, the first cell spans 54.6°-55.5° and the last
+    # 60.9°-61.8°; both numbers come from the fixture's own `_cellintervals`.
     @test profile[1] / profile[end] ≈ 1.0871 / 0.9099 rtol=1.0e-3
 
     # And a **projected** grid of the same shape is flat - the correction is geography, not an
@@ -606,13 +592,11 @@ end
         bng = ArchGDAL.importEPSG(27700)
         bngpath = _testshapefile(250000.0, 650000.0, 260000.0, 660000.0,
                                  sr = bng)
-        # **Relabelled, not repositioned** (2026-08-13). This fixture's point is a *spatial
-        # coincidence* - a ~10 km polygon landing in exactly one of two 83 km cells - so when the
-        # locus moved, the labels moved with it to keep the cells over the **same ground**: what
-        # `Center` called 55.75°/56.5° and -4.6°/-4.3° is what `Start` calls 55.375°/56.125° and
-        # -4.75°/-4.45°. The cells, and so the assertion below, are unchanged. Elsewhere in this
-        # file the opposite call was right - a fixture describing ground generically simply covers
-        # different ground now - but here preserving the coincidence *is* the fixture's meaning.
+        # **Labelled for the ground, not the numbers.** This fixture's point is a *spatial
+        # coincidence* - a ~10 km polygon landing in exactly one of two 83 km cells - so its labels
+        # are the `Start` corners of those cells, 55.375°/56.125° and -4.75°/-4.45°. Labelling the
+        # cell centres with them would put the cells over different ground and lose the coincidence
+        # that *is* the fixture's meaning.
         scotland = _testraster(WorldClim{BioClim}, fill(290.0K, 2, 2),
                                lat = [55.375, 56.125] .* °,
                                long = [-4.75, -4.45] .* °)
@@ -679,15 +663,16 @@ end
         # A projected reference keeps its own metric grid, and `cellsize` there means a real physical
         # cell side - exactly, not an approximation.
         penv = _env(_reg(bng, axis = Temperature), SUP, cellsize = 5.0km)
-        @test EcoSISTEM._uniformcellside(EcoSISTEM.getregime(build_ecosystem(build_species(2,
-                                                                                           tolerance = (291.0K,
-                                                                                                        2.0K),
-                                                                                           toleranceaxis = Temperature,
-                                                                                           demand = DEM,
-                                                                                           demandaxis = SolarRadiation,
-                                                                                           seed = 1),
+        pspecies = build_species(SpeciesPool(2),
+                                 tolerance = ToleranceSpec(Temperature,
+                                                           μ = 291.0K,
+                                                           σ = 2.0K),
+                                 demand = DemandSpec(SolarRadiation, DEM),
+                                 seed = 1, verbosity = :silent)
+        @test EcoSISTEM._uniformcellside(EcoSISTEM.getregime(build_ecosystem(pspecies,
                                                                              penv,
-                                                                             seed = 1))) ≈
+                                                                             seed = 1,
+                                                                             verbosity = :silent))) ≈
               5.0km
         # 22.5 km of ground (9 cells of 2.5 km, edge to edge) at 5 km cells -> 4 whole cells each
         # way, starting on the data's own lower edge, with 2.5 km left over that fills no cell.
@@ -726,15 +711,16 @@ end
         uenv = _env(_reg(temp, axis = Temperature), SUP, cellsize = 200.0km,
                     crs = Rasters.EPSG(32631))
         @test uenv isa GridHabitat
-        @test EcoSISTEM._uniformcellside(EcoSISTEM.getregime(build_ecosystem(build_species(2,
-                                                                                           tolerance = (290.0K,
-                                                                                                        2.0K),
-                                                                                           toleranceaxis = Temperature,
-                                                                                           demand = DEM,
-                                                                                           demandaxis = SolarRadiation,
-                                                                                           seed = 1),
+        uspecies = build_species(SpeciesPool(2),
+                                 tolerance = ToleranceSpec(Temperature,
+                                                           μ = 290.0K,
+                                                           σ = 2.0K),
+                                 demand = DemandSpec(SolarRadiation, DEM),
+                                 seed = 1, verbosity = :silent)
+        @test EcoSISTEM._uniformcellside(EcoSISTEM.getregime(build_ecosystem(uspecies,
                                                                              uenv,
-                                                                             seed = 1))) ≈
+                                                                             seed = 1,
+                                                                             verbosity = :silent))) ≈
               200.0km
     end
 
@@ -901,12 +887,13 @@ end
         @test genv isa GridHabitat
 
         # ...but assembling an ecosystem on it is refused, because dispersal assumes uniform cells
-        sp = build_species(2, tolerance = (290.0K, 2.0K),
-                           toleranceaxis = Temperature, demand = DEM,
-                           demandaxis = SolarRadiation,
-                           seed = 1)
+        sp = build_species(SpeciesPool(2),
+                           tolerance = ToleranceSpec(Temperature, μ = 290.0K,
+                                                     σ = 2.0K),
+                           demand = DemandSpec(SolarRadiation, DEM), seed = 1,
+                           verbosity = :silent)
         err = try
-            build_ecosystem(sp, genv, seed = 1)
+            build_ecosystem(sp, genv, seed = 1, verbosity = :silent)
             nothing
         catch e
             e
@@ -918,23 +905,26 @@ end
         penv = _env(_reg(_bngraster(WorldClim{BioClim}, fill(290.0K, 9, 9)),
                          axis = Temperature),
                     SUP)
-        @test build_ecosystem(sp, penv, seed = 1) isa Ecosystem
+        @test build_ecosystem(sp, penv, seed = 1, verbosity = :silent) isa
+              Ecosystem
         # and so does a *synthetic* one, which has no CRS at all but a genuine metric cell size
         senv = GridHabitat(regime = UniformSpec(290.0K,
                                                 axis = Temperature),
                            supply = SUP,
                            area = _area(extent = (5km, 5km),
                                         cellsize = 1km))
-        @test build_ecosystem(sp, senv, seed = 1) isa Ecosystem
-        # the guard is on the Ecosystem constructor too, not only on `build_ecosystem`
-        @test_throws ErrorException Ecosystem(sp, genv,
-                                              NicheSuitability{Temperature,
-                                                               typeof(1.0K)}())
+        @test build_ecosystem(sp, senv, seed = 1, verbosity = :silent) isa
+              Ecosystem
+        # the guard is on the empty ecosystem a placement is written into too, not only on
+        # `build_ecosystem`
+        @test_throws "cannot be simulated" EcoSISTEM._emptyecosystem(sp, genv,
+                                                                     NicheSuitability{Temperature,
+                                                                                      typeof(1.0K)}())
     end
 
     @testset "masks on a projected target" begin
-        # `CircleMaskSpec`/`ShapeSpec` both assumed degree coordinates before A2; on a projected
-        # target they must work in the target's own metric plane instead.
+        # On a projected target `CircleMaskSpec`/`ShapeSpec` must work in the target's own metric
+        # plane, not in degrees.
         bng = _bngraster(WorldClim{BioClim}, fill(291.0K, 9, 9))
 
         # Default centre = the grid's own midpoint (CRS-agnostic): a 6 km disc over a 20 × 20 km grid
@@ -1021,7 +1011,7 @@ end
         arr = fill(rate, 3, 3)
         arr[1, 1] = NaN * rate
         # Real coordinates, because a layer must be able to state its own grid - `NoLookup` dims
-        # are refused at construction now (`[CELL-DO]` 4b). Incidental to what this testset checks,
+        # are refused at construction. Incidental to what this testset checks,
         # which is NaN handling, so the fixture simply says what its cells are.
         supply = Supply{SolarRadiation}(EcoSISTEM._sizedyx(arr, 1.0km))
         @test isnan(ustrip(supply.matrix[1, 1]))
@@ -1147,8 +1137,8 @@ end
     @testset "cell areas vary with latitude on a geographic grid" begin
         lats = collect(range(50.25°, 59.75°, length = 11))
         longs = collect(range(-5.75°, 1.75°, length = 7))
-        # `_cellareas` reads an array's own dims now, asking each axis for what it means -
-        # midpoints for the nominal size, intervals for the latitude correction (`[LOCUS-BLIND]`) -
+        # `_cellareas` reads an array's own dims, asking each axis for what it means -
+        # midpoints for the nominal size, intervals for the latitude correction -
         # so the fixture is a raster rather than two coordinate vectors.
         grid(la,
              lo) = _testraster(WorldClim{BioClim},
@@ -1170,12 +1160,10 @@ end
         # the true spherical area of the band the grid covers. *Not* "the centre cell equals the
         # old scalar": at the centre latitude the factor is `sin(h)/h`, short of 1 by ~1.1e-5 for
         # these cells, because the nominal `Δφ × 111.32 km/°` overstates a meridional arc.
-        # **The band comes from the lookup's own cell edges, not from `centre ± half`**
-        # (`[LOCUS-BLIND]`). It was `sin(max(lats) + h) - sin(min(lats) - h)`, which silently assumed
-        # the coordinates were cell *centres* - so when `_testraster` was corrected to the
-        # `Intervals(Start)` its readers really produce, the test's own expectation described
-        # different ground from the cells it was checking. Asking `_cellintervals` is exact and
-        # cannot encode a locus again.
+        # **The band comes from the lookup's own cell edges, not from `centre ± half`**:
+        # `sin(max(lats) + h) - sin(min(lats) - h)` assumes the coordinates are cell *centres*, and
+        # on the `Intervals(Start)` readers produce it describes different ground from the cells
+        # being checked. Asking `_cellintervals` is exact and encodes no locus.
         R = uconvert(km, EcoSISTEM.LONGITUDE_DEGREE_LENGTH)  # km/° *is* a radius: ° is dimensionless
         ivs = EcoSISTEM._cellintervals(grid(lats, longs), Y)
         band = R^2 * ustrip(u"rad", abs(longs[2] - longs[1]) * length(longs)) *
@@ -1203,8 +1191,8 @@ end
         @test EcoSISTEM._cellareas(pgrid) isa Number
         @test EcoSISTEM._cellareas(pgrid) ≈ EcoSISTEM._cellsize(pl, pg)^2
 
-        # **Locus-blindness, the property that stops a labelling change propagating**
-        # (`[LOCUS-BLIND]`): the *same cells* described `Intervals(Start)` and `Intervals(Center)`
+        # **Locus-blindness, the property that stops a labelling change propagating**: the
+        # *same cells* described `Intervals(Start)` and `Intervals(Center)`
         # must give identical answers from every accessor. A raw `parent(lookup(...))` would not.
         L = DimensionalData.Lookups
         mk(loc,
@@ -1286,11 +1274,12 @@ end
     # `canonicalunit(::Type{<:SolarRadiationAxis})` fixes: a tolerance built (by default) in the canonical unit
     # and a regime built from an honestly-tagged-but-differently-scaled raster value must still
     # reconcile, not silently disagree by a factor of 1000.
-    sp = build_species(2,
-                       tolerance = (500.0kJ / (m^2 * day),
-                                    100.0kJ / (m^2 * day)),
-                       demand = DEM, demandaxis = SolarRadiation,
-                       toleranceaxis = SolarRadiation, seed = 1)
+    sp = build_species(SpeciesPool(2),
+                       tolerance = ToleranceSpec(SolarRadiation,
+                                                 μ = 500.0kJ / (m^2 * day),
+                                                 σ = 100.0kJ / (m^2 * day)),
+                       demand = DemandSpec(SolarRadiation, DEM), seed = 1,
+                       verbosity = :silent)
     @test sp.tolerance isa NicheTolerance{SolarRadiation}
     # projected (BNG) fixture, since this test simulates - see the multi-regime testset above
     mjraster = _bngraster(WorldClim{Climate},
@@ -1299,7 +1288,7 @@ end
     # the regime is canonicalised to kJ*m^-2*day^-1 regardless of the MJ input
     canon = typeof(1.0 * EcoSISTEM.canonicalunit(SolarRadiation))
     @test eltype(env.regime) == canon
-    eco = build_ecosystem(sp, env, seed = 1)
+    eco = build_ecosystem(sp, env, seed = 1, verbosity = :silent)
     @test eco.nichefit isa NicheSuitability{SolarRadiation, canon}
     @test_nowarn simulate!(eco, 2month_mean_duration, 1month_mean_duration)
 end
@@ -1321,7 +1310,7 @@ end
     built = EcoSISTEM.materialise(reg, area, role = EcoSISTEM.Condition)
     @test built isa EcoSISTEM.AbstractRegime
 
-    # **A17: two layers built on ONE area must agree they are on one grid.** The study area's
+    # **Two layers built on ONE area must agree they are on one grid.** The study area's
     # template is deliberately unitless - `Rasters.resample` needs a bare `to =` target - and the data
     # path re-attaches the unit afterwards in `_targetyx`. A **synthetic** layer never reprojects, so
     # without `_unitedyx` in `_materialisefield` it keeps the bare numbers, and `_yxcompatible` then
@@ -1333,7 +1322,7 @@ end
                                   dims(builtsun.matrix, (Y, X)))
     @test unit(eltype(DimensionalData.lookup(builtsun.matrix, Y))) ==
           unit(eltype(DimensionalData.lookup(built.matrix, Y)))
-    # ...and the pair actually builds, which is the failure A17 was reported as.
+    # ...and the pair actually builds.
     @test_nowarn GridHabitat(regime = built, supply = builtsun,
                              area = area)
 
@@ -1367,13 +1356,12 @@ end
     end
     @test occursin("on its own grid", err2)
 
-    # **A layer built on the synthetic area itself IS accepted** - the correction 6f made, and a
-    # correction rather than a loosening: the blanket refusal was written when a synthetic grid had
-    # `NoLookup` dims and so could not say where anything was, and `[S4]` gave it real coordinates.
+    # **A layer built on the synthetic area itself IS accepted**: a synthetic grid has real
+    # coordinates, so a built layer provably sits on it or does not.
     # **The supply must be built on `other` itself, or this tests the wrong thing.** A built layer
     # whose grid does *not* match is caught by the shape check above, so this is the only case the
-    # relaxed rule reaches - and it is exactly the one `build_habitat` needs, reseeding a habitat
-    # from its own as-built area.
+    # rule admits - and it is exactly the one `build_habitat` needs, reseeding a habitat from its
+    # own as-built area.
     fitting = EcoSISTEM.materialise(sun, other, role = EcoSISTEM.Resource)
     ownsun = GridHabitat(regime = UniformSpec(291.0K, axis = Temperature),
                          supply = fitting, area = other)

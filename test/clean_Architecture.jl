@@ -7,8 +7,12 @@
 # Must go through `Pkg.test`: the extension types are invisible without the weak deps, and the
 # audit would then report false gaps.
 #
-# **When this fails, run the fixer AND READ THE PROSE** - see the protocol in `CLAUDE.md`
-# ("Keeping `data/architecture.md` honest"). The diagrams are the cheap half.
+# **When this fails, run the fixer AND READ THE PROSE**:
+#
+#     julia --project data/src/architecture.jl --fix
+#
+# repairs the diagrams, which are the cheap half, and leaves a sentence naming a deleted type
+# silently wrong, so read the prose around every line it changed.
 
 module TestCleanArchitecture
 

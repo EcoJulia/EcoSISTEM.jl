@@ -20,13 +20,14 @@ function loss_ecosystem(; numspecies = configuration().numspecies,
                       supply = UniformSpec(supply_density(individuals),
                                            axis = SolarRadiation),
                       area = study_area())
-    species = build_species(numspecies, tolerance = (285.0K, 5.0K),
-                            toleranceaxis = Temperature,
-                            demand = intervention_demand(),
-                            demandaxis = SolarRadiation,
-                            abundance = individuals,
-                            seed = seed)
-    return build_ecosystem(species, env, seed = seed)
+    species = build_species(SpeciesPool(numspecies),
+                            tolerance = ToleranceSpec(Temperature, μ = 285.0K,
+                                                      σ = 5.0K),
+                            demand = DemandSpec(SolarRadiation,
+                                                intervention_demand()),
+                            seed = seed, verbosity = :silent)
+    return build_ecosystem(BySupply(total = individuals), species, env,
+                           seed = seed)
 end
 
 # ---------------------------------------------------------------------------

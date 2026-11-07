@@ -111,9 +111,8 @@ _configuration(name) = CONFIGURATIONS[name][runscale()]
 # runner's assertion, and only visible by actually running the large path.
 # Named for the resource, not just `DEMAND`, because two other example files define a
 # `DEMAND` that is a **two-resource named tuple** (`(sunlight = ..., water = ...)`) rather than a
-# scalar. Nothing breaks - no two of them are ever included into one session - but the shared
-# name genuinely misled a sweep that inferred each demand's axis from the constant it was
-# written as, and gave this call a two-member `demandaxis` for a one-member demand.
+# scalar. Nothing breaks - no two of them are ever included into one session - but a shared name
+# invites reading this demand's axes off another file's two.
 const SOLARDEMAND = 4.5e5kJ / month_mean_duration
 _supplydensity(individuals, area) = individuals * SOLARDEMAND / area
 
@@ -180,16 +179,14 @@ end
 # This file is where the two were most visibly conflated: `Island(false)` meant "hard edges
 # **and** dispersers are lost", one object carrying a map fact and a species fact at once.
 function landscape_species(disperse_safely; numspecies = 20,
-                           individuals = 10_000,
                            temperature = 298.0K, seed = 1)
-    return build_species(numspecies,
-                         tolerance = (temperature, 3.0K),
-                         toleranceaxis = Temperature,
-                         demand = SOLARDEMAND,
-                         demandaxis = SolarRadiation,
-                         movement = BirthOnlyMovement,
-                         disperse_safely = disperse_safely,
-                         abundance = individuals, seed = seed)
+    return build_species(SpeciesPool(numspecies),
+                         tolerance = ToleranceSpec(Temperature,
+                                                   μ = temperature, σ = 3.0K),
+                         demand = DemandSpec(SolarRadiation, SOLARDEMAND),
+                         movement = MovementSpec(InsectDispersal(disperse_safely = disperse_safely),
+                                                 meandist = 10.0km),
+                         seed = seed, verbosity = :silent)
 end
 
 """
@@ -235,9 +232,10 @@ function landscape(name::Symbol; scaling = _configuration(name),
         error("unknown landscape `$name`; the five are :island, :patch, :region_even, " *
               ":region_gradient and :peaked.")
     end
-    species = landscape_species(safely, numspecies = numspecies,
-                                individuals = individuals, seed = seed)
-    return build_ecosystem(species, env, seed = seed)
+    species = landscape_species(safely, numspecies = numspecies, seed = seed)
+    # The individuals are split at random among the species and placed by supply.
+    return build_ecosystem(BySupply(total = individuals), species, env,
+                           seed = seed)
 end
 
 const LANDSCAPES = (:island, :patch, :region_even, :region_gradient, :peaked)

@@ -3,7 +3,7 @@
 module TestNicheFit
 
 using EcoSISTEM
-# `[C7-VIS]` B1/B2/B3: these are `public` rather than exported, so they must be named.
+# These are `public` rather than exported, so they must be named.
 using EcoSISTEM: getdist, getpref
 # `nichefitcombine` is `public`, not exported.
 using EcoSISTEM: nichefitcombine
@@ -147,8 +147,7 @@ supply = UniformSpec(totalK, axis = SolarRadiation)
                                                    Unitful.Temperature}()))
     @test_nowarn EcoSISTEM._suitability(regime, tolerance, nichefit, 1, 1)
     # Members by name - **the axis names**, since neither side was named by hand and the two
-    # axes here (the test axis and `Temperature`) are distinguishable. It read `.one`/`.two` until
-    # 2026-08-18; those were the positional fallback, which now fires for nothing at all.
+    # axes here (the test axis and `Temperature`) are distinguishable.
     @test tolerance.TestFitAxis === values(tolerance)[1]
     @test tolerance.Temperature === values(tolerance)[2]
     @test nichefit.TestFitAxis === values(nichefit)[1]

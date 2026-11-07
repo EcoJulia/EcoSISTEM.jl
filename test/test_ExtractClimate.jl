@@ -3,7 +3,7 @@
 module TestExtractclimate
 
 using EcoSISTEM
-# `[C7-VIS]` C: `extract_values` is `public` rather than exported - a debugging aid.
+# `extract_values` is `public` rather than exported - a debugging aid.
 using EcoSISTEM: extract_values
 using EcoSISTEM.Units
 using Unitful
@@ -18,20 +18,18 @@ using Test
 
 include("rasterfixtures.jl")
 
-# **THE ORACLE** (`[S3-DO]` item 3). What a query *should* return is derived here from the axes'
+# **THE ORACLE.** What a query *should* return is derived here from the axes'
 # own declarations - half-open `[lo, hi)` cells, 1-based months - and never from what the extractor
 # currently does.
 #
 # **The fixtures must come from what a reader produces, not from the implementation's own
 # conventions.** A fixture written the second way - an `AxisArray` with no sampling concept at all,
 # and a time axis `(24000:24014) .* month_mean_duration` that is **0-based within the year**, which
-# no reader has ever produced - keeps every assertion green and the
-# defect alive. The identical defect was already found and fixed once in the plot recipes, whose
-# comment records it: *"Only the test's hand-built 0-based axis, which no reader ever produces, kept
-# that hidden."* This file was its surviving second instance.
+# no reader has ever produced - keeps every assertion green and any defect it shares with the
+# implementation hidden.
 #
 # Every fixture below therefore comes from `_testraster`, which builds exactly what `datasetread.jl`
-# builds - measured 2026-08-13 against real `WorldClim`/`EarthEnv` reads.
+# builds, as measured against real `WorldClim`/`EarthEnv` reads.
 
 # **Non-square, and with a different step on each axis.** A square grid cannot see a Y/X
 # transposition, and equal steps cannot see a single step being reused for both axes - which is a
@@ -98,8 +96,8 @@ const DATED = _testraster(WorldClim{Climate},
                              month = January) !=
               extract_values(MONTHLY, lat = 39.999°, long = 10.0°,
                              month = January)
-        # Off the grid is an error, not the nearest cell. This is the whole of the `Contains`
-        # decision (`[S3-F5]`) made visible at the public surface.
+        # Off the grid is an error, not the nearest cell: selection by `Contains`, made visible at
+        # the public surface.
         @test_throws SelectorError extract_values(MONTHLY, lat = 90.0°,
                                                   long = 10.0°, month = January)
         @test_throws SelectorError extract_values(MONTHLY, lat = 25.0°,
@@ -203,8 +201,8 @@ const DATED = _testraster(WorldClim{Climate},
         end
         @test occursin("`code`", code_err.msg)
 
-        # **`month` on a `Unitful.Time` axis that is not monthly** - the guard `[S3-F13]` asks
-        # for, and the case a model output on a ~30-day timestep produces. It names `offset`.
+        # **`month` on a `Unitful.Time` axis that is not monthly** is refused - the case a model
+        # output on a ~30-day timestep produces - and the refusal names `offset`.
         weekly = _testraster(WorldClim{Climate},
                              Float64.(_positional(3, 4, 5)) .* K,
                              lat = LATS, long = LONGS,

@@ -188,6 +188,29 @@ else
         everyactive = MPI.gather(habitat.active, comm)
         rank == 0 && @test all(==(first(everyactive)), everyactive)
 
+        # A filter by position decides on the root, and every rank keeps the rows the root keeps: one
+        # record in the triangle, one in the grid outside it, one off the grid, one with no position;
+        # of an area as it was decided, and of a habitat as it stands.
+        records = DataFrame(decimalLatitude = [53.0, 54.4, 60.0, missing],
+                            decimalLongitude = [11.0, 13.4, 11.0, 11.0])
+        for filtered in (filter(InActiveCell(masked, verbosity = :silent),
+                                records),
+                         filter(InActiveCell(habitat, verbosity = :silent),
+                                records[1:1, :]))
+            @test agreeswithroot(==, filtered, rank == 0 ? filtered : nothing)
+            @test filtered.decimalLatitude == [53.0]
+        end
+        # A rank filtering another table is refused, the root having decided for its own.
+        if rank == 0
+            @test nrow(filter(InActiveCell(masked, verbosity = :silent),
+                              records)) == 1
+        else
+            @test_throws "every rank filters the same table" filter(InActiveCell(masked,
+                                                                                 verbosity = :silent),
+                                                                    records[1:2,
+                                                                            :])
+        end
+
         # Only the root read, and every rank records what it read.
         @test isempty(area.report.cache.reads) == (rank != 0)
         everyinput = MPI.gather(provenance(habitat).inputs, comm)
@@ -212,6 +235,67 @@ else
     end
 end
 
+# **A species pool is made and changed on the root, which alone reads a name authority's release.**
+# Every pool operation is one rank's work sent to the others, so a release read by every rank - 388
+# MiB held, about 2 GB at its peak, for the real one - is read once; a lineage read inside an
+# `add_trait!` do-block is the root's too. A made-up release, written by the root where every rank
+# can see it.
+include(joinpath(@__DIR__, "wfofixtures.jl"))
+if !MANYRANKS
+    @info "Skipping the shared species pool testset: it needs more than one rank."
+else
+    @testset "a species pool is made and changed on the root alone" begin
+        shared = MPI.bcast(rank == 0 ? mktempdir() : "", 0, comm)
+        zip = joinpath(shared, "_DwC_backbone_R.zip")
+        rank == 0 && fakewfo(shared)
+        MPI.Barrier(comm)
+        wfo = WFOPlantList(release = "2026-06", path = zip)
+        pool = SpeciesPool(DataFrame(species = ["Acacia alpha", "Mimosa alpha",
+                                         "Acacia zeta", "Mimosa beta"],
+                                     v = 1:4),
+                           authority = wfo, merge = MergeWith(first),
+                           verbosity = :silent)
+        add_trait!(pool, :genus) do row
+            return EcoSISTEM.lineage(wfo, row.id, "genus")
+        end
+        deactivate_species!(pool, "Mimosa", rank = "genus", verbosity = :silent)
+        copy_species!(pool, "Acacia zeta", as = "zeta copy")
+        @test isempty(EcoSISTEM._WFOLOADED) == (rank != 0)
+        root = MPI.bcast(DataFrame(pool), 0, comm)
+        @test isequal(root, DataFrame(pool))
+        @test DataFrame(pool).genus == ["Acacia", "Acacia", "Mimosa", "Acacia"]
+        @test DataFrame(pool).active == [true, true, false, true]
+        # A failure on the root stops every rank, as a shared layer's does.
+        @test_throws ErrorException activate_species!(SpeciesPool(["a"]), "a",
+                                                      rank = "genus")
+        # Species built from the pool on every rank are the root's.
+        species = build_species(pool,
+                                tolerance = ToleranceSpec(Temperature,
+                                                          μ = 285.0K,
+                                                          σ = 2.0K),
+                                demand = DemandSpec(SolarRadiation,
+                                                    1.0kJ / day),
+                                seed = 1, verbosity = :silent)
+        received = MPI.bcast(species, 0, comm)
+        @test isequal(received.traits, species.traits)
+        @test received.names == species.names
+        # A filter's names are matched on the root, which alone reads the release, and every rank
+        # keeps the rows the root's answers keep.
+        for holder in (pool, species)
+            records = DataFrame(species = ["Mimosa alpha", "Acacia theta",
+                                    "zeta copy", "Mimosa beta", "Algae x"])
+            filter!(IsActiveSpecies(holder, verbosity = :silent), records)
+            @test records.species == ["Mimosa alpha", "zeta copy"]
+        end
+        @test isempty(EcoSISTEM._WFOLOADED) == (rank != 0)
+        @test_throws ErrorException filter(IsActiveSpecies(pool,
+                                                           level = EcoSISTEM.ProblemError()),
+                                           DataFrame(species = ["Algae x"]))
+        MPI.Barrier(comm)
+        rank == 0 && rm(EcoSISTEM._wfocachepath(zip), force = true)
+    end
+end
+
 # **The fixture is built by `mpifixture_species` in `varyingcase.jl`, not spelled out here.**
 # The canonical `mpi/...` results are blessed from a SERIAL run of that same builder, and those
 # numbers are only evidence about this run if both sides build the identical thing - two
@@ -229,18 +313,22 @@ habitat = varying_environment()
 nichefit = NicheSuitability{Temperature, typeof(1.0K)}()
 
 # build_ecosystem auto-selects the type from the live MPI session: >1 rank => MPIEcosystem, a single
-# rank => serial Ecosystem (this script runs at one rank and at several). `sppl`/`habitat`/
-# `nichefit` are exactly what MPIEcosystem takes directly.
+# rank => serial Ecosystem (this script runs at one rank and at several).
 expected = MPI.Comm_size(comm) > 1 ? MPIEcosystem : Ecosystem
-@test build_ecosystem(sppl, habitat, nichefit = nichefit, seed = 0) isa expected
 @test build_ecosystem(sppl, habitat, nichefit = nichefit, seed = 0,
-                      distributed = false) isa Ecosystem
+                      verbosity = :silent) isa expected
 @test build_ecosystem(sppl, habitat, nichefit = nichefit, seed = 0,
-                      distributed = true) isa MPIEcosystem
+                      distributed = false, verbosity = :silent) isa Ecosystem
+@test build_ecosystem(sppl, habitat, nichefit = nichefit, seed = 0,
+                      distributed = true, verbosity = :silent) isa MPIEcosystem
 
-# Create ecosystem
-@test_nowarn MPIEcosystem(sppl, habitat, nichefit)
-eco = MPIEcosystem(sppl, habitat, nichefit, seed = 0)
+# Create ecosystem, placing nothing, since the fill below sets every abundance.
+@test_nowarn build_ecosystem(NoAbundance(), sppl, habitat,
+                             nichefit = nichefit, distributed = true,
+                             verbosity = :silent)
+eco = build_ecosystem(NoAbundance(), sppl, habitat,
+                      nichefit = nichefit, seed = 0, distributed = true,
+                      verbosity = :silent)
 
 # Artifically fill ecosystem with individuals
 eco.abundances.rows_matrix .= 10
@@ -269,8 +357,8 @@ eco.abundances.rows_matrix .= 0
 @test allsum(eco.abundances.cols_vector) == allsum(eco.abundances.rows_matrix)
 @test allsum(eco.abundances.rows_matrix) == expected
 
-## Reproducibility is provided by the per-species RNG streams seeded in the
-## MPIEcosystem constructor (seed = 0 above), independent of the process/thread
+## Reproducibility is provided by the per-species RNG streams seeded by
+## `build_ecosystem` (seed = 0 above), independent of the process/thread
 ## split; the global RNG is not used by the simulation.
 
 # Simulation Parameters
@@ -339,8 +427,12 @@ habitat = varying_environment()
 nichefit = NicheSuitability{Temperature, typeof(1.0K)}()
 
 # Create ecosystem
-@test_nowarn MPIEcosystem(sppl, habitat, nichefit)
-eco = MPIEcosystem(sppl, habitat, nichefit, seed = 0)
+@test_nowarn build_ecosystem(NoAbundance(), sppl, habitat,
+                             nichefit = nichefit, distributed = true,
+                             verbosity = :silent)
+eco = build_ecosystem(NoAbundance(), sppl, habitat,
+                      nichefit = nichefit, seed = 0, distributed = true,
+                      verbosity = :silent)
 
 # Artifically fill ecosystem with individuals
 eco.abundances.rows_matrix .= 10
@@ -359,8 +451,8 @@ eco.abundances.rows_matrix .= 0
 @test allsum(eco.abundances.cols_vector) == allsum(eco.abundances.rows_matrix)
 @test allsum(eco.abundances.rows_matrix) == expected
 
-## Reproducibility is provided by the per-species RNG streams seeded in the
-## MPIEcosystem constructor (seed = 0 above), independent of the process/thread
+## Reproducibility is provided by the per-species RNG streams seeded by
+## `build_ecosystem` (seed = 0 above), independent of the process/thread
 ## split; the global RNG is not used by the simulation.
 
 # Simulation Parameters
@@ -436,7 +528,7 @@ end
 
 rank == 0 && checkblessed(true_abuns, "mpi")
 
-# **`AlwaysMovement` disperses the standing population, and only a multi-rank run can check it.**
+# **`AlwaysDispersal` disperses the standing population, and only a multi-rank run can check it.**
 # It reads that population back out of the landscape through `EcoSISTEM._standingpopulation`, which
 # maps the global species index onto this rank's local row - and at **one** rank that map is the
 # identity, so a run there passes whether or not the mapping is right. Measured: replacing the
@@ -444,7 +536,9 @@ rank == 0 && checkblessed(true_abuns, "mpi")
 # `Multinomial` on a negative count. That is why this is pinned to a blessed serial number and
 # asserted at every rank count, rather than compared against a serial run at one.
 alwayssppl, _ = mpifixture_species(movement = mpifixture_always())
-alwayseco = MPIEcosystem(alwayssppl, varying_environment(), nichefit, seed = 0)
+alwayseco = build_ecosystem(NoAbundance(), alwayssppl,
+                            varying_environment(), nichefit = nichefit,
+                            seed = 0, distributed = true, verbosity = :silent)
 alwayseco.abundances.rows_matrix .= MPIFIXTURE_FILL
 MPI.Barrier(comm)
 @test_nowarn simulate!(alwayseco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
@@ -453,12 +547,160 @@ always_abuns = gatherabundance(alwayseco)
 rank == 0 && checkblessed(always_abuns, "mpi/always")
 
 # The same one-rank equality the birth-only run gets above. It cannot catch a rank-mapping bug (see
-# the note above), but it does catch the loop body diverging from the serial one, which is A22's
-# failure and is invisible to any MPI-against-MPI comparison.
+# the note above), but it does catch the loop body diverging from the serial one, which no
+# MPI-against-MPI comparison can see.
 if MPI.Comm_size(comm) == 1
     alwaysserial = mpifixture_ecosystem(movement = mpifixture_always())
     simulate!(alwaysserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
     @test alwaysserial.abundances.matrix == always_abuns
+end
+
+# **Four kinds of movement in one species list**, the most the step loop splits: dispersing at birth
+# in two modes, one of them losing what it aims at a dead cell, always, and not at all. Compared with
+# the serial twin at every rank count, not only at one, since the distributed step body has its own
+# copy of the per-species `move!` call and a rank-mapping fault is invisible at one rank.
+function mpifixture_mixed(numspecies = VARYING_SPECIES)
+    kernels = fill(GaussianKernel(meandist = 3.0km, thresh = 10e-10),
+                   numspecies)
+    modes = (InsectDispersal(), AlwaysDispersal(),
+             WindDispersal(GaussianKernel))
+    return map(enumerate(kernels)) do (sp, k)
+        return sp % 4 == 0 ? NoDispersal()() : modes[mod1(sp, 3)](k)
+    end
+end
+mixedsppl, _ = mpifixture_species(movement = mpifixture_mixed())
+@test length(Base.uniontypes(eltype(mixedsppl.movement))) == 4
+mixedeco = build_ecosystem(NoAbundance(), mixedsppl,
+                           varying_environment(), nichefit = nichefit,
+                           seed = 0, distributed = true, verbosity = :silent)
+mixedeco.abundances.rows_matrix .= MPIFIXTURE_FILL
+MPI.Barrier(comm)
+@test_nowarn simulate!(mixedeco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+mixed_abuns = gatherabundance(mixedeco)
+# Every rank builds the serial reference, since building a habitat is collective.
+mixedserial = mpifixture_ecosystem(movement = mpifixture_mixed())
+simulate!(mixedserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+rank == 0 && @test mixedserial.abundances.matrix == mixed_abuns
+
+# **Longevity differing by species**, against the serial twin at every rank count. Each species'
+# exponent is read by its global index, and a rank numbers its own species from one, so a read by
+# the local index takes another species' value - invisibly at one rank, where the two agree. The
+# demands differ by species, or the exponent would change nothing; the test asserts that it does,
+# and that every species survives to have its exponent read.
+function mpifixture_longevity(numspecies = VARYING_SPECIES)
+    U = typeof(unit(0.6 / year))
+    return PopGrowth{U}(fill(0.6 / year, numspecies),
+                        fill(0.6 / year, numspecies),
+                        collect(range(0.5, 1.5, length = numspecies)), 0.2)
+end
+longsppl, _ = mpifixture_species(params = mpifixture_longevity())
+longeco = build_ecosystem(NoAbundance(), longsppl,
+                          varying_environment(), nichefit = nichefit,
+                          seed = 0, distributed = true, verbosity = :silent)
+longeco.abundances.rows_matrix .= MPIFIXTURE_FILL
+MPI.Barrier(comm)
+@test_nowarn simulate!(longeco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+long_abuns = gatherabundance(longeco)
+# Every rank builds the serial reference, since building a habitat is collective.
+longserial = mpifixture_ecosystem(params = mpifixture_longevity())
+simulate!(longserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+if rank == 0
+    @test long_abuns != true_abuns
+    @test all(>(0), sum(long_abuns, dims = 2))
+    @test longserial.abundances.matrix == long_abuns
+end
+
+# **A placement, against the serial twin at every rank count.** Under MPI the first rank alone calls
+# it and every other rank takes its rows. It draws from streams of its own, so every rank's dynamics
+# start from their seeded streams, as the serial twin's do. Its layer weight is built on every rank
+# first, since that build is collective, and `repopulate!` is a collective call placing the same
+# again.
+placement = Weighted(BySupply(SolarRadiation), BySuitability(),
+                     ByLayer(UniformSpec(1.0, axis = EcoSISTEM.NicheAxis)),
+                     total = 5_000) +
+            FromTable((species = ["1"], cell = [CartesianIndex(2, 3)],
+                       count = [50]))
+placesppl, _ = mpifixture_species()
+placedeco = build_ecosystem(placement, placesppl, varying_environment(),
+                            nichefit = nichefit, seed = 0, distributed = true,
+                            verbosity = :silent)
+@test placedeco.rngs == EcoSISTEM.makerngs(0, length(placesppl.names))
+placed_start = gatherabundance(placedeco)
+MPI.Barrier(comm)
+@test_nowarn simulate!(placedeco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+placed_abuns = gatherabundance(placedeco)
+placedserial = build_ecosystem(placement, placesppl, varying_environment(),
+                               nichefit = nichefit, seed = 0,
+                               distributed = false, verbosity = :silent)
+serial_start = copy(placedserial.abundances.matrix)
+simulate!(placedserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
+serial_run = copy(placedserial.abundances.matrix)
+# Placed again over the layers as the run left them, which have changed since the build.
+repopulate!(placedeco, verbosity = :silent)
+placed_again = gatherabundance(placedeco)
+repopulate!(placedserial, verbosity = :silent)
+if rank == 0
+    @test sum(placed_start) == 5_050
+    @test placed_start == serial_start
+    @test placed_abuns == serial_run
+    @test placed_again == placedserial.abundances.matrix
+    @test sum(placed_again) == 5_050
+end
+
+# The same placement filled to a fraction of capacity: its layer weight still built on every rank,
+# though it sits inside another placement, and the fill the serial twin's.
+capped = ToCapacity(placement, fraction = 1.0e-3)
+cappedeco = build_ecosystem(capped, placesppl, varying_environment(),
+                            nichefit = nichefit, seed = 0, distributed = true,
+                            verbosity = :silent)
+capped_start = gatherabundance(cappedeco)
+cappedserial = build_ecosystem(capped, placesppl, varying_environment(),
+                               nichefit = nichefit, seed = 0,
+                               distributed = false, verbosity = :silent)
+if rank == 0
+    @test sum(capped_start) > 0
+    @test capped_start == cappedserial.abundances.matrix
+end
+
+# A crop sown by an intervention, topping each cell up to its capacity: what every rank's species
+# already demand there summed across the ranks, and the root filling, as serially.
+sow = Intervention(AtTime(MPIFIXTURE_TIMESTEP), AllCells(),
+                   AddAbundance(ToCapacity("3", fraction = 2.0e-3)))
+EcoSISTEM.applyinterventions!(cappedeco, sow, MPIFIXTURE_TIMESTEP,
+                              MPIFIXTURE_TIMESTEP, 1)
+EcoSISTEM.applyinterventions!(cappedserial, sow, MPIFIXTURE_TIMESTEP,
+                              MPIFIXTURE_TIMESTEP, 1)
+sown = gatherabundance(cappedeco)
+if rank == 0
+    @test sum(sown[3, :]) > sum(capped_start[3, :])
+    @test sown == cappedserial.abundances.matrix
+end
+
+# A dated table served as the clock reaches its rows: resolved once on the root, each rank keeping its
+# own species' rows, and the run as serially.
+arrivals = Intervention(EveryStep(), AllCells(),
+                        AddAbundance(FromTable((species = ["1", "4", "7", "2"],
+                                                cell = [CartesianIndex(1, 1),
+                                                    CartesianIndex(2, 3),
+                                                    CartesianIndex(3, 2),
+                                                    CartesianIndex(1, 2)],
+                                                count = [50, 40, 30, 20],
+                                                time = [0.0, 1.0, 2.0, 100.0] .*
+                                                       MPIFIXTURE_TIMESTEP))))
+arrivedeco = build_ecosystem(NoAbundance(), placesppl, varying_environment(),
+                             nichefit = nichefit, seed = 0, distributed = true,
+                             verbosity = :silent)
+arrivedserial = build_ecosystem(NoAbundance(), placesppl, varying_environment(),
+                                nichefit = nichefit, seed = 0,
+                                distributed = false, verbosity = :silent)
+simulate!(arrivedeco, 3 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP,
+          intervention = arrivals)
+simulate!(arrivedserial, 3 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP,
+          intervention = arrivals)
+arrived = gatherabundance(arrivedeco)
+if rank == 0
+    @test sum(arrived) > 0
+    @test arrived == arrivedserial.abundances.matrix
 end
 
 # **An intervention is the only thing that can leave the two landscape layouts out of step**, and so
@@ -471,7 +713,9 @@ end
 # 1752458039 -- at a **single rank**, so it was the ordering rather than the partition. No other test
 # in the suite runs an intervention under MPI at all, which is why nothing caught it.
 ivsppl, _ = mpifixture_species()
-iveco = MPIEcosystem(ivsppl, varying_environment(), nichefit, seed = 0)
+iveco = build_ecosystem(NoAbundance(), ivsppl,
+                        varying_environment(), nichefit = nichefit,
+                        seed = 0, distributed = true, verbosity = :silent)
 iveco.abundances.rows_matrix .= MPIFIXTURE_FILL
 MPI.Barrier(comm)
 @test_nowarn simulate!(iveco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
@@ -486,7 +730,9 @@ rank == 0 && checkblessed(iv_abuns, "mpi/intervention")
 # fixture at any rank count: the distributed loop is a duplicate of the serial one, and a duplicate is
 # only ever checked against the original.
 cbsppl, _ = mpifixture_species()
-cbeco = MPIEcosystem(cbsppl, varying_environment(), nichefit, seed = 0)
+cbeco = build_ecosystem(NoAbundance(), cbsppl,
+                        varying_environment(), nichefit = nichefit,
+                        seed = 0, distributed = true, verbosity = :silent)
 cbeco.abundances.rows_matrix .= MPIFIXTURE_FILL
 cbcounts = Int[]
 cbtotals = Int[]
@@ -511,17 +757,17 @@ if rank == 0
     @test cbtotals == serialtotals
 end
 
-# **A table of abundances under MPI**, against the serial twin at any rank count. Each rank adds only
-# its own species' rows, and a table read row by row is read whole on every rank, so a table offering
-# columns and the same rows streamed must both reproduce the serial run. Rows cover every species,
-# several cells and fractional counts, so a rank adding another's rows or rounding before summing
-# would show.
+# **A table of abundances under MPI**, against the serial twin at any rank count: the deprecated table
+# operation, forwarding to a dated placement that the root reads - a table offering columns, or the same
+# rows streamed - and every rank adding its own species' rows. Rows name species by position and cells
+# by linear index, cover every species and several cells, and carry fractional counts, so a rank adding
+# another's rows or a conversion going astray would show.
 tablerows = [(species = sp, cell = cell, count = 0.25 * k + sp,
               time = k * MPIFIXTURE_TIMESTEP)
              for k in 0:23
              for sp in 1:numSpecies
              for cell in (1, 20 + k, VARYING_NY * VARYING_NX - sp)]
-# Reversed, so the columns are out of time order and searched through their permutation.
+# Reversed, so the rows are out of time order.
 tablecolumns = (species = reverse([r.species for r in tablerows]),
                 cell = reverse([r.cell for r in tablerows]),
                 count = reverse([r.count for r in tablerows]),
@@ -532,7 +778,9 @@ function tableiv(source)
 end
 function tablerun(source)
     sppl, _ = mpifixture_species()
-    built = MPIEcosystem(sppl, varying_environment(), nichefit, seed = 0)
+    built = build_ecosystem(NoAbundance(), sppl,
+                            varying_environment(), nichefit = nichefit,
+                            seed = 0, distributed = true, verbosity = :silent)
     built.abundances.rows_matrix .= MPIFIXTURE_FILL
     MPI.Barrier(comm)
     simulate!(built, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
@@ -554,7 +802,9 @@ end
 # gathers to the root, the diversity recorder to every rank, so both must reproduce the serial
 # recording, and each keeps the same record of the run on every rank.
 recsppl, _ = mpifixture_species()
-receco = MPIEcosystem(recsppl, varying_environment(), nichefit, seed = 0)
+receco = build_ecosystem(NoAbundance(), recsppl,
+                         varying_environment(), nichefit = nichefit,
+                         seed = 0, distributed = true, verbosity = :silent)
 receco.abundances.rows_matrix .= MPIFIXTURE_FILL
 recevery = EveryInterval(3 * MPIFIXTURE_TIMESTEP)
 nrec = length((0year):(3 * MPIFIXTURE_TIMESTEP):MPIFIXTURE_BURNIN)
@@ -651,8 +901,8 @@ ordgathered = reshape(ordfull, numSpecies, VARYING_NY * VARYING_NX)
 @test sum(ordgathered) ≈ 1.0
 
 # Compared against serial at **every** rank count, not just at one. The serial run is built with
-# `Ecosystem` directly; every rank builds it, since building a habitat is collective, and rank 0 runs
-# it. At a single rank the comparison is weak - a rank owning every species cannot notice a
+# `distributed = false`; every rank builds it, since building a habitat is collective, and rank 0
+# runs it. At a single rank the comparison is weak - a rank owning every species cannot notice a
 # calculation restricted to its own species - so the multi-rank runs are the ones that carry the
 # check.
 ordserial = mpifixture_ecosystem()
@@ -691,7 +941,9 @@ for divmeasure in (norm_sub_alpha, sub_gamma)
 end
 
 gensppl, _ = mpifixture_generalspecies()
-geneco = MPIEcosystem(gensppl, varying_environment(), nichefit, seed = 0)
+geneco = build_ecosystem(NoAbundance(), gensppl,
+                         varying_environment(), nichefit = nichefit,
+                         seed = 0, distributed = true, verbosity = :silent)
 geneco.abundances.rows_matrix .= MPIFIXTURE_FILL
 MPI.Barrier(comm)
 @test_nowarn simulate!(geneco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP)
@@ -750,15 +1002,25 @@ function _allocreport(numspecies, steps)
                  for (k, s) in enumerate(steps)), "\n")
 end
 
-function _mpiecosystem(numspecies)
-    sppl, _ = mpifixture_species(numspecies = numspecies)
-    built = MPIEcosystem(sppl, varying_environment(), nichefit, seed = 0)
+function _mpiecosystem(numspecies; movement = mpifixture_movement(numspecies))
+    sppl, _ = mpifixture_species(numspecies = numspecies, movement = movement)
+    built = build_ecosystem(NoAbundance(), sppl,
+                            varying_environment(), nichefit = nichefit,
+                            seed = 0, distributed = true, verbosity = :silent)
     built.abundances.rows_matrix .= MPIFIXTURE_FILL
     return built
 end
 
 fewsteps = _mpiupdatealloc(_mpiecosystem(VARYING_SPECIES), MPIFIXTURE_TIMESTEP)
 manysteps = _mpiupdatealloc(_mpiecosystem(8 * VARYING_SPECIES),
+                            MPIFIXTURE_TIMESTEP)
+# The same with four kinds of movement, whose `move!` the loop picks per species from a split union.
+mixedfew = _mpiupdatealloc(_mpiecosystem(VARYING_SPECIES,
+                                         movement = mpifixture_mixed(VARYING_SPECIES)),
+                           MPIFIXTURE_TIMESTEP)
+mixedmany = _mpiupdatealloc(_mpiecosystem(8 * VARYING_SPECIES,
+                                          movement = mpifixture_mixed(8 *
+                                                                      VARYING_SPECIES)),
                             MPIFIXTURE_TIMESTEP)
 
 if rank == 0
@@ -782,15 +1044,24 @@ if rank == 0
                _allocreport(VARYING_SPECIES, fewsteps) * "\n" *
                _allocreport(8 * VARYING_SPECIES, manysteps)
     @test slope < bound
+    mixedslope = minimum(s.bytes for s in mixedmany) -
+                 minimum(s.bytes for s in mixedfew)
+    mixedslope < bound ||
+        @error "A distributed timestep with four kinds of movement allocated $mixedslope " *
+               "more bytes for $extraspecies more species, against a bound of $bound:\n" *
+               _allocreport(VARYING_SPECIES, mixedfew) * "\n" *
+               _allocreport(8 * VARYING_SPECIES, mixedmany)
+    @test mixedslope < bound
 
-    # The same sweep `test_dynamics.jl` runs, over the distributed types. `epoch`, `calendar` and
-    # `active` are abstract by design and are explained there; anything else must be looked at.
+    # The same sweep `test_dynamics.jl` runs, over the distributed types. `epoch`, `calendar`,
+    # `placement` and `active` are abstract by design and are explained there; anything else must be
+    # looked at.
     mpiabstract = Tuple{Symbol, Symbol}[]
     for obj in (eco, eco.abundances, eco.habitat, eco.cache)
         S = typeof(obj)
         for f in fieldnames(S)
             isconcretetype(fieldtype(S, f)) && continue
-            (f === :epoch || f === :calendar || f === :active) && continue
+            f in (:epoch, :calendar, :placement, :active) && continue
             push!(mpiabstract, (nameof(S), f))
         end
     end
@@ -806,7 +1077,7 @@ if rank == 0
 end
 
 # **Every rank takes the first rank's seed and species list.** Anything drawn at random on each rank
-# - a seed nobody gave, abundances split without a seed, a random phylogeny - would otherwise give
+# - a seed nobody gave, the counts a placement places, a random phylogeny - would otherwise give
 # each rank a different ecosystem, and a random intervention would select different cells on each.
 @testset "every rank takes the first rank's seed and species list" begin
     everyone(x) = MPI.Allgather(x, comm)
@@ -816,7 +1087,9 @@ end
 
     # No seed: the first rank draws one, and a random selection is the same everywhere.
     sppl, _ = mpifixture_species()
-    unseeded = MPIEcosystem(sppl, varying_environment(), nichefit)
+    unseeded = build_ecosystem(NoAbundance(), sppl,
+                               varying_environment(), nichefit = nichefit,
+                               distributed = true, verbosity = :silent)
     @test agree(everyone(unseeded.seed))
     unseeded.abundances.rows_matrix .= MPIFIXTURE_FILL
     MPI.Barrier(comm)
@@ -826,22 +1099,25 @@ end
     @test agreeing(unseeded.habitat.active)
     @test count(.!unseeded.habitat.active) == 20
 
-    # Abundances drawn differently on each rank: every rank simulates the first rank's.
+    # Counts drawn differently on each rank: the first rank alone calls the placement, so every
+    # rank simulates the first rank's counts, each species' placed whole.
     mine, _ = mpifixture_species()
-    mine.abun .= rand(Xoshiro(rank), 1:100, length(mine.abun))
-    shared = MPIEcosystem(mine, varying_environment(), nichefit, seed = 0)
-    @test agreeing(shared.spplist.abun)
-    @test agree(everyone(sum(shared.spplist.abun)))
+    counts = rand(Xoshiro(rank), 1:100, numSpecies)
+    shared = build_ecosystem(BySupply(each = row -> counts[row.key]), mine,
+                             varying_environment(), nichefit = nichefit,
+                             seed = 0, distributed = true, verbosity = :silent)
+    rootcounts = MPI.bcast(counts, 0, comm)
     @test MPI.Allreduce(sum(shared.abundances.rows_matrix), +, comm) ==
-          sum(shared.spplist.abun)
+          sum(rootcounts)
+    sharedabuns = gatherabundance(shared)
+    rank == 0 && @test vec(sum(sharedabuns, dims = 2)) == rootcounts
 
     # A random phylogeny, and the tolerances evolved on it, travel whole.
-    kernels = GaussianKernel.(fill(1.0km, numSpecies), 1e-4)
-    treed = SpeciesList(numSpecies, 2, fill(10, numSpecies),
+    kernels = fill(GaussianKernel(meandist = 1.0km, thresh = 1e-4), numSpecies)
+    treed = SpeciesList(numSpecies, 2,
                         Demand{SolarRadiation}(fill(1.0kJ / day, numSpecies)),
-                        BirthOnlyMovement(kernels),
-                        EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2),
-                        fill(true, numSpecies))
+                        InsectDispersal().(kernels),
+                        EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2))
     ext = Base.get_extension(EcoSISTEM, :EcoSISTEMMPIExt)
     received = ext._rootspecies(treed, comm)
     @test typeof(received) === typeof(treed)
@@ -851,18 +1127,25 @@ end
 
     # A seed must be the same on every rank, or given on none.
     if MPI.Comm_size(comm) > 1
-        @test_throws "the same `seed` on every rank" MPIEcosystem(mpifixture_species()[1],
-                                                                  varying_environment(),
-                                                                  nichefit,
-                                                                  seed = rank)
-        @test_throws "rank 1: none" MPIEcosystem(mpifixture_species()[1],
-                                                 varying_environment(),
-                                                 nichefit,
-                                                 seed = rank == 0 ? 1 :
-                                                        nothing)
+        @test_throws "the same `seed` on every rank" build_ecosystem(NoAbundance(),
+                                                                     mpifixture_species()[1],
+                                                                     varying_environment(),
+                                                                     nichefit = nichefit,
+                                                                     seed = rank,
+                                                                     distributed = true,
+                                                                     verbosity = :silent)
+        @test_throws "rank 1: none" build_ecosystem(NoAbundance(),
+                                                    mpifixture_species()[1],
+                                                    varying_environment(),
+                                                    nichefit = nichefit,
+                                                    seed = rank == 0 ? 1 :
+                                                           nothing,
+                                                    distributed = true,
+                                                    verbosity = :silent)
     end
-    @test MPIEcosystem(mpifixture_species()[1], varying_environment(), nichefit,
-                       seed = 7).seed == 7
+    @test build_ecosystem(NoAbundance(), mpifixture_species()[1],
+                          varying_environment(), nichefit = nichefit, seed = 7,
+                          distributed = true, verbosity = :silent).seed == 7
     MPI.Barrier(comm)
 end
 

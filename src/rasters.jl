@@ -146,7 +146,8 @@ tracked spec is fetched by its data pipeline run, which registers what it fetche
     or a [`ShapeSpec`](@ref); a [`Varying`](@ref) of one; a [`ConstructedRasterSpec`](@ref) or
     a [`ConstructedShapeSpec`](@ref), through its members; a [`ShapeMaskSpec`](@ref) or a
     [`ShapeCoverage`](@ref), through its shape; or a tuple, named tuple or vector of any of
-    these. A synthetic spec, or a mask given as a matrix, reads no file and adds none.
+    these. A synthetic spec, or a mask given as a matrix, reads no file and adds none. Or a
+    [`WFOPlantList`](@ref), whose release's file species names are resolved against.
   - `dryrun`: `true` fetches nothing and instead returns, per file, a named tuple of the `entry`,
     whether it is `present`, and its `bytes` where the server states them (a plain download's
     `Content-Length`; a Climate Data Store request cannot say), so a user on a slow link can
@@ -166,6 +167,11 @@ end
 function fetchfiles(spec::ShapeSpec; dryrun::Bool = false)
     dryrun && return [_dryrunentry(spec.path)]
     return _fetchspec(spec)
+end
+
+function fetchfiles(authority::WFOPlantList; dryrun::Bool = false)
+    dryrun && return [_dryrunentry(_wfoasset(authority))]
+    return _fetched(authority.track, authority)
 end
 
 function fetchfiles(x; dryrun::Bool = false)
@@ -234,7 +240,10 @@ end
 
 # The specs among `x` that read files - a raster spec, a named region, a shape - in order, through
 # every wrapper and combination a habitat can be built from.
-_filespecs(spec::Union{RasterSpec, NaturalEarthSpec, ShapeSpec}) = Any[spec]
+function _filespecs(spec::Union{RasterSpec, NaturalEarthSpec, ShapeSpec,
+                                WFOPlantList})
+    return Any[spec]
+end
 
 _filespecs(spec::ConstructedRasterSpec) = _filespecs(spec.layers)
 
@@ -283,6 +292,8 @@ _wouldbepaths(spec::NaturalEarthSpec) = _specpaths(spec)
 
 _wouldbepaths(spec::ShapeSpec) = [_localpath(spec.path)]
 
+_wouldbepaths(authority::WFOPlantList) = _specpaths(authority)
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -312,9 +323,8 @@ _wouldbepaths(spec::ShapeSpec) = [_localpath(spec.path)]
 # constructors assume). Only the degrees->length direction survives: it is still needed for the
 # *geographic* branch of `_circle`. The old length->degrees `_deg` is gone - a physical cell side is
 # now only meaningful on a projected target, where it needs no conversion at all.
-# Renamed from `_side` 2026-08-24: that name is ALSO a three-argument helper in
-# `collections.jl` meaning *a side of a pairing check*. One generic function, two unrelated
-# meanings, colliding only by arity - the same confusion `_inrange`/`_indexrange` had.
+# Not `_side`, which is a three-argument helper in `collections.jl` meaning *a side of a pairing
+# check*: one generic function with two unrelated meanings would collide only by arity.
 _degreelength(step_deg) = abs(uconvert(NoUnits, step_deg / °)) * 111.32km
 
 # --- Combination-time reprojection ------------------------------------------
@@ -748,7 +758,7 @@ end
 # assumption.
 #
 # Both come in a two-argument form (one axis) and a no-argument-dimension form returning a named
-# `(lat, long)` - the pairing `[UNIT-DUP]` wanted, since nearly every caller needs both.
+# `(lat, long)`, since nearly every caller needs both.
 function _cellintervals(target, D)
     return DimensionalData.Lookups.intervalbounds(DimensionalData.lookup(target,
                                                                          D))
@@ -2168,6 +2178,8 @@ end
 
 _specpaths(spec::ShapeSpec) = [_localpath(spec.path)]
 
+_specpaths(authority::WFOPlantList) = [_localpath(_wfoasset(authority))]
+
 # One file's dry-run report: where it would land, whether it is there, and what the server says
 # it weighs.
 function _dryrunentry(entry)
@@ -2326,8 +2338,8 @@ end
 # Divide a freshly-read array by the interval each of its slices accumulated over, so the values are
 # rates before any unit is attached.
 #
-# **This is the step the whole layer-units subproject exists for.** A monthly total divided by a
-# fixed 30.4375-day month is wrong for every real month - 7.7% low for February. Dividing by the
+# **A monthly total must be divided by its own month.** One divided by a fixed 30.4375-day month
+# is wrong for every real month - 7.7% low for February. Dividing by the
 # slice's *own* month makes the rate honest, and because every divisor is a time, all twelve slices
 # still share one unit (`sl.unit`, already the rate under `layerrate`); only their values differ.
 #
@@ -2366,8 +2378,8 @@ end
 # **A raster is not a spec, and is refused as one.** A `ClimateRaster` holds values and a layer
 # *code*; a niche axis is resolved from that code through the shipped catalogue, so a raster carrying
 # no code - every derived one - silently becomes `NicheAxis`, with no keyword anywhere to correct
-# it. That is the one remaining way a layer's meaning could go undeclared, which is what this whole
-# subproject exists to prevent. Wrapping it in a spec is not ceremony: the spec is *where the axis
+# it, and a layer's meaning must never go undeclared. Wrapping it in a spec is not ceremony: the
+# spec is *where the axis
 # is stated*, which is exactly the thing a raster cannot say.
 #
 # Shared by every entry point (`_asraster` with and without a cache, and `materialise` itself)

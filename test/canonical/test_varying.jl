@@ -68,9 +68,8 @@ include(joinpath(@__DIR__, "..", "varyingcase.jl"))
     # 288-302 K gradient is 295 K, and `IncrementBy(0.5K/year)` adds 0.5 K per elapsed year.
     #
     # It is **24** months of warming after the 24 steps a two-year run takes, not 23: the clock
-    # advances *before* the layers change, so the last change sees the time it is changing *to* (see
-    # CLAUDE.md). Pinning it here means neither that ordering nor the run's length can be altered
-    # silently.
+    # advances *before* the layers change, so the last change sees the time it is changing *to*.
+    # Pinning it here means neither that ordering nor the run's length can be altered silently.
     mean_regime = sum(eco.habitat.regime.matrix) /
                   length(eco.habitat.regime.matrix)
     @test mean_regime ≈ 295.0K + 0.5K / year * (24 * month_mean_duration) rtol=1e-6

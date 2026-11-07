@@ -3,39 +3,33 @@
 module TestMovement
 
 using EcoSISTEM
-# `[C7-VIS]` C: these are `public` rather than exported - a spec is what a user writes,
+# These are `public` rather than exported - a spec is what a user writes,
 # and these are what it materialises into.
 using EcoSISTEM: Periodic, Bounded, EdgeTopology
 using Test
 using Distributions
+using DataFrames: DataFrame
 using Unitful.DefaultSymbols
 using EcoSISTEM.Units
+using InteractiveUtils: subtypes
 
 @testset "Movement" begin
     numSpecies = 10
 
-    @test_nowarn GaussianKernel.(fill(0.2km, numSpecies), 10e-4)
-    @test_nowarn LongTailKernel.(fill(0.2km, numSpecies), 1.0, 10e-4)
-    kernel = GaussianKernel.(fill(0.2m, numSpecies), 10e-4)
-    @test_nowarn AlwaysMovement(kernel)
-    @test_nowarn AlwaysMovement(kernel)
-    @test_nowarn AlwaysMovement(kernel)
-    @test_nowarn BirthOnlyMovement(kernel)
-    @test_nowarn NoMovement(kernel)
-
-    kernel = GaussianKernel.(fill(0.2m, numSpecies), 10e-4)
-    mov = AlwaysMovement(kernel)
-    @test EcoSISTEM.getkernels(mov) == mov.kernels
-    @test EcoSISTEM.dispersesafely(mov, 1) == mov.disperse_safely[1]
-    mov = BirthOnlyMovement(kernel)
-    @test EcoSISTEM.getkernels(mov) == mov.kernels
-    @test EcoSISTEM.dispersesafely(mov, 1) == mov.disperse_safely[1]
-    mov = NoMovement(kernel)
-    @test EcoSISTEM.getkernels(mov) == mov.kernels
-    kernel = LongTailKernel.(fill(0.2m, numSpecies), 1.0, 10e-4)
-    mov = AlwaysMovement(kernel)
-    @test EcoSISTEM.getkernels(mov) == mov.kernels
-    @test EcoSISTEM.dispersesafely(mov, 1) == mov.disperse_safely[1]
+    @test_nowarn GaussianKernel(meandist = 0.2km, thresh = 10e-4)
+    @test_nowarn LongTailKernel(scale = 0.2km, shape = 2.0, thresh = 10e-4)
+    kernel = fill(GaussianKernel(meandist = 0.2m, thresh = 10e-4), numSpecies)
+    for mode in (SeedDispersal(GaussianKernel, disperse_safely = true), InsectDispersal(), AlwaysDispersal())
+        movement = mode.(kernel)
+        @test EcoSISTEM.getkernels(movement) == kernel
+        @test EcoSISTEM.dispersesafely(movement, 1) == mode.disperse_safely
+    end
+    none = fill(NoDispersal()(), numSpecies)
+    @test all(isnothing, EcoSISTEM.getkernels(none))
+    @test EcoSISTEM.dispersesafely(none, 1)
+    kernel = fill(LongTailKernel(scale = 0.2m, shape = 2.0, thresh = 10e-4),
+                  numSpecies)
+    @test EcoSISTEM.getkernels(VertebrateDispersal().(kernel)) == kernel
 end
 
 # **The test that would have caught the proposal's original axis order.** `EdgeTopology{BCY, BCX}`
@@ -63,17 +57,21 @@ end
                           supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                                axis = SolarRadiation),
                           area = area, topology = topology)
-        sp = build_species(1, tolerance = (298.0K, 3.0K),
-                           toleranceaxis = Temperature,
-                           demand = 1.0e9kJ / day, demandaxis = SolarRadiation,
-                           dispersal = 1.2km, abundance = 0, seed = 1)
-        eco = build_ecosystem(sp, env, seed = 1)
+        sp = build_species(SpeciesPool(1),
+                           tolerance = ToleranceSpec(Temperature, μ = 298.0K,
+                                                     σ = 3.0K),
+                           demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
+                           movement = MovementSpec(InsectDispersal(),
+                                                   meandist = 1.2km),
+                           seed = 1, verbosity = :silent)
+        eco = build_ecosystem(NoAbundance(), sp, env, seed = 1,
+                              verbosity = :silent)
         ny, nx = size(eco.abundances.grid, 2), size(eco.abundances.grid, 3)
         eco.abundances.grid .= 0
         eco.abundances.grid[1, 1, 1] = 100_000        # a corner
         # `move!(eco, movement, sp, loc, netmigration, abun)` - `loc` is the flat cell index of
         # the corner the individuals were placed in.
-        EcoSISTEM.move!(eco, eco.spplist.movement, 1, 1,
+        EcoSISTEM.move!(eco, eco.spplist.movement[1], 1, 1,
                         eco.cache.netmigration, 100_000)
         # `netmigration` is the **flat** `species × location` cache, not a grid - reshaped here
         # the same way `GridLandscape` views its own matrix, with Y varying fastest.
@@ -105,15 +103,14 @@ end
     for T in (Island, Cylinder, Torus)
         @test isempty(fieldnames(T))          # topologies carry no per-species state at all
     end
-    # The flag defaults to the safe (redistributing) behaviour, one entry per species.
-    mov = BirthOnlyMovement(GaussianKernel.(fill(0.2km, 3), 10e-4))
-    @test mov.disperse_safely == fill(true, 3)
-    @test all(sp -> EcoSISTEM.dispersesafely(mov, sp), 1:3)
-    # One flag per species, or two vectors would silently describe different species.
-    @test_throws "one entry per species" BirthOnlyMovement(GaussianKernel.(fill(0.2km,
-                                                                                3),
-                                                                           10e-4),
-                                                           [true, false])
+    # The flag is the mode's, and defaults to the safe (redistributing) behaviour.
+    kernels = fill(GaussianKernel(meandist = 0.2km, thresh = 10e-4), 3)
+    @test all(sp -> EcoSISTEM.dispersesafely(SeedDispersal(GaussianKernel,
+                                                           disperse_safely = true).(kernels),
+                                             sp), 1:3)
+    @test !EcoSISTEM.dispersesafely(SeedDispersal(GaussianKernel,
+                                                  disperse_safely = false).(kernels),
+                                    1)
 
     # One landscape, one seed, one species set - only the topology and the flag vary.
     function _total(topology, safely = true; holes = false)
@@ -129,14 +126,17 @@ end
                 iseven(y + x) && (env.active[y, x] = false)
             end
         end
-        species = build_species(20, tolerance = (298.0K, 3.0K),
-                                toleranceaxis = Temperature,
-                                demand = 1.0e9kJ / day,
-                                demandaxis = SolarRadiation,
-                                movement = BirthOnlyMovement,
-                                disperse_safely = safely,
-                                abundance = 10_000, seed = 1)
-        eco = build_ecosystem(species, env, seed = 1)
+        species = build_species(SpeciesPool(20),
+                                tolerance = ToleranceSpec(Temperature,
+                                                          μ = 298.0K,
+                                                          σ = 3.0K),
+                                demand = DemandSpec(SolarRadiation,
+                                                    1.0e9kJ / day),
+                                movement = MovementSpec(InsectDispersal(disperse_safely = safely),
+                                                        meandist = 10.0km),
+                                seed = 1, verbosity = :silent)
+        eco = build_ecosystem(BySupply(total = 10_000), species, env, seed = 1,
+                              verbosity = :silent)
         simulate!(eco, 2.0year, 1.0month_mean_duration)
         return sum(eco.abundances.matrix)
     end
@@ -172,14 +172,25 @@ end
                       supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                            axis = SolarRadiation),
                       area = area)
-    mixed = build_species(2, tolerance = (298.0K, 3.0K),
-                          toleranceaxis = Temperature,
-                          demand = 1.0e9kJ / day, demandaxis = SolarRadiation,
-                          movement = BirthOnlyMovement,
-                          disperse_safely = [true, false],
-                          abundance = 10_000, seed = 1)
-    @test mixed.movement.disperse_safely == [true, false]
-    eco = build_ecosystem(mixed, env, seed = 1)
+    pool = SpeciesPool(DataFrame(species = ["1", "2"],
+                                 safely = [true, false]),
+                       verbosity = :silent)
+    mixed = build_species(pool,
+                          tolerance = ToleranceSpec(Temperature, μ = 298.0K,
+                                                    σ = 3.0K),
+                          demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
+                          movement = ChosenBy(:safely,
+                                              true =>
+                                                  MovementSpec(InsectDispersal(),
+                                                               meandist = 10.0km),
+                                              false =>
+                                                  MovementSpec(InsectDispersal(disperse_safely = false),
+                                                               meandist = 10.0km)),
+                          seed = 1, verbosity = :silent)
+    @test [EcoSISTEM.dispersesafely(mixed.movement, sp) for sp in 1:2] ==
+          [true, false]
+    eco = build_ecosystem(BySupply(total = 10_000), mixed, env, seed = 1,
+                          verbosity = :silent)
     simulate!(eco, 2.0year, 1.0month_mean_duration)
     # The lossy species must end up worse off than the safe one on the *same* grid, under the
     # same seed - which is only a meaningful comparison because they now genuinely differ.
@@ -187,32 +198,173 @@ end
     @test totals[2] < totals[1]
 end
 
-# A struct dump would print every kernel. What is pinned is that the size is bounded and the
-# identifying facts are present, not the exact text, which is free to improve.
-@testset "movements print bounded, whatever the species count" begin
-    small = BirthOnlyMovement(fill(GaussianKernel(1.0km, 1e-3), 10))
-    big = AlwaysMovement(GaussianKernel.(range(0.5km, 4.0km, length = 1000),
-                                         1e-3),
-                         [i > 3 for i in 1:1000])
-    none = NoMovement(fill(LongTailKernel(2.0km, 2.0, 1e-3), 1000))
-    for m in (small, big, none)
-        @test length(repr(m)) < 120
-        @test length(repr("text/plain", m)) < 200
-        @test occursin(string(nameof(typeof(m))), repr(m))
-        @test occursin("$(length(EcoSISTEM.getkernels(m))) species", repr(m))
-        # Five lines: the type name and four facts.
-        @test count(==('\n'), repr("text/plain", m)) == 4
+# A species list's movement prints in one phrase whatever the species count: the mode and how far
+# its species reach where they share one, else each mode and how many species take it.
+@testset "a species list's movement prints in one phrase" begin
+    phrase = EcoSISTEM._movementphrase
+    @test phrase(fill(SeedDispersal(GaussianKernel, disperse_safely = true)(meandist = 1.0km,
+                                                                            thresh = 1e-3),
+                      10)) ==
+          "SeedDispersal(GaussianKernel, disperse_safely = true), GaussianKernel mean 1.0 km"
+    @test phrase([SeedDispersal(GaussianKernel, disperse_safely = true)(meandist = d,
+                                                                        thresh = 1e-3)
+                  for d in range(0.5km, 4.0km, length = 1000)]) ==
+          "SeedDispersal(GaussianKernel, disperse_safely = true), GaussianKernel mean 0.5 km " *
+          "to 4.0 km"
+    long = fill(VertebrateDispersal()(scale = 2.0km, shape = 2.0,
+                                      thresh = 1e-3),
+                1000)
+    @test phrase(long) ==
+          "VertebrateDispersal(LongTailKernel, disperse_safely = true), LongTailKernel scale 2.0 km"
+    @test phrase(fill(NoDispersal()(), 1000)) == "NoDispersal()"
+    mixed = [AlwaysDispersal(disperse_safely = sp > 3)(meandist = 1.0km)
+             for sp in 1:1000]
+    @test phrase(mixed) ==
+          "AlwaysDispersal(GaussianKernel, disperse_safely = false) for 3, " *
+          "AlwaysDispersal(GaussianKernel, disperse_safely = true) for 997"
+    @test phrase(SpeciesDispersal{NoDispersal, Nothing}[]) == "none"
+end
+
+# A dispersal mode fixes which individuals disperse, its kernel's family and the dead-cell fate, so
+# species sharing a mode differ only in their kernels' parameters.
+@testset "dispersal modes" begin
+    # The generic mode states its family and fate; the named ones default them for their agent.
+    @test_throws MethodError SeedDispersal()
+    @test_throws UndefKeywordError SeedDispersal(GaussianKernel)
+    @test !SeedDispersal(WaldKernel, disperse_safely = false).disperse_safely
+    for (mode, family, safely) in ((WindDispersal(), WaldKernel, false),
+        (InsectDispersal(), GaussianKernel, true),
+        (VertebrateDispersal(), LongTailKernel, true),
+        (AlwaysDispersal(), GaussianKernel, true))
+        @test EcoSISTEM._family(mode) === family
+        @test mode.disperse_safely == safely
     end
-    @test occursin("GaussianKernel 1.0 km", repr(small))
-    @test !occursin("disperse_safely", repr(small))          # all safe: nothing to say
-    @test occursin("0.5 km to 4.0 km", repr(big))
-    @test occursin("3 not disperse_safely", repr(big))
-    @test occursin("997 of 1000 species", repr("text/plain", big))
-    @test occursin("LongTailKernel 2.0 km", repr(none))
-    @test occursin("nothing disperses", repr("text/plain", none))
-    # A movement with no species at all still prints.
-    @test occursin("0 species, no kernels",
-                   repr(BirthOnlyMovement(GaussianKernel[])))
+    insect = InsectDispersal()
+    @test insect(meandist = 2.0km) ==
+          SpeciesDispersal(insect, GaussianKernel(meandist = 2.0km))
+    @test insect(GaussianKernel(meandist = 2.0km)) == insect(meandist = 2.0km)
+    @test NoDispersal()() == SpeciesDispersal(NoDispersal(), nothing)
+    @test SeedDispersal(LongTailKernel, disperse_safely = true)(scale = 1.0km,
+                                                                shape = 2.0).kernel isa
+          LongTailKernel
+    @test_throws "of its family" SpeciesDispersal(insect,
+                                                  WaldKernel(meandist = 1.0km,
+                                                             scale = 1.0km))
+    @test_throws "of its family" SpeciesDispersal(NoDispersal(),
+                                                  GaussianKernel(meandist = 1.0km))
+    @test_throws "concrete kernel type" SeedDispersal(EcoSISTEM.AbstractKernel,
+                                                      disperse_safely = true)
+    @test repr(WindDispersal()) ==
+          "WindDispersal(WaldKernel, disperse_safely = false)"
+    @test repr(insect(meandist = 2.0km)) ==
+          "SpeciesDispersal(InsectDispersal(GaussianKernel, disperse_safely = true), " *
+          "GaussianKernel(meandist = 2.0 km, thresh = 1.0e-9))"
+
+    # A species list narrows mixed movements to the union of their own types, at most four, so
+    # the step loop splits them rather than dispatching dynamically.
+    narrow = EcoSISTEM._dispersalvector
+    kinds = [
+        SeedDispersal(GaussianKernel, disperse_safely = true)(meandist = 1.0km),
+        AlwaysDispersal()(meandist = 1.0km),
+        InsectDispersal()(meandist = 1.0km), NoDispersal()()]
+    @test !isconcretetype(eltype(kinds))
+    @test Set(Base.uniontypes(eltype(narrow(kinds)))) == Set(typeof.(kinds))
+    @test narrow(kinds) == kinds
+    fifth = [kinds; WindDispersal(GaussianKernel)(meandist = 1.0km)]
+    @test_throws "at most four kinds" narrow(fifth)
+    # Two species in one mode with different fates are one kind: the fate is a value, not a type.
+    @test eltype(narrow([
+                            SeedDispersal(GaussianKernel,
+                                          disperse_safely = true)(meandist = 1.0km),
+                            SeedDispersal(GaussianKernel,
+                                          disperse_safely = false)(meandist = 2.0km)
+                        ])) ==
+          SpeciesDispersal{SeedDispersal{GaussianKernel}, GaussianKernel}
+end
+
+# A kernel's distances are named for what they are. A Gaussian kernel's mean distance and per-axis
+# standard deviation describe it alike; a long-tailed kernel's scale and mean distance do not, and
+# its mean exists only for a shape above 3/2.
+@testset "kernels take their distances by name" begin
+    g = GaussianKernel(meandist = 2.4km)
+    @test g.thresh == 1.0e-9
+    @test EcoSISTEM._meandist(g) ≈ 2.4km
+    @test GaussianKernel(sd = 2.4km / sqrt(pi / 2)).scale ≈ g.scale
+    @test GaussianKernel(meandist = 2400.0m) == g
+    # The 2Dt's mean is `scale * sqrt(pi) / 2 * gamma(shape - 3/2) / gamma(shape - 1)`: at shape 5/2
+    # the gamma ratio is 2 / sqrt(pi), so mean and scale coincide, and at shape 3 it is sqrt(pi) / 2.
+    @test LongTailKernel(meandist = 3.0km, shape = 2.5).scale ≈ 3.0km
+    @test LongTailKernel(meandist = 3.0km, shape = 3.0).scale ≈ 12 / pi * km
+    @test LongTailKernel(scale = 1.0km, shape = 1.5).shape == 1.5
+
+    @test_throws "exactly one of `meandist` and `sd`; got neither" GaussianKernel()
+    @test_throws "got both" GaussianKernel(meandist = 1.0km, sd = 1.0km)
+    @test_throws "must be positive" GaussianKernel(meandist = 0.0km)
+    @test_throws "must exceed 1" LongTailKernel(scale = 1.0km, shape = 1.0)
+    @test_throws "no finite mean distance" LongTailKernel(meandist = 1.0km,
+                                                          shape = 1.5)
+    @test_throws "exactly one of `scale` and `meandist`" LongTailKernel(shape = 2.0)
+    @test_throws UndefKeywordError LongTailKernel(scale = 1.0km)
+
+    @test repr(g) == "GaussianKernel(meandist = 2.4 km, thresh = 1.0e-9)"
+    @test repr(LongTailKernel(scale = 2.0km, shape = 2.0, thresh = 1e-3)) ==
+          "LongTailKernel(shape = 2.0, scale = 2.0 km, thresh = 0.001)"
+
+    w = WaldKernel(meandist = 5000.0m, scale = 10.0km)
+    @test w.meandist == 5.0km && w.scale == 10.0km && w.thresh == 1.0e-9
+    @test_throws UndefKeywordError WaldKernel(meandist = 5.0km)
+    @test_throws "must be positive" WaldKernel(meandist = 5.0km, scale = 0.0km)
+    @test repr(w) ==
+          "WaldKernel(meandist = 5.0 km, scale = 10.0 km, thresh = 1.0e-9)"
+    @test EcoSISTEM._movementphrase(WindDispersal().(fill(w, 3))) ==
+          "WindDispersal(WaldKernel, disperse_safely = false), WaldKernel mean 5.0 km"
+end
+
+# A lookup must put individuals at the distances its kernel was given: the mean displacement from
+# cell centres, on 1 km cells and a grid wide enough not to truncate, is the kernel's mean to within
+# the cells' discreteness, about half a percent for every kernel alike. A WALD lookup built from its
+# distance density without dividing by `2pi d` puts its mean at 7.5 km instead, and fails.
+@testset "a lookup puts individuals at the distances its kernel was given" begin
+    area = StudyArea(extent = (81.0km, 81.0km), cellsize = 1.0km,
+                     verbosity = :silent)
+    regime = build_habitat(area = area, verbosity = :silent).regime
+    lookup(k) = EcoSISTEM.genlookups(regime, k)
+    meanof(l) = sum(p * sqrt(y^2 + x^2) for (y, x, p) in zip(l.y, l.x, l.p))
+    spreadof(l) = sqrt(sum(p * (sqrt(y^2 + x^2) - meanof(l))^2
+                           for (y, x, p) in zip(l.y, l.x, l.p)))
+    loose = lookup(WaldKernel(meandist = 5.0km, scale = 10.0km))
+    tight = lookup(WaldKernel(meandist = 5.0km, scale = 50.0km))
+    @test meanof(lookup(GaussianKernel(meandist = 5.0km))) ≈ 5.0 rtol = 0.02
+    @test meanof(loose) ≈ 5.0 rtol = 0.02
+    @test meanof(tight) ≈ 5.0 rtol = 0.02
+    # The variance is `meandist^3 / scale`, so the larger scale gathers the distances closer.
+    @test spreadof(loose) ≈ sqrt(5.0^3 / 10.0) rtol = 0.05
+    @test spreadof(tight) < spreadof(loose)
+end
+
+# Each kernel family's declared keywords are its constructor's: it builds given them, fails without
+# each one it must have, and refuses neither or both of a choice. Every family declares them, so a
+# `MovementSpec` can refuse what its family lacks where the spec is written.
+@testset "a kernel family's declared keywords are its constructor's" begin
+    families = subtypes(EcoSISTEM.AbstractKernel)
+    @test length(families) >= 3
+    value(k) = k === :shape ? 2.0 : 1.0km
+    for K in families
+        @test hasmethod(EcoSISTEM._kernelrequires, Tuple{Type{K}})
+        needs = EcoSISTEM._kernelrequires(K)
+        enough = (needs.all..., needs.oneof[1:min(1, length(needs.oneof))]...)
+        @test K(; (k => value(k) for k in enough)...) isa K
+        for k in needs.all
+            @test_throws UndefKeywordError K(;
+                                             (j => value(j)
+                                              for j in enough if j != k)...)
+        end
+        isempty(needs.oneof) && continue
+        @test_throws ArgumentError K(; (k => value(k) for k in needs.all)...)
+        @test_throws ArgumentError K(;
+                                     (k => value(k)
+                                      for k in (needs.all..., needs.oneof...))...)
+    end
 end
 
 end

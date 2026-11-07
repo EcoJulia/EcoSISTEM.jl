@@ -1,0 +1,10 @@
+# What the WFO Plant List asks of anyone using it, read from its background page and the release's
+# Zenodo record: nothing - the list is public domain (CC0) - but it is issued as a citable static
+# list, each release under its own DOI, so the record's citation is the reference, its 422 authors
+# shortened to the consortium that heads them.
+pages = ["https://wfoplantlist.org/background", "https://zenodo.org/records/20782718"]
+read = 2026-11-05
+
+[[reference]]
+doi = "10.5281/zenodo.20782718"
+text = "The World Flora Online Consortium et al. (2026). World Flora Online Plant List June 2026 (Version 2026-06) [Dataset]. Zenodo. https://doi.org/10.5281/zenodo.20782718"

@@ -76,18 +76,16 @@ begin
 
     # Species characteristics
     individuals = 100_000
-    abun = rand(Multinomial(individuals, numSpecies))
     death = 0.15 / year
     birth = death
     long = 1.0
     surv = 0.1
     param = EqualPop(birth, death, long, surv)
-    native = fill(true, numSpecies)
 
     # Dispersal
     av_dist = fill(2.4, numSpecies) .* km
-    kernel = GaussianKernel.(av_dist, 10e-10)
-    movement = BirthOnlyMovement(kernel)
+    kernel = [GaussianKernel(meandist = d, thresh = 10e-10) for d in av_dist]
+    movement = InsectDispersal().(kernel)
 
     # Resource demands
     demand = (450000.0kJ / m^2 / month_mean_duration,
@@ -105,14 +103,14 @@ begin
     tolerance = NicheTolerance(Temperature, Normal, opts, vars)
 
     # Species list
-    sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
-                       movement, param, native)
+    sppl = SpeciesList(numSpecies, tolerance, resource_vec, movement, param)
 
     # Trait nichefit
     nichefit = NicheSuitability{Temperature, typeof(first(opts))}()
 
-    # Build ecosystem
-    eco = Ecosystem(sppl, habitat, nichefit)
+    # Build ecosystem, its individuals split at random across the species and placed by supply
+    eco = build_ecosystem(BySupply(total = individuals), sppl, habitat,
+                          nichefit = nichefit)
 
     # Run simulation
     times = 10year
@@ -280,15 +278,9 @@ begin
     # First things first - how many species?
     numSpp = 10
 
-    # And how many individuals overall
+    # And how many individuals overall - they are shared between the species when the
+    # ecosystem is built
     numInd = 100_000
-
-    # Great, now we'll randomly allocate those individuals evenly (but randomly!) 
-    # across the species
-    start_abuns = rand(Multinomial(numInd, numSpp))
-
-    # Are they all native?
-    is_native = fill(true, numSpp)
 
     # Next up, we need to decide on some base rates for the simulation to run on - 
     # like birth and death
@@ -307,11 +299,12 @@ begin
     # Now we have to consider movement - let's say the species move an average of 
     # 2.4km according to a Gaussian kernel
     average_dist = fill(2.4, numSpp) .* km
-    gauss_kernel = GaussianKernel.(average_dist, 10e-10)
+    gauss_kernel = [GaussianKernel(meandist = d, thresh = 10e-10)
+                    for d in average_dist]
 
     # Because we are considering plants, let's assume the seed production is combined 
     # with dispersal, so only new seeds move
-    move = BirthOnlyMovement(gauss_kernel)
+    move = InsectDispersal().(gauss_kernel)
 
     # We must also decide how much water each species needs per timestep
     water_req = (100.0Unitful.L / m^2 / day)
@@ -329,8 +322,7 @@ begin
     tolerance = NicheTolerance(Temperature, Normal, optima, niche_width)
 
     # Okay, now we are ready for our species list!
-    species_list = SpeciesList(numSpp, tolerance, start_abuns, water_vec,
-                               move, parameters, is_native)
+    species_list = SpeciesList(numSpp, tolerance, water_vec, move, parameters)
 end
 
 # ╔═╡ 8e33c75b-d128-4b25-9b2b-5cff452c3a4e
@@ -368,7 +360,10 @@ md"Now we can build our ecosystem! EcoSISTEM is integrated with SpatialEcology.j
 
 # ╔═╡ ffd5ca3f-00b3-4444-9f89-77062358c439
 begin
-    example_eco = Ecosystem(species_list, temp_grad_env, trait_relationship)
+    # The individuals are allocated evenly (but randomly!) across the species, and each
+    # species' share is placed by the supply
+    example_eco = build_ecosystem(BySupply(total = numInd), species_list,
+                                  temp_grad_env, nichefit = trait_relationship)
 end
 
 # ╔═╡ 7492f556-957c-48a3-8597-9c7c7ba20547

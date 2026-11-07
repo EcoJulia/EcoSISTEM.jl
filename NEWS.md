@@ -1,5 +1,101 @@
 # NEWS
 
+- v0.11.0
+  - Added
+    - The phylogeny-building `SpeciesList` constructors take a `seed`, which fixes the tree and the
+      tolerances evolved along it from a stream of their own. `assigntraits!`, `discrete_evolve`,
+      `continuous_evolve` and `brownian_motion` take a random number generator as a first argument.
+    - `WaldKernel(; meandist, scale)`, a dispersal kernel whose distance travelled follows the
+      inverse Gaussian distribution, Katul et al.'s WALD kernel for seeds dispersed by wind.
+    - Dispersal modes, saying which individuals disperse, the kernel's family and what becomes of
+      one aimed at a dead cell: `SeedDispersal(family; disperse_safely)`, and `WindDispersal`,
+      `InsectDispersal`, `VertebrateDispersal`, `AlwaysDispersal` and `NoDispersal` with defaults.
+      A mode called with its kernel's keywords, or a kernel, gives one species' `SpeciesDispersal`.
+    - `SpeciesPool`, every species a run may hold, declared before it is built: from a count, names
+      or a table of values (a CSV file, its `ProvenanceRecord` or any Tables.jl table). Changed by
+      `deactivate_species!`, `activate_species!`, `remove_species!`, `copy_species!` and
+      `add_trait!`, which joins values by species name; `name_table` says how each name matched.
+    - `WFOPlantList(; release)`, the World Flora Online Plant List as a name authority, a catalogued
+      source fetched on first use: a pool given one standardises its names to WFO identifiers,
+      synonyms to their accepted species, merging rows that reach one species by `merge`
+      (`RefuseMerge()` or `MergeWith(f)`). `lineage` gives a species' classification.
+    - `ProblemError`, the severity of a problem that stops.
+    - `build_species(pool; tolerance, demand, ...)` builds species from a `SpeciesPool`, one spec per
+      trait: `ToleranceSpec` (a family's parameters by name), `DemandSpec`, `MovementSpec`, and
+      `ChosenBy` choosing a spec per species. Each parameter is one value, a `TraitColumn`, a
+      `DrawFrom` or a function of the species' row; nothing is taken by position.
+    - `fill_traits(pool, specs...; seed)` fills a pool's missing values, each draw from a stream of
+      the species' own, as `build_species` does; the species list keeps the values and what was
+      filled. Under MPI a pool is made and changed on rank 0, which alone reads a name authority.
+    - `build_ecosystem(placement, species, habitat)` places a run's individuals by a placement:
+      `BySupply`, `BySuitability`, `ByLayer` or several multiplied by `Weighted`, each given a
+      `total` or `each` (a count or a density), `FromTable` reading rows, `NoAbundance`, placements
+      added with `+`, or a `do` block of `(species, habitat, context)`. Rows it cannot place are
+      dropped and reported; the ecosystem keeps its placement, and its provenance names it.
+    - `IsActiveSpecies(pool, species or ecosystem)` for `filter!` and `filter`, keeping a table's rows
+      that name an active species, found as a placement finds a table's species - through the pool's
+      name authority, so synonyms count - and reporting what it removes by kind.
+    - `InActiveCell(area, habitat or ecosystem)` for `filter!` and `filter`, keeping the rows whose
+      latitude and longitude lie in an active cell, or within `snap` (a ground distance) of one. Under
+      MPI every filter is a collective call.
+    - `FromOccurrences(records)`, a placement reading occurrence records, matched and placed as the
+      filters match and place them: one individual a record by default, `per_record`, a `total` spread
+      over the records in proportion to them, or a `do` block making its own table. Optionally dated.
+    - `ToCapacity(placement; fraction)`, filling each cell until what its species demand of its
+      scarcest resource is `fraction` of what it supplies, in the shares `placement` gives; given a
+      species' name, that species alone.
+    - `AddAbundance(placement)`, adding a placement's individuals over an intervention's region at
+      each firing; `ToCapacity` there tops cells up, counting what is already there, so
+      `AddAbundance(ToCapacity("wheat"))` sows a crop. A dated placement (`FromTable` with times,
+      `FromOccurrences` with dates) is served as the clock reaches its rows, in an `EveryStep()` one.
+  - Changed
+    - `build_ecosystem(species, habitat)` places 1000 individuals of each active species, split at
+      random and placed by supply, and announces it; it takes `verbosity`. `repopulate!(eco, placement = eco.placement; seed)` places again by the
+      ecosystem's own placement, or another, from streams of its own: it no longer re-splits the
+      species' totals at random, and leaves the dynamics' streams alone.
+    - Placing draws from a stream per species keyed on its key in the pool, never from the streams
+      its dynamics use, so a `seed` gives a different run from v0.10's, and adding, removing or
+      deactivating a species leaves every other species' placement by `each` as it was.
+    - `PopGrowth` and `NoGrowth` hold one `longevity` per species, a vector, which the step reads per
+      species; their constructors still take one number for all. `EqualPop` keeps one.
+    - `GaussianKernel` and `LongTailKernel` take their distances by keyword, each named for what it
+      is: a Gaussian kernel's mean distance (`meandist`) or the standard deviation of its
+      displacement along each axis (`sd`); a long-tailed kernel's `shape` with its `scale` or
+      `meandist`. Both store a `scale` in place of `dist`, and print what they were given.
+    - `LongTailKernel` is documented as the two-dimensional Student's t (Clark et al.'s 2Dt). A
+      `shape` of 1 or less, whose density does not integrate, is refused when the kernel is built
+      rather than failing in its lookup; a `meandist` needs a `shape` above 3/2.
+    - A species list's `movement` is one `SpeciesDispersal` per species, of at most four kinds, so
+      species in one list may disperse differently.
+    - `build_species(DefaultEcosystem(); ...)` builds its species from a `SpeciesPool`, taking
+      `tolerance` and `demand` as specs.
+  - Deprecated
+    - `AddAbundanceTable(table)` and `build_abundance_table(eco, table)`, for
+      `AddAbundance(FromTable(table))` naming species by name and places by grid key or location. The
+      shim converts positions and linear indices; fractional counts round per species, cell and time
+      rather than per step, and a date need no longer fall at a step's end.
+    - The positional `GaussianKernel(dist, thresh)` and `LongTailKernel(dist, shape, thresh)`: their
+      distance was a Gaussian kernel's mean but neither the mean nor the scale of a long-tailed one.
+      Their kernels and lookups are unchanged.
+    - `BirthOnlyMovement`, `AlwaysMovement` and `NoMovement`, now functions returning each species'
+      movement. Code reading their `kernels` or `disperse_safely` fields, or dispatching on them,
+      needs the new form.
+    - `repopulate_by_tolerance!(eco)`, for `repopulate!(eco, BySuitability())`, which places over the
+      active cells only and takes its numbers from the placement.
+  - Fixed
+    - `discrete_evolve` uses the switch value it is given.
+    - The switch parameter of `assigntraits!`, `discrete_evolve` and the phylogeny-building `SpeciesList`
+      constructor is documented as what it is: the mean time between trait changes as a fraction of the
+      root-to-tip length, so a larger value means fewer changes.
+  - Removed
+    - `build_species(numspecies; ...)`: species are built from a `SpeciesPool`, as
+      `build_species(SpeciesPool(numspecies); ...)`, and where their individuals start is the
+      placement `build_ecosystem` is given (`abundance = zeros(...)` is `NoAbundance()`). The call
+      raises an error showing its own rewrite.
+    - `SpeciesList`'s `abun` and `native`, as fields and constructor arguments, `Ecosystem` and
+      `MPIEcosystem` built from a population function, and `populate!`, `populate_by_tolerance!` and
+      `emptypopulate!`. Each raises an error naming its replacement.
+
 - v0.10.1
   - Fixed
     - A paper's citation is composed from its DOI's metadata or from facts written for it, names its

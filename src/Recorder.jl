@@ -19,7 +19,7 @@ abstract type AbstractRecorder end
 
 """
     RecordAbundance(storage::AbstractArray)
-    RecordAbundance(eco::Ecosystem, ntimes::Integer; maxspecies = length(eco.spplist.abun))
+    RecordAbundance(eco::Ecosystem, ntimes::Integer; maxspecies = length(eco.spplist.names))
 
 Record every species' abundance in every cell into `storage`, one slice per occurrence:
 `storage[:, :, k]` holds species by cells at occurrence `k`. Under MPI the ranks' abundances are
@@ -48,7 +48,7 @@ struct RecordAbundance{S <: AbstractArray} <: AbstractRecorder
 end
 
 function RecordAbundance(eco::Ecosystem, ntimes::Integer;
-                         maxspecies::Integer = length(eco.spplist.abun))
+                         maxspecies::Integer = length(eco.spplist.names))
     return RecordAbundance(generate_storage(eco, Int64(ntimes), 1,
                                             maxspecies = Int64(maxspecies)))
 end

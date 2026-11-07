@@ -90,14 +90,6 @@ _asnamedtuple(t::Tuple) = NamedTuple{_derivenames(t)}(t)
 # ones from its own members.
 _likebacking(c, vals::Tuple) = NamedTuple{keys(c)}(vals)
 
-# The same idea one step earlier, and **not** the same function. `_likebacking` takes a built
-# **collection**; this takes the caller's raw `tolerance = ...` or `demand = ...` spec, which is a
-# plain `Tuple` or `NamedTuple` and not a collection at all. A caller who named their spec keeps those
-# names; a caller who wrote a tuple gets a tuple back, and the collection's own constructor derives
-# names from the built members' axes.
-_asbacking(::Tuple, vals::Tuple) = vals
-_asbacking(nt::NamedTuple, vals::Tuple) = NamedTuple{keys(nt)}(vals)
-
 # Every collection's members must be of its own family's abstract type, and there must be at least
 # one. Called from each family's *sole inner constructor*, so a collection of the wrong thing cannot
 # be built at all, rather than failing later from somewhere that assumed otherwise.

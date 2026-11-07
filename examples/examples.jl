@@ -13,11 +13,10 @@ using Distributions
 
 ## DIFFERENT OPTS ##
 
-# **The gate, added 2026-08-13 - this file had none and was the second-slowest thing in
-# `extras_examples` at 36 s, a fifth of the whole run.** It is a *smoke test* of the two-resource
-# path, so under the suite it needs enough individuals to exercise the arithmetic and no more:
-# 100 million of them on 100 cells was buying nothing a million does not. Run it directly (or set
-# `ECOSISTEM_SCALE=large`) for the published figures.
+# **The gate: at full scale this file is among the slowest in `extras_examples`.** It is a *smoke
+# test* of the two-resource path, so under the suite it needs enough individuals to exercise the
+# arithmetic and no more: 100 million of them on 100 cells buys nothing a million does not. Run it
+# directly (or set `ECOSISTEM_SCALE=large`) for the published figures.
 const SMALL = get(ENV, "ECOSISTEM_SCALE", "large") == "small"
 
 numSpecies = 100;
@@ -55,7 +54,7 @@ vars = fill(2.0K, numSpecies)
 opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
 
 av_dist = fill(2.4km, numSpecies)
-kernel = GaussianKernel.(av_dist, 10e-10)
+kernel = [GaussianKernel(meandist = d, thresh = 10e-10) for d in av_dist]
 
 death = 0.15 / year
 birth = death
@@ -72,15 +71,14 @@ param = EqualPop(birth, death, long, surv)
 
 # Create ecosystem
 
-movement = BirthOnlyMovement(kernel)
+movement = InsectDispersal().(kernel)
 
 tolerance = NicheTolerance(Temperature, Normal, opts, vars)
-native = fill(true, numSpecies)
-abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
-                   movement, param, native)
+sppl = SpeciesList(numSpecies, tolerance, resource_vec, movement, param)
 nichefit = NicheSuitability{Temperature, typeof(first(opts))}()
-eco = Ecosystem(sppl, habitat, nichefit)
+# The individuals, split at random across the species and placed by supply.
+eco = build_ecosystem(BySupply(total = individuals), sppl, habitat,
+                      nichefit = nichefit)
 
 times = SMALL ? 2year : 10year;
 timestep = 1month_mean_duration;

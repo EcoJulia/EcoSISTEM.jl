@@ -11,13 +11,13 @@ using Tables: Tables
 """
     AbstractOperation
 
-**What** an [`Intervention`](@ref) does - a **closed set of eight**: [`Deactivate`](@ref),
+**What** an [`Intervention`](@ref) does - a **closed set of seven**: [`Deactivate`](@ref),
 [`Reactivate`](@ref), [`SetLandCover`](@ref), [`SetChange`](@ref), [`AddAbundance`](@ref),
-[`RemoveAbundance`](@ref), [`AddAbundanceTable`](@ref) and [`AddSpecies`](@ref).
+[`RemoveAbundance`](@ref) and [`AddSpecies`](@ref).
 
 **Closed on purpose.** A callback would let an intervention do anything, including the things that
 break reproducibility and MPI - writing a continuous layer's matrix directly, drawing from the global
-RNG, resizing the landscape mid-run. Eight named operations can each be checked once and then
+RNG, resizing the landscape mid-run. Seven named operations can each be checked once and then
 trusted.
 
 **A bound is not among them**, and does not need to be. It is a property of the *quantity* rather
@@ -101,14 +101,29 @@ end
 
 """
     AddAbundance(species, count)
+    AddAbundance(placement)
 
-Add individuals to **each** cell of the region - an invasion, or a reintroduction.
+Add individuals to **each** cell of the region - an invasion, or a reintroduction - or, given a
+placement, the individuals it places over the region's active cells at each firing, as
+[`build_ecosystem`](@ref) places them at the start: `AddAbundance(ToCapacity("wheat"))` sows a crop,
+filling each cell to what its resources support given what already grows there. A dated placement - a
+[`FromTable`](@ref) with a `time` column, or a [`FromOccurrences`](@ref) given `date` or `time` - is
+served instead: alone in an `Intervention` with `EveryStep()`, its rows are added as the clock
+reaches them, those at or before the start onto the starting state.
 
 # Arguments
 
   - `species`: which species, by name or by index.
   - `count`: how many per cell. An `Integer` is an exact number; a quantity per unit time is a mean
     rate, drawn afresh each step.
+  - `placement`: a placement - a shipped one, or a function of `(species, habitat, context)` - called
+    at each firing with the region's active cells as its context's `cells` and random streams of that
+    firing's own, so it draws nothing a region's selection or a species' dynamics draw. Under MPI the
+    first rank calls it, and every rank adds its own species' rows. A dated placement is called once
+    for an ecosystem, at its first firing, over the cells the ecosystem was built with; each step adds
+    its rows falling due in the region's cells still active, and a run's end notes what it did not
+    add - rows dated after it, rows a continuing run started past, and rows due in cells deactivated
+    since.
 """
 struct AddAbundance{S, C <: CELLCOUNT} <: AbstractOperation
     species::S
@@ -121,6 +136,20 @@ struct AddAbundance{S, C <: CELLCOUNT} <: AbstractOperation
     function AddAbundance(species::S, count::CELLCOUNT) where {S}
         return new{S, typeof(count)}(species, count)
     end
+end
+
+# The placement form of `AddAbundance`: a placement's individuals added over the region at each firing,
+# or, where its table is `dated`, its rows as they fall due, resolved once for the ecosystem `served`
+# holds them for.
+struct _PlacementAddition{P} <: AbstractOperation
+    placement::P
+    dated::Bool
+    served::Base.RefValue{Any}
+end
+
+function AddAbundance(placement)
+    _checkplacement(placement)
+    return _PlacementAddition(placement, _isdated(placement), Ref{Any}(nothing))
 end
 
 """
@@ -142,79 +171,6 @@ struct RemoveAbundance{S, C <: CELLCOUNT} <: AbstractOperation
     # `CELLCOUNT`, for the reason given on `AddAbundance`.
     function RemoveAbundance(species::S, count::CELLCOUNT) where {S}
         return new{S, typeof(count)}(species, count)
-    end
-end
-
-"""
-    AddAbundanceTable(table)
-
-Add individuals to cells as a table lists them, each row naming a species, a cell, a count and a
-time - a population seeded from dated records, for instance.
-
-It goes in an [`Intervention`](@ref) of its own, with [`EveryStep`](@ref). Its rows say when, so each
-step adds the rows whose time falls within it, and a row at or before the start of the run is added
-to the starting state. The intervention's region filters the rows: `ActiveCells()` drops those in an
-inactive cell, and `CellMask(mask)` those outside the mask.
-
-The rows of one species and cell that fall in the same step are summed and then rounded to a whole
-number of individuals, ties to even. A date is placed through the run's epoch and calendar as
-[`AtDates`](@ref) places one, and must fall at the end of a step unless the steps are a day or
-shorter. [`build_abundance_table`](@ref) writes a table in this form from species names and grid
-positions.
-
-**The table may be streamed.** One offering whole columns - a `DataFrame`, a `NamedTuple` of
-vectors, a memory-mapped Arrow file - is searched for the rows each step needs, so the operation
-holds no state and can serve any number of runs. One offering only rows, such as a `CSV.Rows` or a
-generator of named tuples, is read once, forwards, as the run proceeds: its rows must be in time
-order, and the operation serves a single run.
-
-# Arguments
-
-  - `table`: any Tables.jl source with the columns `species` (a species' name or its index in the
-    species list), `cell` (a cell's linear index into the grid, which is its column in the abundance
-    matrix, or its `CartesianIndex` `(y, x)`), `time` (an elapsed time from the start of the run, or
-    a date) and, optionally, `count` (how many individuals, one per row without it).
-"""
-struct AddAbundanceTable{S} <: AbstractOperation
-    source::S
-
-    # Read through whichever access the table offers: whole columns are searched, rows are streamed.
-    function AddAbundanceTable(table)
-        source = Tables.columnaccess(table) ?
-                 _abundancecolumns(Tables.columns(table)) :
-                 _AbundanceStream(Tables.rows(table))
-        return new{typeof(source)}(source)
-    end
-end
-
-# A table offering whole columns, searched each step for the rows due. `count` is `nothing` for a
-# table without that column, and `order` is `nothing` when the rows are already in time order or
-# else the permutation that puts them in it.
-struct _AbundanceColumns{SP <: AbstractVector, CE <: AbstractVector, N,
-                         T <: AbstractVector, P}
-    species::SP
-    cell::CE
-    count::N
-    time::T
-    order::P
-end
-
-# A table offering only rows, read forwards once as the run proceeds. `pending` is the next row, read
-# but not yet due; `last` the time of the latest row read, which the next may not precede; `reached`
-# the elapsed time rows have been added up to; `row` how many rows have been read.
-mutable struct _AbundanceStream{R}
-    rows::R
-    state::Any
-    started::Bool
-    finished::Bool
-    pending::Any
-    last::Any
-    reached::Any
-    row::Int
-
-    function _AbundanceStream(rows)
-        return new{typeof(rows)}(rows, nothing, false, false, nothing, nothing,
-                                 nothing, 0)
     end
 end
 
@@ -247,9 +203,9 @@ adding one changes the partition itself, and unlike the abundance operations thi
     argument.
   - `tolerance`, `demand`: the arrival's niche and its resource requirements. Cloned from the last
     species if omitted.
-  - `dispersal`: a dispersal **kernel** - a `GaussianKernel` or a `LongTailKernel` - matching
-    `build_species`' keyword of the same name. Not an `AbstractMovement`: the movement type and the
-    grid's edges belong to the whole assemblage, and only the kernel is per species.
+  - `dispersal`: a dispersal **kernel**, an [`AbstractKernel`](@ref), matching
+    `build_species`' keyword of the same name. The arrival disperses in the last species' mode,
+    with this kernel.
   - `birth`, `death`: the arrival's demographic rates.
   - `name`: what to call it.
 """
@@ -285,15 +241,11 @@ end
 function Base.show(io::IO, o::AddAbundance)
     return print(io, "AddAbundance($(repr(o.species)), $(o.count))")
 end
+function Base.show(io::IO, o::_PlacementAddition)
+    return print(io, "AddAbundance(", _placementphrase(o.placement), ")")
+end
 function Base.show(io::IO, o::RemoveAbundance)
     return print(io, "RemoveAbundance($(repr(o.species)), $(o.count))")
-end
-function Base.show(io::IO, o::AddAbundanceTable{<:_AbundanceColumns})
-    n = length(o.source.time)
-    return print(io, "AddAbundanceTable($(n) row$(n == 1 ? "" : "s"))")
-end
-function Base.show(io::IO, ::AddAbundanceTable{<:_AbundanceStream})
-    return print(io, "AddAbundanceTable(streamed rows)")
 end
 
 function Base.show(io::IO, o::AddSpecies)
