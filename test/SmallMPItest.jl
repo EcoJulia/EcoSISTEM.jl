@@ -757,17 +757,17 @@ if rank == 0
     @test cbtotals == serialtotals
 end
 
-# **A table of abundances under MPI**, against the serial twin at any rank count. Each rank adds only
-# its own species' rows, and a table read row by row is read whole on every rank, so a table offering
-# columns and the same rows streamed must both reproduce the serial run. Rows cover every species,
-# several cells and fractional counts, so a rank adding another's rows or rounding before summing
-# would show.
+# **A table of abundances under MPI**, against the serial twin at any rank count: the deprecated table
+# operation, forwarding to a dated placement that the root reads - a table offering columns, or the same
+# rows streamed - and every rank adding its own species' rows. Rows name species by position and cells
+# by linear index, cover every species and several cells, and carry fractional counts, so a rank adding
+# another's rows or a conversion going astray would show.
 tablerows = [(species = sp, cell = cell, count = 0.25 * k + sp,
               time = k * MPIFIXTURE_TIMESTEP)
              for k in 0:23
              for sp in 1:numSpecies
              for cell in (1, 20 + k, VARYING_NY * VARYING_NX - sp)]
-# Reversed, so the columns are out of time order and searched through their permutation.
+# Reversed, so the rows are out of time order.
 tablecolumns = (species = reverse([r.species for r in tablerows]),
                 cell = reverse([r.cell for r in tablerows]),
                 count = reverse([r.count for r in tablerows]),

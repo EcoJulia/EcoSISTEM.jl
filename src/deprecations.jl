@@ -297,6 +297,238 @@ end
 _valuephrase(value, ::Symbol, notes) = sprint(show, value)
 
 # ---------------------------------------------------------------------------
+# A table of dated additions is a placement: `AddAbundance(FromTable(...))` serves its rows as they
+# fall due, naming species and places as every placement does. The table operation, which also takes a
+# species by its position and a cell by its linear index, forwards there, its rows converted when the
+# intervention resolves them; its fractional counts of one species, cell and time are summed and
+# rounded, ties to even. `build_abundance_table` writes that table from names and `(y, x)` positions,
+# which `FromTable` reads as they are given (`CartesianIndex(y, x)` cells), and keeps its body.
+#
+# Deprecated in v0.11.0.
+# ---------------------------------------------------------------------------
+function AddAbundanceTable(table)
+    Base.depwarn("`AddAbundanceTable(table)` is deprecated: give `AddAbundance(FromTable(table))`, " *
+                 "naming each row's species by name and its place by a `cell` grid key or a " *
+                 "location, in an `Intervention` of its own with `EveryStep()`.",
+                 :AddAbundanceTable)
+    return AddAbundance(_TableRows(table))
+end
+
+# The rows of an `AddAbundanceTable` as a dated placement: a species given by its position in the
+# species list as its name, a cell given by its linear index as its grid key, and the counts of one
+# species, cell and time summed and rounded to whole individuals, ties to even.
+struct _TableRows{T}
+    table::T
+end
+
+_isdated(::_TableRows) = true
+
+_placementphrase(::_TableRows) = "the rows of an `AddAbundanceTable`"
+
+function (p::_TableRows)(species::SpeciesList, habitat::GridHabitat,
+                         ::PlacementContext)
+    shape = Tuple(getgridshape(habitat))
+    grid = CartesianIndices(shape)
+    totals = Dict{Tuple{String, CartesianIndex{2}, Any}, Float64}()
+    for (n, row) in enumerate(Tables.rows(p.table))
+        columns = Tables.columnnames(row)
+        for name in (:species, :cell, :time)
+            name in columns ||
+                error("row $n of the table has no `$name` column; an `AddAbundanceTable` needs " *
+                      "`species`, `cell` and `time`, and optionally `count`.")
+        end
+        name = _tablespeciesname(Tables.getcolumn(row, :species), species.names,
+                                 n)
+        cell = grid[_tablecell(Tables.getcolumn(row, :cell), shape, n)]
+        count = :count in columns ? Tables.getcolumn(row, :count) : 1
+        time = Tables.getcolumn(row, :time)
+        _tableelapsedtype(time, n)
+        key = (name, cell, _normaltime(time))
+        totals[key] = get(totals, key, 0.0) + _tablecount(count, n)
+    end
+    rows = [(k, round(Int, v)) for (k, v) in totals if round(Int, v) > 0]
+    return (species = String[k[1] for (k, _) in rows],
+            cell = CartesianIndex{2}[k[2] for (k, _) in rows],
+            count = Int[n for (_, n) in rows],
+            time = Any[k[3] for (k, _) in rows])
+end
+
+# A table row's species by name: its own, or the name of the species at its position in the list.
+function _tablespeciesname(species::Union{AbstractString, Symbol}, ::Any, ::Int)
+    return String(species)
+end
+
+function _tablespeciesname(species::Integer, names::AbstractVector, row::Int)
+    1 <= species <= length(names) ||
+        error("row $row of the abundance table names species $species, but the species list " *
+              "has $(length(names)).")
+    return names[species]
+end
+
+function _tablespeciesname(species, ::Any, row::Int)
+    return error("row $row of the abundance table gives its species as `$(repr(species))`: give " *
+                 "a name or an index.")
+end
+
+function build_abundance_table(eco::AbstractEcosystem, table)
+    Base.depwarn("`build_abundance_table(eco, table)` is deprecated: give the table to `FromTable` " *
+                 "as it is, naming each row's species by name and its place by a `cell` - " *
+                 "`CartesianIndex(y, x)` - or by `latitude` and `longitude`, and add it with " *
+                 "`AddAbundance(FromTable(table))`.", :build_abundance_table)
+    lookup = _emptynamelookup()
+    shape = Base.size(parent(eco.habitat.active))
+    rows = Tables.rows(table)
+    first = iterate(rows)
+    isnothing(first) &&
+        error("the table has no rows to build an abundance table from.")
+    row, state = first
+    return _collectabundances(rows, state,
+                              _positionedrow(row, 1, eco, lookup, shape), eco,
+                              lookup, shape)
+end
+
+# An empty lookup from species names to their indices, for `_speciesnamelookup!` to fill.
+_emptynamelookup() = Ref{Union{Nothing, Dict{String, Int}}}(nothing)
+
+# Each species' name and its index in the species list, built the first time a row names a species
+# and kept in `lookup` for the rest of the table, so a table of indices never builds it.
+function _speciesnamelookup!(lookup::Base.RefValue{Union{Nothing,
+                                                         Dict{String, Int}}},
+                             eco::AbstractEcosystem)
+    if isnothing(lookup[])
+        lookup[] = Dict(name => i for (i, name) in enumerate(eco.spplist.names))
+    end
+    return lookup[]
+end
+
+# A table row's species as its index in the species list, refused where there is no such species.
+function _tablespecies(species::Integer, eco::AbstractEcosystem, _, row::Int)
+    count = length(eco.spplist.names)
+    1 <= species <= count ||
+        error("row $row of the abundance table names species $species, but the species list " *
+              "has $count.")
+    return Int(species)
+end
+
+function _tablespecies(species::Union{AbstractString, Symbol},
+                       eco::AbstractEcosystem, lookup, row::Int)
+    index = get(_speciesnamelookup!(lookup, eco), String(species), nothing)
+    isnothing(index) &&
+        error("row $row of the abundance table names species `$species`, which is not in the " *
+              "species list.")
+    return index
+end
+
+function _tablespecies(species, ::AbstractEcosystem, _, row::Int)
+    return error("row $row of the abundance table gives its species as `$(repr(species))`: give " *
+                 "a name or an index.")
+end
+
+# A table row's cell as a linear index into a grid of `shape`, refused off the grid.
+function _tablecell(cell::Integer, shape::Tuple{Int, Int}, row::Int)
+    1 <= cell <= prod(shape) ||
+        error("row $row of the abundance table names cell $cell, but the grid has " *
+              "$(prod(shape)) cells.")
+    return Int(cell)
+end
+
+function _tablecell(cell::CartesianIndex{2}, shape::Tuple{Int, Int}, row::Int)
+    checkbounds(Bool, CartesianIndices(shape), cell) ||
+        error("row $row of the abundance table names the cell at $(Tuple(cell)), which is off " *
+              "the $(shape[1]) by $(shape[2]) grid.")
+    return LinearIndices(shape)[cell]
+end
+
+function _tablecell(cell, ::Tuple{Int, Int}, row::Int)
+    return error("row $row of the abundance table gives its cell as `$(repr(cell))`: give a " *
+                 "linear index or a `CartesianIndex` `(y, x)`.")
+end
+
+# A table row's count, refused unless it is a finite number, zero or more.
+function _tablecount(count::Real, row::Int)
+    isfinite(count) && count >= 0 ||
+        error("row $row of the abundance table adds $count individuals: a count must be a finite " *
+              "number, zero or more.")
+    return Float64(count)
+end
+
+function _tablecount(count, row::Int)
+    return error("row $row of the abundance table gives its count as `$(repr(count))`: give a " *
+                 "number.")
+end
+
+# One row of a table given to `build_abundance_table`: its species as an index, its `(y, x)` as a
+# linear cell index, its count as given and its time, an elapsed one in seconds.
+function _positionedrow(row, n::Int, eco::AbstractEcosystem, lookup,
+                        shape::Tuple{Int, Int})
+    columns = Tables.columnnames(row)
+    for name in (:species, :y, :x, :time)
+        name in columns ||
+            error("row $n of the table has no `$name` column; `build_abundance_table` needs " *
+                  "`species`, `y`, `x` and `time`, and optionally `count`.")
+    end
+    y = Tables.getcolumn(row, :y)
+    x = Tables.getcolumn(row, :x)
+    y isa Integer && x isa Integer ||
+        error("row $n of the table gives its position as ($(repr(y)), $(repr(x))): `y` and `x` " *
+              "are integer indices into the grid.")
+    count = :count in columns ? Tables.getcolumn(row, :count) : 1
+    _tablecount(count, n)
+    time = Tables.getcolumn(row, :time)
+    _tableelapsedtype(time, n)
+    return (species = _tablespecies(Tables.getcolumn(row, :species), eco,
+                                    lookup, n),
+            cell = _tablecell(CartesianIndex(y, x), shape, n), count = count,
+            time = _normaltime(time))
+end
+
+# A row's time as `build_abundance_table` keeps it: a date as it is, an elapsed time in seconds so
+# that the same instant in two units is one key.
+_normaltime(time::Unitful.Time) = uconvert(s, float(time))
+
+_normaltime(date::Dates.TimeType) = date
+
+# Refuse a time that is neither an elapsed time nor a date.
+_tableelapsedtype(::Union{Unitful.Time, Dates.TimeType}, ::Int) = nothing
+
+function _tableelapsedtype(time, row::Int)
+    return error("row $row of the table gives its time as `$(repr(time))`: give an elapsed time " *
+                 "or a date.")
+end
+
+# Sum the rows of a table, the first already read, by time, species and cell, and return them in that
+# order as the columns of an abundance table.
+function _collectabundances(rows, state, record::NamedTuple,
+                            eco::AbstractEcosystem, lookup,
+                            shape::Tuple{Int, Int})
+    T = typeof(record.time)
+    totals = Dict{Tuple{T, Int, Int}, Float64}()
+    whole = true
+    n = 1
+    while true
+        key = (record.time, record.species, record.cell)
+        totals[key] = get(totals, key, 0.0) + record.count
+        whole &= record.count isa Integer
+        next = iterate(rows, state)
+        isnothing(next) && break
+        row, state = next
+        n += 1
+        record = _positionedrow(row, n, eco, lookup, shape)
+        record.time isa T ||
+            error("row $n of the table gives its time as a $(typeof(record.time)), where the " *
+                  "rows before it gave a $T.")
+    end
+    ordered = sort!(collect(keys(totals)))
+    counts = [totals[key] for key in ordered]
+    return (species = [key[2] for key in ordered],
+            cell = [key[3] for key in ordered],
+            count = whole ? round.(Int, counts) : counts,
+            time = T[key[1] for key in ordered])
+end
+
+export AddAbundanceTable, build_abundance_table
+
+# ---------------------------------------------------------------------------
 # Placing again by suitability is `repopulate!` given the suitability placement, which places over the
 # active cells only, places none of a species no cell suits rather than spreading it evenly, and takes
 # its numbers from the placement rather than re-splitting the species' totals at random.

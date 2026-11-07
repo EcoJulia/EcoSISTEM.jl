@@ -253,7 +253,7 @@ _documented_control_() = nothing
         :arcminute, :arcsecond, :day, :week, :year, :percent,
         # Deprecation shims written as functions, each documented by its redirect.
         :BirthOnlyMovement, :AlwaysMovement, :NoMovement,
-        :repopulate_by_tolerance!]
+        :repopulate_by_tolerance!, :AddAbundanceTable, :build_abundance_table]
     # Every name on the list is a generated constant or a deprecation shim, so the package has
     # **no undocumented public name at all**. A
     # genuine gap appearing here would have to be added deliberately, which is the point.

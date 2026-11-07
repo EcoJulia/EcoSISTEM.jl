@@ -70,6 +70,10 @@
     - `build_species(DefaultEcosystem(); ...)` builds its species from a `SpeciesPool`, taking
       `tolerance` and `demand` as specs.
   - Deprecated
+    - `AddAbundanceTable(table)` and `build_abundance_table(eco, table)`, for
+      `AddAbundance(FromTable(table))` naming species by name and places by grid key or location. The
+      shim converts positions and linear indices; fractional counts round per species, cell and time
+      rather than per step, and a date need no longer fall at a step's end.
     - The positional `GaussianKernel(dist, thresh)` and `LongTailKernel(dist, shape, thresh)`: their
       distance was a Gaussian kernel's mean but neither the mean nor the scale of a long-tailed one.
       Their kernels and lookups are unchanged.

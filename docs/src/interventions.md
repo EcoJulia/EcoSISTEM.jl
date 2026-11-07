@@ -81,8 +81,8 @@ simulate!(eco, 10year, 1month_mean_duration,
 ## What - the operations
 
 A **closed set**: [`Deactivate`](@ref), [`Reactivate`](@ref), [`SetLandCover`](@ref),
-[`SetChange`](@ref), [`AddAbundance`](@ref), [`RemoveAbundance`](@ref), [`AddAbundanceTable`](@ref)
-and [`AddSpecies`](@ref). Closed on purpose - a callback could do anything, including the things
+[`SetChange`](@ref), [`AddAbundance`](@ref), [`RemoveAbundance`](@ref) and [`AddSpecies`](@ref).
+Closed on purpose - a callback could do anything, including the things
 that break reproducibility and MPI, whereas named operations can each be checked once and then
 trusted.
 
@@ -122,8 +122,8 @@ Intervention(AtDates([Date(2030, 3, 1)]), CellMask(fields), AddAbundance(ToCapac
 ```
 
 A dated placement - a [`FromTable`](@ref) with a `time` column, or a [`FromOccurrences`](@ref) given
-its records' `date` or `time` - is served by its dates instead, as [`AddAbundanceTable`](@ref) is: alone
-in an `Intervention` with `EveryStep()`, its rows are added as the clock reaches them, those at or before
+its records' `date` or `time` - is served by its dates instead: alone in an `Intervention` with
+`EveryStep()`, its rows are added as the clock reaches them, those at or before
 the start onto the starting state. It is read once for an ecosystem, over the cells the ecosystem was
 built with; each step adds the rows falling due in the region's cells still active, and the run's end
 notes what it did not add - rows dated after the end, rows a continuing run started past, and rows due
@@ -142,28 +142,24 @@ a run replayable.
 
 ### Adding individuals from a table
 
-[`AddAbundanceTable`](@ref) adds individuals as a table lists them - which species, which cell, how
-many and when - so a population can be seeded from dated records by one operation rather than by an
-intervention per species and month. Its rows say when, so it goes in an intervention of its own with
-`EveryStep()`, and the region filters the rows: `ActiveCells()` leaves out any in an inactive cell.
-[`build_abundance_table`](@ref) turns species names and `(y, x)` grid indices into the indexed,
-time-sorted table it reads best:
+A table listing which species, which cell, how many and when seeds a population from dated records by
+one operation rather than an intervention per species and month: [`FromTable`](@ref) reads it, a row's
+place by its grid key (`CartesianIndex(y, x)`) or by `latitude` and `longitude`, and `AddAbundance`
+serves it by its dates, the region filtering its rows - `ActiveCells()` leaves out any in an inactive
+cell:
 
 ```@example iv
 eco = makeeco()
-records = (species = fill(eco.spplist.names[1], 3), y = [1, 1, 2], x = [1, 1, 3],
+records = (species = fill(eco.spplist.names[1], 3),
+           cell = [CartesianIndex(1, 1), CartesianIndex(1, 1), CartesianIndex(2, 3)],
            time = [1.0, 1.0, 6.0] .* month_mean_duration)
-table = build_abundance_table(eco, records)
-```
-
-```@example iv
 simulate!(eco, 1year, 1month_mean_duration,
-          intervention = Intervention(EveryStep(), ActiveCells(), AddAbundanceTable(table)))
+          intervention = Intervention(EveryStep(), ActiveCells(),
+                                      AddAbundance(FromTable(records))))
 ```
 
-A table offering whole columns - a named tuple of vectors, a `DataFrame`, a memory-mapped Arrow file -
-is searched for the rows each step needs, and can serve any number of runs. One read row by row, such
-as a `CSV.Rows` or a generator, is read once as the run proceeds, so its rows must be in time order.
+`AddAbundanceTable` and `build_abundance_table` are deprecated in its favour: a table goes to
+`FromTable` as it is, naming each species by name and each place by its grid key or location.
 
 ## Several interventions
 

@@ -385,7 +385,6 @@ classDiagram
     AbstractOperation <|-- SetChange
     AbstractOperation <|-- AddAbundance
     AbstractOperation <|-- RemoveAbundance
-    AbstractOperation <|-- AddAbundanceTable
     AbstractOperation <|-- AddSpecies
     Intervention "1" *-- "1" AbstractSchedule : schedule
     Intervention "1" *-- "1" AbstractRegion : region
@@ -397,7 +396,9 @@ classDiagram
 be applied redundantly on every MPI rank and still agree. An *intervention* mutates the ecosystem -
 the active mask, abundances, the species list - so it must be applied once and identically
 everywhere. That is also why the operation set is **closed**: a user callback could draw from the
-global RNG or write a layer's matrix directly, both of which desynchronise ranks. Selections come
+global RNG or write a layer's matrix directly, both of which desynchronise ranks. A placement given to
+`AddAbundance`, a function included, only returns a table, checked before anything is written and
+called by the root alone, so it cannot. Selections come
 from a counter-based stream seeded from `(seed, :intervention, k, step)`, generalising the
 per-species scheme.
 
@@ -409,10 +410,10 @@ restock - recolonisation is by dispersal.
 binomially - and **operations after the first share one resolved region**, which is the only way to
 act twice on the same random cells (clear ground, then plant it).
 
-**`AddAbundanceTable` carries its own times**, one per row, so it stands alone in an intervention
-scheduled `EveryStep()`, which also fires at the start for the rows due there; the region filters its
-rows rather than choosing cells to act on. It is still rank-local: each rank adds only its own
-species' rows.
+**A dated placement carries its own times**, one per row, so `AddAbundance` of one stands alone in an
+intervention scheduled `EveryStep()`, which also fires at the start for the rows due there; the region
+filters its rows rather than choosing cells to act on. The root resolves it once for an ecosystem,
+and each rank keeps and adds only its own species' rows.
 
 ## Tolerances
 
