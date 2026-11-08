@@ -21,15 +21,19 @@ include("rasterfixtures.jl")
 # A small synthetic ecosystem on a 10 × 10 grid. A **fresh** `StudyArea` each time: an area is
 # reusable by design, and sharing one between ecosystems is exactly the bug this file first exposed
 # (see the regression test at the end). Any other keyword - an `epoch`, a `calendar` - goes to
-# `build_ecosystem`.
-function _eco(; abundance = 3000, seed = 1, kw...)
+# `build_ecosystem`. `arriving` more species are declared after the three, left out of the run.
+function _eco(; abundance = 3000, seed = 1, arriving = 0, kw...)
     area = StudyArea(extent = (10.0km, 10.0km), cellsize = 1.0km,
                      verbosity = :silent)
     env = GridHabitat(regime = UniformSpec(285.0K, axis = Temperature),
                       supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                            axis = SolarRadiation),
                       area = area)
-    spp = build_species(SpeciesPool(3),
+    pool = SpeciesPool(3 + arriving)
+    arriving > 0 &&
+        deactivate_species!(pool, string.(4:(3 + arriving))...,
+                            verbosity = :silent)
+    spp = build_species(pool,
                         tolerance = ToleranceSpec(Temperature, μ = 285.0K,
                                                   σ = 5.0K),
                         demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
@@ -490,17 +494,136 @@ end
     # of it; one arriving on that step's own instant comes after them, and is still exactly as many
     # as arrived.
     arrival(time) = Intervention(AtTime(time), AllCells(),
-                                 AddSpecies(abundance = 500))
-    atstart = _eco()
+                                 AddSpecies("4", BySupply(total = 500)))
+    atstart = _eco(arriving = 1)
     simulate!(atstart, 1.0month_mean_duration, 1.0month_mean_duration,
               intervention = arrival(0.0s))
     @test size(atstart.abundances.matrix, 1) == 4
     @test sum(atstart.abundances.matrix[4, :]) != 500
-    onstep = _eco()
+    onstep = _eco(arriving = 1)
     simulate!(onstep, 1.0month_mean_duration, 1.0month_mean_duration,
               intervention = arrival(1.0month_mean_duration))
     @test size(onstep.abundances.matrix, 1) == 4
     @test sum(onstep.abundances.matrix[4, :]) == 500
+end
+
+@testset "AddSpecies brings declared species into the run, placing only its arrivals" begin
+    step = 1.0month_mean_duration
+    region = falses(10, 10)
+    region[2:3, 4:5] .= true
+    at(op) = Intervention(AtTime(step), CellMask(region), op)
+    eco = _eco(arriving = 2)
+    control = _eco(arriving = 2)
+    @test eco.spplist.traits.active == [true, true, true, false, false]
+    simulate!(eco, step, step,
+              intervention = at(AddSpecies("4", BySupply(each = 7))))
+    simulate!(control, step, step)
+    # The arrival is in the run, as its species list says, its individuals in the region; the species
+    # left out stays out; and the others are as they would have been, the placement drawing nothing
+    # of theirs.
+    @test eco.spplist.traits.active == [true, true, true, true, false]
+    arrived = reshape(eco.abundances.matrix[4, :], 10, 10)
+    @test sum(arrived) == 7 && all(iszero, arrived[.!region])
+    @test iszero(sum(eco.abundances.matrix[5, :]))
+    @test eco.abundances.matrix[1:3, :] == control.abundances.matrix[1:3, :]
+    # The placement sees the arrivals as the only species: a total is split between them alone.
+    both = _eco(arriving = 2)
+    simulate!(both, step, step,
+              intervention = at(AddSpecies(["4", "5"], BySupply(total = 100))))
+    @test sum(both.abundances.matrix[4:5, :]) == 100
+    @test both.abundances.matrix[1:3, :] == control.abundances.matrix[1:3, :]
+    # Its rows naming another species are dropped, and reported.
+    table = FromTable((species = ["4", "1"],
+                       cell = [CartesianIndex(2, 4), CartesianIndex(2, 4)],
+                       count = [5, 6]))
+    tabled = _eco(arriving = 1)
+    @test_logs((:warn,
+                r"^6 individuals of 1 species not active were not placed: `1` \(6\)\. `AddSpecies` places only the species it brings in\.$"),
+               match_mode = :any,
+               simulate!(tabled, step, step,
+                         intervention = at(AddSpecies("4", table))))
+    @test sum(tabled.abundances.matrix[4, :]) == 5
+    @test tabled.abundances.matrix[1:3, :] == control.abundances.matrix[1:3, :]
+
+    # A species in the run already gets its arrivals all the same, and the run's end says so.
+    again = _eco()
+    @test_logs((:info,
+                r"^`AddSpecies` found `1` \(1 time\) in the run already"),
+               match_mode = :any,
+               simulate!(again, step, step,
+                         intervention = at(AddSpecies("1",
+                                                      BySupply(total = 10)))))
+    # Placing again places the species in the run now, the arrival among them.
+    repopulate!(eco, verbosity = :silent)
+    @test sum(eco.abundances.matrix[4, :]) > 0
+    @test iszero(sum(eco.abundances.matrix[5, :]))
+    # A filter of the ecosystem keeps the arrival's records now.
+    records = DataFrame(species = ["4", "5"])
+    @test filter(IsActiveSpecies(eco, verbosity = :silent), records).species ==
+          ["4"]
+
+    # A name reaching no species is refused before the run's first step, or reported at a lower
+    # level and left out.
+    unnamed = _eco(arriving = 1)
+    @test_throws "`AddSpecies` names `zz`, which no species of the run is" simulate!(unnamed,
+                                                                                     step,
+                                                                                     step,
+                                                                                     intervention = at(AddSpecies("zz",
+                                                                                                                  BySupply())))
+    @test iszero(EcoSISTEM.simulationtime(unnamed))
+    @test_logs((:warn, r"names `zz`.* It adds no such species\.$"),
+               match_mode = :any,
+               simulate!(unnamed, step, step,
+                         intervention = at(AddSpecies(["4", "zz"],
+                                                      BySupply(each = 3),
+                                                      level = EcoSISTEM.ProblemWarning()))))
+    @test sum(unnamed.abundances.matrix[4, :]) == 3
+
+    # Refused when built: a dated placement, no species, a species not named, not a placement.
+    dated = FromTable((species = ["4"], cell = [CartesianIndex(1, 1)],
+                       count = [1], time = [0.0s]))
+    @test_throws "takes an undated placement" AddSpecies("4", dated)
+    @test_throws "at least one species" AddSpecies(String[], BySupply())
+    @test_throws "by name" AddSpecies([1, 2], BySupply())
+    @test_throws "a placement says how many" AddSpecies("4", 5)
+    @test sprint(show, AddSpecies("4", BySupply(each = 7))) ==
+          "AddSpecies(\"4\", " *
+          EcoSISTEM._placementphrase(BySupply(each = 7)) *
+          ")"
+    @test endswith(sprint(show,
+                          AddSpecies([:a, "b"], NoAbundance(),
+                                     level = EcoSISTEM.ProblemNotice())),
+                   ", level = ProblemNotice())")
+end
+
+@testset "RandomSpecies draws species not in the run from the intervention's stream" begin
+    step = 1.0month_mean_duration
+    drawn(count; seed = 1, steps = 1) = begin
+        eco = _eco(arriving = 4, seed = seed)
+        simulate!(eco, steps * step, step,
+                  intervention = Intervention(EveryStep(), AllCells(),
+                                              AddSpecies(RandomSpecies(count),
+                                                         BySupply(each = 5))))
+        return eco
+    end
+    two = drawn(2)
+    @test count(two.spplist.traits.active[4:7]) == 2
+    @test vec(sum(two.abundances.matrix[4:7, :], dims = 2)) ==
+          5 .* two.spplist.traits.active[4:7]
+    @test drawn(2).spplist.traits.active == two.spplist.traits.active
+    # A rate draws each species left out independently over the step: certain, or never.
+    @test all(drawn(1.0e6 / year).spplist.traits.active)
+    @test drawn(0.0 / year).spplist.traits.active ==
+          [true, true, true, false, false, false, false]
+    # Fewer left than asked for takes those there are, and the run's end says how many it could not.
+    short = @test_logs((:info,
+                        r"^`RandomSpecies\(3\)` asked for 5 more species than were left out of the run"),
+                       match_mode = :any, drawn(3, steps = 3))
+    @test all(short.spplist.traits.active)
+    @test_throws "not negative" RandomSpecies(-1)
+    @test_throws "not negative" RandomSpecies(-0.1 / year)
+    @test_throws MethodError RandomSpecies(1.5)
+    @test sprint(show, RandomSpecies(2)) == "RandomSpecies(2)"
 end
 
 @testset "Interventions are reproducible and order-stable" begin

@@ -24,7 +24,6 @@ using Random
 """
     repopulate!(eco::AbstractEcosystem, placement = eco.placement; seed = eco.seed,
                 verbosity = :normal)
-    repopulate!(eco::Ecosystem, abun::Int64)
 
 Place an ecosystem's individuals again from scratch: its abundances are cleared, and `placement`
 places them over its active cells and layers as they now are, as [`build_ecosystem`](@ref) placed
@@ -34,9 +33,6 @@ ecosystem's own placement and seed, it places what its build placed; the clock, 
 dynamics draw from, are left as they are. Under MPI with more than one rank this is a collective
 call.
 
-Given an `abun` instead, it adds that number of individuals of the last species at randomly sampled
-cells with any supply.
-
 # Arguments
 
   - `eco`: the ecosystem.
@@ -45,7 +41,6 @@ cells with any supply.
   - `seed`: the seed of the placement's streams.
   - `verbosity`: `:silent` reports only what the placement could not place; anything else reports
     its notices too.
-  - `abun`: how many individuals of the last species to add.
 """
 function repopulate!(eco::AbstractEcosystem, placement = eco.placement;
                      seed::Integer = eco.seed, verbosity::Symbol = :normal)
@@ -61,20 +56,6 @@ function repopulate!(eco::AbstractEcosystem, placement = eco.placement;
     _placeinto!(eco, placement, context, verbosity, clear = true)
     invalidatecaches!(eco)
     return eco
-end
-
-function repopulate!(eco::Ecosystem, abun::Int64)
-    grid, activity = _gridactivity(eco.habitat)
-    # Set up copy of supply
-    b = reshape(parent(copy(_getsupply(eco.habitat.supply))), length(grid))
-    units = unit(b[1])
-    b[.!activity] .= 0.0 * units
-    # Draw locations from the last species' own RNG stream
-    pos = sample(getrng(eco, lastindex(eco.rngs)), grid[b .> (0 * units)], abun)
-    # Add individual to this location
-    map(pos) do p
-        return eco.abundances.matrix[end, p] += 1
-    end
 end
 
 # The context of a placement in `eco`: its active cells, a placement stream per species and the
@@ -122,7 +103,7 @@ function _resolveplacement(eco::AbstractEcosystem, placement,
                   "`EveryStep()`.")
         matched = _matchedtable(_canonicaltable(raw.table, eco.habitat,
                                                 context),
-                                eco.spplist, verbosity)
+                                eco.spplist, context, verbosity)
         return PlacedAbundances(matched.table, records = raw.records,
                                 problems = vcat(raw.problems, matched.problems))
     end
@@ -737,21 +718,4 @@ function _move!(eco::AbstractEcosystem,
         grd[row, loc] += moves[i]
     end
     return eco
-end
-
-# Return the two ingredients the population routines share when spreading
-# individuals across the grid:
-# `grid`     - a vector of the linear indices `1:ncells` of every grid cell,
-# used both to size/flatten the supply and to sample cell locations;
-# `activity` - a flattened copy of `habitat.active`, the boolean mask of which cells
-# are habitable. Callers zero the supply of inactive (`false`) cells so
-# that no individuals are ever placed outside the active region.
-function _gridactivity(habitat::AbstractHabitat)
-    dim = getgridshape(habitat)
-    len = dim[1] * dim[2]
-    grid = collect(1:len)
-    # `reshape` on a `DimArray` isn't a clean zero-copy operation the way a plain `Array`
-    # reshape is - unwrap via `parent()` first.
-    activity = reshape(copy(parent(habitat.active)), len)
-    return grid, activity
 end

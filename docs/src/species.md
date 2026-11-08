@@ -148,7 +148,7 @@ syndromes = SpeciesPool(DataFrame(species = ["a", "b", "c"],
                                   syndrome = ["wind", "insect", "wind"]),
                         verbosity = :silent)
 dispersers = build_species(syndromes,
-                           tolerance = ToleranceSpec(Temperature, μ = 285.0K, σ = 2.0K),
+                           tolerance = ToleranceSpec(Temperature, μ = 10.0°C, σ = 2.0K),
                            demand = DemandSpec(SolarRadiation, 1.0e7J / day),
                            movement = ChosenBy(:syndrome,
                                                "wind" => MovementSpec(WindDispersal(),

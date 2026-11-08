@@ -61,7 +61,7 @@ using EcoSISTEM, EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
 
 area = StudyArea(extent = (500km, 500km), cellsize = 10km, verbosity = :silent)
-env = GridHabitat(regime = UniformSpec(285.0K, axis = Temperature),
+env = GridHabitat(regime = UniformSpec(10.0°C, axis = Temperature),
                         supply = UniformSpec(1.0kJ / (m^2 * day),
                                              axis = SolarRadiation),
                         area = area)
@@ -72,7 +72,7 @@ resources, or both - and the pieces are held in a [`LayerCollection`](@ref). Nam
 makes them addressable:
 
 ```@example layers
-env = GridHabitat(regime = (temperature = UniformSpec(285.0K, axis = Temperature),
+env = GridHabitat(regime = (temperature = UniformSpec(10.0°C, axis = Temperature),
                                   rain = UniformSpec(2.0mm / day,
                                                      axis = Precipitation)),
                         supply = (sunlight = UniformSpec(1.0kJ / (m^2 * day),
@@ -168,7 +168,7 @@ coarser grid gives each cell more of everything, as it should. On the species si
 [`build_species`](@ref) takes the axis explicitly, as each spec's first argument:
 
 ```julia
-build_species(pool, tolerance = ToleranceSpec(Temperature, μ = 298.0K, σ = 2.0K),
+build_species(pool, tolerance = ToleranceSpec(Temperature, μ = 25.0°C, σ = 2.0K),
                     demand = DemandSpec(SolarRadiation, 10.0kJ / day), ...)
 ```
 

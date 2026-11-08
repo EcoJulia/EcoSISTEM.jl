@@ -16,10 +16,6 @@ using DimensionalData
 
 include("TestCases.jl")
 
-# A stand-in for any non-`UniqueTypes` similarity structure (a phylogeny, in practice), so the
-# refusal can be checked without building a tree.
-struct NotUniqueTypes <: Diversity.AbstractTypes end
-
 @testset "Ecosystem" begin
     eco = Test1Ecosystem()
     @test eco isa Ecosystem
@@ -48,27 +44,21 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
                           distributed = false)
     # The placement places exactly the counts it is given, species by species.
     @test vec(sum(eco.abundances.matrix, dims = 2)) == abun
-    # Adding a species mid-run is the `AddSpecies` operation, applied either by declaring an
+    # Bringing a species into a run is the `AddSpecies` operation, applied either by declaring an
     # intervention or - as here - through `applyinterventions!`, the supported imperative route.
-    # `step` must be one the run has actually reached: the selection RNG is keyed on it.
-    before = length(eco.spplist.names)
-    # The last species is given a set of classes no other species has, so that a copy of any other
-    # species cannot pass for a copy of the last.
-    vals = eco.spplist.tolerance.vals
-    vals[end] = sort(unique(reduce(vcat, vals)))
-    @test count(==(vals[end]), vals) == 1
-    lastset = copy(vals[end])
+    # `step` must be one the run has actually reached: the selection RNG is keyed on it. The run's
+    # species never change in number, and one in the run already gets its arrivals all the same.
+    shape = size(eco.abundances.matrix)
+    before = sum(eco.abundances.matrix[end, :])
     @test_nowarn EcoSISTEM.applyinterventions!(eco,
                                                Intervention(EveryStep(),
                                                             AllCells(),
-                                                            AddSpecies(abundance = 10)),
+                                                            AddSpecies(eco.spplist.names[end],
+                                                                       BySupply(total = 10))),
                                                1month_mean_duration,
                                                1month_mean_duration, 1)
-    @test length(eco.spplist.names) == before + 1
-    # With no tolerance given, the arrival's set of classes is the last species', as `AddSpecies`
-    # documents - a copy, so that changing either set leaves the other alone.
-    @test vals[end] == lastset
-    @test vals[end] !== vals[end - 1]
+    @test size(eco.abundances.matrix) == shape
+    @test sum(eco.abundances.matrix[end, :]) == before + 10
 
     @testset "get functions" begin
         # Test Simulation get functions
@@ -91,9 +81,9 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
               EcoSISTEM.speciesdispersal(eco, 1)
         @test EcoSISTEM.speciesdispersal(eco.spplist, 1) ===
               EcoSISTEM.speciesdispersal(eco, 1)
-        # The round trip the return type buys: it is exactly `AddSpecies`' `dispersal` keyword.
-        @test AddSpecies(dispersal = EcoSISTEM.speciesdispersal(eco, 1),
-                         abundance = 10).dispersal ===
+        # The round trip the return type buys: a dispersal mode called with it gives a species'
+        # movement.
+        @test InsectDispersal()(EcoSISTEM.speciesdispersal(eco, 1)).kernel ===
               eco.spplist.movement[1].kernel
         @test EcoSISTEM.getlookup(eco, "1") == eco.lookup[1]
         @test EcoSISTEM.getlookup(eco, 1) == eco.lookup[1]
@@ -146,9 +136,7 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
         @test gettypes(eco) == eco.spplist
         @test_nowarn getordinariness!(eco)
         # **Recomputed every call, never cached.** Asserting that a *cache* was populated would be
-        # asserting the hazard: nothing that mutates the ecosystem can invalidate one, so after
-        # `_addspecies!` a cached matrix is the wrong shape. Measured: caching saved
-        # 16,720 B on a 217 MB `norm_sub_alpha` call.
+        # asserting the hazard: nothing that mutates the ecosystem can invalidate one.
         @test getordinariness!(eco) == getordinariness!(eco)
     end
     @testset "collection-trait incompatibility message" begin
@@ -267,21 +255,6 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
                                                              5),
                                                      names, grid)
     end
-end
-
-@testset "_addtypes! keeps the names, and refuses what it cannot extend" begin
-    # Real names are essential: `SpeciesPool(n)` names `"1"`, `"2"`, ... , so the bug this guards -
-    # `UniqueTypes(count)` renaming **every existing species** to its index on each `_addspecies!` -
-    # cannot show itself on a synthetic list.
-    named = ["oak", "ash", "elm"]
-    types = EcoSISTEM._uniquetypes(named)
-    grown = EcoSISTEM._addtypes!(types, "yew")
-    @test gettypenames(grown, true) == [named; "yew"]
-    @test counttypes(grown, true) == 4
-
-    # And a species list whose types are not `UniqueTypes` - a phylogeny, in practice - is refused
-    # with the reason rather than falling off the end of dispatch as a `MethodError`.
-    @test_throws ErrorException EcoSISTEM._addtypes!(NotUniqueTypes(), "yew")
 end
 
 # --- `CachedEcosystem`, which is declared in `Ecosystem.jl` ---

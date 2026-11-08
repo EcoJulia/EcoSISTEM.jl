@@ -51,6 +51,9 @@
     - Two ways to say where an intervention acts: `CellsAt(places...; snap)`, the cells at
       latitudes and longitudes or grid keys, and a shape as the region - a `NaturalEarthSpec`, a
       `ShapeSpec` or a `ShapeMaskSpec`, meaning what it means as a study area's `within`.
+    - `AddSpecies(species, placement)` brings species declared in the pool, and deactivated there,
+      into a run, placing their arrivals over the region; `RandomSpecies(count)` draws them from those
+      not in the run. It works under MPI, and names are checked before the run's first step.
   - Changed
     - `build_ecosystem(species, habitat)` places 1000 individuals of each active species, split at
       random and placed by supply, and announces it; it takes `verbosity`. `repopulate!(eco, placement = eco.placement; seed)` places again by the
@@ -85,6 +88,8 @@
       needs the new form.
     - `repopulate_by_tolerance!(eco)`, for `repopulate!(eco, BySuitability())`, which places over the
       active cells only and takes its numbers from the placement.
+    - `maxspecies` on `RecordAbundance` and `generate_storage`, now ignored: the storage has a row for
+      every species of the pool. `repopulate!(eco, abun)`, for `AddSpecies` or `AddAbundance`.
   - Fixed
     - `discrete_evolve` uses the switch value it is given.
     - The switch parameter of `assigntraits!`, `discrete_evolve` and the phylogeny-building `SpeciesList`
@@ -98,6 +103,9 @@
     - `SpeciesList`'s `abun` and `native`, as fields and constructor arguments, `Ecosystem` and
       `MPIEcosystem` built from a population function, and `populate!`, `populate_by_tolerance!` and
       `emptypopulate!`. Each raises an error naming its replacement.
+    - `AddSpecies(; tolerance, demand, dispersal, birth, death, abundance, name)`, which appended a
+      species mid-run: declare the arrival in the pool, deactivated, and give
+      `AddSpecies(name, placement)`. The call raises an error showing its own rewrite.
 
 - v0.10.1
   - Fixed

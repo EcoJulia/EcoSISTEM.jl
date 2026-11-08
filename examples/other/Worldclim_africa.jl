@@ -54,7 +54,7 @@ env = GridHabitat(regime = temperature, supply = rainfall, area = area)
 # The tolerance is a `Temperature` and the demand a `Precipitation`, and each says so: meaning
 # comes from the declared axis, never from the values or their units.
 species = build_species(SpeciesPool(1),
-                        tolerance = ToleranceSpec(Temperature, μ = 280.0K,
+                        tolerance = ToleranceSpec(Temperature, μ = 5.0°C,
                                                   σ = 10.0K),
                         demand = DemandSpec(Precipitation, 0.1Unitful.L / day),
                         movement = MovementSpec(InsectDispersal(),

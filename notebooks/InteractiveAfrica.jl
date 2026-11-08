@@ -100,7 +100,7 @@ begin
     movement = AlwaysDispersal().(kernel)
 
     # Create species list, including their temperature preferences
-    opts = fill(274.0K, numSpecies)
+    opts = fill(uconvert(K, 0.0°C), numSpecies)
     vars = fill(50.0K, numSpecies)
     vars[end] = (1 / niche_width) * K
     tolerance = NicheTolerance(Temperature, Normal, opts, vars)
@@ -110,7 +110,7 @@ begin
     # Create abiotic environment - an even grid of one temperature, on the Africa-shaped grid
     # decided above. `GridHabitat` chooses nothing: it samples the layers named here onto
     # the grid the study area already settled, mask and all.
-    habitat = GridHabitat(regime = UniformSpec(274.0K,
+    habitat = GridHabitat(regime = UniformSpec(0.0°C,
                                                axis = Temperature),
                           supply = UniformSpec(totalK,
                                                axis = SolarRadiation),
@@ -169,11 +169,11 @@ end
 
 # ╔═╡ f9d43c58-4888-402e-873a-81f3c4ffd367
 begin
-    temp_slider = @bind meantemp html"<input type='range' min='270' max='300' step='10' value='290'>"
+    temp_slider = @bind meantemp html"<input type='range' min='0' max='30' step='10' value='20'>"
 
     md"""**Please set model parameters:**
 
-    Temperature preference: $(temp_slider)
+    Temperature preference (°C): $(temp_slider)
     """
 end
 
@@ -219,7 +219,7 @@ begin
     movement_new = AlwaysDispersal().(kernel)
 
     # Create species list, including their temperature preferences
-    opts_new = fill(meantemp * 1.0K, numSpecies)
+    opts_new = fill(uconvert(K, meantemp * °C), numSpecies)
     vars_new = fill(5.0K, numSpecies)
     trts_new = NicheTolerance(Temperature, Normal, opts_new, vars_new)
     sppl_new = SpeciesList(numSpecies, trts_new, energy_vec_new, movement_new,

@@ -202,13 +202,11 @@ end
     @test Diversity.API._getscale(eco) == 1          # `UniqueTypes`: no similarity, so unit scale
 
     # **Never cached - it must track the ecosystem.** A cache on `eco.ordinariness` is one nothing
-    # invalidates when the ecosystem changes: after `_addspecies!` it returns a `(10, 100)` matrix
-    # for an 11-species ecosystem. Such a cache is safe only by *position*, every mutator happening
-    # to run after `update!`'s single `invalidatecaches!`.
-    before = size(getordinariness!(eco), 1)
-    EcoSISTEM._addspecies!(eco, 10)
-    @test counttypes(eco) == before + 1
-    @test size(getordinariness!(eco), 1) == before + 1
+    # invalidates when the abundances change, safe only by *position*, every mutator happening to
+    # run after `update!`'s single `invalidatecaches!`.
+    before = copy(getordinariness!(eco))
+    eco.abundances.matrix[1, :] .+= 10
+    @test getordinariness!(eco) != before
 end
 
 # **The forwarding rule, asserted by ENUMERATION rather than by a list.** A `SpeciesList` holds

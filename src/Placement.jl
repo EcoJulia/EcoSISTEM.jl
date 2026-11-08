@@ -413,7 +413,8 @@ end
 
 """
     PlacementContext(; cells, streams, community, nichefit, epoch = nothing,
-                     calendar = ExactDates(), time = 0.0s, demand = nothing)
+                     calendar = ExactDates(), time = 0.0s, demand = nothing,
+                     active = nothing)
 
 What a placement is given besides the species and the habitat: where it may place, the random
 streams it draws from, and when it is.
@@ -432,6 +433,9 @@ streams it draws from, and when it is.
   - `demand`: what the individuals already in each cell demand of each resource, a grid-shaped array
     for each resource in the order of the supplies, where the placement fills to capacity (as
     [`ToCapacity`](@ref) does); `nothing` otherwise, and at build, where the cells are empty.
+  - `active`: which species it places, one flag per species in species order, where they are not
+    those its species list marks active: an [`AddSpecies`](@ref)' arrivals alone, at its firing;
+    `nothing` otherwise.
 """
 struct PlacementContext{C <: AbstractVector, S <: AbstractDict,
                         R <: AbstractRNG, NF <: AbstractNicheFit, D}
@@ -443,6 +447,7 @@ struct PlacementContext{C <: AbstractVector, S <: AbstractDict,
     calendar::AbstractRunCalendar
     time::typeof(1.0s)
     demand::D
+    active::Union{Nothing, Vector{Bool}}
 
     function PlacementContext(; cells::AbstractVector,
                               streams::AbstractDict, community::AbstractRNG,
@@ -450,12 +455,16 @@ struct PlacementContext{C <: AbstractVector, S <: AbstractDict,
                               epoch::Union{Nothing, Dates.TimeType} = nothing,
                               calendar::AbstractRunCalendar = ExactDates(),
                               time::Unitful.Time = 0.0s,
-                              demand::Union{Nothing, Tuple} = nothing)
+                              demand::Union{Nothing, Tuple} = nothing,
+                              active::Union{Nothing, AbstractVector{Bool}} = nothing)
         return new{typeof(cells), typeof(streams), typeof(community),
                    typeof(nichefit), typeof(demand)}(cells, streams, community,
                                                      nichefit, epoch, calendar,
                                                      float(uconvert(s, time)),
-                                                     demand)
+                                                     demand,
+                                                     isnothing(active) ?
+                                                     nothing :
+                                                     Vector{Bool}(active))
     end
 end
 
@@ -1030,7 +1039,7 @@ end
 
 function _placecounts(numbers::_Each, ::AbstractString, species, habitat,
                       context, allowed, ::Vector{Problem})
-    active = _activespecies(species)
+    active = _activespecies(species, context)
     areaof = _areaof(habitat, allowed)
     counts = zeros(Int, length(species.names))
     for (sp, name) in enumerate(species.names)
@@ -1045,7 +1054,7 @@ end
 function _placecounts(::_DefaultCount, what::AbstractString, species, habitat,
                       context, allowed, problems::Vector{Problem})
     per = _default(Val(:individuals)).value
-    k = count(_activespecies(species))
+    k = count(_activespecies(species, context))
     push!(problems,
           Problem(ProblemNotice(), :default_numbers,
                   "$what was given neither `total` nor `each`, so it places $per individuals per " *
@@ -1056,7 +1065,7 @@ end
 # A community total split across the active species, in species order, by one draw from the
 # community stream; the species that are not active get none.
 function _splittotal(n::Integer, species, context)
-    active = _activespecies(species)
+    active = _activespecies(species, context)
     counts = zeros(Int, length(species.names))
     k = count(active)
     k == 0 && return counts
@@ -1064,8 +1073,23 @@ function _splittotal(n::Integer, species, context)
     return counts
 end
 
-# Which species are active, in species order.
-_activespecies(species::SpeciesList) = Vector{Bool}(species.traits.active)
+# Which species a placement places, in species order: those its context names, else those its species
+# list marks active.
+function _activespecies(species::SpeciesList, context::PlacementContext)
+    isnothing(context.active) && return Vector{Bool}(species.traits.active)
+    return context.active
+end
+
+# What a placement matches its table's names against: its species list's index, with the species its
+# context places as the active ones where they are not the list's own, as an `AddSpecies`' are.
+function _matchindex(species::SpeciesList, context::PlacementContext)
+    index = _matchindex(species)
+    (isnothing(context.active) || context.active == index.active) &&
+        return index
+    return merge(index,
+                 (active = context.active,
+                  activate = "`AddSpecies` places only the species it brings in."))
+end
 
 # The area of the allowed cells in a unit asked for, worked out once a unit.
 function _areaof(habitat::GridHabitat, allowed)
@@ -1226,7 +1250,7 @@ function _occurrencerows(p::FromOccurrences, data::DataFrame,
                          species::SpeciesList, habitat::GridHabitat,
                          context::PlacementContext)
     _checkoccurrencecolumns(p, data)
-    index = _matchindex(species)
+    index = _matchindex(species, context)
     given = data[!, p.species]
     matched = _matchspecies(given, Iterators.repeated(1, length(given)), index,
                             _nameanswers(index, given))
@@ -1429,7 +1453,7 @@ function _sharesof(table, species::SpeciesList, habitat::GridHabitat,
                    context::PlacementContext)
     canonical = _canonicaltable(table, habitat, context, times = false)
     shares = [_placedshare(x, row) for (row, x) in enumerate(canonical.count)]
-    index = _matchindex(species)
+    index = _matchindex(species, context)
     matched = _matchspecies(canonical.species,
                             Iterators.repeated(1, length(shares)), index,
                             _nameanswers(index, canonical.species))
@@ -1688,9 +1712,9 @@ end
 # one warning; a count that is not a whole non-negative number stops it. It runs inside the
 # placement's shared build, so it looks its names up itself.
 function _matchedtable(table::NamedTuple, species::SpeciesList,
-                       verbosity::Symbol)
+                       context::PlacementContext, verbosity::Symbol)
     counts = [_placedcount(n, row) for (row, n) in enumerate(table.count)]
-    index = _matchindex(species)
+    index = _matchindex(species, context)
     matched = _matchspecies(table.species, counts, index,
                             _nameanswers(index, table.species))
     keep = .!isnothing.(matched.rows)

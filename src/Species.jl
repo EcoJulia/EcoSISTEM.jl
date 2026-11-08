@@ -358,7 +358,8 @@ end
 
 # What a filter or a placement matches a table's names against, for a species list: its species' rows
 # by their own names, by every name of their pool's data that reached one of them, and by identifier,
-# whether each is active, and its authority's resolver, made on the first name not found otherwise.
+# whether each is active and how one is activated, and its authority's resolver, made on the first name
+# not found otherwise.
 function _matchindex(species::SpeciesList)
     traits = species.traits
     rowof(v) = Dict(x => r for (r, x) in enumerate(v) if !ismissing(x))
@@ -368,11 +369,17 @@ function _matchindex(species::SpeciesList)
             resolve = _lazyresolver(species.authority),
             active = Vector{Bool}(traits.active),
             speciesname = Vector{String}(traits.name),
-            authority = species.authority, holder = "the species list")
+            authority = species.authority, holder = "the species list",
+            activate = "Activate them in their pool with `activate_species!` and build the " *
+                       "species again to keep them.")
 end
 
-# What a filter matches a table's names against, for an ecosystem: its species list.
-_matchindex(eco::AbstractEcosystem) = _matchindex(eco.spplist)
+# What a filter matches a table's names against, for an ecosystem: its species list, a species being
+# activated during a run by `AddSpecies`.
+function _matchindex(eco::AbstractEcosystem)
+    return merge(_matchindex(eco.spplist),
+                 (activate = "`AddSpecies` activates a species during a run.",))
+end
 
 # The keywords a species list takes from what was read of a pool, none without one.
 _poolfields(::Nothing, names) = NamedTuple()
@@ -380,20 +387,4 @@ _poolfields(::Nothing, names) = NamedTuple()
 function _poolfields(pool::NamedTuple, names)
     return (traits = pool.traits, filled = pool.filled,
             authority = pool.authority, namemap = pool.namemap)
-end
-
-# Give a species just appended to `sl` its identity: a key after every other, active, and no values
-# of its own (`missing`, none filled), found by its name.
-function _addidentity!(sl::SpeciesList, name::AbstractString)
-    traits = sl.traits
-    DataFrames.allowmissing!(traits)
-    row = Dict{Symbol, Any}(c => missing for c in propertynames(traits))
-    row[:key] = maximum(traits.key, init = 0) + 1
-    row[:name] = String(name)
-    row[:active] = true
-    push!(traits, row)
-    isempty(propertynames(sl.filled)) || push!(sl.filled, Dict(c => false
-                          for c in propertynames(sl.filled)))
-    sl.namemap[String(name)] = nrow(traits)
-    return sl
 end

@@ -394,16 +394,31 @@ end
     eco = last(lives)
     @test sum(eco.abundances.matrix) > 0
     @test eco.abundances.matrix != first(lives).abundances.matrix
-    simulate!(eco, 1month_mean_duration, 1month_mean_duration,
-              intervention = Intervention(AtTime(7.0month_mean_duration),
+    # An arrival declared in the pool and left out of the run joins it when `AddSpecies` acts: its
+    # species list says so, keeping its identity and its values, while the pool keeps what was
+    # declared, so a list built from it again starts without the arrival.
+    arrivals = SpeciesPool(DataFrame(species = ["1", "2", "3", "arrival"],
+                                     life = [0.5, 1.0, 2.0, 3.0],
+                                     need = [0.5, 1.0, 1.5, 1.0] .* 1.0e-4))
+    deactivate_species!(arrivals, "arrival", verbosity = :silent)
+    species = quietly(arrivals, tolerance = niche, demand = needs,
+                      longevity = TraitColumn(:life), seed = 1)
+    eco = build_ecosystem(species, habitat, seed = 1)
+    @test iszero(sum(eco.abundances.matrix[end, :]))
+    simulate!(eco, 2month_mean_duration, 1month_mean_duration,
+              intervention = Intervention(AtTime(2.0month_mean_duration),
                                           AllCells(),
-                                          AddSpecies(abundance = 10,
-                                                     name = "arrival")))
-    @test eco.spplist.names[end] == "arrival"
-    @test eco.spplist.traits.name[end] == "arrival"
-    @test eco.spplist.traits.key[end] == 4 &&
-          eco.spplist.namemap["arrival"] == 4
-    @test eco.spplist.params.longevity == [0.5, 1.0, 2.0, 2.0]
+                                          AddSpecies("arrival",
+                                                     BySupply(total = 10))))
+    @test sum(eco.abundances.matrix[end, :]) == 10
+    @test eco.spplist === species
+    @test species.traits.active == [true, true, true, true]
+    @test species.traits.key == [1, 2, 3, 4] &&
+          species.namemap["arrival"] == 4
+    @test species.params.longevity == [0.5, 1.0, 2.0, 3.0]
+    @test arrivals.species.active == [true, true, true, false]
+    @test quietly(arrivals, tolerance = niche, demand = needs,
+                  seed = 1).traits.active == [true, true, true, false]
 end
 
 end

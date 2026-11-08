@@ -97,7 +97,7 @@ const AREA = StudyArea(extent = (SIDE, SIDE), cellsize = CELLSIZE,
 
 # A flat environment: one temperature everywhere, one solar supply everywhere. That is the point
 # of a scaling benchmark - nothing about the landscape should vary the work per cell.
-const ENVIRONMENT = GridHabitat(regime = UniformSpec(274.0K,
+const ENVIRONMENT = GridHabitat(regime = UniformSpec(0.0°C,
                                                      axis = Temperature),
                                 supply = UniformSpec(1000.0kJ / km^2 /
                                                      day,
@@ -108,7 +108,7 @@ const ENVIRONMENT = GridHabitat(regime = UniformSpec(274.0K,
 # seed carried by insects. Every dispersal mode runs distributed, so it is not forced by the MPI run.
 const SPECIES = build_species(SpeciesPool(NUMSPECIES),
                               tolerance = ToleranceSpec(Temperature,
-                                                        μ = 274.0K, σ = 0.5K),
+                                                        μ = 0.0°C, σ = 0.5K),
                               demand = DemandSpec(SolarRadiation, 1.0kJ / day),
                               movement = MovementSpec(InsectDispersal(),
                                                       meandist = 1.0km),

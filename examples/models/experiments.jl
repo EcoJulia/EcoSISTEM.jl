@@ -32,10 +32,10 @@ println("Writing figures to ", FIGURES)
 
 # --- 1. different temperature optima -----------------------------------------
 # 100 species differing only in preferred temperature, spread ±3 widths around the landscape's own
-# 298 K. Those matched to the environment should end up commonest.
+# 25 °C. Those matched to the environment should end up commonest.
 println("  1. temperature optima ...")
 let widths = fill(2.0K, NUMSPECIES)
-    opts = 298.0K .+ widths .* range(-3, stop = 3, length = NUMSPECIES)
+    opts = 25.0°C .+ widths .* range(-3, stop = 3, length = NUMSPECIES)
     eco = community(uniform_environment(CELLS, AREA, topology = Island()),
                     opts, widths)
     simulate!(eco, 10year, 1month_mean_duration)
@@ -51,7 +51,7 @@ end
 # range it tolerates. In a constant regime a wide niche buys nothing, so the specialists win.
 println("  2. niche widths (matched) ...")
 let widths = collect(range(0.0001K, stop = 5.0K, length = NUMSPECIES))
-    opts = fill(298.0K, NUMSPECIES)
+    opts = fill(25.0°C, NUMSPECIES)
     eco = community(uniform_environment(CELLS, AREA, topology = Island()),
                     opts, widths)
     simulate!(eco, 10year, 1month_mean_duration)
@@ -68,8 +68,8 @@ end
 # one non-monotonic result in the set, and the reason it is worth plotting beside the last one.
 println("  3. niche widths (mismatched) ...")
 let widths = collect(range(0.0001K, stop = 5.0K, length = NUMSPECIES))
-    opts = fill(298.0K, NUMSPECIES)
-    eco = community(uniform_environment(CELLS, AREA, temperature = 299.0K),
+    opts = fill(25.0°C, NUMSPECIES)
+    eco = community(uniform_environment(CELLS, AREA, temperature = 26.0°C),
                     opts, widths)
     simulate!(eco, 10year, 1month_mean_duration)
 
@@ -94,7 +94,7 @@ end
 # the empty edge is where the surface shows a resource binding absolutely.
 println("  4. resource surface (Liebig's law) ...")
 let env = uniform_environment(CELLS, AREA, topology = Island()),
-    opts = fill(298.0K, NUMSPECIES), widths = fill(2.0K, NUMSPECIES)
+    opts = fill(25.0°C, NUMSPECIES), widths = fill(2.0K, NUMSPECIES)
 
     fractions = range(0.0, stop = 1.0, length = CELLS)
     fullsun = env.supply.sunlight.matrix[1, 1]
@@ -126,7 +126,7 @@ let resolutions = [1, 2, 5, 10]
     totals = map(resolutions) do cells
         eco = community(uniform_environment(cells, AREA,
                                             topology = Island()),
-                        fill(298.0K, NUMSPECIES), fill(2.0K, NUMSPECIES))
+                        fill(25.0°C, NUMSPECIES), fill(2.0K, NUMSPECIES))
         simulate!(eco, 10year, 1month_mean_duration)
         return sum(eco.abundances.matrix)
     end
@@ -144,7 +144,7 @@ let areas = [10.0, 20.0, 50.0, 100.0]
     totals = map(areas) do a
         eco = community(uniform_environment(CELLS, a * km^2,
                                             topology = Island()),
-                        fill(298.0K, NUMSPECIES), fill(2.0K, NUMSPECIES))
+                        fill(25.0°C, NUMSPECIES), fill(2.0K, NUMSPECIES))
         simulate!(eco, 10year, 1month_mean_duration)
         return sum(eco.abundances.matrix)
     end
@@ -161,7 +161,7 @@ let distances = [0.5, 1.0, 2.0, 4.0] .* km
     profiles = map(distances) do d
         eco = community(uniform_environment(CELLS, AREA,
                                             topology = Island()),
-                        fill(298.0K, 2),
+                        fill(25.0°C, 2),
                         fill(2.0K, 2), dispersal = d, individuals = 0)
         eco.abundances.grid[1, :, 1] .= 100
         eco.abundances.grid[2, :, end] .= 100
@@ -183,7 +183,7 @@ let pools = [50, 100, 200, 500]
     fractions = map(pools) do n
         rng = Xoshiro(1)
         widths = rand(rng, Uniform(1.0, 5.0), n) .* K
-        opts = 298.0K .+ widths .* range(-3, stop = 3, length = n)
+        opts = 25.0°C .+ widths .* range(-3, stop = 3, length = n)
         death = abs.(rand(rng, Normal(0.15, 0.135), n)) ./ year
         eco = community(uniform_environment(CELLS, AREA,
                                             topology = Island()), opts,
@@ -213,7 +213,8 @@ let scenarios = (baseline = (climate_ecosystem, nothing),
                  warming = (climate_ecosystem, changing_climate()),
                  random_loss = (loss_ecosystem, random_loss(0.05 / year)),
                  clustered_loss = (loss_ecosystem, clustered_loss(0.05 / year)),
-                 invasion = (invasion_ecosystem, generalist_invasion()))
+                 invasion = (() -> invasion_ecosystem(:generalist),
+                             generalist_invasion()))
     traces = map(scenarios) do (build, intervention)
         return diversity_through_time(build(), times = 10year,
                                       intervention = intervention)

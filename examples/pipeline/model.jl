@@ -41,7 +41,7 @@ const HABITAT = GridHabitat(regime = INPUTS.temperature,
 
 const SPECIES = build_species(SpeciesPool(1),
                               tolerance = ToleranceSpec(Temperature,
-                                                        μ = 281.0K, σ = 3.0K),
+                                                        μ = 10.0°C, σ = 3.0K),
                               demand = DemandSpec(Precipitation,
                                                   0.1Unitful.L / day),
                               movement = MovementSpec(AlwaysDispersal(),

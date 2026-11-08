@@ -807,14 +807,15 @@ function _resolvedrow(index, resolved::NamedTuple)
 end
 
 # What a filter or a placement matches a table's names against, for a pool: its species' rows by name
-# and identifier as the verbs find them, whether each is active, and its authority's resolver, made on
-# the first name not found otherwise.
+# and identifier as the verbs find them, whether each is active and how one is activated, and its
+# authority's resolver, made on the first name not found otherwise.
 function _matchindex(pool::SpeciesPool)
     return merge(_poolindex(pool, resolve = false),
                  (resolve = _lazyresolver(pool.authority),
                   active = Vector{Bool}(pool.species.active),
                   speciesname = Vector{String}(pool.species.name),
-                  authority = pool.authority, holder = "the pool"))
+                  authority = pool.authority, holder = "the pool",
+                  activate = "`activate_species!` activates them."))
 end
 
 # The rows of the species `names` name, for a verb, reporting the names that reach none: a name the

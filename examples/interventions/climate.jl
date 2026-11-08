@@ -15,7 +15,7 @@ using Unitful.DefaultSymbols
 # rainfall scenario has a layer to name.
 function climate_ecosystem(; numspecies = configuration().numspecies,
                            individuals = configuration().individuals, seed = 1)
-    env = GridHabitat(regime = (temperature = UniformSpec(285.0K,
+    env = GridHabitat(regime = (temperature = UniformSpec(10.0°C,
                                                           axis = Temperature),
                                 rainfall = UniformSpec(5.0mm / day,
                                                        axis = Precipitation)),
@@ -26,7 +26,7 @@ function climate_ecosystem(; numspecies = configuration().numspecies,
     # tolerance is refused outright, because it cannot then check them layer for layer.
     species = build_species(SpeciesPool(numspecies),
                             tolerance = (temperature = ToleranceSpec(Temperature,
-                                                                     μ = 285.0K,
+                                                                     μ = 10.0°C,
                                                                      σ = 5.0K),
                                          rainfall = ToleranceSpec(Precipitation,
                                                                   μ = 5.0mm /

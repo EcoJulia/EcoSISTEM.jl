@@ -8,11 +8,11 @@
 #     per-cell normalised alpha diversity at q = 0 at the end of the burn-in and 50 and 100 years
 #     after the introduction, and at q = 1 at 100 years, both from Diversity.jl. The per-cell maps are saved to `continent.jld2` and the figure is drawn from them,
 #     so it can be redrawn without rerunning.
-#   - Figure 9, `Invasion.pdf`: a generalist alone, then one specialist of each of six niche widths
-#     introduced at the same cell, and how fast each spreads.
+#   - Figure 9, `Invasion.pdf`: a generalist across the continent, then one specialist of each of
+#     six niche widths introduced at the same cell, and how fast each spreads.
 #
-# Both the seeding and the introduction are `AddAbundance` interventions on a one-cell mask, and
-# the maps are taken from the abundance matrix at each target year.
+# The specialist is declared with the generalists but left out of the run until an `AddSpecies` on a
+# one-cell mask introduces it, and the maps are taken from the abundance matrix at each target year.
 #
 # Included by `examples/paper.jl`, never run directly.
 
@@ -50,10 +50,12 @@ function continent_environment(continent)
 end
 
 # `n` species of the given niche widths about the continent's own temperature: dispersing at birth,
-# with the continent's dispersal, demand and demographic values. Where each starts is the placement
-# its run gives, so an invader can start absent.
+# with the continent's dispersal, demand and demographic values. The last is the specialist, left
+# out of the run until it is introduced.
 function continent_species(widths)
-    return build_species(SpeciesPool(length(widths)),
+    pool = SpeciesPool(length(widths))
+    deactivate_species!(pool, string(length(widths)), verbosity = :silent)
+    return build_species(pool,
                          tolerance = ToleranceSpec(Temperature,
                                                    μ = PAPER_TEMPERATURE,
                                                    σ = row -> widths[row.key]),
@@ -97,21 +99,21 @@ function _percellmaps(abundances, active)
         end, (alpha0 = 0, alpha1 = 1))
 end
 
-# Figure 8's run: the generalists with the specialist present at zero, the burn-in, the
-# introduction one step after the first map is taken, and maps at 50 and 100 years after it. The
+# Figure 8's run: the generalists at capacity, the burn-in, the specialist introduced one step after
+# the first map is taken, and maps at 50 and 100 years after it. The
 # action runs every step and takes a map when the clock reaches each target, which keeps the
 # recording on the year rather than one step past it.
 function continent_run(continent, env)
     n = continent.species
     widths = vcat(fill(continent.generalist_width, n - 1),
                   continent.specialist_width)
-    abundances = vcat(fill(div(continent_capacity(env), n - 1), n - 1), 0)
-    eco = build_ecosystem(BySupply(each = row -> abundances[row.key]),
+    eco = build_ecosystem(BySupply(each = div(continent_capacity(env), n - 1)),
                           continent_species(widths), env, seed = PAPER_SEED)
     introduction = continent.burnin + PAPER_TIMESTEP
     invasion = Intervention(AtTime(introduction),
                             CellMask(origin_mask(env.active)),
-                            AddAbundance(n, continent.founders))
+                            AddSpecies(string(n),
+                                       BySupply(each = continent.founders)))
     targets = [continent.burnin, continent.burnin + continent.after / 2,
         continent.burnin + continent.after]
     maps = Dict{Int, Any}()
@@ -170,21 +172,19 @@ function continent_figure(maps, nspecies)
                 margin = 4Plots.mm, titlefontsize = 16)
 end
 
-# Figure 9's run for one specialist width: the generalist seeded at the origin on the first step,
-# the specialist added there after the burn-in, and the specialist's mean distance from the origin
-# over the cells it occupies at the end, per year since its introduction.
+# Figure 9's run for one specialist width: the generalist across the continent at capacity, as
+# Figure 8's generalists are, settling to its equilibrium over the burn-in; the specialist
+# introduced at the origin after it; and the specialist's mean distance from the origin over the
+# cells it occupies at the end, per year since its introduction.
 function invasion_speed(continent, env, width)
     mask = origin_mask(env.active)
-    eco = build_ecosystem(NoAbundance(),
+    eco = build_ecosystem(BySupply(each = continent_capacity(env)),
                           continent_species([continent.generalist_width, width]),
                           env, seed = PAPER_SEED)
-    arrivals = InterventionSet(Intervention(AtTime(0year), CellMask(mask),
-                                            AddAbundance(1, continent.founders)),
-                               Intervention(AtTime(continent.burnin),
-                                            CellMask(mask),
-                                            AddAbundance(2, continent.founders)))
+    arrival = Intervention(AtTime(continent.burnin), CellMask(mask),
+                           AddSpecies("2", BySupply(each = continent.founders)))
     total = continent.burnin + continent.after
-    simulate!(eco, total, PAPER_TIMESTEP, intervention = arrivals)
+    simulate!(eco, total, PAPER_TIMESTEP, intervention = arrival)
     final = Array(eco.abundances.matrix)
     origin = Tuple(findfirst(mask))
     occupied = findall(>(0), reshape(final[2, :], size(env.active)))

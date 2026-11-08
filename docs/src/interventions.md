@@ -23,12 +23,12 @@ using Unitful, Unitful.DefaultSymbols
 
 area = StudyArea(extent = (10km, 10km), cellsize = 1km, verbosity = :silent)
 makeeco() = begin
-    env = GridHabitat(regime = UniformSpec(285.0K, axis = Temperature),
+    env = GridHabitat(regime = UniformSpec(10.0°C, axis = Temperature),
                             supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                                  axis = SolarRadiation),
                             area = area)
     species = build_species(SpeciesPool(5),
-                            tolerance = ToleranceSpec(Temperature, μ = 285.0K, σ = 5.0K),
+                            tolerance = ToleranceSpec(Temperature, μ = 10.0°C, σ = 5.0K),
                             demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
                             seed = 1, verbosity = :silent)
     build_ecosystem(BySupply(total = 10_000), species, env, seed = 1)
@@ -183,6 +183,36 @@ simulate!(eco, 1year, 1month_mean_duration,
 
 `AddAbundanceTable` and `build_abundance_table` are deprecated in its favour: a table goes to
 `FromTable` as it is, naming each species by name and each place by its grid key or location.
+
+### Bringing a species into a run
+
+Every species a run may hold is declared in its [`SpeciesPool`](@ref) before the run is built, so
+one arriving later - an invader, a reintroduction, a crop sown for the first time - is declared with
+traits of its own and left out of the run with [`deactivate_species!`](@ref). [`AddSpecies`](@ref)
+brings it in, its first individuals placed over the region by a placement, as `AddAbundance` of a
+placement places them, the arrivals the only species placed. Nothing about the run changes size, so
+it works under MPI as everywhere else:
+
+```@example iv
+pool = SpeciesPool(6)
+deactivate_species!(pool, "6", verbosity = :silent)     # declared, but not in the run
+species = build_species(pool, tolerance = ToleranceSpec(Temperature, μ = 10.0°C, σ = 5.0K),
+                        demand = DemandSpec(SolarRadiation, 1.0e9kJ / day), seed = 1,
+                        verbosity = :silent)
+habitat = GridHabitat(regime = UniformSpec(10.0°C, axis = Temperature),
+                      supply = UniformSpec(1.0e5kJ / (m^2 * day), axis = SolarRadiation),
+                      area = area)
+eco = build_ecosystem(BySupply(total = 10_000), species, habitat, seed = 1)
+simulate!(eco, 2year, 1month_mean_duration,
+          intervention = Intervention(AtTime(1year), CellsAt(CartesianIndex(5, 5)),
+                                      AddSpecies("6", BySupply(each = 200))))
+sum(eco.abundances.matrix[6, :])         # the arrival, a year after it was introduced
+```
+
+[`RandomSpecies`](@ref) draws the arrivals from the species not yet in the run instead - a number,
+or a rate at which each arrives - from the intervention's own stream. Names are looked up before the
+run's first step, and one reaching no species of the run stops it unless a lower `level` is given; a
+species already in the run gets its arrivals all the same, and the run's end says so.
 
 ## Several interventions
 

@@ -19,15 +19,15 @@ abstract type AbstractRecorder end
 
 """
     RecordAbundance(storage::AbstractArray)
-    RecordAbundance(eco::Ecosystem, ntimes::Integer; maxspecies = length(eco.spplist.names))
+    RecordAbundance(eco::Ecosystem, ntimes::Integer)
 
 Record every species' abundance in every cell into `storage`, one slice per occurrence:
 `storage[:, :, k]` holds species by cells at occurrence `k`. Under MPI the ranks' abundances are
 gathered and the root writes them, every rank taking part in the gather.
 
-The second form allocates the storage with [`generate_storage`](@ref). A run reaching more
-occurrences than the storage has room for, or gaining more species, is refused when it tries to
-record them.
+The second form allocates the storage with [`generate_storage`](@ref), a row for every species of
+the ecosystem's pool. A run reaching more occurrences than the storage has room for is refused when
+it tries to record them.
 
 # Arguments
 
@@ -35,7 +35,7 @@ record them.
     `generate_storage`.
   - `eco`: the ecosystem whose species and cells size the storage.
   - `ntimes`: how many occurrences to leave room for.
-  - `maxspecies`: how many species to leave room for, counting any an intervention adds.
+  - `maxspecies`: deprecated, and ignored: every species a run may hold has its row already.
 """
 struct RecordAbundance{S <: AbstractArray} <: AbstractRecorder
     storage::S
@@ -47,10 +47,9 @@ struct RecordAbundance{S <: AbstractArray} <: AbstractRecorder
     end
 end
 
-function RecordAbundance(eco::Ecosystem, ntimes::Integer;
-                         maxspecies::Integer = length(eco.spplist.names))
-    return RecordAbundance(generate_storage(eco, Int64(ntimes), 1,
-                                            maxspecies = Int64(maxspecies)))
+function RecordAbundance(eco::Ecosystem, ntimes::Integer; maxspecies = nothing)
+    isnothing(maxspecies) || _maxspeciesdeprecated(:RecordAbundance)
+    return RecordAbundance(generate_storage(eco, Int64(ntimes), 1))
 end
 
 # Record the abundances at this occurrence into its slice, and take the run's provenance as it now

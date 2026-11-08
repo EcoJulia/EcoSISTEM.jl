@@ -22,7 +22,7 @@ function (::DefaultEcosystem)(species::SpeciesList, habitat::GridHabitat,
                               context::PlacementContext)
     allowed = _allowedmask(habitat, context.cells)
     weight = _weightof(BySupply(), species, habitat, context, allowed)
-    k = count(_activespecies(species))
+    k = count(_activespecies(species, context))
     counts = _splittotal(_default(Val(:individuals)).value * k, species,
                          context)
     problems = Problem[]

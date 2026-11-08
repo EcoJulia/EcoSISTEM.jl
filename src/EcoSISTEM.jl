@@ -543,7 +543,7 @@ include("Operation.jl")
 
 # what - the closed set of operations
 export Deactivate, Reactivate, SetLandCover, SetChange, AddAbundance,
-       RemoveAbundance, AddSpecies
+       RemoveAbundance, AddSpecies, RandomSpecies
 
 public AbstractOperation
 

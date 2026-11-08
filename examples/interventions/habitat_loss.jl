@@ -16,12 +16,12 @@ using Unitful.DefaultSymbols
 
 function loss_ecosystem(; numspecies = configuration().numspecies,
                         individuals = configuration().individuals, seed = 1)
-    env = GridHabitat(regime = UniformSpec(285.0K, axis = Temperature),
+    env = GridHabitat(regime = UniformSpec(10.0°C, axis = Temperature),
                       supply = UniformSpec(supply_density(individuals),
                                            axis = SolarRadiation),
                       area = study_area())
     species = build_species(SpeciesPool(numspecies),
-                            tolerance = ToleranceSpec(Temperature, μ = 285.0K,
+                            tolerance = ToleranceSpec(Temperature, μ = 10.0°C,
                                                       σ = 5.0K),
                             demand = DemandSpec(SolarRadiation,
                                                 intervention_demand()),

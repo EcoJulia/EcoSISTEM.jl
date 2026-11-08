@@ -133,6 +133,17 @@ mutable struct _ServedRows
     deactivated::Int
 end
 
+# What an `AddSpecies` has found for the one ecosystem it last acted on: the rows of the species it
+# names, found before the run's first step, and what the run's end notes - each species it found in
+# the run already, with how often, and how many species a `RandomSpecies` asked for and found none
+# left to take.
+mutable struct _ArrivalState
+    owner::WeakRef
+    rows::Vector{Int}
+    already::Dict{String, Int}
+    short::Int
+end
+
 using Unitful
 
 using Unitful.DefaultSymbols
@@ -160,14 +171,14 @@ state.
 
 **This is also the supported imperative route**: it is the way to act on a running ecosystem
 without having declared anything in advance, and it takes any operation, not just some privileged
-subset. To add a species mid-run, having passed no `intervention` to [`simulate!`](@ref):
+subset. To bring a species into a run mid-way, having passed no `intervention` to
+[`simulate!`](@ref):
 
 ```julia
 simulate!(eco, 1year, 1month_mean_duration)
 applyinterventions!(eco,
                      Intervention(EveryStep(), AllCells(),
-                                  AddSpecies(tolerance = Normal(298.0, 2.0),
-                                             abundance = 500)),
+                                  AddSpecies("invader", BySupply(total = 500))),
                      simulationtime(eco), 1month_mean_duration, 12)
 simulate!(eco, 1year, 1month_mean_duration)     # carries on with the new species
 ```
@@ -286,11 +297,22 @@ function _scheduleepoch(schedule::AbstractSchedule, eco::AbstractEcosystem)
                  "run starts on.")
 end
 
-# Find, before a run's first step, the cells of every region that names places or a shape: a place
-# off the grid is refused here rather than when it fires, and a shape is placed on the grid once for
-# the ecosystem, by every rank at the same point, since under MPI that is a collective build.
-function _prepareregions!(intervention, eco::AbstractEcosystem)
-    foreach(iv -> _prepareregion!(iv.region, eco), _interventions(intervention))
+# Find, before a run's first step, the cells of every region that names places or a shape, and the
+# species every `AddSpecies` names: a place off the grid or a name reaching no species is refused
+# here rather than when it fires, and a shape is placed on the grid once for the ecosystem, by every
+# rank at the same point, since under MPI that is a collective build, as looking up a name is.
+function _prepareinterventions!(intervention, eco::AbstractEcosystem)
+    for iv in _interventions(intervention)
+        _prepareregion!(iv.region, eco)
+        foreach(op -> _prepareoperation!(op, eco), iv.operations)
+    end
+    return nothing
+end
+
+_prepareoperation!(::AbstractOperation, ::AbstractEcosystem) = nothing
+
+function _prepareoperation!(op::AddSpecies, eco::AbstractEcosystem)
+    _arrivalstate!(op, eco)
     return nothing
 end
 
@@ -644,19 +666,6 @@ function _applyoperation!(op::RemoveAbundance, eco::AbstractEcosystem, cells,
     return eco
 end
 
-# The region is deliberately unused: the arrival is scattered by the same resource-weighted
-# `repopulate!` every species is placed by, so where it lands is the environment's business rather
-# than the intervention's. Saying so beats silently ignoring a region the caller wrote meaning
-# something.
-function _applyoperation!(op::AddSpecies, eco::AbstractEcosystem, cells, _, _)
-    length(cells) == length(parent(eco.habitat.active)) ||
-        @warn "`AddSpecies` scatters the arrival across the whole grid by resource availability, " *
-              "so the intervention's region is ignored; use `AllCells()` to say so." maxlog=1
-    return _addspecies!(eco, op.abundance, tolerance = op.tolerance,
-                        demand = op.demand, dispersal = op.dispersal,
-                        birth = op.birth, death = op.death, name = op.name)
-end
-
 # The abundances this process owns, and the global species index its first row is.
 # **At the point interventions run the landscape is row-partitioned**, so a rank holds whole
 # *species* across **all** cells (`synchronise_from_rows!` has already run - `ext/EcoSISTEMMPIExt/dynamics.jl`). That
@@ -765,7 +774,7 @@ function _applyoperations!(iv::Intervention, eco::AbstractEcosystem, cells,
 end
 
 # An operation applied at a firing - which intervention, on which step, at what time. Every operation
-# but a placement's needs only its cells, the firing's stream and the timestep.
+# but those placing individuals needs only its cells, the firing's stream and the timestep.
 function _applyoperation!(op::AbstractOperation, eco::AbstractEcosystem, cells,
                           rng, timestep, ::NamedTuple)
     return _applyoperation!(op, eco, cells, rng, timestep)
@@ -781,15 +790,111 @@ function _applyoperation!(op::_PlacementAddition, eco::AbstractEcosystem,
                        keep = false, undated = true)
 end
 
+# Species joining the run: those named or drawn, each counted where it was in the run already, made
+# active in the species list, then their arrivals placed over the region's active cells as
+# `AddAbundance` of a placement places, the arrivals the only species placed. Under MPI every rank
+# draws and activates the same species in its copy of the list.
+function _applyoperation!(op::AddSpecies, eco::AbstractEcosystem, cells, rng,
+                          timestep, firing::NamedTuple)
+    state = _arrivalstate!(op, eco)
+    rows = _arrivingrows!(op.species, state, eco, rng, timestep)
+    isempty(rows) && return eco
+    active = eco.spplist.traits.active
+    for row in rows
+        active[row] || continue
+        name = eco.spplist.names[row]
+        state.already[name] = get(state.already, name, 0) + 1
+    end
+    arriving = falses(length(active))
+    arriving[rows] .= true
+    active[rows] .= true
+    context = _firingcontext(eco, op.placement, cells, firing,
+                             active = arriving)
+    return _placeinto!(eco, op.placement, context, :normal, clear = false,
+                       keep = false, undated = true)
+end
+
+# The rows of the species arriving: those named, as found before the run; or a draw from the species
+# not in the run, from the firing's stream, its shortfall counted.
+_arrivingrows!(::Vector{String}, state, ::AbstractEcosystem, _, _) = state.rows
+
+function _arrivingrows!(r::RandomSpecies, state, eco::AbstractEcosystem, rng,
+                        timestep)
+    candidates = findall(!, eco.spplist.traits.active)
+    wanted = _drawcount(r.count, length(candidates), timestep, rng)
+    taken = min(wanted, length(candidates))
+    state.short += wanted - taken
+    return sort!(sample(rng, candidates, taken, replace = false))
+end
+
+# What an `AddSpecies` has found for `eco`: kept while it acts on that ecosystem, made afresh for
+# another, its named species' rows found then.
+function _arrivalstate!(op::AddSpecies, eco::AbstractEcosystem)
+    held = op.arrivals[]
+    !isnothing(held) && held.owner.value === eco && return held
+    state = _ArrivalState(WeakRef(eco), _namedrows(op, eco),
+                          Dict{String, Int}(),
+                          0)
+    op.arrivals[] = state
+    return state
+end
+
+# The rows of the species an `AddSpecies` names, looked up as a placement's names are - on the first
+# rank under MPI, which alone reads a name authority - a name reaching no species a problem at its
+# level; none for `RandomSpecies`, which draws its species when it acts.
+_namedrows(::AddSpecies{<:RandomSpecies}, ::AbstractEcosystem) = Int[]
+
+function _namedrows(op::AddSpecies{Vector{String}}, eco::AbstractEcosystem)
+    index = _matchindex(eco.spplist)
+    answers = _madeonroot() do
+        answers = _nameanswers(index, op.species)
+        _reportproblems(_unnamedproblems(op, answers, index), :normal)
+        return answers
+    end
+    return unique(answers[n].row
+                  for n in op.species if !isnothing(answers[n].row))
+end
+
+# What an `AddSpecies` reports of the names reaching no species of the run, at its level: those no
+# species answers to, and those its pool's name authority recognises but no species of the pool is.
+function _unnamedproblems(op::AddSpecies, answers, index)
+    lost = [n for n in op.species if isnothing(answers[n].row)]
+    problems = Problem[]
+    recognised = filter(n -> answers[n].recognised, lost)
+    unknown = setdiff(lost, recognised)
+    leftout = op.level isa ProblemError ? "" : " It adds no such species."
+    isempty(unknown) ||
+        push!(problems,
+              Problem(op.level, :not_recognised,
+                      "`AddSpecies` names " *
+                      _namelist(["`$n`" for n in unknown], :normal) *
+                      ", " *
+                      (isnothing(index.authority) ?
+                       "which no species of the run is" :
+                       "which $(_authorityphrase(index.authority)) does not recognise") *
+                      ": every species a run may hold is declared in its pool before it is " *
+                      "built." * leftout))
+    isempty(recognised) ||
+        push!(problems,
+              Problem(op.level, :not_in_pool,
+                      "`AddSpecies` names " *
+                      _namelist(["`$n`" for n in recognised], :normal) *
+                      ", recognised by $(_authorityphrase(index.authority)) but no species of " *
+                      "the run's pool: every species a run may hold is declared in its pool " *
+                      "before it is built." * leftout))
+    return problems
+end
+
 # The context of a placement firing in intervention `firing.k` on step `firing.step` over `cells`, the
-# region's storage columns: the active ones among them, a stream per species, keyed on its key in its
-# pool as at build, and a community stream, all made for that firing and apart from the stream the
-# region was chosen from; and, where the placement fills to capacity, what is already in those cells.
+# region's storage columns: the active ones among them, the species it places where they are not
+# those in the run, a stream per species, keyed on its key in its pool as at build, and a community
+# stream, all made for that firing and apart from the stream the region was chosen from; and, where
+# the placement fills to capacity, what is already in those cells.
 function _firingcontext(eco::AbstractEcosystem, placement, cells,
-                        firing::NamedTuple)
-    active = parent(eco.habitat.active)
-    grid = CartesianIndices(size(active))
-    incells = CartesianIndex{2}[grid[c] for c in cells if active[c]]
+                        firing::NamedTuple; active = nothing)
+    live = parent(eco.habitat.active)
+    grid = CartesianIndices(size(live))
+    incells = CartesianIndex{2}[grid[c] for c in cells if live[c]]
     words = UInt64[eco.seed % UInt64, _INTERVENTION_STREAM, firing.k,
                    firing.step,
                    _PLACEMENT_STREAM]
@@ -801,7 +906,7 @@ function _firingcontext(eco::AbstractEcosystem, placement, cells,
                             community = Random.Xoshiro(words),
                             nichefit = eco.nichefit, epoch = eco.epoch,
                             calendar = eco.calendar, time = firing.elapsed,
-                            demand = present)
+                            demand = present, active = active)
 end
 
 # What the individuals already in each of `cells` demand of each resource, a grid-shaped array for
@@ -902,37 +1007,74 @@ function _resolvedated(placement, eco::AbstractEcosystem, firing::NamedTuple)
                        0, 0)
 end
 
-# At a run's end, a notice for each dated placement of what it did not add: individuals dated after
-# the run's end, passed over at a continuing run's start, or due in cells deactivated since - every
-# rank's counted, the root reporting.
+# At a run's end, each operation's notice of what the run did that it was not told: the root
+# reporting, once every rank's counts are in.
 function _finishinterventions!(eco::AbstractEcosystem, intervention)
     for iv in _interventions(intervention), op in iv.operations
-        (op isa _PlacementAddition && op.dated) || continue
-        held = op.served[]
-        (!isnothing(held) && held.owner.value === eco) || continue
-        state = held.rows
-        late = sum(state.counts[i]
-                   for i in eachindex(state.times)
-                   if state.times[i] > simulationtime(eco); init = 0)
-        counts = _sumacrossranks!(eco, [late, state.skipped, state.deactivated])
-        state.skipped = state.deactivated = 0
-        _isrootrank(eco) || continue
-        problems = Problem[]
-        for (n, what) in ((counts[1],
-            "dated after the run's end $(_were(counts[1])) not added"),
-            (counts[2],
-            "dated at or before the run's start $(_were(counts[2])) not added: a run " *
-            "continuing another adds only what falls due as it runs, so give the " *
-            "intervention to the run before it too"),
-            (counts[3],
-            "due in cells deactivated since the ecosystem was built " *
-            "$(_were(counts[3])) not added"))
-            iszero(n) ||
-                push!(problems,
-                      Problem(ProblemNotice(), :not_added,
-                              "$(_individualsword(n)) $what."))
-        end
-        _reportproblems(problems, :normal)
+        _finishoperation!(op, eco)
     end
     return eco
+end
+
+_finishoperation!(::AbstractOperation, ::AbstractEcosystem) = nothing
+
+# A dated placement's notice of what it did not add: individuals dated after the run's end, passed
+# over at a continuing run's start, or due in cells deactivated since - every rank's counted.
+function _finishoperation!(op::_PlacementAddition, eco::AbstractEcosystem)
+    op.dated || return nothing
+    held = op.served[]
+    (!isnothing(held) && held.owner.value === eco) || return nothing
+    state = held.rows
+    late = sum(state.counts[i]
+               for i in eachindex(state.times)
+               if state.times[i] > simulationtime(eco); init = 0)
+    counts = _sumacrossranks!(eco, [late, state.skipped, state.deactivated])
+    state.skipped = state.deactivated = 0
+    _isrootrank(eco) || return nothing
+    problems = Problem[]
+    for (n, what) in ((counts[1],
+        "dated after the run's end $(_were(counts[1])) not added"),
+        (counts[2],
+        "dated at or before the run's start $(_were(counts[2])) not added: a run " *
+        "continuing another adds only what falls due as it runs, so give the " *
+        "intervention to the run before it too"),
+        (counts[3],
+        "due in cells deactivated since the ecosystem was built " *
+        "$(_were(counts[3])) not added"))
+        iszero(n) ||
+            push!(problems,
+                  Problem(ProblemNotice(), :not_added,
+                          "$(_individualsword(n)) $what."))
+    end
+    _reportproblems(problems, :normal)
+    return nothing
+end
+
+# An `AddSpecies`' notice of the species it found in the run already, which had their arrivals all the
+# same, and of the species a `RandomSpecies` asked for and found none left to take. Every rank drew
+# and found the same.
+function _finishoperation!(op::AddSpecies, eco::AbstractEcosystem)
+    held = op.arrivals[]
+    (!isnothing(held) && held.owner.value === eco) || return nothing
+    already = sort!(collect(held.already))
+    short = held.short
+    empty!(held.already)
+    held.short = 0
+    _isrootrank(eco) || return nothing
+    problems = Problem[]
+    isempty(already) ||
+        push!(problems,
+              Problem(ProblemNotice(), :already_in_run,
+                      "`AddSpecies` found " *
+                      _namelist(["`$n` ($(_countword(k, "time")))"
+                                 for (n, k) in already],
+                                :normal) *
+                      " in the run already, and added their arrivals all the same."))
+    iszero(short) ||
+        push!(problems,
+              Problem(ProblemNotice(), :none_left,
+                      "`$(sprint(show, op.species))` asked for $short more species than were " *
+                      "left out of the run, so fewer arrived."))
+    _reportproblems(problems, :normal)
+    return nothing
 end

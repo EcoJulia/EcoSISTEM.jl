@@ -92,7 +92,7 @@ const SAVE_DATES = [Dates.Date(2000 + y, 1, 1)
 
 # --- the layers, named before the grid is decided ----------------------------------------
 
-# Real temperature rather than the original's uniform 274 K: bio1 is WorldClim's annual mean, and
+# Real temperature rather than the original's uniform 1 °C: bio1 is WorldClim's annual mean, and
 # its unit and axis come from the shipped catalogue rather than being asserted here. The supply is
 # left uniform, so what varies across the continent is the *condition* species are matched to.
 #
@@ -174,11 +174,11 @@ const AREA = StudyArea(regime = TEMPERATURE, supply = SUNLIGHT, within = WITHIN,
 const ENVIRONMENT = GridHabitat(regime = TEMPERATURE, supply = SUNLIGHT,
                                 area = AREA)
 
-# Generalists: a wide 50 K tolerance about 274 K, as in the original, so the pool coexists rather
+# Generalists: a tolerance 50 degrees wide about 0 °C, as in the original, so the pool coexists rather
 # than partitioning the continent between narrow specialists.
 const SPECIES = build_species(SpeciesPool(NUMSPECIES),
                               tolerance = ToleranceSpec(Temperature,
-                                                        μ = 274.0K, σ = 50.0K),
+                                                        μ = 0.0°C, σ = 50.0K),
                               demand = DemandSpec(SolarRadiation,
                                                   10.0kJ / month_mean_duration),
                               movement = MovementSpec(InsectDispersal(),

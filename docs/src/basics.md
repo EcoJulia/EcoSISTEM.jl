@@ -41,20 +41,20 @@ Now the environment. Every cell has the same temperature - a **condition**, whic
 matched to - and the same solar energy supply, a **resource**, which they compete for:
 
 ```@example basics
-env = GridHabitat(regime = UniformSpec(285.0K, axis = Temperature),
+env = GridHabitat(regime = UniformSpec(10.0°C, axis = Temperature),
                         supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                              axis = SolarRadiation),
                         area = area)
 ```
 
-Then the species: a pool of ten, each suited to temperatures around 285 K with a spread of 3 K,
+Then the species: a pool of ten, each suited to temperatures around 10 °C, give or take 3 degrees,
 each individual drawing energy at a fixed rate and dispersing 5 km on average. Each trait is a spec,
 and every trait not given - here the birth and death rates, `longevity` and `survival` - takes a
 default, announced unless told `verbosity = :silent`, as the examples here are:
 
 ```@example basics
 species = build_species(SpeciesPool(10),
-                        tolerance = ToleranceSpec(Temperature, μ = 285.0K, σ = 3.0K),
+                        tolerance = ToleranceSpec(Temperature, μ = 10.0°C, σ = 3.0K),
                         demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
                         movement = MovementSpec(InsectDispersal(), meandist = 5.0km),
                         seed = 1, verbosity = :silent)
@@ -172,7 +172,7 @@ and the two sides are matched up by name; leave both sides positional and they a
 position. Naming one side and not the other is rejected rather than guessed at:
 
 ```@example basics
-env2 = GridHabitat(regime = (temperature = UniformSpec(285.0K,
+env2 = GridHabitat(regime = (temperature = UniformSpec(10.0°C,
                                                             axis = Temperature),
                                    rain = UniformSpec(2.0mm / day,
                                                       axis = Precipitation)),
@@ -183,7 +183,7 @@ env2 = GridHabitat(regime = (temperature = UniformSpec(285.0K,
                          area = area)
 species2 = build_species(SpeciesPool(10),
                          tolerance = (temperature = ToleranceSpec(Temperature,
-                                                                  μ = 285.0K, σ = 3.0K),
+                                                                  μ = 10.0°C, σ = 3.0K),
                                       rain = ToleranceSpec(Precipitation,
                                                            μ = 2.0mm / day, σ = 1.0mm / day)),
                          demand = (sunlight = DemandSpec(SolarRadiation, 1.0e9kJ / day),

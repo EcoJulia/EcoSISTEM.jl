@@ -8,13 +8,13 @@
 #
 # | | temperature | boundary | grid (full scale) | species |
 # |---|---|---|---|---|
-# | `Island`     | uniform 298 K   | `Island(false)` | 10 × 10 |    100 |
-# | `Patch`      | uniform 298 K   | `Torus`             | 10 × 10 |    100 |
-# | `RegionEven` | uniform 298 K   | `Cylinder`          | 40 × 25 |  1,000 |
-# | `RegionGrad` | 293 -> 303 K     | `Cylinder`          | 40 × 25 |  1,000 |
-# | `Peaked`     | peaked 293-303 K| `Torus`             | 50 × 50 | 10,000 |
+# | `Island`     | uniform 25 °C  | `Island(false)` | 10 × 10 |    100 |
+# | `Patch`      | uniform 25 °C  | `Torus`             | 10 × 10 |    100 |
+# | `RegionEven` | uniform 25 °C  | `Cylinder`          | 40 × 25 |  1,000 |
+# | `RegionGrad` | 20 -> 30 °C     | `Cylinder`          | 40 × 25 |  1,000 |
+# | `Peaked`     | peaked 20-30 °C| `Torus`             | 50 × 50 | 10,000 |
 #
-# `Island` and `Patch` are the **same habitat** - `simplehabitat(298.0K, (10,10), ...)` in both. The
+# `Island` and `Patch` are the **same habitat** - one `simplehabitat` call in both. The
 # only substantive difference between those two files is the boundary. So what the set really varies
 # is **what the environment looks like** and **what happens at the edge**, and the names describe the
 # second more than the first.
@@ -127,7 +127,7 @@ end
 """Uniform temperature - the `Island`, `Patch` and `RegionEven` environment."""
 function even_environment(; grid = (10, 10), area = 100.0km^2,
                           supply = _supplydensity(10_000, area),
-                          temperature = 298.0K,
+                          temperature = 25.0°C,
                           topology = Island())
     return GridHabitat(regime = UniformSpec(temperature,
                                             axis = Temperature),
@@ -140,7 +140,7 @@ end
 """A monotone temperature gradient across the grid - the `RegionGrad` environment."""
 function gradient_environment(; grid = (40, 25), area = 10_000.0km^2,
                               supply = _supplydensity(10_000, area),
-                              from = 293.0K, to = 303.0K,
+                              from = 20.0°C, to = 30.0°C,
                               topology = Island())
     return GridHabitat(regime = GradientSpec(from, to,
                                              axis = Temperature),
@@ -158,7 +158,7 @@ pushed.
 """
 function peaked_environment(; grid = (25, 25), area = 200_000.0km^2,
                             supply = _supplydensity(10_000, area),
-                            from = 293.0K, to = 303.0K,
+                            from = 20.0°C, to = 30.0°C,
                             topology = Island())
     return GridHabitat(regime = PeakedSpec(from, to,
                                            axis = Temperature),
@@ -179,7 +179,7 @@ end
 # This file is where the two were most visibly conflated: `Island(false)` meant "hard edges
 # **and** dispersers are lost", one object carrying a map fact and a species fact at once.
 function landscape_species(disperse_safely; numspecies = 20,
-                           temperature = 298.0K, seed = 1)
+                           temperature = 25.0°C, seed = 1)
     return build_species(SpeciesPool(numspecies),
                          tolerance = ToleranceSpec(Temperature,
                                                    μ = temperature, σ = 3.0K),

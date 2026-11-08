@@ -103,11 +103,9 @@ while the dynamics run, so an individual dispersing between cells stays rank-loc
 newborn under [`SeedDispersal`](@ref) and the other modes dispersing at birth, or an established
 individual under [`AlwaysDispersal`](@ref); [`NoDispersal`](@ref) disperses nothing at all.
 
-### What is not supported
-
-The [`AddSpecies`](@ref) operation is refused in a distributed run. Species are what the ranks are
-partitioned by, so adding one changes the partition itself, where every other operation acts within
-a rank. Add the species before the run starts, or run that scenario serially.
+Every intervention works distributed, [`AddSpecies`](@ref) included: species are what the ranks are
+partitioned by, and every species a run may hold is declared in its pool before it is built, so a
+species joining the run is one every rank holds already, and the partition never changes.
 
 ## Threads
 
@@ -126,8 +124,8 @@ julia -t 8 --project myrun.jl
   - **Reading real rasters is the other memory peak**, and it is separate from the simulation's:
     a continental read can transiently need more than the run itself.
   - **Recording costs memory too.** [`generate_storage`](@ref) allocates
-    `species × cells × recordings × replicates` up front and cannot grow afterwards, so an
-    intervention that adds species needs `maxspecies` set for them in advance.
+    `species × cells × recordings × replicates` up front, a row for every species of the pool,
+    those not in the run until an `AddSpecies` brings them included.
 
 ## Where to go next
 

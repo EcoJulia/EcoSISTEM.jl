@@ -32,7 +32,7 @@ end
 # of the map, not of the species dispersing over it. `Torus()` here because these experiments
 # were written against a wrapping grid; the ones that want an edge ask for `Island()`.
 """
-    uniform_environment(cells, area; temperature = 298.0K, supply = SUPPLY, topology = Torus())
+    uniform_environment(cells, area; temperature = 25.0°C, supply = SUPPLY, topology = Torus())
 
 Build a `cells × cells` environment over `area`, uniform in every respect: one temperature
 everywhere, with uniform solar and water supply, `supply.sunlight` and `supply.water`.
@@ -41,7 +41,7 @@ everywhere, with uniform solar and water supply, `supply.sunlight` and `supply.w
 regime is refused, deliberately, since there would be nothing to check it against. The supplies are
 named, so a gradient can say which resource it grades.
 """
-function uniform_environment(cells, area; temperature = 298.0K,
+function uniform_environment(cells, area; temperature = 25.0°C,
                              supply = SUPPLY, topology = Torus())
     return GridHabitat(regime = UniformSpec(temperature,
                                             axis = Temperature),

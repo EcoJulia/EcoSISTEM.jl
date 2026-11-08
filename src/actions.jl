@@ -420,7 +420,7 @@ function simulate!(eco::AbstractEcosystem, duration::Unitful.Time,
     checkcoverage(eco, duration, timestep)
     check_bounds(eco, duration, timestep)
     _checkschedules(intervention, eco, duration, timestep)
-    _prepareregions!(intervention, eco)
+    _prepareinterventions!(intervention, eco)
     for _ in 1:_stepcount(duration, timestep)
         update!(eco, timestep, intervention)
     end
@@ -481,7 +481,7 @@ function simulate!(f, eco::AbstractEcosystem, duration::Unitful.Time,
     checkcoverage(eco, duration, timestep)
     check_bounds(eco, duration, timestep)
     _checkschedules(intervention, eco, duration, timestep)
-    _prepareregions!(intervention, eco)
+    _prepareinterventions!(intervention, eco)
     _checkschedule(schedule, eco, duration, timestep)
     count = 0
     if iszero(simulationtime(eco))
@@ -534,36 +534,25 @@ function simulate!(cache::CachedEcosystem, srt::Unitful.Time,
 end
 
 """
-    generate_storage(eco::Ecosystem, times::Int64, reps::Int64;
-                     maxspecies = length(eco.spplist.names))
+    generate_storage(eco::Ecosystem, times::Int64, reps::Int64)
 
-Allocate an integer array of shape `(maxspecies, gridSize, times, reps)` for
-recording species abundances across the ecosystem `eco` over multiple timesteps
-and replicate runs.
+Allocate an integer array of shape `(numspecies, gridSize, times, reps)` for recording species
+abundances across the ecosystem `eco` over multiple timesteps and replicate runs: a row for every
+species of its pool, those an [`AddSpecies`](@ref) brings in during the run included.
 
-`maxspecies` defaults to the number of species `eco` starts with, which is what
-a run that never gains one needs. **Raise it to make room for species that
-arrive during the run** - an [`AddSpecies`](@ref) intervention, an invasion - and
-the recorder then has somewhere to put them:
+# Arguments
 
-```julia
-storage = generate_storage(eco, times, reps, maxspecies = 12)
-```
-
-The array is sized **once**, before the run, and cannot grow afterwards: it is
-a dense array indexed by species number, so growing it mid-run would mean
-reallocating and copying every recorded step. A run that gains more species than
-`maxspecies` allows for says so when it tries to record them, rather than
-silently dropping them.
+  - `eco`: the ecosystem whose species and cells size the storage.
+  - `times`: how many occurrences to leave room for.
+  - `reps`: how many replicate runs.
+  - `maxspecies`: deprecated, and ignored: every species a run may hold has its row already.
 """
 function generate_storage(eco::Ecosystem, times::Int64, reps::Int64;
-                          maxspecies::Int64 = length(eco.spplist.names))
-    maxspecies >= length(eco.spplist.names) ||
-        error("`maxspecies` is $maxspecies but the ecosystem already has " *
-              "$(length(eco.spplist.names)) species - the recording has to hold at least what is " *
-              "there before the run starts.")
+                          maxspecies = nothing)
+    isnothing(maxspecies) || _maxspeciesdeprecated(:generate_storage)
     gridSize = countsubcommunities(eco.habitat.regime)
-    return abun = Array{Int64, 4}(undef, maxspecies, gridSize, times, reps)
+    return abun = Array{Int64, 4}(undef, length(eco.spplist.names), gridSize,
+                                  times, reps)
 end
 
 """

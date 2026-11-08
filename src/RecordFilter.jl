@@ -300,10 +300,7 @@ function _matchproblems(dropped, level::AbstractProblemSeverity,
     absent = isnothing(authority) ? "" :
              "recognised by $(_authorityphrase(authority)) but of no species in " *
              index.holder
-    activate = index.holder == "the pool" ?
-               "`activate_species!` activates them." :
-               "Activate them in their pool with `activate_species!` and build the species " *
-               "again to keep them."
+    activate = index.activate
     problems = Problem[]
     for (tally, code, kind, what, after) in ((dropped.unrecognised, :not_recognised, "name",
         unrecognised, ""),

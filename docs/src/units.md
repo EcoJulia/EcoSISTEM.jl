@@ -132,7 +132,7 @@ is materialised. It exists because the catalogue *cannot* answer the question:
 - **One axis spans rows that legitimately disagree.** WorldClim's `srad` is `kJ m^-2`,
   CHELSA's `rsds` is `MJ m^-2`. Both cells are right; without a declared scale the two are
   never reconciled.
-- **Synthetic layers have no row at all.** `UniformSpec(285.0K, axis = Temperature)` never
+- **Synthetic layers have no row at all.** `UniformSpec(10.0°C, axis = Temperature)` never
   touches a catalogue but must be comparable with a layer that did.
 - **Tolerances have no row either.** A species' niche is not a layer, and
   [`NicheTolerance`](@ref) takes its support unit from the axis.

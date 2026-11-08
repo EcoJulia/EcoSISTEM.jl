@@ -71,14 +71,13 @@ end
 
 # --- invasion: a species ARRIVES, carrying its own niche ----------------------
 let outcomes = map((:generalist, :specialist)) do kind
-        eco = invasion_ecosystem()
-        # Room for the arrival, since the recording is sized before the run.
-        recording = RecordAbundance(eco, 6,
-                                    maxspecies = configuration().numspecies)
+        eco = invasion_ecosystem(kind)
+        # The invader is in the pool from the start, so the recording has a row for it already.
+        recording = RecordAbundance(eco, 6)
+        @assert iszero(sum(eco.abundances.matrix[end, :]))
         simulate!(recording, eco, 5.0year, 1.0month_mean_duration,
                   every = EveryInterval(1.0year),
                   intervention = invasion(kind, at = 1.0month_mean_duration))
-        @assert length(eco.spplist.names) == configuration().numspecies
         @assert last(eco.spplist.names) == string(kind)
         return sum(eco.abundances.matrix[end, :])
     end

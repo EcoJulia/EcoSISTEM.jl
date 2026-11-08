@@ -63,7 +63,7 @@ begin
     totalK = (4.5e11kJ / km^2 / month_mean_duration,
               192.0mm / month_mean_duration)
     side = sqrt(area)
-    habitat = GridHabitat(regime = UniformSpec(298.0K,
+    habitat = GridHabitat(regime = UniformSpec(25.0°C,
                                                axis = Temperature),
                           supply = (UniformSpec(totalK[1],
                                                 axis = SolarRadiation),
@@ -99,7 +99,7 @@ begin
 
     # Condition preferences
     vars = fill(2.0, numSpecies) .* K
-    opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
+    opts = 25.0°C .+ vars .* range(-3, stop = 3, length = numSpecies)
     tolerance = NicheTolerance(Temperature, Normal, opts, vars)
 
     # Species list
@@ -190,7 +190,7 @@ begin
     totalW = 200.0mm / day
 
     # Overall temperature it will be
-    totalT = 298.0K
+    totalT = 25.0°C
 
     # Perfect, now we can build a simple environment! The grid is decided *first*, on its own,
     # and only then is anything built on it - a square 100 km^2 split 10 ways each way is 1 km
@@ -208,7 +208,8 @@ begin
                            area = area)
 
     # Let's plot it to see what it looks like
-    heatmap(temp_env.regime.matrix ./ K, clim = (278, 308), title = "Condition",
+    heatmap(ustrip.(°C, temp_env.regime.matrix), clim = (5, 35),
+            title = "Condition",
             layout = 2)
     heatmap!(temp_env.supply.matrix ./ (mm / day),
              title = "Resource",
@@ -217,7 +218,7 @@ begin
 end
 
 # ╔═╡ d1602be3-2724-4441-8dc3-8fa7713ed249
-md"Very boring! But we have succeeded in making a simple environment with a temperature of 298K (or 25 degrees C) with 200 mm of water in each square.
+md"Very boring! But we have succeeded in making a simple environment with a temperature of 25 °C with 200 mm of water in each square.
 
 Let's try something slightly more adventurous:"
 
@@ -239,7 +240,7 @@ begin
                                 area = area)
 
     # Let's plot it to see what it looks like now
-    heatmap(temp_grad_env.regime.matrix' ./ K, clim = (278, 308),
+    heatmap(ustrip.(°C, temp_grad_env.regime.matrix'), clim = (5, 35),
             title = "Condition")
 end
 
@@ -262,7 +263,7 @@ begin
                                 area = area)
 
     # Let's plot it to see what it looks like now
-    heatmap(temp_peak_env.regime.matrix' ./ K, clim = (278, 308),
+    heatmap(ustrip.(°C, temp_peak_env.regime.matrix'), clim = (5, 35),
             title = "Condition")
 end
 
@@ -315,7 +316,7 @@ begin
     niche_width = fill(2.0, numSpp) .* K
 
     # And what is their niche optimum - here we have a range around 25 degrees
-    optima = 298.0K .+ niche_width .* range(-3, stop = 3, length = numSpp)
+    optima = 25.0°C .+ niche_width .* range(-3, stop = 3, length = numSpp)
 
     # Let's combine these pieces of information together so that each species has a 
     # Gaussian curve representing their match to the current temperature

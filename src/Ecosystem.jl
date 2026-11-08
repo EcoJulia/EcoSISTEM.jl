@@ -544,11 +544,11 @@ not one per layer or per resource, so there is nothing to key a tuple by.
 
 It returns the kernel itself rather than a parameterisation, which is both more honest - the
 distance distribution is Rayleigh rather than Normal, and a `LongTailKernel` is a 2Dt with a `shape`
-a Normal cannot express - and directly reusable: it is exactly what [`AddSpecies`](@ref)'s
-`dispersal` keyword takes, so an arrival can be given an existing species' dispersal.
+a Normal cannot express - and directly reusable: a dispersal mode called with it gives a species'
+movement, so another species can be given this one's dispersal.
 
 ```julia
-AddSpecies(dispersal = speciesdispersal(eco, 3), abundance = 500)
+InsectDispersal()(speciesdispersal(eco, 3))
 ```
 """
 function speciesdispersal(spplist::SpeciesList, sp::Int64)
@@ -733,112 +733,6 @@ _storedseed(seed::Integer) = seed % UInt64
 function _mcmatch(m::AbstractMatrix, sppl::SpeciesList, part::AbstractHabitat)
     return _counttypes(sppl, true) == size(m, 1) &&
            _countsubcommunities(part) == size(m, 2)
-end
-
-# The one implementation, reached only through the [`AddSpecies`](@ref) operation. Every trait
-# defaults to `nothing`, which clones the last species - what a plain reintroduction wants.
-function _addspecies!(eco::AbstractEcosystem, abun::Integer;
-                      tolerance = nothing, demand = nothing,
-                      dispersal = nothing, birth = nothing, death = nothing,
-                      name = nothing)
-    n = counttypes(eco.spplist, true)
-    newnames = vcat(eco.spplist.names, isnothing(name) ? string(n + 1) : name)
-    newmat = vcat(eco.abundances.matrix,
-                  zeros(Int64, 1, size(eco.abundances.matrix, 2)))
-    # `GridLandscape` is immutable - the only way to change shape is to construct a whole new
-    # one (via the constructor, which reshape-pairs `.matrix`/`.grid` correctly) and reassign the
-    # `Ecosystem` field holding it. The grid comes from the habitat, which is what it describes.
-    eco.abundances = GridLandscape(newmat, newnames, getcoords(eco.habitat))
-    # Give the new species its own RNG stream, seeded from `(seed, j)` like every other species.
-    # Drawing one from an existing species' stream instead would break the scheme twice over: the
-    # new stream would depend on how many species had been added rather than on the seed, and the
-    # draw would re-phase the demography of the species it came from.
-    push!(eco.rngs, Random.Xoshiro(UInt64[eco.seed, n + 1]))
-    repopulate!(eco, abun)
-    push!(eco.spplist.names, isnothing(name) ? string(n + 1) : name)
-    _addidentity!(eco.spplist, eco.spplist.names[end])
-    push!(eco.spplist.susceptible, missing)
-    _addtolerance!(eco.spplist.tolerance, tolerance)
-    _addmovement!(eco.spplist.movement, dispersal)
-    _addparams!(eco.spplist.params, birth, death)
-    _adddemand!(eco.spplist.demand, demand)
-    # Reassigned, not discarded: `_addtypes!` returns a new `UniqueTypes` because it is immutable.
-    # Handed the name just pushed onto `names`, so the two name sources cannot drift apart.
-    eco.spplist.types = _addtypes!(eco.spplist.types, eco.spplist.names[end])
-    # A `Lookup` for the new species, or the first `move!` is a `BoundsError`. Built the same way
-    # the constructor builds them, from the species' own movement kernel.
-    push!(eco.lookup,
-          genlookups(eco.habitat.regime, eco.spplist.movement[end].kernel))
-    # ...and the migration cache has to match the new landscape, or applying net migration is a
-    # `DimensionMismatch`.
-    eco.cache.netmigration = zeros(Int64, size(eco.abundances.matrix))
-    eco.cache.valid = false
-    return eco
-end
-
-# **Each of these takes the new species' own value, and falls back to cloning the last species only
-# when none is given** - which is what a plain reintroduction wants.
-function _addtolerance!(tolerance::NicheTolerance, dist = nothing)
-    return push!(tolerance.dists,
-                 isnothing(dist) ? tolerance.dists[end] : dist)
-end
-
-# Takes the new species' **set** of tolerated classes, and clones the last species' set where none is
-# given. `push!` of a set of its own, never `append!` into one or `push!` of the last species' own
-# vector: a species' tolerance is one set per species, and sharing or appending into the set being
-# cloned would alter that species as well as building the new one.
-function _addtolerance!(tolerance::SimpleCategoricalTolerance, val = nothing)
-    return push!(tolerance.vals,
-                 isnothing(val) ? copy(tolerance.vals[end]) :
-                 _categoryset(val))
-end
-
-# Takes a dispersal **kernel**, matching `build_species`' `dispersal`: the new species disperses in the
-# last species' mode, with this kernel or, given none, with the last species' too.
-function _addmovement!(movement::AbstractVector{<:SpeciesDispersal},
-                       kernel = nothing)
-    last = movement[end]
-    push!(movement,
-          isnothing(kernel) ? last : SpeciesDispersal(last.mode, kernel))
-    return movement
-end
-
-# **Three vectors, and all must grow** - `birth`, `death` and `longevity` are separate per-species
-# vectors on the same params object, so extending one and not the others leaves them different
-# lengths and the demographic loop reads off the end. Cloning the last species' values is the
-# `nothing` default the family shares.
-function _addparams!(params::AbstractParams, birth = nothing, death = nothing)
-    append!(params.birth, isnothing(birth) ? params.birth[end] : birth)
-    push!(params.longevity, params.longevity[end])
-    return append!(params.death, isnothing(death) ? params.death[end] : death)
-end
-
-# One entry per species - `counttypes(::Demand)` is `length(demand.resource)` - so this grows the
-# vector by exactly one, cloning the last species' demand when none is given, as elsewhere in the
-# family. A **multi-resource** demand is a `SpeciesRequirementCollection` of several `Demand`s, not
-# a longer `resource`, so this method only ever sees one resource's worth.
-function _adddemand!(d::AbstractDemand, resource = nothing)
-    return append!(d.resource,
-                   isnothing(resource) ? d.resource[end] : resource)
-end
-
-# `UniqueTypes` is immutable, so this **returns** a new one and the caller must reassign; assigning
-# to the argument would throw the result away.
-# Takes the new species' `name` and goes through `_uniquetypes`, so the existing species keep
-# theirs - the count constructor used here before renamed **every** species to its index, silently
-# and on every `addspecies!`.
-function _addtypes!(ut::UniqueTypes, name::AbstractString)
-    return _uniquetypes([gettypenames(ut, true); name])
-end
-
-# Adding a species to anything else is refused, with the reason rather than a `MethodError` off the
-# end of dispatch. A phylogeny-backed `SpeciesList` is the real case: a new species has no position on
-# the tree, and inventing one would change what every diversity measure computes.
-function _addtypes!(types::AbstractTypes, ::AbstractString)
-    return error("`addspecies!` cannot extend a $(typeof(types)): only `UniqueTypes` can gain a " *
-                 "species without saying anything more. A phylogeny-backed species list needs the " *
-                 "new species' position on the tree, which nothing here can supply - rebuild the " *
-                 "`SpeciesList` from a tree that already contains it.")
 end
 
 # The abundances at `tm`, simulating forward from the last checkpoint if that time was never saved.
@@ -1186,21 +1080,15 @@ function invalidatecaches!(eco::AbstractEcosystem)
     return eco.cache.valid = false
 end
 
-# Write the current abundances into an abundance recording. Indexed by *the species there are now*
-# rather than by the whole first dimension, because `generate_storage`'s `maxspecies` may leave room
-# for species that have not arrived yet - and `storage[:, :, i] = matrix` would be a
-# `DimensionMismatch` the moment it does.
-#
-# Rows beyond the current count are left as they were. They are `undef` until a species occupies
-# them, which is correct: "this species did not exist yet" is not the same as "it had zero
-# abundance", and writing zeros would assert the latter.
+# Write the current abundances into an abundance recording. Indexed by the species there are rather
+# than by the whole first dimension, so storage of the caller's own with rows to spare can be given;
+# rows beyond the species are left as they were.
 function _record!(storage::AbstractArray, eco::AbstractEcosystem,
                   counting::Integer)
     nspp = size(eco.abundances.matrix, 1)
     nspp <= size(storage, 1) ||
-        error("this run now has $nspp species but the recording was sized for $(size(storage, 1)). " *
-              "Pass `maxspecies` to `generate_storage` to leave room for species that arrive " *
-              "during the run.")
+        error("this run has $nspp species but the recording was sized for $(size(storage, 1)). " *
+              "`generate_storage` sizes it from the ecosystem.")
     storage[1:nspp, :, counting] = eco.abundances.matrix
     return storage
 end

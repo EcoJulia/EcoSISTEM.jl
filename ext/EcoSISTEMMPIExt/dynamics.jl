@@ -37,7 +37,6 @@ using EcoSISTEM:
 # the column layout, so the columns are synchronised here too - once a run, and on every rank.
 function EcoSISTEM._startrun!(eco::MPIEcosystem, intervention,
                               timestep::Unitful.Time)
-    _checkmpiinterventions(intervention)
     EcoSISTEM.applyinterventions!(eco, intervention,
                                   EcoSISTEM.simulationtime(eco), timestep, 0)
     invalidatecaches!(eco)
@@ -53,12 +52,12 @@ end
 # stream seeded from `(seed, :intervention, k, step)` and the `active` mask and layers are replicated
 # on every rank, so every rank computes the same cells and makes the same edit without communicating.
 #
-# **All six operations work**, including the abundance ones: by the time interventions run the
+# **Every operation works**, the abundance ones included: by the time interventions run the
 # landscape is row-partitioned, so a rank holds its own species across *all* cells and every abundance
-# write is rank-local.
+# write is rank-local. `AddSpecies` activates species every rank already holds, so the partition never
+# changes.
 function EcoSISTEM._step!(eco::MPIEcosystem, timestep::Unitful.Time,
                           intervention)
-    _checkmpiinterventions(intervention)
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
 
@@ -209,21 +208,6 @@ end
 
 # The rank reporting what every rank found: the first.
 EcoSISTEM._isrootrank(::MPIEcosystem) = MPI.Comm_rank(MPI.COMM_WORLD) == 0
-
-# **`AddSpecies` is the one operation that is genuinely not rank-local**, and the contrast with the
-# abundance operations is the point: those need no partition work at all, because a rank owns whole
-# species across every cell in `rows_matrix` whenever it is read. Adding a species
-# changes *which species each rank owns* - the partition itself - so it needs the landscape
-# reallocated and redistributed on every rank in step. Refused for now rather than half-done.
-function _checkmpiinterventions(intervention)
-    for iv in EcoSISTEM._interventions(intervention)
-        any(op -> op isa EcoSISTEM.AddSpecies, iv.operations) || continue
-        error("`AddSpecies` is not yet supported under MPI. Species are partitioned across ranks, " *
-              "so adding one changes the partition itself - unlike every other operation, which is " *
-              "rank-local. Add the species before the run, or run this scenario serially.")
-    end
-    return nothing
-end
 
 """
     getlookup(eco::MPIEcosystem, sp::Int64)

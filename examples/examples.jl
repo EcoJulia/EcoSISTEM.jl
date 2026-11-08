@@ -42,7 +42,7 @@ studyarea = StudyArea(extent = (side, side), cellsize = side / grd[1],
 # Both resources in one call, so the two-resource environment is **built** rather than assembled.
 # The `simplehabitat` version had to build one single-resource habitat per resource and then reach
 # inside them to staple the supplies into a `LayerCollection` by hand.
-habitat = GridHabitat(regime = UniformSpec(298.0K, axis = Temperature),
+habitat = GridHabitat(regime = UniformSpec(25.0°C, axis = Temperature),
                       supply = (UniformSpec(totalK[1],
                                             axis = SolarRadiation),
                                 UniformSpec(totalK[2],
@@ -51,7 +51,7 @@ habitat = GridHabitat(regime = UniformSpec(298.0K, axis = Temperature),
                       topology = Torus())
 
 vars = fill(2.0K, numSpecies)
-opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
+opts = 25.0°C .+ vars .* range(-3, stop = 3, length = numSpecies)
 
 av_dist = fill(2.4km, numSpecies)
 kernel = [GaussianKernel(meandist = d, thresh = 10e-10) for d in av_dist]

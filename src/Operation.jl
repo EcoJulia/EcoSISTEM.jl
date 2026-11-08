@@ -175,65 +175,98 @@ struct RemoveAbundance{S, C <: CELLCOUNT} <: AbstractOperation
 end
 
 """
-    AddSpecies(tolerance = nothing, demand = nothing, dispersal = nothing,
-               birth = nothing, death = nothing, abundance, name = nothing)
+    RandomSpecies(count)
 
-Introduce a **new species** - an invasion, a reintroduction, a crop sown for the first time -
-scattered across the intervention's region.
-
-**It carries the arrival's own traits**, which is what it is for: an invader can be given a niche of
-its own rather than inheriting one. Any trait left as `nothing` clones the last species instead,
-which is what a plain reintroduction of something already present wants.
-
-An existing species' dispersal can be handed straight over, since [`speciesdispersal`](@ref) returns
-exactly what `dispersal` takes:
-
-```julia
-AddSpecies(dispersal = EcoSISTEM.speciesdispersal(eco, 3), abundance = 500)
-```
-
-**The recording has to have room.** A [`RecordAbundance`](@ref) writes into an array sized before the
-run starts, so a run that gains species needs `RecordAbundance(eco, ntimes, maxspecies = ...)`, or
-storage from `generate_storage(eco, times, reps, maxspecies = ...)`; see [`generate_storage`](@ref). **Not supported under MPI**: species are partitioned across ranks, so
-adding one changes the partition itself, and unlike the abundance operations this is not rank-local.
+`count` species drawn at random from those not yet in the run, each time an [`AddSpecies`](@ref)
+acts: exactly that many (`RandomSpecies(2)`), or each species not yet in the run arriving
+independently at a rate over the step (`RandomSpecies(0.1/year)`), a binomial draw. They are drawn
+from the intervention's own stream, as [`RandomCells`](@ref) are, so every rank and thread draws the
+same species. Where fewer are left than it asks for, those there are arrive, and the run's end says
+how many it could not take.
 
 # Arguments
 
-  - `abundance`: how many individuals arrive in total, scattered over the region. The one required
-    argument.
-  - `tolerance`, `demand`: the arrival's niche and its resource requirements. Cloned from the last
-    species if omitted.
-  - `dispersal`: a dispersal **kernel**, an [`AbstractKernel`](@ref), matching
-    `build_species`' keyword of the same name. The arrival disperses in the last species' mode,
-    with this kernel.
-  - `birth`, `death`: the arrival's demographic rates.
-  - `name`: what to call it.
+  - `count`: how many species, a whole number or a rate per unit time, neither negative.
 """
-struct AddSpecies{T, D, M, B, X} <: AbstractOperation
-    tolerance::T
-    demand::D
-    dispersal::M
-    birth::B
-    death::X
-    abundance::Int
-    name::Union{Nothing, String}
+struct RandomSpecies{C <: CELLCOUNT}
+    count::C
 
-    function AddSpecies(; tolerance = nothing, demand = nothing,
-                        dispersal = nothing, birth = nothing, death = nothing,
-                        abundance::Integer, name = nothing)
-        return new{typeof(tolerance), typeof(demand), typeof(dispersal),
-                   typeof(birth), typeof(death)}(tolerance, demand, dispersal,
-                                                 birth, death, Int(abundance),
-                                                 name)
+    # `CELLCOUNT`, for the reason given on `AddAbundance`.
+    function RandomSpecies(count::CELLCOUNT)
+        count >= zero(count) ||
+            error("`RandomSpecies` takes how many species arrive, a number or a rate that is not " *
+                  "negative; got $count.")
+        return new{typeof(count)}(count)
+    end
+end
+
+"""
+    AddSpecies(species, placement; level = ProblemError())
+
+Bring species into a run - an invasion, a reintroduction, a crop sown for the first time: each of
+`species` joins the run, and its first individuals are placed by `placement` over the intervention's
+region.
+
+```julia
+Intervention(AtTime(5year), CellsAt(LatLong(56.0°, -3.2°)),
+             AddSpecies("Rhododendron ponticum", BySupply(each = 500)))
+Intervention(EveryStep(), ActiveCells(), AddSpecies(RandomSpecies(0.1 / year), BySupply(each = 50)))
+```
+
+**Every species a run may hold is declared before it is built**, in its [`SpeciesPool`](@ref), and one
+not in the run at the start is deactivated there ([`deactivate_species!`](@ref)): so an arrival brings
+traits of its own, and nothing about the run changes size, under MPI or otherwise.
+
+The placement places the arrivals alone, as though they were the only species in the run, worked out
+over the region's active cells with random streams of the firing's own, as [`AddAbundance`](@ref) of
+a placement is; its rows naming any other species are dropped, and reported. A species already in the
+run gets its arrivals all the same, and the run's end says which did.
+
+Its names are looked up before the run's first step, as a placement's are - a species' own name, a
+name of its pool's data, an identifier, or through its pool's name authority - and a name reaching no
+species of the run is a problem at `level`.
+
+# Arguments
+
+  - `species`: which species - a name, a vector of names, or [`RandomSpecies`](@ref) drawn from those
+    not yet in the run.
+  - `placement`: where and how many arrive, as any undated placement [`build_ecosystem`](@ref) takes -
+    `BySupply(each = 500)`, a [`FromTable`](@ref), a [`ToCapacity`](@ref), or a function of
+    `(species, habitat, context)`. A species with dated records is declared in the run with none
+    placed at the start, and the records added by [`AddAbundance`](@ref) of the dated placement.
+  - `level`: what a name reaching no species of the run is - a [`ProblemError`](@ref), stopping the
+    run before it starts, by default; `ProblemWarning()` or `ProblemNotice()` to report it and go on
+    without it.
+"""
+struct AddSpecies{S, P, L <: AbstractProblemSeverity} <: AbstractOperation
+    species::S
+    placement::P
+    level::L
+    # What it found for the one ecosystem it last acted on (`_ArrivalState`), `nothing` before.
+    arrivals::Base.RefValue{Any}
+
+    function AddSpecies(species::Union{AbstractString, Symbol, AbstractVector,
+                                       RandomSpecies}, placement;
+                        level::AbstractProblemSeverity = ProblemError())
+        _checkplacement(placement)
+        _isdated(placement) &&
+            error("`AddSpecies` adds its arrivals when it acts, so it takes an undated placement, " *
+                  "and $(_placementphrase(placement)) is dated. Declare the species in the run with " *
+                  "none placed at the start, and add its records with `AddAbundance` of the dated " *
+                  "placement, in an `Intervention` of its own with `EveryStep()`.")
+        names = _arrivingnames(species)
+        return new{typeof(names), typeof(placement), typeof(level)}(names,
+                                                                    placement,
+                                                                    level,
+                                                                    Ref{Any}(nothing))
     end
 end
 
 # ---------------------------------------------------------------------------
 # Display
 # ---------------------------------------------------------------------------
-# As for the schedules and regions: the call the caller wrote, not the type signature. `AddSpecies`
-# carries five optional fields, so it reports only the ones that were set - which is what makes it
-# readable inside an `Intervention` alongside the others.
+# As for the schedules and regions: the call the caller wrote, not the type signature. An
+# `AddSpecies` names its `level` only where it is not the default.
 Base.show(io::IO, o::SetLandCover) = print(io, "SetLandCover($(o.class))")
 function Base.show(io::IO, o::SetChange)
     return print(io, "SetChange($(repr(o.target)), ", sprint(show, o.spec), ")")
@@ -248,11 +281,32 @@ function Base.show(io::IO, o::RemoveAbundance)
     return print(io, "RemoveAbundance($(repr(o.species)), $(o.count))")
 end
 
+Base.show(io::IO, r::RandomSpecies) = print(io, "RandomSpecies($(r.count))")
 function Base.show(io::IO, o::AddSpecies)
-    parts = String[]
-    for f in fieldnames(typeof(o))
-        v = getfield(o, f)
-        isnothing(v) || push!(parts, "$(f) = $(v)")
-    end
-    return print(io, "AddSpecies(", join(parts, ", "), ")")
+    print(io, "AddSpecies(", _arrivalsphrase(o.species), ", ",
+          _placementphrase(o.placement))
+    o.level isa ProblemError ||
+        print(io, ", level = ", nameof(typeof(o.level)), "()")
+    return print(io, ")")
 end
+
+# The species an `AddSpecies` names, as their names: one, or several, each a name; or a draw.
+_arrivingnames(name::Union{AbstractString, Symbol}) = [String(name)]
+
+_arrivingnames(r::RandomSpecies) = r
+
+function _arrivingnames(names::AbstractVector)
+    isempty(names) &&
+        error("`AddSpecies` needs at least one species: a name, a vector of names, or " *
+              "`RandomSpecies(count)`.")
+    all(n -> n isa Union{AbstractString, Symbol}, names) ||
+        error("`AddSpecies` names its species by name; got $(repr(names)).")
+    return unique(String.(names))
+end
+
+# An `AddSpecies`' species as written: a name, a vector of names, or the draw.
+function _arrivalsphrase(names::Vector{String})
+    return length(names) == 1 ? repr(only(names)) : repr(names)
+end
+
+_arrivalsphrase(r::RandomSpecies) = sprint(show, r)

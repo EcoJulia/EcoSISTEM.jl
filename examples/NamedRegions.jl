@@ -120,7 +120,7 @@ println("  cell size: ", AREA.report.cellsize, "\n")
 
 const SPECIES = build_species(SpeciesPool(8),
                               tolerance = ToleranceSpec(Temperature,
-                                                        μ = 285.0K, σ = 3.0K),
+                                                        μ = 10.0°C, σ = 3.0K),
                               demand = DemandSpec(SolarRadiation, 5.0kJ / day),
                               verbosity = :silent)
 

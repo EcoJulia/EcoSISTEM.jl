@@ -72,7 +72,7 @@ MemoryGuidance.check_memory(NUMSPECIES,
 const AREA = StudyArea(extent = (SIDE, SIDE), cellsize = CELLSIZE,
                        verbosity = ISROOT ? :normal : :silent)
 
-const ENVIRONMENT = GridHabitat(regime = UniformSpec(274.0K,
+const ENVIRONMENT = GridHabitat(regime = UniformSpec(0.0°C,
                                                      axis = Temperature),
                                 supply = UniformSpec(100.0kJ / km^2 /
                                                      day,
@@ -83,7 +83,7 @@ const ENVIRONMENT = GridHabitat(regime = UniformSpec(274.0K,
 # Every dispersal mode runs distributed, so it is not forced by the MPI run.
 const SPECIES = build_species(SpeciesPool(NUMSPECIES),
                               tolerance = ToleranceSpec(Temperature,
-                                                        μ = 274.0K, σ = 0.5K),
+                                                        μ = 0.0°C, σ = 0.5K),
                               demand = DemandSpec(SolarRadiation,
                                                   10.0kJ / day),
                               movement = MovementSpec(InsectDispersal(),

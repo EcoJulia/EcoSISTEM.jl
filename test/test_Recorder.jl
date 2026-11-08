@@ -38,8 +38,8 @@ const STEP = 1.0month_mean_duration
     short = Test1Ecosystem()
     @test_throws "room for 2" simulate!(RecordAbundance(short, 2), short, 4STEP,
                                         STEP, every = EveryInterval(2STEP))
-    # ...and storage with no room for the species already there is refused before the run.
-    @test_throws "maxspecies" RecordAbundance(eco, 3, maxspecies = 1)
+    # Every species of the pool has its row, an arrival's included.
+    @test size(RecordAbundance(eco, 3).storage, 1) == length(eco.spplist.names)
 end
 
 @testset "a recorder's provenance is the run's as it stood at the last write" begin

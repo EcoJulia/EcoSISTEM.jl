@@ -129,6 +129,34 @@ end
                                                        habitat, eco.nichefit,
                                                        eco.rngs)
     end
+    # The appending `AddSpecies`, its rewrite built from the keywords it was given.
+    message = rewrite() do
+        return AddSpecies(tolerance = 1.0, abundance = 500, name = "invader")
+    end
+    @test occursin("was removed in v0.11.0", message)
+    @test occursin("`AddSpecies(\"invader\", BySupply(total = 500))` brings it in",
+                   message)
+    @test occursin("`AddSpecies(\"arrival\", BySupply(total = 1000))`",
+                   rewrite(() -> AddSpecies()))
+end
+
+# A run's species are all declared in its pool, so a recording needs no room left for an arrival, and
+# an arrival is placed by its `AddSpecies`: `maxspecies` is ignored, and adding a number of the last
+# species keeps its body.
+@testset "maxspecies is ignored, and repopulate! of a number adds the last species" begin
+    species = build_species(DefaultEcosystem(), numspecies = 3,
+                            verbosity = :silent)
+    habitat = build_habitat(DefaultEcosystem(), verbosity = :silent)
+    eco = build_ecosystem(BySupply(total = 300), species, habitat, seed = 1,
+                          verbosity = :silent)
+    storage = @test_deprecated generate_storage(eco, 2, 1, maxspecies = 12)
+    @test size(storage, 1) == 3
+    recording = @test_deprecated RecordAbundance(eco, 2, maxspecies = 12)
+    @test size(recording.storage, 1) == 3
+    before = copy(eco.abundances.matrix)
+    @test_deprecated repopulate!(eco, 25)
+    @test sum(eco.abundances.matrix[3, :]) == sum(before[3, :]) + 25
+    @test eco.abundances.matrix[1:2, :] == before[1:2, :]
 end
 
 # Placing again by suitability is `repopulate!` with the suitability placement.

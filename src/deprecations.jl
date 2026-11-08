@@ -96,6 +96,10 @@ function MPIEcosystem(::SpeciesList, ::GridHabitat, ::Any; kw...)
     return error(_removedbuild("MPIEcosystem(spplist, habitat, nichefit)"))
 end
 
+function AddSpecies(; kw...)
+    return error(_addspeciesrewrite(values(kw)))
+end
+
 """
     populate!(ml, spplist, habitat, nichefit, rngs)
 
@@ -147,6 +151,19 @@ function _removedbuild(form::AbstractString)
            "($(_default(Val(:individuals)).value) per species, by supply), " *
            "`BySupply(each = row -> abun[row.key])` for counts of your own, `NoAbundance()` for " *
            "none."
+end
+
+# The error the removed `AddSpecies(; tolerance, ..., abundance, name)` raises, with the call that does
+# its job built from the keywords it was given.
+function _addspeciesrewrite(kw::NamedTuple)
+    name = repr(String(something(get(kw, :name, nothing), "arrival")))
+    total = something(get(kw, :abundance, nothing), 1000)
+    return "`AddSpecies(; tolerance, demand, dispersal, birth, death, abundance, name)` was removed " *
+           "in v0.11.0: a run's species are declared in its pool before it is built, so declare " *
+           "the arrival there - its traits in the pool's table, or `copy_species!` for a copy of " *
+           "one - and leave it out of the run with `deactivate_species!`. Then " *
+           "`AddSpecies($name, BySupply(total = $total))` brings it in, placed by supply over the " *
+           "intervention's region."
 end
 
 # The error a removed population function raises, naming the placement that places as it did.
@@ -295,6 +312,54 @@ function _valuephrase(value::AbstractVector, name::Symbol, notes)
 end
 
 _valuephrase(value, ::Symbol, notes) = sprint(show, value)
+
+# ---------------------------------------------------------------------------
+# A run's species are all declared in its pool before it is built, so a recording has a row for each
+# from the start, an arrival's included, and no room needs leaving for one.
+#
+# Deprecated in v0.11.0.
+# ---------------------------------------------------------------------------
+function _maxspeciesdeprecated(caller::Symbol)
+    return Base.depwarn("`$caller`'s `maxspecies` is deprecated, and ignored: every species a run " *
+                        "may hold is in its pool from the start, so the storage has a row for " *
+                        "each already.", caller)
+end
+
+# ---------------------------------------------------------------------------
+# Individuals of a species arriving are placed by the placement its `AddSpecies` is given, and are
+# added to a species already in the run by `AddAbundance`. Adding a number of the last species at
+# random cells with any supply keeps its body.
+#
+# Deprecated in v0.11.0.
+# ---------------------------------------------------------------------------
+function repopulate!(eco::Ecosystem, abun::Int64)
+    Base.depwarn("`repopulate!(eco, abun)` is deprecated: an arriving species' individuals are " *
+                 "placed by its `AddSpecies` placement, and individuals are added to a species " *
+                 "already in the run by `AddAbundance`.", :repopulate!)
+    grid, activity = _gridactivity(eco.habitat)
+    # Set up copy of supply
+    b = reshape(parent(copy(_getsupply(eco.habitat.supply))), length(grid))
+    units = unit(b[1])
+    b[.!activity] .= 0.0 * units
+    # Draw locations from the last species' own RNG stream
+    pos = sample(getrng(eco, lastindex(eco.rngs)), grid[b .> (0 * units)], abun)
+    # Add individual to this location
+    map(pos) do p
+        return eco.abundances.matrix[end, p] += 1
+    end
+end
+
+# The linear indices of every cell of `habitat`'s grid, and a flattened copy of its active mask, which
+# `repopulate!(eco, abun)` zeroes the supply of inactive cells by, so that none is placed outside it.
+function _gridactivity(habitat::AbstractHabitat)
+    dim = getgridshape(habitat)
+    len = dim[1] * dim[2]
+    grid = collect(1:len)
+    # `reshape` on a `DimArray` isn't a clean zero-copy operation the way a plain `Array`
+    # reshape is - unwrap via `parent()` first.
+    activity = reshape(copy(parent(habitat.active)), len)
+    return grid, activity
+end
 
 # ---------------------------------------------------------------------------
 # A table of dated additions is a placement: `AddAbundance(FromTable(...))` serves its rows as they

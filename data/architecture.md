@@ -416,6 +416,13 @@ act twice on the same random cells (clear ground, then plant it).
 study area's `within`, and is placed on the habitat's grid by the same collective build that places a
 layer - on the root under MPI - once for each ecosystem, before the run's first step.
 
+**`AddSpecies` brings in a species the run already holds.** Every species a run may hold is declared
+in its pool before it is built, one arriving later deactivated there, so the abundance arrays, the
+streams and the MPI partition are fixed at build. Which species are in the run is the species list's
+own record, changed by a run as the habitat is: an `AddSpecies` sets it and places its arrivals as a
+placement at a firing does, the placement told which species it places. The pool keeps what was
+declared, as the study area keeps the grid it decided.
+
 **A dated placement carries its own times**, one per row, so `AddAbundance` of one stands alone in an
 intervention scheduled `EveryStep()`, which also fires at the start for the rows due there; the region
 filters its rows rather than choosing cells to act on. The root resolves it once for an ecosystem,

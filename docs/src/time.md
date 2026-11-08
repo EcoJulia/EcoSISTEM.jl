@@ -24,12 +24,12 @@ using EcoSISTEM, EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
 
 area = StudyArea(extent = (100km, 100km), cellsize = 10km, verbosity = :silent)
-env = GridHabitat(regime = UniformSpec(285.0K, axis = Temperature),
+env = GridHabitat(regime = UniformSpec(10.0°C, axis = Temperature),
                         supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                              axis = SolarRadiation),
                         area = area)
 species = build_species(SpeciesPool(5),
-                        tolerance = ToleranceSpec(Temperature, μ = 285.0K, σ = 3.0K),
+                        tolerance = ToleranceSpec(Temperature, μ = 10.0°C, σ = 3.0K),
                         demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
                         seed = 1, verbosity = :silent)
 eco = build_ecosystem(BySupply(total = 1000), species, env, seed = 1)
@@ -121,7 +121,7 @@ the values current now, plus a **change** that says how those values depend on e
 Declare one when the environment is built, by wrapping the layer's spec in [`Varying`](@ref):
 
 ```@example clock
-warming = GridHabitat(regime = Varying(UniformSpec(285.0K, axis = Temperature),
+warming = GridHabitat(regime = Varying(UniformSpec(10.0°C, axis = Temperature),
                                              IncrementBy(0.02K / year)),
                             supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                                  axis = SolarRadiation),
@@ -253,11 +253,11 @@ using Dates: DateTime      # not plain `using Dates`: it would shadow Unitful's 
 using DimensionalData.Lookups: NoLookup
 
 area = StudyArea(extent = (50km, 50km), cellsize = 10km, verbosity = :silent)
-# A twelve-month temperature climatology whose slice k holds 279 + k K, so the value names
-# the month it came from.
-slices = cat((fill((279.0 + i) * K, 5, 5) for i in 1:12)...; dims = 3)
+# A twelve-month temperature climatology whose slice k holds k °C, so the value names the month
+# it came from.
+slices = cat((fill(float(i) * °C, 5, 5) for i in 1:12)...; dims = 3)
 stack = DimArray(slices, (Y(NoLookup()), X(NoLookup()), Ti((1:12) .* month_mean_duration)))
-seasonal() = Varying(UniformSpec(280.0K, axis = Temperature),
+seasonal() = Varying(UniformSpec(1.0°C, axis = Temperature),
                      ReplaceWith(SeriesChange(stack, calendar = MonthOfYearSeries(),
                                               atend = RepeatAtEnd())))
 makeenv() = GridHabitat(regime = seasonal(),
@@ -265,14 +265,14 @@ makeenv() = GridHabitat(regime = seasonal(),
                                                    axis = SolarRadiation),
                               area = area)
 species = build_species(SpeciesPool(5),
-                        tolerance = ToleranceSpec(Temperature, μ = 285.0K, σ = 3.0K),
+                        tolerance = ToleranceSpec(Temperature, μ = 10.0°C, σ = 3.0K),
                         demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
                         seed = 1, verbosity = :silent)
 ```
 
 ```@example epoch
 eco = build_ecosystem(BySupply(total = 1000), species, makeenv(), seed = 1)
-eco.habitat.regime.matrix[1, 1]        # 280 K: the January slice
+round(typeof(1.0°C), eco.habitat.regime.matrix[1, 1], digits = 1)    # the January slice
 ```
 
 Give the run a July epoch and it starts in July instead:
@@ -280,7 +280,7 @@ Give the run a July epoch and it starts in July instead:
 ```@example epoch
 eco = build_ecosystem(BySupply(total = 1000), species, makeenv(), seed = 1,
                       epoch = DateTime(2015, 7, 1))
-eco.habitat.regime.matrix[1, 1]        # 286 K: the July slice
+round(typeof(1.0°C), eco.habitat.regime.matrix[1, 1], digits = 1)    # the July slice
 ```
 
 Note that this is the value **at construction**, before any timestep has run:

@@ -703,10 +703,12 @@ if rank == 0
     @test arrived == arrivedserial.abundances.matrix
 end
 
-# Regions named by place and by shape, against the serial twin at any rank count. The grid and the
-# shape are files only the root can see, so a rank placing the shape from its own reading would fail:
-# every rank acts on the cells the root found, and records the root's records. Placing a shape is a
-# collective build, so the serial twin runs on every rank too, each run on a habitat of its own.
+# Regions named by place and by shape, and species brought into the run by name and at random,
+# against the serial twin at any rank count. The grid and the shape are files only the root can see,
+# so a rank placing the shape from its own reading would fail: every rank acts on the cells the root
+# found, and records the root's records; and every rank activates the same species, which every rank
+# holds already. Placing a shape is a collective build, so the serial twin runs on every rank too,
+# each run on a habitat and a species list of its own, since a run changes both.
 placesdir = MPI.bcast(rank == 0 ? mktempdir() : "", 0, comm)
 placesgrid = joinpath(placesdir, "grid.tif")
 placessquare = joinpath(placesdir, "square.geojson")
@@ -737,11 +739,16 @@ function placeshabitat()
                        area = StudyArea(regime = temperature,
                                         verbosity = :silent))
 end
-placessppl = build_species(SpeciesPool(numSpecies),
-                           tolerance = ToleranceSpec(Temperature, μ = 298.0K,
-                                                     σ = 5.0K),
-                           demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
-                           seed = 1, verbosity = :silent)
+placespool = SpeciesPool(numSpecies)
+deactivate_species!(placespool, string(numSpecies - 1), string(numSpecies),
+                    verbosity = :silent)
+function placesspecies()
+    return build_species(placespool,
+                         tolerance = ToleranceSpec(Temperature, μ = 298.0K,
+                                                   σ = 5.0K),
+                         demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
+                         seed = 1, verbosity = :silent)
+end
 placesiv = InterventionSet(Intervention(AtTime(0.0year),
                                         CellsAt(LatLong(55.7°, -4.3°),
                                                 CartesianIndex(1, 1)),
@@ -749,10 +756,18 @@ placesiv = InterventionSet(Intervention(AtTime(0.0year),
                                         AddAbundance("2", 300)),
                            Intervention(AtTime(MPIFIXTURE_TIMESTEP),
                                         ShapeSpec(placesfile("square.geojson")),
-                                        Deactivate()))
-placeseco = build_ecosystem(NoAbundance(), placessppl, placeshabitat(),
+                                        Deactivate()),
+                           Intervention(AtTime(2 * MPIFIXTURE_TIMESTEP),
+                                        CellsAt(CartesianIndex(1, 1)),
+                                        AddSpecies(string(numSpecies),
+                                                   BySupply(each = 40))),
+                           Intervention(AtTime(2 * MPIFIXTURE_TIMESTEP),
+                                        AllCells(),
+                                        AddSpecies(RandomSpecies(1),
+                                                   BySupply(each = 60))))
+placeseco = build_ecosystem(NoAbundance(), placesspecies(), placeshabitat(),
                             seed = 0, distributed = true, verbosity = :silent)
-placesserial = build_ecosystem(NoAbundance(), placessppl, placeshabitat(),
+placesserial = build_ecosystem(NoAbundance(), placesspecies(), placeshabitat(),
                                seed = 0, distributed = false,
                                verbosity = :silent)
 simulate!(placeseco, 3 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP,
@@ -770,7 +785,12 @@ if rank == 0
     @test all(==(serialactive), everyactive)
     @test all(==(placesserial.inputs), everyinputs)
     @test any(r -> r.path == "square.geojson", placesserial.inputs)
+    @test sum(placed[numSpecies - 1, :]) > 0 && sum(placed[numSpecies, :]) > 0
 end
+everyspecies = MPI.gather(Vector{Bool}(placeseco.spplist.traits.active), comm)
+rank == 0 && @test all(==(placesserial.spplist.traits.active), everyspecies)
+rank == 0 && @test all(placesserial.spplist.traits.active)
+rank == 0 && @test placespool.species.active[(end - 1):end] == [false, false]
 
 # **An intervention is the only thing that can leave the two landscape layouts out of step**, and so
 # the only thing that exercises where `synchronise_from_rows!` sits in the timestep. It writes

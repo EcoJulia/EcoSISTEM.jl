@@ -80,7 +80,7 @@ else
     # experiments were written against a wrapping grid, and several of their assertions depend on
     # having no edge - the ones that want an edge say so.
     """
-        uniform_environment(cells, area; temperature = 298.0K)
+        uniform_environment(cells, area; temperature = 25.0°C)
 
     Build a `cells × cells` environment over `area`, uniform in every respect: one temperature
     everywhere, with uniform solar and water supply.
@@ -88,7 +88,7 @@ else
     Returned on its own rather than folded into the community builder so that a test can impose a
     supply gradient on it before the species arrive - see "more resource supports more individuals".
     """
-    function uniform_environment(cells, area; temperature = 298.0K,
+    function uniform_environment(cells, area; temperature = 25.0°C,
                                  topology = Torus())
         return GridHabitat(regime = UniformSpec(temperature,
                                                 axis = Temperature),
@@ -164,24 +164,24 @@ else
 
     @testset "Biodiversity properties" begin
         @testset "commonest at the temperature optimum" begin
-            # Optima spread ±3 widths around the environment's own 298 K, so the species matched to
+            # Optima spread ±3 widths around the environment's own 25 °C, so the species matched to
             # the regime should end up commoner than those at either extreme of the gradient.
             widths = fill(2.0K, NUMSPECIES)
-            opts = 298.0K .+
+            opts = 25.0°C .+
                    widths .* range(-3, stop = 3, length = NUMSPECIES)
             eco = simulated(community(uniform_environment(CELLS, AREA), opts,
                                       widths))
-            @test abundance_in(eco, opts, 298.0K, 299.0K) >
-                  abundance_in(eco, opts, 292.0K, 293.0K)
-            @test abundance_in(eco, opts, 298.0K, 299.0K) >
-                  abundance_in(eco, opts, 303.0K, 304.0K)
+            @test abundance_in(eco, opts, 25.0°C, 26.0°C) >
+                  abundance_in(eco, opts, 19.0°C, 20.0°C)
+            @test abundance_in(eco, opts, 25.0°C, 26.0°C) >
+                  abundance_in(eco, opts, 30.0°C, 31.0°C)
         end
 
         @testset "specialists beat generalists in a matched regime" begin
             # Every species shares the environment's optimum and differs only in niche width. In a
             # constant regime there is nothing for a wide niche to buy, so the narrowest should win.
             widths = collect(range(0.0001K, stop = 5.0K, length = NUMSPECIES))
-            opts = fill(298.0K, NUMSPECIES)
+            opts = fill(25.0°C, NUMSPECIES)
             eco = simulated(community(uniform_environment(CELLS, AREA), opts,
                                       widths))
             @test abundance_in(eco, widths, 0.1K, 0.3K) >
@@ -193,8 +193,8 @@ else
             # are excluded by the mismatch and the widest are still too diffuse, so the peak moves
             # inwards - the one case in this file where the answer is non-monotonic, and why it is here.
             widths = collect(range(0.0001K, stop = 5.0K, length = NUMSPECIES))
-            opts = fill(298.0K, NUMSPECIES)
-            env = uniform_environment(CELLS, AREA, temperature = 299.0K)
+            opts = fill(25.0°C, NUMSPECIES)
+            env = uniform_environment(CELLS, AREA, temperature = 26.0°C)
             eco = simulated(community(env, opts, widths))
             @test abundance_in(eco, widths, 1.1K, 1.3K) >
                   abundance_in(eco, widths, 4.7K, 4.9K)
@@ -219,7 +219,7 @@ else
             # It also runs 0.25 -> 1, not 0 -> 1: a zero-supply edge is uninhabitable, and `0 < 0` fails
             # an increasing-abundance test for a reason that has nothing to do with the property.
             fracs = range(0.25, stop = 1.0, length = CELLS)
-            opts, widths = fill(298.0K, NUMSPECIES), fill(2.0K, NUMSPECIES)
+            opts, widths = fill(25.0°C, NUMSPECIES), fill(2.0K, NUMSPECIES)
 
             # Named supplies, so these read as the resource they grade rather than as `.one`/`.two`.
             byrow = uniform_environment(CELLS, AREA, topology = Island())
@@ -243,7 +243,7 @@ else
             totals = map([1, 2, 5, 10]) do cells
                 eco = community(uniform_environment(cells, AREA,
                                                     topology = Island()),
-                                fill(298.0K, NUMSPECIES),
+                                fill(25.0°C, NUMSPECIES),
                                 fill(2.0K, NUMSPECIES))
                 return sum(simulated(eco).abundances.matrix)
             end
@@ -256,7 +256,7 @@ else
             totals = map([10.0, 20.0, 50.0, 100.0]) do a
                 eco = community(uniform_environment(CELLS, a * km^2,
                                                     topology = Island()),
-                                fill(298.0K, NUMSPECIES),
+                                fill(25.0°C, NUMSPECIES),
                                 fill(2.0K, NUMSPECIES))
                 return sum(simulated(eco).abundances.matrix)
             end
@@ -274,7 +274,7 @@ else
             surviving = map(pool) do n
                 rng = Xoshiro(SEED)
                 widths = rand(rng, Uniform(1.0, 5.0), n) .* K
-                opts = 298.0K .+ widths .* range(-3, stop = 3, length = n)
+                opts = 25.0°C .+ widths .* range(-3, stop = 3, length = n)
                 death = abs.(rand(rng, Normal(0.15, 0.135), n)) ./ year
                 eco = community(uniform_environment(CELLS, AREA), opts, widths,
                                 dispersal = rand(rng, Uniform(0.6, 2.4), n) .*
@@ -294,7 +294,7 @@ else
             totals = map([0.5, 1.0, 2.0, 4.0] .* km) do d
                 eco = community(uniform_environment(CELLS, AREA,
                                                     topology = Island()),
-                                fill(298.0K, 2), fill(2.0K, 2),
+                                fill(25.0°C, 2), fill(2.0K, 2),
                                 dispersal = d, individuals = 0)
                 # Start each species pinned to one edge, rather than spread over the grid, so that what
                 # the assertions measure is dispersal and nothing else.
