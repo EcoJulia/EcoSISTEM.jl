@@ -14,7 +14,10 @@ const CELLCOUNT = Union{Integer, Unitful.Quantity{<:Real, 𝐓^-1}}
     AbstractRegion
 
 **Where** an [`Intervention`](@ref) applies - [`AllCells`](@ref), [`ActiveCells`](@ref),
-[`CellMask`](@ref), [`RandomCells`](@ref) or [`SpreadingCells`](@ref).
+[`CellMask`](@ref), [`CellsAt`](@ref), [`RandomCells`](@ref) or [`SpreadingCells`](@ref). An
+`Intervention` also takes a shape as its region, as a study area's `within` does: a
+[`NaturalEarthSpec`](@ref) or any other [`AbstractShapeSpec`](@ref) means the cells it covers at
+least half of, and a [`ShapeMaskSpec`](@ref) says which cells under another rule.
 
 A region resolves to the linear cell indices an operation should touch. The two random regions draw
 from a **counter-based** stream keyed on the step (see [`Intervention`](@ref)), never from a species'
@@ -76,6 +79,53 @@ struct SpreadingCells{C <: CELLCOUNT} <: AbstractRegion
     SpreadingCells(count::CELLCOUNT) = new{typeof(count)}(count)
 end
 
+"""
+    CellsAt(places...; snap = 0.0km)
+
+The cells at `places`: a site named by where it is rather than by its position in the grid.
+
+```julia
+Intervention(AtTime(10year), CellsAt(LatLong(55.95°, -3.19°)), AddAbundance("Rhododendron", 500))
+```
+
+Each place is found in the grid by [`getcellat`](@ref), and a place off the grid is refused before
+the run's first step. The cells are taken whether they are active or not, as a [`CellMask`](@ref)'s
+are, so a [`Reactivate`](@ref) at a site reaches it. With `snap`, a place in an inactive cell is
+moved to the nearest active cell whose centre lies within `snap` of its own, ties to the lower
+`(y, x)`, and stays where it is when none is that near. Two places in one cell are that cell once.
+
+# Arguments
+
+  - `places`: one or more places, each a [`LatLong`](@ref), a [`SpatialLocation`](@ref) in the grid's
+    own frame, or a grid key, `CartesianIndex(y, x)`.
+  - `snap`: how far a place in an inactive cell may move to reach an active one, as a length; none
+    by default.
+"""
+struct CellsAt{P <: AbstractVector, S <: Unitful.Length} <: AbstractRegion
+    places::P
+    snap::S
+
+    function CellsAt(places::Union{SpatialLocation, CartesianIndex{2}}...;
+                     snap::Unitful.Length = 0.0km)
+        isempty(places) &&
+            error("`CellsAt` needs at least one place: a `LatLong`, a `SpatialLocation` or a " *
+                  "grid key, `CartesianIndex(y, x)`.")
+        _checksnap(snap)
+        given = collect(places)
+        return new{typeof(given), typeof(snap)}(given, snap)
+    end
+end
+
+# A shape as a region, as `within` takes one: `given` as written, the mask spec it means, and the
+# cells it covers in the one ecosystem it was last resolved for, with the records of the shape's
+# files. Resolving rasterises the shape on the habitat's grid, a collective build under MPI, so it is
+# done once for each ecosystem rather than at every firing.
+struct _ShapeCells{G, M <: ShapeMaskSpec} <: AbstractRegion
+    given::G
+    spec::M
+    found::Base.RefValue{Any}
+end
+
 # ---------------------------------------------------------------------------
 # Display
 # ---------------------------------------------------------------------------
@@ -90,3 +140,9 @@ function Base.show(io::IO, r::CellMask)
     ny, nx = size(r.mask)
     return print(io, "CellMask($(ny) × $(nx), $(count(r.mask)) selected)")
 end
+function Base.show(io::IO, r::CellsAt)
+    print(io, "CellsAt(", join(map(p -> sprint(show, p), r.places), ", "))
+    iszero(r.snap) || print(io, ", snap = ", r.snap)
+    return print(io, ")")
+end
+Base.show(io::IO, r::_ShapeCells) = show(io, r.given)

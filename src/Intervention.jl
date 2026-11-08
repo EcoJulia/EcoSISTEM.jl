@@ -21,12 +21,18 @@ using Distributions: Binomial, Poisson
 
 A declared change to the **ecosystem** - as against an [`AbstractLayerChange`](@ref), which changes a
 single layer. The parts answer *when* ([`AbstractSchedule`](@ref)), *where*
-([`AbstractRegion`](@ref)) and *what* ([`AbstractOperation`](@ref)):
+([`AbstractRegion`](@ref), or a shape) and *what* ([`AbstractOperation`](@ref)):
 
 ```julia
 Intervention(AtTime(50year), RandomCells(20), Deactivate())
 Intervention(EveryStep(), AllCells(), SetChange(:rainfall, IncrementBy(-0.1mm/day/year)))
+Intervention(AtTime(10year), NaturalEarthSpec("Fife"), Deactivate())
 ```
+
+A shape is a region as a study area's `within` is: the cells it covers at least half of, or those a
+[`ShapeMaskSpec`](@ref)'s rule picks. It is placed on the grid the habitat was built on, which must
+have a coordinate reference system, once for each ecosystem before the run's first step, and the
+records of its files join the ecosystem's when the intervention first acts.
 
 **Several operations share one resolved region**, applied in the order written - clear an area and
 plant a crop on it, or reactivate a site and restock it:
@@ -55,15 +61,18 @@ struct Intervention{S <: AbstractSchedule, RG <: AbstractRegion, O <: Tuple}
 
     # The sole constructor. Varargs, so the one-operation form is unchanged and needs no second
     # spelling; at least one is required, since an intervention that does nothing is not one.
-    function Intervention(schedule::AbstractSchedule, region::AbstractRegion,
+    function Intervention(schedule::AbstractSchedule,
+                          region::Union{AbstractRegion, AbstractShapeSpec,
+                                        ShapeMaskSpec},
                           operations::AbstractOperation...;
                           provenance = ProvenanceRecord[])
         isempty(operations) &&
             error("an `Intervention` needs at least one operation: a schedule and a region with " *
                   "nothing to do are not an intervention. Use `NeverScheduled()` to disable one.")
         _checktableintervention(schedule, operations)
-        return new{typeof(schedule), typeof(region),
-                   typeof(operations)}(schedule, region, operations,
+        cells = _asregion(region)
+        return new{typeof(schedule), typeof(cells),
+                   typeof(operations)}(schedule, cells, operations,
                                        _recordvector(provenance))
     end
 end
@@ -277,6 +286,26 @@ function _scheduleepoch(schedule::AbstractSchedule, eco::AbstractEcosystem)
                  "run starts on.")
 end
 
+# Find, before a run's first step, the cells of every region that names places or a shape: a place
+# off the grid is refused here rather than when it fires, and a shape is placed on the grid once for
+# the ecosystem, by every rank at the same point, since under MPI that is a collective build.
+function _prepareregions!(intervention, eco::AbstractEcosystem)
+    foreach(iv -> _prepareregion!(iv.region, eco), _interventions(intervention))
+    return nothing
+end
+
+_prepareregion!(::AbstractRegion, ::AbstractEcosystem) = nothing
+
+function _prepareregion!(r::CellsAt, eco::AbstractEcosystem)
+    _placecells(r, eco)
+    return nothing
+end
+
+function _prepareregion!(r::_ShapeCells, eco::AbstractEcosystem)
+    _shapecells!(r, eco)
+    return nothing
+end
+
 # Refuse, before a run's first step, a date schedule the run cannot honour: one on a run with no
 # epoch, and one naming a date that falls inside a step longer than a day rather than at the end of
 # one, which would be acted on late - and, as the steps drift against the calendar, by a different
@@ -362,12 +391,19 @@ _interventions(intervention::Intervention) = (intervention,)
 _interventions(::Nothing) = ()
 
 # Add the records of an intervention that has just acted to the ecosystem's own, so what a run says
-# it was built from names the interventions that changed it. Every rank fires the same interventions
-# on the same step, so every rank's records agree.
+# it was built from names the interventions that changed it, the files of a shape it acted over among
+# them. Every rank fires the same interventions on the same step, so every rank's records agree.
 function _recordintervention!(eco::AbstractEcosystem, iv::Intervention)
-    isempty(iv.inputs) && return eco
-    eco.inputs = _uniqueinputs(vcat(eco.inputs, iv.inputs))
+    inputs = vcat(iv.inputs, _regioninputs(iv.region, eco))
+    isempty(inputs) && return eco
+    eco.inputs = _uniqueinputs(vcat(eco.inputs, inputs))
     return eco
+end
+
+_regioninputs(::AbstractRegion, ::AbstractEcosystem) = ProvenanceRecord[]
+
+function _regioninputs(r::_ShapeCells, eco::AbstractEcosystem)
+    return _shapecells!(r, eco).inputs
 end
 
 # ---------------------------------------------------------------------------
@@ -421,6 +457,84 @@ function _regioncells(r::CellMask, eco::AbstractEcosystem, _, _)
         error("a `CellMask` must be on the habitat's own grid: the mask is $(size(r.mask)) but " *
               "the grid is $(size(parent(eco.habitat.active))).")
     return findall(vec(r.mask))
+end
+
+# Each place's cell, in order, and a place in an inactive cell moved to the nearest active one within
+# `snap`, where there is one; each cell once, in grid order, so the places' order changes nothing.
+function _regioncells(r::CellsAt, eco::AbstractEcosystem, _, _)
+    active = parent(eco.habitat.active)
+    cells = _placecells(r, eco)
+    if !iszero(r.snap)
+        yx = _gridyx(eco)
+        cells = map(cells) do cell
+            active[cell] && return cell
+            target = _nearestactive(yx, active, cell, r.snap)
+            return isnothing(target) ? cell : target
+        end
+    end
+    linear = LinearIndices(active)
+    return sort!(unique(linear[cell] for cell in cells))
+end
+
+function _regioncells(r::_ShapeCells, eco::AbstractEcosystem, _, _)
+    return _shapecells!(r, eco).cells
+end
+
+# The cell of each of a `CellsAt`'s places in `eco`'s grid, a place off the grid refused by name.
+function _placecells(r::CellsAt, eco::AbstractEcosystem)
+    shape = size(parent(eco.habitat.active))
+    return map(place -> _placecell(place, eco, shape), r.places)
+end
+
+function _placecell(key::CartesianIndex{2}, _, shape::Tuple)
+    checkbounds(Bool, CartesianIndices(shape), key) ||
+        error("`CellsAt` names the cell $(Tuple(key)), which is off the $(shape[1]) by " *
+              "$(shape[2]) grid.")
+    return key
+end
+
+function _placecell(place::SpatialLocation, eco::AbstractEcosystem, ::Tuple)
+    cell = only(getcellat(eco, [place]))
+    isnothing(cell) &&
+        error("`CellsAt` names $(sprint(show, place)), which is off the grid.")
+    return cell
+end
+
+# A region as an `Intervention` keeps it: a shape, bare or under a rule, as the cells it covers.
+_asregion(region::AbstractRegion) = region
+
+function _asregion(shape::AbstractShapeSpec)
+    return _ShapeCells(shape, ShapeMaskSpec(shape), Ref{Any}(nothing))
+end
+
+_asregion(spec::ShapeMaskSpec) = _ShapeCells(spec, spec, Ref{Any}(nothing))
+
+function _asregion(spec::ShapeMaskSpec{<:AbstractShapeSpec, WholeBoundingBox})
+    return error("`WholeBoundingBox()` says where a study area's grid is cut, which an " *
+                 "intervention's grid already is; give the shape with `AnyOverlap()` for every " *
+                 "cell it touches, or a `FractionWithin` share.")
+end
+
+# The cells a shape region covers in `eco`'s grid, and the records of the shape's files, found the
+# first time it is asked for that ecosystem and kept until it is asked for another: the shape's
+# covered share of each cell of the grid the habitat was built on, under the region's rule.
+function _shapecells!(r::_ShapeCells, eco::AbstractEcosystem)
+    found = r.found[]
+    !isnothing(found) && found.owner.value === eco && return found
+    isnothing(_gridcrs(eco)) &&
+        error("`$(sprint(show, r))` is a shape, so placing it needs a grid with a coordinate " *
+              "reference system, and this ecosystem's is synthetic. Name its cells with a " *
+              "`CellMask` or `CellsAt` instead.")
+    area = StudyArea(eco.habitat)
+    covered = materialise(ShapeCoverage(r.spec.shape, axis = NicheAxis), area)
+    mask = map(f -> _rulepasses(r.spec.rule, f), parent(covered.matrix))
+    # The copied area's cache is its own, so it holds the shape's records alone; taken whole, since
+    # under MPI they are the root's, keyed by the root's own spec.
+    inputs = reduce(vcat, values(area.report.cache.inputs),
+                    init = ProvenanceRecord[])
+    r.found[] = (owner = WeakRef(eco), cells = findall(vec(mask)),
+                 inputs = _uniqueinputs(inputs))
+    return r.found[]
 end
 
 function _regioncells(r::RandomCells, eco::AbstractEcosystem, rng, timestep)

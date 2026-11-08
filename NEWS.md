@@ -48,6 +48,9 @@
       each firing; `ToCapacity` there tops cells up, counting what is already there, so
       `AddAbundance(ToCapacity("wheat"))` sows a crop. A dated placement (`FromTable` with times,
       `FromOccurrences` with dates) is served as the clock reaches its rows, in an `EveryStep()` one.
+    - Two ways to say where an intervention acts: `CellsAt(places...; snap)`, the cells at
+      latitudes and longitudes or grid keys, and a shape as the region - a `NaturalEarthSpec`, a
+      `ShapeSpec` or a `ShapeMaskSpec`, meaning what it means as a study area's `within`.
   - Changed
     - `build_ecosystem(species, habitat)` places 1000 individuals of each active species, split at
       random and placed by supply, and announces it; it takes `verbosity`. `repopulate!(eco, placement = eco.placement; seed)` places again by the

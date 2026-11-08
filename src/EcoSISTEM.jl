@@ -535,7 +535,7 @@ public AbstractSchedule
 include("Region.jl")
 
 # where - the region
-export AllCells, ActiveCells, CellMask, RandomCells, SpreadingCells
+export AllCells, ActiveCells, CellMask, CellsAt, RandomCells, SpreadingCells
 
 public AbstractRegion
 

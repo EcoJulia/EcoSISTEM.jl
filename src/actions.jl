@@ -420,6 +420,7 @@ function simulate!(eco::AbstractEcosystem, duration::Unitful.Time,
     checkcoverage(eco, duration, timestep)
     check_bounds(eco, duration, timestep)
     _checkschedules(intervention, eco, duration, timestep)
+    _prepareregions!(intervention, eco)
     for _ in 1:_stepcount(duration, timestep)
         update!(eco, timestep, intervention)
     end
@@ -480,6 +481,7 @@ function simulate!(f, eco::AbstractEcosystem, duration::Unitful.Time,
     checkcoverage(eco, duration, timestep)
     check_bounds(eco, duration, timestep)
     _checkschedules(intervention, eco, duration, timestep)
+    _prepareregions!(intervention, eco)
     _checkschedule(schedule, eco, duration, timestep)
     count = 0
     if iszero(simulationtime(eco))

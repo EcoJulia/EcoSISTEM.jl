@@ -377,6 +377,7 @@ classDiagram
     AbstractRegion <|-- AllCells
     AbstractRegion <|-- ActiveCells
     AbstractRegion <|-- CellMask
+    AbstractRegion <|-- CellsAt
     AbstractRegion <|-- RandomCells
     AbstractRegion <|-- SpreadingCells
     AbstractOperation <|-- Deactivate
@@ -409,6 +410,11 @@ restock - recolonisation is by dispersal.
 **Counts may be exact or rates** - `RandomCells(20)` or `RandomCells(0.05/year)`, drawn
 binomially - and **operations after the first share one resolved region**, which is the only way to
 act twice on the same random cells (clear ground, then plant it).
+
+**A region may be named by place or by shape.** `CellsAt` finds its places' cells through
+`getcellat`, so a site is named as it is known. A shape given as the region means what it means as a
+study area's `within`, and is placed on the habitat's grid by the same collective build that places a
+layer - on the root under MPI - once for each ecosystem, before the run's first step.
 
 **A dated placement carries its own times**, one per row, so `AddAbundance` of one stands alone in an
 intervention scheduled `EveryStep()`, which also fires at the start for the rows due there; the region

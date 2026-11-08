@@ -369,7 +369,7 @@ end
 # Refuse a `snap` no distance can be.
 function _checksnap(snap::Unitful.Length)
     (isfinite(snap) && snap >= zero(snap)) ||
-        error("`snap` is how far a record may be from an active cell, so a finite, non-negative " *
+        error("`snap` is how far a position may be from an active cell, so a finite, non-negative " *
               "length; got $snap.")
     return nothing
 end

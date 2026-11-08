@@ -66,7 +66,30 @@ the run reaches must fall at the end of a step, or the step must be no longer th
 ## Where - the region
 
 [`AllCells`](@ref), [`ActiveCells`](@ref), [`CellMask`](@ref) (your own boolean grid),
-[`RandomCells`](@ref) and [`SpreadingCells`](@ref) (a contiguous cluster).
+[`CellsAt`](@ref) (the cells at named places), [`RandomCells`](@ref) and [`SpreadingCells`](@ref)
+(a contiguous cluster) - or a shape.
+
+A site is usually known by where it is, not by its row and column. `CellsAt` takes places - a
+[`LatLong`](@ref), a position in the grid's own frame, or a grid key - and refuses one off the grid
+before the run starts. It takes the cells whether active or not, so a site can be reactivated by
+naming it; with `snap`, a place that falls in an inactive cell (a release point on the shore of a
+coarse grid, say) moves to the nearest active cell within that distance:
+
+```julia
+Intervention(AtTime(10year), CellsAt(LatLong(56.0°, -3.2°), snap = 5km),
+             AddAbundance("Rhododendron", 500))
+```
+
+A shape is a region as it is a study area's `within`: a [`NaturalEarthSpec`](@ref), a
+[`ShapeSpec`](@ref) of your own boundary file or a combination of them means the cells it covers at
+least half of, and a [`ShapeMaskSpec`](@ref) says which cells under another rule. It is placed on the
+habitat's own grid once, before the run's first step, so the grid needs a coordinate reference
+system:
+
+```julia
+Intervention(AtTime(20year), ShapeMaskSpec(NaturalEarthSpec("Orkney Is."), AnyOverlap()),
+             Deactivate())
+```
 
 A count may be **exact or a rate**. A rate means each candidate is taken independently over the
 step - a binomial draw - which is how habitat is actually lost:

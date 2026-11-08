@@ -703,6 +703,75 @@ if rank == 0
     @test arrived == arrivedserial.abundances.matrix
 end
 
+# Regions named by place and by shape, against the serial twin at any rank count. The grid and the
+# shape are files only the root can see, so a rank placing the shape from its own reading would fail:
+# every rank acts on the cells the root found, and records the root's records. Placing a shape is a
+# collective build, so the serial twin runs on every rank too, each run on a habitat of its own.
+placesdir = MPI.bcast(rank == 0 ? mktempdir() : "", 0, comm)
+placesgrid = joinpath(placesdir, "grid.tif")
+placessquare = joinpath(placesdir, "square.geojson")
+if rank == 0
+    ArchGDAL.create(placesgrid, driver = ArchGDAL.getdriver("GTiff"), width = 9,
+                    height = 8, nbands = 1, dtype = Float64) do ds
+        ArchGDAL.write!(ds, fill(298.0, 9, 8), 1)
+        transform = [245000.0, 2500.0, 0.0, 660000.0, 0.0, -2500.0]
+        Base.GC.@preserve transform ArchGDAL.setgeotransform!(ds, transform)
+        return ArchGDAL.setproj!(ds, ArchGDAL.toWKT(ArchGDAL.importEPSG(27700)))
+    end
+    write(placessquare,
+          """{"type":"FeatureCollection","features":[{"type":"Feature","properties":{},
+             "geometry":{"type":"Polygon","coordinates":[[[-4.39,55.675],[-4.27,55.675],
+             [-4.27,55.745],[-4.39,55.745],[-4.39,55.675]]]}}]}""")
+end
+MPI.Barrier(comm)
+function placesfile(name)
+    return rank == 0 ? joinpath(placesdir, name) :
+           joinpath(placesdir, "absent-" * name)
+end
+function placeshabitat()
+    temperature = RasterFileSpec(placesfile("grid.tif"), axis = Temperature,
+                                 unit = K)
+    return GridHabitat(regime = temperature,
+                       supply = UniformSpec(1.0e5kJ / (m^2 * day),
+                                            axis = SolarRadiation),
+                       area = StudyArea(regime = temperature,
+                                        verbosity = :silent))
+end
+placessppl = build_species(SpeciesPool(numSpecies),
+                           tolerance = ToleranceSpec(Temperature, μ = 298.0K,
+                                                     σ = 5.0K),
+                           demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
+                           seed = 1, verbosity = :silent)
+placesiv = InterventionSet(Intervention(AtTime(0.0year),
+                                        CellsAt(LatLong(55.7°, -4.3°),
+                                                CartesianIndex(1, 1)),
+                                        AddAbundance("1", 500),
+                                        AddAbundance("2", 300)),
+                           Intervention(AtTime(MPIFIXTURE_TIMESTEP),
+                                        ShapeSpec(placesfile("square.geojson")),
+                                        Deactivate()))
+placeseco = build_ecosystem(NoAbundance(), placessppl, placeshabitat(),
+                            seed = 0, distributed = true, verbosity = :silent)
+placesserial = build_ecosystem(NoAbundance(), placessppl, placeshabitat(),
+                               seed = 0, distributed = false,
+                               verbosity = :silent)
+simulate!(placeseco, 3 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP,
+          intervention = placesiv)
+simulate!(placesserial, 3 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP,
+          intervention = placesiv)
+placed = gatherabundance(placeseco)
+everyactive = MPI.gather(Matrix(parent(placeseco.habitat.active)), comm)
+everyinputs = MPI.gather(placeseco.inputs, comm)
+if rank == 0
+    serialactive = parent(placesserial.habitat.active)
+    @test placed == placesserial.abundances.matrix
+    @test sum(placed[1, :]) > 0 && sum(placed[2, :]) > 0
+    @test 0 < count(!, serialactive) < length(serialactive)
+    @test all(==(serialactive), everyactive)
+    @test all(==(placesserial.inputs), everyinputs)
+    @test any(r -> r.path == "square.geojson", placesserial.inputs)
+end
+
 # **An intervention is the only thing that can leave the two landscape layouts out of step**, and so
 # the only thing that exercises where `synchronise_from_rows!` sits in the timestep. It writes
 # `rows_matrix` after the dynamics; the next timestep opens with `update_resource_usage!`, which

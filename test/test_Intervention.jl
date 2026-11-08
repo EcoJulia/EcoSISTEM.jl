@@ -5,14 +5,18 @@ module TestIntervention
 using EcoSISTEM
 # These are `public` rather than exported - a spec is what a user writes,
 # and these are what it materialises into.
-using EcoSISTEM: SteadyLayerChange
+using EcoSISTEM: SteadyLayerChange, materialise
 using EcoSISTEM.Units
 using Unitful
 using Unitful.DefaultSymbols
 using Test
 using Random
 using DataFrames: DataFrame
+using DimensionalData: DimensionalData, DimArray, X, Y
+using Rasters
 import Dates
+
+include("rasterfixtures.jl")
 
 # A small synthetic ecosystem on a 10 × 10 grid. A **fresh** `StudyArea` each time: an area is
 # reusable by design, and sharing one between ecosystems is exactly the bug this file first exposed
@@ -34,6 +38,25 @@ function _eco(; abundance = 3000, seed = 1, kw...)
                            verbosity = :silent, kw...)
 end
 _active(eco) = count(parent(eco.habitat.active))
+
+# An ecosystem with nothing placed on a projected grid, 8 rows by 9 columns of 2.5 km over central
+# Scotland, so that a place can be named by its latitude and longitude and a shape laid over it.
+function _placedeco()
+    regime = _reg(_bngraster(EcoSISTEM.SyntheticData, fill(298.0K, 8, 9),
+                             north = (640000.0:2500.0:657500.0) .* m),
+                  axis = Temperature)
+    env = GridHabitat(regime = regime,
+                      supply = UniformSpec(1.0e5kJ / (m^2 * day),
+                                           axis = SolarRadiation),
+                      area = StudyArea(regime = regime, verbosity = :silent))
+    spp = build_species(SpeciesPool(2),
+                        tolerance = ToleranceSpec(Temperature, μ = 298.0K,
+                                                  σ = 5.0K),
+                        demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
+                        seed = 1, verbosity = :silent)
+    return build_ecosystem(NoAbundance(), spp, env, seed = 1,
+                           verbosity = :silent)
+end
 
 @testset "Schedules fire when they say" begin
     fires(sch, elapsed) = EcoSISTEM._fires(sch, elapsed, 1.0month_mean_duration)
@@ -264,6 +287,122 @@ end
     @test 0 <= length(drawn) <= 50
     # ...and the draw is reproducible, being keyed on the step rather than the global RNG.
     @test cells(RandomCells(0.5 / year)) == drawn
+end
+
+@testset "CellsAt names cells by place, moving a place out of an inactive cell within snap" begin
+    eco = _placedeco()
+    cells(r) = EcoSISTEM._regioncells(r, eco, nothing, nothing)
+    grid = LinearIndices(parent(eco.habitat.active))
+    here = LatLong(55.7°, -4.3°)
+    cell = EcoSISTEM.getcellat(eco, here)
+    @test all(2 .<= Tuple(cell) .<= (7, 8))
+    # A place, a grid key, and the place's own cell by key: each cell once, in grid order, whatever
+    # order the places come in.
+    @test cells(CellsAt(here, CartesianIndex(1, 1), cell)) ==
+          [grid[1, 1], grid[cell]]
+    @test cells(CellsAt(cell, here, CartesianIndex(1, 1))) ==
+          cells(CellsAt(here, CartesianIndex(1, 1)))
+    # A place in an inactive cell is that cell, as a mask's are, unless `snap` reaches an active one:
+    # its four neighbours are equally near, and the lower `(y, x)` is taken. No neighbour is within
+    # less than a cell.
+    parent(eco.habitat.active)[cell] = false
+    @test cells(CellsAt(here)) == [grid[cell]]
+    @test cells(CellsAt(here, snap = 3.0km)) ==
+          [grid[cell - CartesianIndex(1, 0)]]
+    @test cells(CellsAt(here, snap = 2.0km)) == [grid[cell]]
+    # So a site can be reactivated by naming it.
+    simulate!(eco, 1month_mean_duration, 1month_mean_duration,
+              intervention = Intervention(AtTime(0.0year), CellsAt(here),
+                                          Reactivate()))
+    @test parent(eco.habitat.active)[cell]
+
+    # A place off the grid is refused before the run's first step, by position or by key.
+    for (region, message) in ((CellsAt(LatLong(57.0°, -4.3°)),
+                               "which is off the grid"),
+                              (CellsAt(CartesianIndex(9, 1)),
+                               "the cell (9, 1), which is off the 8 by 9 grid"))
+        fresh = _placedeco()
+        @test_throws message simulate!(fresh, 2month_mean_duration,
+                                       1month_mean_duration,
+                                       intervention = Intervention(AtTime(1.0year),
+                                                                   region,
+                                                                   Deactivate()))
+        @test iszero(EcoSISTEM.simulationtime(fresh))
+    end
+    @test_throws "at least one place" CellsAt()
+    @test_throws "a finite, non-negative length; got -1 km" CellsAt(here,
+                                                                    snap = -1km)
+    @test_throws TypeError CellsAt(here, snap = 3)
+    @test_throws MethodError CellsAt((1, 2))
+    @test sprint(show, CellsAt(CartesianIndex(1, 2), snap = 5km)) ==
+          "CellsAt(CartesianIndex(1, 2), snap = 5 km)"
+    @test sprint(show, CellsAt(here)) == "CellsAt(" * sprint(show, here) * ")"
+end
+
+@testset "A shape is a region, as within takes one: the cells it covers, found once an ecosystem" begin
+    path = joinpath(mktempdir(), "square.geojson")
+    write(path,
+          """{"type":"FeatureCollection","features":[{"type":"Feature","properties":{},
+             "geometry":{"type":"Polygon","coordinates":[[[-4.39,55.675],[-4.27,55.675],
+             [-4.27,55.745],[-4.39,55.745],[-4.39,55.675]]]}}]}""")
+    square = ShapeSpec(path)
+    eco = _placedeco()
+    cells(r) = EcoSISTEM._regioncells(EcoSISTEM._asregion(r), eco, nothing,
+                                      nothing)
+    # A bare shape is the cells it covers at least half of, and a rule picks others: every cell it
+    # touches, or only those wholly inside.
+    covered = materialise(ShapeCoverage(square, axis = EcoSISTEM.NicheAxis),
+                          StudyArea(eco.habitat))
+    half = cells(square)
+    @test half == findall(vec(parent(covered.matrix) .>= 0.5))
+    @test cells(ShapeMaskSpec(square)) == half
+    touched = cells(ShapeMaskSpec(square, AnyOverlap()))
+    inside = cells(ShapeMaskSpec(square, FullyWithin()))
+    @test issubset(inside, half) && issubset(half, touched)
+    @test 0 < length(inside) < length(half) < length(touched) < 72
+    @test_throws "`WholeBoundingBox()` says where a study area's grid is cut" Intervention(AtTime(1.0year),
+                                                                                           ShapeMaskSpec(square,
+                                                                                                         WholeBoundingBox()),
+                                                                                           Deactivate())
+
+    # In a run, placed before the first step and acted on when it fires, the records of the shape's
+    # file then joining the ecosystem's.
+    iv = Intervention(AtTime(1month_mean_duration), square, Deactivate())
+    @test sprint(show, iv) ==
+          "Intervention(" * sprint(show, AtTime(1month_mean_duration)) * ", " *
+          sprint(show, square) * ", " * sprint(show, Deactivate()) * ")"
+    before = length(provenance(eco).inputs)
+    simulate!(eco, 2month_mean_duration, 1month_mean_duration,
+              intervention = iv)
+    @test findall(!, vec(parent(eco.habitat.active))) == half
+    @test length(provenance(eco).inputs) == before + 1
+    @test any(r -> r.path == "square.geojson", provenance(eco).inputs)
+    # Found once for the ecosystem, and again for another.
+    found = iv.region.found[]
+    @test found.owner.value === eco
+    simulate!(eco, 1month_mean_duration, 1month_mean_duration,
+              intervention = iv)
+    @test iv.region.found[] === found
+    other = _placedeco()
+    simulate!(other, 2month_mean_duration, 1month_mean_duration,
+              intervention = iv)
+    @test iv.region.found[].owner.value === other
+    @test findall(!, vec(parent(other.habitat.active))) == half
+    # An intervention that never fires records nothing.
+    never = _placedeco()
+    simulate!(never, 1month_mean_duration, 1month_mean_duration,
+              intervention = Intervention(AtTime(10.0year), square,
+                                          Deactivate()))
+    @test length(provenance(never).inputs) == before
+    # A grid with no coordinate reference system cannot place a shape, refused before the first step.
+    synthetic = _eco()
+    @test_throws "needs a grid with a coordinate reference system" simulate!(synthetic,
+                                                                             1month_mean_duration,
+                                                                             1month_mean_duration,
+                                                                             intervention = Intervention(AtTime(1.0year),
+                                                                                                         square,
+                                                                                                         Deactivate()))
+    @test iszero(EcoSISTEM.simulationtime(synthetic))
 end
 
 @testset "The six operations do what they say" begin
