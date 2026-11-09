@@ -114,6 +114,7 @@
     - `discrete_evolve` uses the switch value it is given.
     - A species list built with a tree scores each species' abundances against its own tip: its
       types followed the tree's order, so a phylogenetic diversity paired species with other tips.
+    - `boundingbox` given `LandmassesAbove` refuses with a sensible message
     - The switch parameter of `assigntraits!`, `discrete_evolve` and the phylogeny-building `SpeciesList`
       constructor is documented as what it is: the mean time between trait changes as a fraction of the
       root-to-tip length, so a larger value means fewer changes.

@@ -112,8 +112,8 @@ function varying_species(; numspecies = VARYING_SPECIES)
                                                                       day *
                                                                       1.0m^2,
                                                                       numspecies))))
-    movement = BirthOnlyMovement(GaussianKernel.(fill(1.5km, numspecies),
-                                                 10e-10))
+    movement = fill(InsectDispersal()(meandist = 1.5km, thresh = 10e-10),
+                    numspecies)
     param = EqualPop(0.15 / year, 0.15 / year, 1.0, 0.1)
     tolerance = NicheTolerance(Temperature, Normal, opts, vars)
     return SpeciesList(numspecies, tolerance, demand, movement, param),
@@ -160,15 +160,17 @@ const MPIFIXTURE_TIMESTEP = 1month_mean_duration
 # The dispersal kernel both MPI fixtures share. Named once so that `mpifixture_species` and
 # `mpifixture_ecosystem` cannot drift apart in it: the serial run is the reference the distributed
 # one has to reproduce, and a difference here would look exactly like a partitioning bug.
-mpifixture_kernels(numspecies) = fill(GaussianKernel(3.0km, 10e-10), numspecies)
+function mpifixture_kernels(numspecies)
+    return fill(GaussianKernel(meandist = 3.0km, thresh = 10e-10), numspecies)
+end
 function mpifixture_movement(numspecies = VARYING_SPECIES)
-    return BirthOnlyMovement(mpifixture_kernels(numspecies))
+    return InsectDispersal().(mpifixture_kernels(numspecies))
 end
 # The animal-like counterpart, dispersing the standing population rather than only the newborns.
 # It reaches the distributed loop by a different route - `EcoSISTEM._standingpopulation` rather than
 # the `births` the loop already holds - so pinning only one of the two would leave that route unrun.
 function mpifixture_always(numspecies = VARYING_SPECIES)
-    return AlwaysMovement(mpifixture_kernels(numspecies))
+    return AlwaysDispersal().(mpifixture_kernels(numspecies))
 end
 
 # An abundance-changing intervention, which is what makes the two landscape layouts able to diverge:

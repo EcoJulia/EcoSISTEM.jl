@@ -953,7 +953,7 @@ end
 function _coveragebox(row, c::LandmassesAbove, region, lvl)
     return error("`boundingbox` cannot answer `$c`: the shipped region table records the sizes of " *
                  "only the largest $NPARTS components, so it cannot say which of \"$region\" " *
-                 "($lvl) clear $(c.area). Build the shape instead - " *
+                 "($lvl) clear $(c.threshold). Build the shape instead - " *
                  "`NaturalEarthSpec(\"$region\", level = \"$lvl\", coverage = $c)` - which reads " *
                  "the geometry.")
 end

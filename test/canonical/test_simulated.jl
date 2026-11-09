@@ -54,8 +54,8 @@ function testecosystem(; numspecies = 20, grd = (10, 10), area = 100.0km^2,
                                                                       day *
                                                                       1.0m^2,
                                                                       numspecies))))
-    movement = BirthOnlyMovement(GaussianKernel.(fill(2.4km, numspecies),
-                                                 10e-10))
+    movement = fill(InsectDispersal()(meandist = 2.4km, thresh = 10e-10),
+                    numspecies)
     param = EqualPop(0.15 / year, 0.15 / year, 1.0, 0.1)
     # The initial abundances are drawn from the *seeded* stream too, not from the global RNG, or
     # the starting state would differ between runs and nothing downstream could be blessed.

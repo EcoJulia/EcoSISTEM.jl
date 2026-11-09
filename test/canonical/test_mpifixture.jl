@@ -40,10 +40,10 @@ include("canonical.jl")
 using .Canonical
 include(joinpath(@__DIR__, "..", "varyingcase.jl"))
 
-# Both movement types are pinned, and by one loop so that the two sets cannot drift apart.
-# `BirthOnlyMovement` hands the distributed loop a count it already holds (`births`), while
-# `AlwaysMovement` reads the standing population back out of the landscape through
-# `EcoSISTEM._standingpopulation` - a route no `BirthOnlyMovement` run touches at all. Pinning only
+# Both kinds of movement are pinned, and by one loop so that the two sets cannot drift apart.
+# Dispersing at birth (`InsectDispersal`) hands the distributed loop a count it already holds
+# (`births`), while `AlwaysDispersal` reads the standing population back out of the landscape through
+# `EcoSISTEM._standingpopulation` - a route no run dispersing at birth touches at all. Pinning only
 # the first would leave the second unpinned at every rank count.
 # Each case is (key prefix, movement, intervention). The intervention case exists because an
 # intervention is the only thing that writes abundances *after* the dynamics, and so the only thing

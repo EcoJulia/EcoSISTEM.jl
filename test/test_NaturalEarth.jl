@@ -416,9 +416,9 @@ end
 
     # The shipped table records only the largest few components' sizes, so it cannot answer this and
     # says so rather than guessing from what it has.
-    @test_throws ErrorException EcoSISTEM.boundingbox("United Kingdom",
-                                                      level = "ADMIN",
-                                                      coverage = LandmassesAbove(1km^2))
+    @test_throws "Build the shape instead" EcoSISTEM.boundingbox("United Kingdom",
+                                                                 level = "ADMIN",
+                                                                 coverage = LandmassesAbove(1km^2))
 end
 
 @testset "a shape file is a shape spec, so it can join a combination" begin

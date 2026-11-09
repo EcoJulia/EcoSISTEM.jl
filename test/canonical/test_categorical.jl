@@ -85,7 +85,8 @@ function categorical_ecosystem(penalty)
 
     demand = Demand{SolarRadiation}(fill(450000.0kJ / m^2 / day * 1.0m^2,
                                          NSPECIES))
-    movement = BirthOnlyMovement(GaussianKernel.(fill(2.0km, NSPECIES), 10e-10))
+    movement = fill(InsectDispersal()(meandist = 2.0km, thresh = 10e-10),
+                    NSPECIES)
     # `survival` must be non-zero or this fixture is VACUOUS. Suitability enters the demographics
     # as `suitability^±survival`, and `x^0.0 == 1.0` for every `x` including `Inf` - so at
     # `survival = 0` the penalty is ignored entirely and the soft and hard runs would be identical.
