@@ -234,9 +234,7 @@ function boundingbox(region::AbstractString; level = nothing,
     lvl = isnothing(level) ? _resolvelevel(region, coverage) :
           _checklevel(level).name
     row = _regionrow(lvl, region)
-    isnothing(row) &&
-        error("No region named \"$region\" at level \"$lvl\". " *
-              "`EcoSISTEM.naturalearth_levels()` lists the levels.")
+    isnothing(row) && _noregion(region, lvl)
     box = _coveragebox(row, coverage, region, lvl)
     # An `Extents.Extent` states an interval, and an interval cannot run the long way round: a
     # wrapping region written into one would read as empty, or as its own complement. Refusing is

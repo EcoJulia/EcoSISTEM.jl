@@ -407,9 +407,7 @@ struct NaturalEarthSpec{C <: EcoSISTEM.AbstractCoverage} <: AbstractShapeSpec
         lvl = isnothing(level) ? EcoSISTEM._resolvelevel(name, coverage) :
               EcoSISTEM._checklevel(level).name
         row = EcoSISTEM._regionrow(lvl, name)
-        isnothing(row) &&
-            error("No region named \"$name\" at level \"$lvl\". " *
-                  "`EcoSISTEM.naturalearth_levels()` lists the levels.")
+        isnothing(row) && EcoSISTEM._noregion(name, lvl)
         _refusefetchedrelease(track, nothing)
         # The source's own spelling is stored, not the caller's: the lookup is case-insensitive, and
         # what is kept should be what the data says so that `show` and any later report agree with it.

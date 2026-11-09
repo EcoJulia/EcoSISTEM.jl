@@ -58,6 +58,9 @@
       habitat; from = path)` starts an ecosystem from it, going on exactly as the saved run would on
       its own seed, or with fresh streams on another, or its clock at zero (`elapsed = 0.0s`); the
       change rules its interventions installed before the state was saved are installed again.
+    - Two Natural Earth levels: `ADMIN1`, each country's states, provinces and council areas
+      (`NaturalEarthSpec("Fife")`), a name used in several countries named for each ("Limburg,
+      Netherlands"); and `ISO_3166_2`, the same subdivisions by code (`"GB-FIF"`).
   - Changed
     - `build_ecosystem(species, habitat)` places 1000 individuals of each active species, split at
       random and placed by supply, and announces it; it takes `verbosity`. `repopulate!(eco, placement = eco.placement; seed)` places again by the
@@ -82,6 +85,9 @@
     - `SaveAbundance` writes states a run can start from, and a `CachedEcosystem` checkpoints in the
       same form. Files saved before v0.11.0 are not read: build the ecosystem with `NoAbundance()`,
       copy the saved matrix into `eco.abundances.matrix` and save it with `write_state`.
+    - A bare region name shared with a subdivision of other ground needs its `level`: ten countries,
+      "Georgia", "Mali" and "Panama" among them, take `level = "ADMIN"`, the codes "EST" and "MUS"
+      `level = "ISO_A3_EH"`, and 43 physical features such as "Bali" their physical level.
   - Deprecated
     - `AddAbundanceTable(table)` and `build_abundance_table(eco, table)`, for
       `AddAbundance(FromTable(table))` naming species by name and places by grid key or location. The

@@ -1508,7 +1508,9 @@ const _ShapeComponent = @NamedTuple{geometry::ArchGDAL.IGeometry,
                                     area::typeof(1.0km^2)}
 
 # Every feature of `level`'s file, grouped by the value of its naming attribute and keyed by the
-# lowercased form of it. Each group keeps the source's own spelling of the name alongside.
+# lowercased form of it. Each group keeps the source's own spelling of the name alongside. On a level
+# with a qualifier, a name used under several of its values is grouped once per value and named for
+# it, "Limburg, Belgium".
 #
 # This is the ONE place a name becomes geometry: `_selectfeatures` is a lookup into it and
 # `_levelvalues` reads its keys, so the shipped table's generator and a built shape cannot disagree
@@ -1530,9 +1532,8 @@ function _groupfeatures(level::NaturalEarthLevel)
     return get!(_REGION_GROUPS, level.name) do
         dataset = ArchGDAL.read("/vsizip/" * assetpath(_nesource(level)))
         lyr = ArchGDAL.getlayer(dataset, 0)
-        groups = Dict{String,
-                      @NamedTuple{name::String,
-                                  geometries::Vector{ArchGDAL.IGeometry}}}()
+        named = @NamedTuple{name::String, place::String,
+                            geometry::ArchGDAL.IGeometry}[]
         for feature in lyr
             isnothing(level.within) ||
                 _fieldmatches(feature, level.within.first,
@@ -1541,10 +1542,28 @@ function _groupfeatures(level::NaturalEarthLevel)
             # "-99" is Natural Earth's unset marker. Left in, it would become a region of its own
             # holding every unassigned feature - a name that looks real and spans the globe.
             (isnothing(name) || isempty(name) || name == "-99") && continue
+            place = isnothing(level.qualifier) ? "" :
+                    something(_fieldvalue(feature, level.qualifier), "")
+            push!(named,
+                  (name = name, place = place,
+                   geometry = ArchGDAL.clone(ArchGDAL.getgeom(feature))))
+        end
+        places = Dict{String, Set{String}}()
+        for f in named
+            push!(get!(places, lowercase(f.name)) do
+                      return Set{String}()
+                  end, f.place)
+        end
+        groups = Dict{String,
+                      @NamedTuple{name::String,
+                                  geometries::Vector{ArchGDAL.IGeometry}}}()
+        for f in named
+            name = length(places[lowercase(f.name)]) > 1 ?
+                   string(f.name, ", ", f.place) : f.name
             group = get!(groups, lowercase(name)) do
                 return (name = name, geometries = ArchGDAL.IGeometry[])
             end
-            push!(group.geometries, ArchGDAL.clone(ArchGDAL.getgeom(feature)))
+            push!(group.geometries, f.geometry)
         end
         return groups
     end

@@ -19,8 +19,9 @@ using EcoSISTEM, Unitful, Unitful.DefaultSymbols
 length(EcoSISTEM.naturalearth_levels())
 ```
 
-The levels divide into political ones (`ADMIN` a country, `SUBUNIT` its constituent countries),
-statistical groupings (`REGION_UN`, `SUBREGION`), a code (`ISO_A3_EH`), and Natural Earth's physical
+The levels divide into political ones (`ADMIN` a country, `SUBUNIT` its constituent countries,
+`ADMIN1` its states, provinces and council areas), statistical groupings (`REGION_UN`, `SUBREGION`),
+codes (`ISO_A3_EH` for a country, `ISO_3166_2` for a subdivision), and Natural Earth's physical
 vocabulary, prefixed `Physical` - `Physical Island`, `Physical Continent`, `Physical Desert` and the
 rest.
 
@@ -49,6 +50,28 @@ EcoSISTEM.naturalearth_regions("Physical Tundra")
 
 Passing a region where a level belongs is a common slip, and the error says which level that region
 is actually defined at rather than only that no such level exists.
+
+### A country's subdivisions
+
+`ADMIN1` holds each country's first-level subdivisions - a US state, a Canadian province, a Scottish
+council area - by Natural Earth's spelling, and `ISO_3166_2` the same ground by code:
+
+```@example regions
+(EcoSISTEM.boundingbox("Fife"), EcoSISTEM.boundingbox("GB-FIF"))
+```
+
+A subdivision's name used in more than one country is named for each, and the bare name says so:
+
+```@example regions
+try
+    EcoSISTEM.boundingbox("Limburg")
+catch e
+    println(sprint(showerror, e))
+end
+```
+
+Subdivisions are a level like any other, so a name they share with other ground needs its level:
+`"Georgia"` is a country and a US state, and `level = "ADMIN"` or `level = "ADMIN1"` says which.
 
 ## How much of a name to take
 
@@ -117,7 +140,7 @@ By default the query compares **bounding boxes**, which is what makes it free - 
 that coordinate lists Norway beside the United Kingdom.
 
 `exact = true` checks the survivors against the regions' real outlines instead. It downloads the
-geometry, so it is not free - but it removes those false positives, and it reaches the 54 regions
+geometry, so it is not free - but it removes those false positives, and it reaches the 63 regions
 that cross the antimeridian, which have no box a query can compare at all:
 
 ```julia
@@ -127,8 +150,8 @@ investigate_regions(LatLong(55.95°, -3.19°), kind = :political, exact = true)
 
 Refinement is lazy and in box order, stopping as soon as the answer cannot change - refining only
 ever removes a match or shrinks its overlap, so a confirmed `limit` cannot be displaced by anything
-later. A continental query that matches 361 regions by box typically fetches a few dozen, and the
-report says how many.
+later. A query over a continent matches thousands of regions by box and refines under a hundred,
+and the report says how many.
 
 ## Using a region as a study area
 
@@ -196,6 +219,9 @@ anything the geometry library offers is reachable without a new operation.
 | Japan, the four main islands | `coverage = LargestLandmass(count = 4)` |
 | Europe without Russia | `NaturalEarthSpec("EUROPE", level = "Physical Continent")` |
 | a country by its code | `NaturalEarthSpec("FRA", level = "ISO_A3_EH")` |
+| a state, province or council area | `NaturalEarthSpec("Fife")` |
+| ...by its ISO 3166-2 code | `NaturalEarthSpec("GB-FIF")` |
+| ...whose name is used in several countries | `NaturalEarthSpec("Limburg, Netherlands")` |
 | the British Isles **with Shetland** | `ConstructedShapeSpec(ShapeUnion(), uk, ireland, man)` |
 | ...and without Rockall | the same, `coverage = LandmassesAbove(1km^2)` |
 | your own study area plus a country | `ConstructedShapeSpec(ShapeUnion(), ShapeSpec("mysite.geojson"), ireland)` |

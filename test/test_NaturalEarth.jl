@@ -54,13 +54,17 @@ end
     @test !isempty(NATURALEARTH_LEVELS)
     @test all(l -> l isa NaturalEarthLevel, NATURALEARTH_LEVELS)
 
-    # Nine cultural levels - the attributes worth selecting on across the four admin-0 files - and
-    # one per landform class of the physical file. Named rather than counted, so that adding a level
-    # has to be looked at and removing one shrinks the list instead of passing silently.
+    # Eleven cultural levels - the attributes worth selecting on across the four admin-0 files and
+    # the admin-1 file - and one per landform class of the physical file. Named rather than counted,
+    # so that adding a level has to be looked at and removing one shrinks the list instead of
+    # passing silently.
     cultural = filter(l -> l.category == "cultural", NATURALEARTH_LEVELS)
     @test [l.name for l in cultural] ==
           ["CONTINENT", "REGION_UN", "SUBREGION", "REGION_WB", "SOVEREIGNT",
-        "ADMIN", "GEOUNIT", "SUBUNIT", "ISO_A3_EH"]
+        "ADMIN", "GEOUNIT", "SUBUNIT", "ADMIN1", "ISO_A3_EH", "ISO_3166_2"]
+    # Only the subdivisions' names need telling apart by country.
+    @test [l.name for l in NATURALEARTH_LEVELS if !isnothing(l.qualifier)] ==
+          ["ADMIN1"]
 
     physical = filter(l -> l.category == "physical", NATURALEARTH_LEVELS)
     @test length(physical) == 22
@@ -254,7 +258,7 @@ end
     @test intable ⊆ inconst
     @test inconst ⊆ intable
 
-    # Each rule collects the rows that break it rather than asserting per row: 2 444 rows would
+    # Each rule collects the rows that break it rather than asserting per row: thousands of rows would
     # otherwise contribute tens of thousands of assertions, and a failure that names the offender is
     # more use than one that only counts.
     label(r) = r.Level * "/" * r.Name
@@ -337,6 +341,39 @@ end
                     sprint(show,
                            NaturalEarthSpec("Scotland",
                                             coverage = AllTerritories())))
+end
+
+@testset "a country's first-level subdivisions are regions, by name and by code" begin
+    # Fife is a council area of Scotland, and its ISO 3166-2 code names the same ground.
+    fife = EcoSISTEM.boundingbox("Fife")
+    @test NaturalEarthSpec("Fife").level == "ADMIN1"
+    @test EcoSISTEM.boundingbox("GB-FIF") == fife
+    @test NaturalEarthSpec("gb-fif").name == "GB-FIF"
+    scotland = EcoSISTEM.boundingbox("Scotland")
+    deg(x) = ustrip(°, x)
+    @test deg(minimum(scotland.X)) <= deg(minimum(fife.X)) <
+          deg(maximum(fife.X)) <= deg(maximum(scotland.X))
+    @test deg(minimum(scotland.Y)) <= deg(minimum(fife.Y)) <
+          deg(maximum(fife.Y)) <= deg(maximum(scotland.Y))
+
+    # A name used in more than one country is named for each, and the bare name is refused with
+    # both, at no level and at its own.
+    @test EcoSISTEM.boundingbox("Limburg, Netherlands") !=
+          EcoSISTEM.boundingbox("Limburg, Belgium")
+    forms = "\"Limburg, Belgium\" (at ADMIN1), \"Limburg, Netherlands\" (at ADMIN1)"
+    @test_throws forms EcoSISTEM.boundingbox("Limburg")
+    @test_throws forms NaturalEarthSpec("Limburg", level = "ADMIN1")
+    # Only there: Fife is not named for its country, and a county and its city sharing a name in one
+    # country are one region, as their shared code is.
+    @test !any(startswith("fife, "), keys(_regionindex().bynames))
+    @test EcoSISTEM.boundingbox("Cork", level = "ADMIN1") ==
+          EcoSISTEM.boundingbox("IE-CO")
+
+    # A subdivision is a level like any other, so a name it shares with a country of other ground
+    # needs its level.
+    @test_throws "Name one with `level" EcoSISTEM.boundingbox("Georgia")
+    @test EcoSISTEM.boundingbox("Georgia", level = "ADMIN") !=
+          EcoSISTEM.boundingbox("Georgia", level = "ADMIN1")
 end
 
 @testset "LandmassesAbove keeps the components that clear a threshold" begin
@@ -629,7 +666,9 @@ if geometrytests()
         # The property the whole feature exists for: the table's box, which is rounded outwards,
         # must contain the extent of the shape the same name builds.
         for (name, level) in (("Scotland", nothing), ("Africa", "CONTINENT"),
-            ("Madagascar", "ADMIN"))
+            ("Madagascar", "ADMIN"), ("Fife", nothing),
+            ("GB-FIF", nothing),
+            ("Limburg, Netherlands", nothing))
             spec = isnothing(level) ? NaturalEarthSpec(name) :
                    NaturalEarthSpec(name, level = level)
             _, extent = _shapegeoms(spec, Rasters.EPSG(4326))
@@ -692,10 +731,11 @@ if geometrytests()
     end
 
     @testset "exact = true checks the real outlines, and drops the false positives" begin
+        # Ten reaches past the council areas and the countries to Norway's box, and to Europe.
         coarse = investigate_regions(LatLong(55.95°, -3.19°), kind = :political,
-                                     limit = 5)
+                                     limit = 10)
         fine = investigate_regions(LatLong(55.95°, -3.19°), kind = :political,
-                                   limit = 5, exact = true)
+                                   limit = 10, exact = true)
         @test !coarse.exact && fine.exact
         @test coarse.refined == 0 && fine.refined > 0
 
@@ -869,9 +909,11 @@ end
 
     names = [m.name for m in report]
     @test "Scotland" in names && "United Kingdom" in names
-    # Smallest enclosing first, which is the whole point of the ordering.
+    # Smallest enclosing first, which is the whole point of the ordering: the council area, then
+    # the country it is in.
     @test issorted([m.area for m in report])
-    @test first(report).name == "Scotland"
+    @test first(report).name == "Edinburgh"
+    @test first(report).level.name == "ADMIN1"
 
     # Filters narrow at source, which is the first tool for an ambiguous answer.
     @test all(m -> m.level.kind === :political, report)

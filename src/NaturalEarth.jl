@@ -284,6 +284,10 @@ a stated level.
   - `within`: an attribute and value restricting which features belong to this level, or `nothing`
     where the whole file does. The physical file holds every kind of landform in one layer, so its
     levels are distinguished this way.
+  - `qualifier`: an attribute telling apart features that share a name in different places, or
+    `nothing`, the default. A name used under several values of it is a region in each, named for
+    it - "Limburg, Belgium" and "Limburg, Netherlands" - and the bare name is not a region at the
+    level.
 """
 struct NaturalEarthLevel
     name::String
@@ -293,6 +297,16 @@ struct NaturalEarthLevel
     kind::Symbol
     description::String
     within::Union{Pair{String, String}, Nothing}
+    qualifier::Union{String, Nothing}
+
+    function NaturalEarthLevel(name::AbstractString, dataset::AbstractString,
+                               category::AbstractString, field::AbstractString,
+                               kind::Symbol, description::AbstractString,
+                               within::Union{Pair, Nothing},
+                               qualifier::Union{AbstractString, Nothing} = nothing)
+        return new(name, dataset, category, field, kind, description, within,
+                   qualifier)
+    end
 end
 
 function Base.show(io::IO, l::NaturalEarthLevel)
@@ -301,7 +315,9 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", l::NaturalEarthLevel)
     println(io, "NaturalEarthLevel \"", l.name, "\" (", l.kind, ")")
-    println(io, "  from: ", l.dataset, " (", l.category, "), field ", l.field)
+    print(io, "  from: ", l.dataset, " (", l.category, "), field ", l.field)
+    isnothing(l.qualifier) || print(io, ", qualified by ", l.qualifier)
+    println(io)
     return print(io, "  ", l.description)
 end
 
@@ -318,6 +334,10 @@ const _NE_MAP_SUBUNITS = "ne_10m_admin_0_map_subunits"
 
 const _NE_SOVEREIGNTY = "ne_10m_admin_0_sovereignty"
 
+# A country's first-level subdivisions - states, provinces, counties, council areas - with each one's
+# ISO 3166-2 code.
+const _NE_ADMIN1 = "ne_10m_admin_1_states_provinces"
+
 const _NE_PHYSICAL = "ne_10m_geography_regions_polys"
 
 # The landform classes of the physical file, each of which becomes a level. Taken from the file
@@ -326,7 +346,7 @@ const _NE_PHYSICAL = "ne_10m_geography_regions_polys"
 # "Dragons-be-here" is deliberately absent. Its single feature is Null Island at (0, 0), a
 # cartographers' joke - and a real, valid polygon about a metre across, which is the practical
 # objection rather than the joke: at the table's three decimal places its box rounds to zero width,
-# so it would be the one region in 2 444 with no extent at all.
+# so it would be the one region in the table with no extent at all.
 const _NE_PHYSICAL_CLASSES = ("Continent", "Island", "Island group",
                               "Range/mtn",
                               "Plateau", "Desert", "Pen/cape", "Peninsula",
@@ -345,7 +365,7 @@ const NPARTS = 5
 
 # The parsed table, indexed as level -> lowercased name -> row, and the levels each name appears at.
 #
-# Memoised because a bounding box is looked up per build and re-reading 2 444 rows each time is what
+# Memoised because a bounding box is looked up per build and re-reading thousands of rows each time is what
 # would make the lookup cost milliseconds rather than microseconds - the same reason `_layertable`
 # caches the layer catalogue.
 const _REGION_INDEX = Ref{Any}(nothing)
@@ -653,8 +673,7 @@ Find the named regions that relate to `x`, as [`investigate_study_area`](@ref) r
 before one is built.
 
 Given anything with a position - a study area, a raster, a layer, a habitat, an ecosystem, an
-`Extents.Extent`, a [`LatLong`](@ref) or an earlier match - this asks which of the 2 444 shipped
-regions [`Encloses`](@ref) it. Name a relation instead to ask a different question:
+`Extents.Extent`, a [`LatLong`](@ref) or an earlier match - this asks which of the shipped regions [`Encloses`](@ref) it. Name a relation instead to ask a different question:
 [`Overlaps`](@ref) for regions your data reaches into, [`Within`](@ref) for regions your data covers
 entirely.
 
@@ -776,16 +795,16 @@ function _physicallevel(class::AbstractString)
                              "FEATURECLA" => class)
 end
 
-# The nine cultural levels and the physical ones, assembled in report order.
+# The eleven cultural levels and the physical ones, assembled in report order.
 #
 # Written as calls to a local `add` rather than as one array literal: the literal aligns every
 # continuation line to its opening bracket, which put the descriptions past column 100.
 function _buildlevels()
     levels = NaturalEarthLevel[]
-    function add(name, dataset, field, kind, description)
+    function add(name, dataset, field, kind, description; qualifier = nothing)
         return push!(levels,
                      NaturalEarthLevel(name, dataset, "cultural", field, kind,
-                                       description, nothing))
+                                       description, nothing, qualifier))
     end
     add("CONTINENT", _NE_COUNTRIES, "CONTINENT", :political,
         "Continental grouping of whole countries. It assigns each country entire, so all of " *
@@ -806,12 +825,22 @@ function _buildlevels()
     add("SUBUNIT", _NE_MAP_SUBUNITS, "SUBUNIT", :political,
         "Map subunit, the finest split of a country Natural Earth offers, and what gives the " *
         "constituent countries of the United Kingdom.")
+    add("ADMIN1", _NE_ADMIN1, "name", :political,
+        "First-level subdivision of a country: a state, province, county or council area. A name " *
+        "used in more than one country is named for each, \"Limburg, Netherlands\" and " *
+        "\"Limburg, Belgium\", and the bare name is not a region here. Natural Earth's spelling " *
+        "is kept, slips included (\"North Ayshire\"), so ISO_3166_2 names the same subdivisions " *
+        "by code.", qualifier = "admin")
     add("ISO_A3_EH", _NE_COUNTRIES, "ISO_A3_EH", :code,
         "ISO 3166-1 alpha-3 country code, for looking a country up by code rather than by name. " *
         "Named for the source field it reads. Natural Earth ships both ISO_A3 and ISO_A3_EH; the " *
         "latter is unset for 14 countries against the former's 22, France and Norway among the " *
         "eight it recovers. The 14 that remain have no assigned code - Kosovo and Somaliland among " *
         "them - and so are absent from this level.")
+    add("ISO_3166_2", _NE_ADMIN1, "iso_3166_2", :code,
+        "ISO 3166-2 code of a first-level subdivision (\"GB-FIF\" for Fife), for naming one by " *
+        "code rather than by Natural Earth's spelling of its name. A code covers every feature " *
+        "carrying it, so a county and its city sharing one are one region.")
     append!(levels, map(_physicallevel, _NE_PHYSICAL_CLASSES))
     return levels
 end
@@ -973,6 +1002,10 @@ _tablecoverage(::LandmassesAbove) = AllTerritories()
 # same principal landmass, so asking for that one is not ambiguous at all and is answered.
 function _resolvelevel(name::AbstractString, coverage::AbstractCoverage)
     levels = get(_regionindex().bynames, lowercase(name), String[])
+    forms = isempty(levels) ? _qualifiedforms(name) : String[]
+    isempty(forms) ||
+        error("\"$name\" is the name of a region in more than one place, so each is named for its " *
+              "place: " * join(forms, ", ") * ". Name one of those.")
     isempty(levels) &&
         error("No region named \"$name\" at any level. Names are matched case-insensitively but " *
               "must otherwise be the source's own - \"United Kingdom\" rather than \"UK\", " *
@@ -988,6 +1021,31 @@ function _resolvelevel(name::AbstractString, coverage::AbstractCoverage)
                  "give for $coverage disagree:\n" *
                  _levelchoices(levels, rows, boxes) *
                  "Name one with `level = \"...\"`.")
+end
+
+# The names a bare `name` takes where it is used in more than one place on a level with a qualifier,
+# each quoted with its level: `"Limburg, Belgium" (at ADMIN1)`. Only ever reached on an error path.
+function _qualifiedforms(name::AbstractString)
+    prefix = lowercase(name) * ", "
+    forms = String[]
+    for (key, levels) in _regionindex().bynames
+        startswith(key, prefix) || continue
+        for level in levels
+            push!(forms, "\"$(_regionrow(level, key).Name)\" (at $level)")
+        end
+    end
+    return sort!(forms)
+end
+
+# The error for a name absent from the level it was looked up at, naming the forms it takes there
+# where it is used in more than one place.
+function _noregion(name::AbstractString, level::AbstractString)
+    forms = filter(f -> endswith(f, "(at $level)"), _qualifiedforms(name))
+    return error("No region named \"$name\" at level \"$level\". " *
+                 (isempty(forms) ? "" :
+                  "It is used in more than one place there, so each is named for its place: " *
+                  join(forms, ", ") * ". ") *
+                 "`EcoSISTEM.naturalearth_levels()` lists the levels.")
 end
 
 # The candidate levels as a table, so that a caller can choose without looking anything up. Each

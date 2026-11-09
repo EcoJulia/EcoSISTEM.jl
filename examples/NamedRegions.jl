@@ -5,7 +5,7 @@
 # **The question this answers.** You have a coordinate, or a raster, or a study area, and you want to
 # know what it is *in* - or you want to simulate "the British Isles" and have no shapefile for it.
 # Both are lookups against Natural Earth's own polygons, shipped with the package as a table of
-# 2 444 named regions.
+# named regions.
 #
 # **Three things it shows, in order:**
 #
