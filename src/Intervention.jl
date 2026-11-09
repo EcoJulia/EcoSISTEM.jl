@@ -214,6 +214,47 @@ function applyinterventions!(eco::AbstractEcosystem, intervention,
     return eco
 end
 
+# The change rules a run's interventions would have installed by the time its clock stands at, for a
+# run continuing a saved state: every firing of a `SetChange` applied again in the order
+# `applyinterventions!` applies it - firing by firing, the interventions of one step in order - over
+# steps of `timestep` from zero, the last ending on the clock wherever this run's steps would fall.
+# Only rules are installed, since every other operation's effect is in the state, so nothing is drawn,
+# no cells are resolved and every rank installs the same.
+function _replaychanges!(eco::AbstractEcosystem, intervention,
+                         timestep::Unitful.Time)
+    changing = filter(iv -> any(_installsrule, iv.operations),
+                      collect(_interventions(intervention)))
+    isempty(changing) && return eco
+    final = simulationtime(eco)
+    step = uconvert(s, float(timestep))
+    elapsed = zero(final)
+    window = step
+    while true
+        for iv in changing
+            _fires(iv, eco, elapsed, window) || continue
+            foreach(op -> _installrule!(op, eco), iv.operations)
+            _recordintervention!(eco, iv)
+        end
+        elapsed < final || return eco
+        reached = elapsed + step
+        next = final - reached <= _DRIFT * step ? final : reached
+        window = next - elapsed
+        elapsed = next
+    end
+end
+
+# Whether an operation installs a change rule, which a saved state does not keep.
+_installsrule(::AbstractOperation) = false
+
+_installsrule(::SetChange) = true
+
+# Install an operation's change rule, and do nothing for an operation installing none.
+_installrule!(::AbstractOperation, eco::AbstractEcosystem) = eco
+
+function _installrule!(op::SetChange, eco::AbstractEcosystem)
+    return setchange!(_targetlayer(eco, op.target), op.spec)
+end
+
 # ---------------------------------------------------------------------------
 # Ecosystem-level intervention
 # ---------------------------------------------------------------------------
@@ -638,7 +679,7 @@ function _applyoperation!(op::SetChange, eco::AbstractEcosystem, cells, _, _)
     length(cells) == length(parent(eco.habitat.active)) ||
         @warn "`SetChange` alters a whole layer's change rule, so the intervention's region is " *
               "ignored; use `AllCells()` to say so." maxlog=1
-    return setchange!(_targetlayer(eco, op.target), op.spec)
+    return _installrule!(op, eco)
 end
 
 function _applyoperation!(op::AddAbundance, eco::AbstractEcosystem, cells, rng,

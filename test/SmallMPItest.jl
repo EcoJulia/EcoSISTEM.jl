@@ -794,7 +794,8 @@ rank == 0 && @test placespool.species.active[(end - 1):end] == [false, false]
 
 # A state saved under MPI - every rank sending its own species' rows and streams, the root writing -
 # and ecosystems started from it, distributed and serial, going on as one uninterrupted serial run
-# does. Every rank but the root is given a path with nothing there, so only the root reads it.
+# does, the faster warming installed before the state was saved in force again on every rank. Every
+# rank but the root is given a path with nothing there, so only the root reads it.
 statedir = MPI.bcast(rank == 0 ? mktempdir() : "", 0, comm)
 statepath = joinpath(statedir, "state.jld2")
 statefrom = rank == 0 ? statepath : joinpath(statedir, "absent.jld2")
@@ -809,8 +810,11 @@ function stateeco(distributed)
     end
     return eco
 end
+staterule = Intervention(AtTime(3 * MPIFIXTURE_TIMESTEP), AllCells(),
+                         SetChange(nothing, IncrementBy(2.0K / year)))
 halfway = stateeco(true)
-simulate!(halfway, 6 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP)
+simulate!(halfway, 6 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP,
+          intervention = staterule)
 write_state(statepath, halfway)
 MPI.Barrier(comm)
 function fromstate(distributed)
@@ -819,11 +823,15 @@ function fromstate(distributed)
                            distributed = distributed, verbosity = :silent)
 end
 resumed = fromstate(true)
-simulate!(resumed, 6 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP)
+simulate!(resumed, 6 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP,
+          intervention = staterule)
+@test resumed.habitat.regime.change.value ≈ 2.0K / year
 resumedserial = fromstate(false)
-simulate!(resumedserial, 6 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP)
+simulate!(resumedserial, 6 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP,
+          intervention = staterule)
 straight = stateeco(false)
-simulate!(straight, 12 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP)
+simulate!(straight, 12 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP,
+          intervention = staterule)
 resumedabun = gatherabundance(resumed)
 if rank == 0
     @test sum(resumedabun) > 0
@@ -1182,14 +1190,15 @@ if rank == 0
     @test mixedslope < bound
 
     # The same sweep `test_dynamics.jl` runs, over the distributed types. `epoch`, `calendar`,
-    # `placement` and `active` are abstract by design and are explained there; anything else must be
-    # looked at.
+    # `placement`, `savedchanges` and `active` are abstract by design and are explained there;
+    # anything else must be looked at.
     mpiabstract = Tuple{Symbol, Symbol}[]
     for obj in (eco, eco.abundances, eco.habitat, eco.cache)
         S = typeof(obj)
         for f in fieldnames(S)
             isconcretetype(fieldtype(S, f)) && continue
-            f in (:epoch, :calendar, :placement, :active) && continue
+            f in (:epoch, :calendar, :placement, :savedchanges, :active) &&
+                continue
             push!(mpiabstract, (nameof(S), f))
         end
     end

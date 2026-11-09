@@ -1156,7 +1156,8 @@ values, each species' random stream as its words, the clock and the run's dates,
 and strings - never a type of the package's - so a file is read whatever the types that wrote it
 have become. `build_ecosystem(species, habitat; from)` starts an ecosystem from one on species and a
 habitat built again from the pool and the study area, which a run never changes; a layer's change
-rule is code, so it is described rather than saved.
+rule is code, so it is described rather than saved, and a run continuing a state installs again at its
+first step the rules its interventions would have installed by then.
 
 ## Distribution parameters (`src/Dist.jl`)
 

@@ -66,6 +66,15 @@ function Base.show(io::IO, c::Cache)
     return print(io, "Cache($(nsp) species × $(ncells) cells)")
 end
 
+# What a saved state recorded of each layer's change rule, by role and then layer name, kept by an
+# ecosystem started from it until its first step has installed the rules the run's interventions give,
+# then compared with them: a state holds a layer's values but not its rule, which is code.
+struct _SavedChanges
+    path::String
+    regime::Dict{String, @NamedTuple{change::String, phrase::String}}
+    supply::Dict{String, @NamedTuple{change::String, phrase::String}}
+end
+
 """
     Ecosystem{Part <: AbstractHabitat} <:
        AbstractEcosystem{Part, SL, NF}
@@ -84,6 +93,8 @@ holds the [`ProvenanceRecord`](@ref)s of published data belonging to the run as 
 [`build_ecosystem`](@ref), those its placement read, and those of every intervention that has acted -
 which [`provenance`](@ref) lists. `placement` is the placement its individuals were placed by, as it
 was given (see [`AbstractPlacement`](@ref)), which [`repopulate!`](@ref) places by again.
+`savedchanges` is what the saved state it was started from recorded of each layer's change rule, held
+until its first step, and otherwise `nothing`.
 """
 mutable struct Ecosystem{Part <: AbstractHabitat,
                          SL <: SpeciesList,
@@ -108,6 +119,7 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
     inputs::Vector{ProvenanceRecord}
     # Abstract on purpose: a placement may be any function, and nothing in the step reads it.
     placement::Any
+    savedchanges::Union{Nothing, _SavedChanges}
 
     function Ecosystem{Part, SL, NF}(abundances::GridLandscape,
                                      spplist::SL,
@@ -153,6 +165,7 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
                                  epoch,
                                  ExactDates(),
                                  ProvenanceRecord[],
+                                 nothing,
                                  nothing)
     end
 end
@@ -639,6 +652,7 @@ function makeunique(eco::Ecosystem)
     stripped.calendar = eco.calendar
     stripped.inputs = eco.inputs
     stripped.placement = eco.placement
+    stripped.savedchanges = eco.savedchanges
     return stripped
 end
 

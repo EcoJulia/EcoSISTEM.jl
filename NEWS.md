@@ -56,7 +56,8 @@
       not in the run. It works under MPI, and names are checked before the run's first step.
     - `write_state(path, eco)` saves the state a run has reached, and `build_ecosystem(species,
       habitat; from = path)` starts an ecosystem from it, going on exactly as the saved run would on
-      its own seed, or with fresh streams on another, or its clock at zero (`elapsed = 0.0s`).
+      its own seed, or with fresh streams on another, or its clock at zero (`elapsed = 0.0s`); the
+      change rules its interventions installed before the state was saved are installed again.
   - Changed
     - `build_ecosystem(species, habitat)` places 1000 individuals of each active species, split at
       random and placed by supply, and announces it; it takes `verbosity`. `repopulate!(eco, placement = eco.placement; seed)` places again by the

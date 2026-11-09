@@ -103,6 +103,11 @@ be run once and continued from as often as needed. Another `seed` gives fresh st
 replicates from one state, and `elapsed = 0.0s` starts the clock afresh, any series a layer follows
 starting again with it. [`SaveAbundance`](@ref) writes such a state at each occurrence.
 
+A state keeps every layer's values but not a rule a [`SetChange`](@ref) installed, which is code. A
+run continuing one is given the interventions the saved run had, and at its first step installs again
+the rules they would have installed by then; a layer whose rule still differs from the one saved is
+reported.
+
 ### Long runs that save as they go
 
 A [`CachedEcosystem`](@ref) is an ecosystem kept on disk as it runs. Asked for its abundances at a
@@ -132,7 +137,7 @@ abundances(again, 4.0year).matrix == abundances(cache, 4.0year).matrix
 A state in the folder from another configuration - other species, another grid or other dates - is
 refused rather than continued from, and [`clearcache!`](@ref) empties the folder to start afresh. A
 cached run takes no interventions; a run with them saves states with [`SaveAbundance`](@ref) and is
-started again from the last with `from`.
+started again from the last with `from`, given the same interventions.
 
 ## Naming time
 

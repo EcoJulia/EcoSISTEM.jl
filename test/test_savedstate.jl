@@ -2,8 +2,9 @@
 #
 # Tests `src/savedstate.jl`: `write_state` saving the state a run has reached, and
 # `build_ecosystem(species, habitat; from)` starting an ecosystem from it - exactly as the saved run
-# would have gone on, on its own seed; with fresh streams on another; with its clock at zero; with
-# more species than it saved; and refused on another grid, species, epoch or calendar.
+# would have gone on, on its own seed and with the change rules its interventions installed in force
+# again; with fresh streams on another; with its clock at zero; with more species than it saved; and
+# refused on another grid, species, epoch or calendar.
 #     julia --project -e 'using Pkg; Pkg.test(test_args = ["test_savedstate.jl"])'
 module TestSavedState
 
@@ -54,13 +55,25 @@ const EVENTS = InterventionSet(Intervention(AtTime(6 * STEP),
                                             AddSpecies("4",
                                                        BySupply(total = 50))))
 
-# An ecosystem run for `months` from the start, with the events.
-function _run(months; seed = 7, kw...)
+# An ecosystem run for `months` from the start, with the events unless given other interventions.
+function _run(months; seed = 7, intervention = EVENTS, kw...)
     eco = build_ecosystem(BySupply(total = 2000), _species(), _habitat(),
                           seed = seed, verbosity = :silent; kw...)
-    simulate!(eco, months * STEP, STEP, intervention = EVENTS)
+    simulate!(eco, months * STEP, STEP, intervention = intervention)
     return eco
 end
+
+# A rule of steady warming installed on the temperature layer.
+_rule(rate) = SetChange(nothing, IncrementBy(rate))
+
+# A faster warming from the first month.
+const ONERULE = Intervention(AtTime(STEP), AllCells(), _rule(5.0K / year))
+
+# Two rules due in the third month, at instants named the other way round from the set's order.
+const TWORULES = InterventionSet(Intervention(AtTime(2.5 * STEP), AllCells(),
+                                              _rule(5.0K / year)),
+                                 Intervention(AtTime(2.2 * STEP), AllCells(),
+                                              _rule(-1.0K / year)))
 
 # The state of a year's run, saved in a directory of its own.
 function _saved(; kw...)
@@ -178,19 +191,64 @@ end
                                                                                    source = "saved state"))
 end
 
-@testset "a change rule an intervention installed is not saved, and the run says so" begin
-    eco = build_ecosystem(BySupply(total = 2000), _species(), _habitat(),
-                          seed = 7, verbosity = :silent)
-    simulate!(eco, 2 * STEP, STEP,
-              intervention = Intervention(AtTime(STEP), AllCells(),
-                                          SetChange(nothing,
-                                                    IncrementBy(5.0K / year))))
-    path = write_state(joinpath(mktempdir(), "state.jld2"), eco)
-    @test_logs((:warn,
-                r"changed by a steady 5\.0 K yr.*, and here it changes by a steady 0\.5 K yr.*give that intervention to this run too\.$"),
-               match_mode = :any,
-               build_ecosystem(_species(), _habitat(), from = path,
-                               verbosity = :silent))
+@testset "the change rules a run's interventions installed are installed again when it goes on" begin
+    # Saved after the rule was installed, the run is given the same interventions and goes on as one
+    # never stopped, the rule its own again from its first step, and says nothing.
+    for (interventions, saved, months) in ((ONERULE, 2, 6), (TWORULES, 4, 8))
+        straight = _run(months, intervention = interventions)
+        path = write_state(joinpath(mktempdir(), "state.jld2"),
+                           _run(saved, intervention = interventions))
+        again = @test_logs build_ecosystem(_species(), _habitat(),
+                                           from = path, verbosity = :silent)
+        @test !isnothing(again.savedchanges)
+        @test_logs simulate!(again, (months - saved) * STEP, STEP,
+                             intervention = interventions)
+        @test again.abundances.matrix == straight.abundances.matrix
+        @test parent(again.habitat.regime.matrix) ==
+              parent(straight.habitat.regime.matrix)
+        @test isnothing(again.savedchanges)
+    end
+    # Two rules due in one step are installed in the set's order, as the run installed them, and not
+    # in the order of the times they name - so the later in the set is the one in force.
+    path = write_state(joinpath(mktempdir(), "state.jld2"),
+                       _run(4, intervention = TWORULES))
+    again = build_ecosystem(_species(), _habitat(), from = path,
+                            verbosity = :silent)
+    simulate!(again, 2 * STEP, 2 * STEP, intervention = TWORULES) do _
+        return nothing
+    end
+    @test again.habitat.regime.change.value ≈ -1.0K / year
+    # An intervention whose rule is in force again is among what the run was built from.
+    scenario = EcoSISTEM.ProvenanceRecord(role = :intervention,
+                                          source = "warming scenario")
+    recorded = Intervention(AtTime(STEP), AllCells(), _rule(5.0K / year),
+                            provenance = scenario)
+    path = write_state(joinpath(mktempdir(), "state.jld2"),
+                       _run(2, intervention = recorded))
+    again = build_ecosystem(_species(), _habitat(), from = path,
+                            verbosity = :silent)
+    named(eco) = any(r -> r.source == "warming scenario", eco.inputs)
+    @test !named(again)
+    simulate!(again, STEP, STEP, intervention = recorded)
+    @test named(again)
+end
+
+@testset "a run whose rules differ from those saved is told so at its first step" begin
+    path = write_state(joinpath(mktempdir(), "state.jld2"),
+                       _run(2, intervention = ONERULE))
+    warning = (:warn,
+               r"changed by a steady 5\.0 K yr.*, and this run starts with it changing by a steady 0\.5 K yr.*installed at its first step\.$")
+    bare = build_ecosystem(_species(), _habitat(), from = path,
+                           verbosity = :silent)
+    @test_logs warning match_mode=:any simulate!(bare, STEP, STEP)
+    @test bare.habitat.regime.change.value ≈ 0.5K / year
+    # Restarted at zero, a run installs its rules as it reaches them: told at the start, and given the
+    # rule a month later.
+    afresh = build_ecosystem(_species(), _habitat(), from = path,
+                             elapsed = 0.0s, verbosity = :silent)
+    @test_logs warning match_mode=:any simulate!(afresh, STEP, STEP,
+                                                 intervention = ONERULE)
+    @test afresh.habitat.regime.change.value ≈ 5.0K / year
 end
 
 @testset "a series a layer follows takes its values at the run's start" begin

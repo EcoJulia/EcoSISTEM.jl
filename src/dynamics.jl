@@ -159,6 +159,7 @@ due at the start run once more *before* the dynamics, so they act on the startin
 """
 function update!(eco::AbstractEcosystem, timestep::Unitful.Time, intervention)
     iszero(simulationtime(eco)) && _startrun!(eco, intervention, timestep)
+    _resumerun!(eco, intervention, timestep)
     return _step!(eco, timestep, intervention)
 end
 
@@ -168,6 +169,22 @@ end
 function _startrun!(eco::Ecosystem, intervention, timestep::Unitful.Time)
     applyinterventions!(eco, intervention, simulationtime(eco), timestep, 0)
     invalidatecaches!(eco)
+    return eco
+end
+
+# The first step of a run started from a saved state, after anything due at the start: a state keeps
+# a layer's values but not its change rule, so a run continuing one installs again the rules its
+# interventions would have installed by then, and is warned of any layer whose rule still differs from
+# the one it was saved with. A run restarted at zero has its rules installed as it reaches them. Under
+# MPI every rank installs the same rules, as every rank holds the layers.
+function _resumerun!(eco::AbstractEcosystem, intervention,
+                     timestep::Unitful.Time)
+    saved = eco.savedchanges
+    isnothing(saved) && return eco
+    iszero(simulationtime(eco)) ||
+        _replaychanges!(eco, intervention, timestep)
+    _isrootrank(eco) && _warnchanges(saved, eco.habitat)
+    eco.savedchanges = nothing
     return eco
 end
 

@@ -225,7 +225,7 @@ function _startfromstate(species::SpeciesList, habitat::GridHabitat, from;
     exact && _setstreams!(eco.rngs, state.streams, columns)
     _placesaved!(eco, saved[], columns)
     eco.placement = nothing
-    _isrootrank(eco) && _warnchanges(state, habitat, file.path)
+    eco.savedchanges = _savedchanges(state, file.path)
     invalidatecaches!(eco)
     return eco
 end
@@ -346,18 +346,30 @@ end
 
 _withunit(values, ::Type) = values
 
-# Warn of each layer whose change rule differs from the one it had when saved: an intervention
-# installs a rule, and a rule is not saved.
-function _warnchanges(state, habitat::GridHabitat, path::AbstractString)
-    for (role, layers, saved) in (("regime", habitat.regime, state.regime),
-                                  ("supply", habitat.supply, state.supply))
+# What a state recorded of each layer's change rule, for `_resumerun!` to compare with the rules the
+# run has once its first step has installed those its interventions give.
+function _savedchanges(state, path::AbstractString)
+    recorded(saved) = Dict(name => _recordedchange(was)
+                           for (name, was) in saved)
+    return _SavedChanges(path, recorded(state.regime), recorded(state.supply))
+end
+
+# One layer's change rule as a state recorded it, without its values.
+_recordedchange(was) = (change = was.change, phrase = was.changephrase)
+
+# Warn of each layer whose change rule differs from the one it had when saved, once the run has
+# installed the rules its habitat and interventions give it.
+function _warnchanges(saved::_SavedChanges, habitat::GridHabitat)
+    for (role, layers, recorded) in (("regime", habitat.regime, saved.regime),
+                                     ("supply", habitat.supply, saved.supply))
         for (name, layer) in zip(keys(layers), values(layers))
-            was = saved[string(name)]
+            was = recorded[string(name)]
             _changeidentity(layer.change) == was.change && continue
-            @warn "`$path` was saved while its $role layer `$name` changed by " *
-                  "$(was.changephrase), and here it changes by $(_changephrase(layer.change)): " *
-                  "a change an intervention installed is not saved, so give that intervention " *
-                  "to this run too."
+            @warn "`$(saved.path)` was saved while its $role layer `$name` changed by " *
+                  "$(was.phrase), and this run starts with it changing by " *
+                  "$(_changephrase(layer.change)). A state keeps a layer's values but not its " *
+                  "change rule, which a run takes from its habitat and from the interventions " *
+                  "it is given, those due by its start installed at its first step."
         end
     end
     return nothing

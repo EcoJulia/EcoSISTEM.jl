@@ -69,6 +69,9 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
     # The placement its individuals were placed by, as on the serial `Ecosystem`, and as there
     # abstract on purpose: nothing in the step reads it.
     placement::Any
+    # What the saved state it was started from recorded of each layer's change rule, as on the serial
+    # `Ecosystem`.
+    savedchanges::Union{Nothing, EcoSISTEM._SavedChanges}
 
     function MPIEcosystem(abundances::MPIGL,
                           spplist::SL,
@@ -110,6 +113,7 @@ mutable struct MPIEcosystem{MPIGL <: EcoSISTEM.MPIGridLandscape,
                                         epoch,
                                         EcoSISTEM.ExactDates(),
                                         EcoSISTEM.ProvenanceRecord[],
+                                        nothing,
                                         nothing)
     end
 end

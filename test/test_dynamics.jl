@@ -528,6 +528,12 @@ const _ABSTRACT_BY_DESIGN = Dict((:Ecosystem,
                                      "`Any`, because a placement may be any " *
                                      "function. Read only by `repopulate!` and " *
                                      "the run's provenance, never in the loop.",
+                                 (:Ecosystem,
+                                  :savedchanges) =>
+                                     "a `Union{Nothing, _SavedChanges}`, set " *
+                                     "only from a saved state until the first " *
+                                     "step. Read once a step by `update!`, " *
+                                     "outside the loop, and allocates nothing.",
                                  (:SpeciesList,
                                   :authority) =>
                                      "a `Union{Nothing, AbstractNameAuthority}`, " *

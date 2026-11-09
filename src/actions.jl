@@ -342,8 +342,10 @@ state's own seed, the default, each saved species continues its own random strea
 on as the saved one would have; another `seed` gives fresh streams, for replicates from one state.
 The clock starts at `elapsed`, the state's own unless given (`elapsed = 0.0s` starts a run afresh
 from it), and any series a layer follows takes its values at that time. A layer's change rule is not
-saved, so a run whose rule differs from the saved one's - one an intervention installed - is warned
-to give that intervention again. The state's record is among the ecosystem's inputs.
+saved: at its first step a run continuing a state installs again the rules its interventions would
+have installed by then, so given the saved run's interventions it goes on with the saved run's rules,
+and a run whose rules still differ from those saved is warned. The state's record is among the
+ecosystem's inputs.
 """
 function build_ecosystem(placement, species::SpeciesList,
                          environment::GridHabitat;
@@ -513,6 +515,7 @@ function simulate!(f, eco::AbstractEcosystem, duration::Unitful.Time,
         _startrun!(eco, intervention, timestep)
         count = _occur(f, schedule, eco, timestep, count)
     end
+    _resumerun!(eco, intervention, timestep)
     for _ in 1:_stepcount(duration, timestep)
         _step!(eco, timestep, intervention)
         count = _occur(f, schedule, eco, timestep, count)
