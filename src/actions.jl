@@ -242,7 +242,8 @@ function build_species(pool::SpeciesPool;
                                          _recordvector(provenance)),
                        pool = (traits = table, filled = filled.filled,
                                authority = pool.authority,
-                               namemap = _speciesnamemap(pool)))
+                               namemap = _speciesnamemap(pool),
+                               phylogeny = pool.phylogeny))
 end
 
 # As `build_habitat` fills its inputs: `numspecies`, `tolerance` and `demand` from

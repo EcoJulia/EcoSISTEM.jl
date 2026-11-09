@@ -45,6 +45,35 @@ end
 Base.show(io::IO, m::MergeWith) = print(io, "MergeWith(", m.f, ")")
 
 """
+    AbstractMissingSpeciesRule
+
+What [`add_phylogeny!`](@ref) does with a species of the pool that has no tip in the tree it is
+given: [`RefuseMissingSpecies`](@ref), the default, or [`RemoveMissingSpecies`](@ref). A type rather
+than a symbol, so an unknown rule is refused where it is written.
+"""
+abstract type AbstractMissingSpeciesRule end
+
+"""
+    RefuseMissingSpecies()
+
+Refuse a tree in which a species of the pool, active or not, has no tip, naming each, so that the
+pool is left as it was and whoever knows which is right removes the species from it or gives the
+tree them. A copy with no tip of its own is not missing: it is placed beside its original.
+"""
+struct RefuseMissingSpecies <: AbstractMissingSpeciesRule end
+
+"""
+    RemoveMissingSpecies()
+
+Remove from the pool every species, active or not, that has no tip in the tree, and add the tree,
+noting how many were removed and how many of them were active. Each remaining species keeps its key,
+and a removed species' names stay in the [`name_table`](@ref). A pool is never left with no species,
+so a tree with no tip for any of them is refused. A copy with no tip of its own is not missing while
+its original has one, and goes with its original otherwise.
+"""
+struct RemoveMissingSpecies <: AbstractMissingSpeciesRule end
+
+"""
     SpeciesPool(numspecies::Integer; verbosity = :normal)
     SpeciesPool(names::AbstractVector{<:AbstractString}; authority = nothing, verbosity = :normal)
     SpeciesPool(table; column = :species, authorship = nothing, authority = nothing,
@@ -65,7 +94,7 @@ is a copy of where it is one ([`copy_species!`](@ref): `copyof`, `copyofid`), th
 of it - the table's other columns and those [`add_trait!`](@ref) adds, `missing` where unknown.
 [`name_table`](@ref) says how each name of its data was matched, and [`provenance`](@ref) what it
 was read from. [`deactivate_species!`](@ref), [`activate_species!`](@ref) and
-[`remove_species!`](@ref) change it.
+[`remove_species!`](@ref) change it, and [`add_phylogeny!`](@ref) gives its species a phylogeny.
 
 # Arguments
 
@@ -96,6 +125,8 @@ was read from. [`deactivate_species!`](@ref), [`activate_species!`](@ref) and
     table's - with what it was matched to, how, and the species' key.
   - `inputs`: the [`ProvenanceRecord`](@ref)s of what the pool was read from.
   - `nextkey`: the key the next copy takes.
+  - `phylogeny`: the species' phylogeny, a tree of Phylo's with one tip per species named for it
+    ([`add_phylogeny!`](@ref)), or `nothing`.
 """
 mutable struct SpeciesPool{A <: Union{Nothing, AbstractNameAuthority}}
     authority::A
@@ -103,6 +134,8 @@ mutable struct SpeciesPool{A <: Union{Nothing, AbstractNameAuthority}}
     names::DataFrame
     inputs::Vector{ProvenanceRecord}
     nextkey::Int
+    # Untyped, since Phylo is a weak dependency whose tree type cannot be named here.
+    phylogeny::Any
 end
 
 function SpeciesPool(numspecies::Integer; verbosity::Symbol = :normal)
@@ -155,6 +188,8 @@ function Base.show(io::IO, ::MIME"text/plain", pool::SpeciesPool)
     traits = _traitnames(pool)
     println(io, "  traits    ",
             isempty(traits) ? "none" : join(string.(traits), ", "))
+    isnothing(pool.phylogeny) ||
+        println(io, "  phylogeny a tree of ", length(pool), " tips")
     print(io, "  inputs    ", length(pool.inputs), " record",
           length(pool.inputs) == 1 ? "" : "s")
     return nothing
@@ -336,6 +371,9 @@ function copy_species!(pool::SpeciesPool, name::AbstractString;
                      copyofid = iscopy ? original.copyofid : original.id,
                      copykey = iscopy ? original.copykey : original.key)))
         pool.nextkey += 1
+        isnothing(pool.phylogeny) ||
+            (pool.phylogeny = _graftedtree(pool.phylogeny, original.name,
+                                           label))
         return pool
     end
 end
@@ -423,6 +461,89 @@ function add_trait!(f, pool::SpeciesPool, name::Symbol; replace::Bool = false)
         _checknewcolumns(pool, [name], replace)
         pool.species[!, name] = identity.(Any[f(row)
                                               for row in eachrow(_pooltable(pool))])
+        return pool
+    end
+end
+
+"""
+    add_phylogeny!(pool::SpeciesPool, tree; onmissing = RefuseMissingSpecies(), replace = false,
+                   provenance = ProvenanceRecord[], verbosity = :normal)
+
+Give the species of `pool` a phylogeny, and return the pool. The tree's tips are matched to species
+by name as [`add_trait!`](@ref) matches a table's rows, through the pool's authority where it has
+one; a tip written with underscores for spaces, as Newick files often write names, is matched with
+spaces where it does not match as written. Tips reaching no species of the pool are pruned, and
+noted. No species may have two tips. A species with none, active or not - a species list is built
+from every species of its pool - is dealt with by `onmissing`, refused by default; a copy
+([`copy_species!`](@ref)) with none is placed beside its original, at no distance from it.
+
+The pool keeps a copy of the tree with each tip named for its species, which
+[`remove_species!`](@ref) prunes and `copy_species!` adds to, and [`build_species`](@ref) gives the
+species list a phylogenetic similarity from it, so that a diversity measure of the ecosystem is
+phylogenetic. The tips' names join the [`name_table`](@ref), and the tree's records the pool's
+inputs. Traits evolved along the tree, or read with it, join the pool by [`add_trait!`](@ref).
+
+# Arguments
+
+  - `pool`: the pool to add to.
+  - `tree`: the phylogeny, a tree of Phylo's (a `Phylo.AbstractTree`) whose tips name species -
+    read (`open(parsenewick, path)`), built, or drawn (`rand(Ultrametric(names))`) with Phylo,
+    which `using Phylo` loads.
+  - `onmissing`: what becomes of a species with no tip, an
+    [`EcoSISTEM.AbstractMissingSpeciesRule`](@ref): [`RefuseMissingSpecies`](@ref) by default, or
+    [`RemoveMissingSpecies`](@ref).
+  - `replace`: `true` lets the tree replace one the pool already has; refused otherwise.
+  - `provenance`: a [`ProvenanceRecord`](@ref), or a vector of them, for what the tree was read
+    from.
+  - `verbosity`: as for [`SpeciesPool`](@ref).
+"""
+function add_phylogeny!(pool::SpeciesPool, tree;
+                        onmissing::AbstractMissingSpeciesRule = RefuseMissingSpecies(),
+                        replace::Bool = false,
+                        provenance = ProvenanceRecord[],
+                        verbosity::Symbol = :normal)
+    _checkverbosity(verbosity)
+    return _poolshared!(pool) do pool
+        (isnothing(pool.phylogeny) || replace) ||
+            error("the pool has a phylogeny already; `replace = true` replaces it.")
+        tips = _tipnames(tree)
+        index = _poolindex(pool)
+        found = Dict{Tuple{String, Union{Nothing, String}}, Any}()
+        spaced = String[]
+        for tip in tips
+            hit = _lookuprow(pool, index, tip)
+            if isnothing(hit.row) && occursin('_', tip)
+                written = _lookuprow(pool, index, Base.replace(tip, '_' => ' '))
+                isnothing(written.row) || (hit = written; push!(spaced, tip))
+            end
+            found[(tip, nothing)] = hit
+        end
+        groups = Dict{Int, Vector{String}}()
+        for ((tip, _), hit) in found
+            isnothing(hit.row) ||
+                push!(get!(Vector{String}, groups, hit.row), tip)
+        end
+        problems = Problem[]
+        _notephylogeny!(problems, pool, found, groups, spaced, onmissing,
+                        verbosity)
+        # Everything is said, and a refusal raised, before the pool changes.
+        _reportproblems(problems, verbosity)
+        names = pool.species.name
+        phylogeny = _renamedtree(tree,
+                                 Dict(only(t) => names[r] for (r, t) in groups))
+        for r in _graftedcopies(pool, groups)
+            original = findfirst(==(pool.species.copykey[r]), pool.species.key)
+            phylogeny = _graftedtree(phylogeny, names[original], names[r])
+        end
+        tiprows = _namerows(found, "phylogeny",
+                            Dict(r => collect(1:length(t)) for (r, t) in groups),
+                            r -> (key = pool.species.key[r], species = names[r],
+                                  id = pool.species.id[r]))
+        # Last, since removing species moves the rows everything above is keyed on.
+        _removemissing!(pool, onmissing, _untippedrows(pool, groups))
+        pool.phylogeny = phylogeny
+        append!(pool.names, tiprows)
+        append!(pool.inputs, _recordvector(provenance))
         return pool
     end
 end
@@ -544,7 +665,7 @@ function _newpool(authority, table::DataFrame, column::Symbol, authorship,
     inputs = copy(records)
     isnothing(authority) || append!(inputs, _authorityrecords(authority))
     return SpeciesPool(authority, species, names, _recordvector(inputs),
-                       nrow(table) + 1)
+                       nrow(table) + 1, nothing)
 end
 
 # The columns of a pool's table that are its own, shown, and those it keeps for itself; no table's
@@ -954,6 +1075,8 @@ function _remove!(pool::SpeciesPool, rows, keep_active::Bool, verbosity::Symbol)
     (!isempty(rows) && length(rows) == length(pool)) &&
         error("removing $(length(rows) == 1 ? "it" : "these $(length(rows)) species") would " *
               "leave the pool with no species.")
+    isempty(rows) || isnothing(pool.phylogeny) ||
+        (pool.phylogeny = _prunedtree(pool.phylogeny, pool.species.name[rows]))
     deleteat!(pool.species, rows)
     push!(problems,
           Problem(ProblemNotice(), :removed,
@@ -1055,6 +1178,107 @@ function _noteunmatched!(problems, found, verbosity)
                       "recognised, but of no species in the pool: " *
                       _namelist(absent, verbosity) * "."))
     return problems
+end
+
+# The rows of the copies a phylogeny being added places beside their originals: those with no tip of
+# their own whose first original has one.
+function _graftedcopies(pool::SpeciesPool, groups)
+    poolkeys = pool.species.key
+    tipped(key) = any(r -> poolkeys[r] == key, keys(groups))
+    return [r
+            for (r, key) in enumerate(pool.species.copykey)
+            if !haskey(groups, r) && !ismissing(key) && tipped(key)]
+end
+
+# Note what adding a phylogeny found - tips pruned for reaching no species, tips matched with their
+# underscores read as spaces, copies placed beside their originals - refuse a species with two tips,
+# and report those with none by `onmissing`'s rule.
+function _notephylogeny!(problems, pool::SpeciesPool, found, groups, spaced,
+                         onmissing::AbstractMissingSpeciesRule, verbosity)
+    plural(n, one, several) = n == 1 ? one : several
+    pruned = sort!([tip for ((tip, _), hit) in found if isnothing(hit.row)])
+    n = length(pruned)
+    isempty(pruned) ||
+        push!(problems,
+              Problem(ProblemNotice(), :tips_pruned,
+                      "$n $(plural(n, "tip", "tips")) of the tree " *
+                      "$(plural(n, "reaches", "reach")) no species of the pool, so " *
+                      "$(plural(n, "is", "are")) pruned: " *
+                      _namelist(pruned, verbosity) * "."))
+    n = length(spaced)
+    isempty(spaced) ||
+        push!(problems,
+              Problem(ProblemNotice(), :tips_spaced,
+                      "$n $(plural(n, "tip", "tips")) matched with " *
+                      "$(plural(n, "its", "their")) underscores read as spaces: " *
+                      _namelist(sort(spaced), verbosity) * "."))
+    copies = _graftedcopies(pool, groups)
+    n = length(copies)
+    isempty(copies) ||
+        push!(problems,
+              Problem(ProblemNotice(), :copies_placed,
+                      "$n $(plural(n, "copy", "copies")) placed beside " *
+                      "$(plural(n, "its original", "their originals")), at no distance: " *
+                      _namelist(pool.species.name[copies], verbosity) * "."))
+    doubled = sort!([(pool.species.name[r], sort(t))
+                     for (r, t) in groups if length(t) > 1])
+    isempty(doubled) ||
+        push!(problems,
+              Problem(ProblemError(), :tips_doubled,
+                      "a species takes one tip, but " *
+                      join(["`$name` has $(length(t)): " *
+                            join(("`$tip`" for tip in t), ", ")
+                            for (name, t) in doubled], "; ") * "."))
+    untipped = _untippedrows(pool, groups)
+    isempty(untipped) ||
+        _missingspecies!(problems, onmissing, pool, untipped, verbosity)
+    return problems
+end
+
+# The rows of the species with no tip in a phylogeny being added: those no tip reached and that are
+# not copies placed beside their originals.
+function _untippedrows(pool::SpeciesPool, groups)
+    copies = _graftedcopies(pool, groups)
+    return [r for r in 1:length(pool) if !haskey(groups, r) && !(r in copies)]
+end
+
+# Refuse the species with no tip, naming them and what can be done.
+function _missingspecies!(problems, ::RefuseMissingSpecies, pool::SpeciesPool,
+                          untipped, verbosity)
+    n = length(untipped)
+    return push!(problems,
+                 Problem(ProblemError(), :species_untipped,
+                         "every species needs a tip of the tree, active or not, but $n " *
+                         "$(n == 1 ? "has" : "have") none: " *
+                         _namelist(pool.species.name[untipped], verbosity) *
+                         "; remove $(n == 1 ? "it" : "them") from the pool first " *
+                         "(`remove_species!`), or pass `onmissing = RemoveMissingSpecies()`."))
+end
+
+# Note the species with no tip, which are removed, refusing to leave the pool with none.
+function _missingspecies!(problems, ::RemoveMissingSpecies, pool::SpeciesPool,
+                          untipped, verbosity)
+    n = length(untipped)
+    n == length(pool) &&
+        return push!(problems,
+                     Problem(ProblemError(), :species_untipped,
+                             "no species of the pool has a tip of the tree, so removing those " *
+                             "with none would leave the pool with no species."))
+    active = count(r -> pool.species.active[r], untipped)
+    return push!(problems,
+                 Problem(ProblemNotice(), :species_removed,
+                         "$n species with no tip of the tree removed from the pool, $active of " *
+                         "them active: " *
+                         _namelist(pool.species.name[untipped], verbosity) *
+                         "; $(length(pool) - n) remain."))
+end
+
+# Remove the species with no tip where `onmissing` says to; a refusal has been raised already.
+_removemissing!(pool::SpeciesPool, ::RefuseMissingSpecies, rows) = pool
+
+function _removemissing!(pool::SpeciesPool, ::RemoveMissingSpecies, rows)
+    isempty(rows) || deleteat!(pool.species, sort(rows))
+    return pool
 end
 
 # Names as a report lists them: every one at `:verbose`, otherwise the first ten and how many more.

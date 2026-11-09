@@ -46,8 +46,9 @@ using Phylo
     tolerance = NicheTolerance(Temperature, Normal, opts, vars)
     @test_nowarn sppl = SpeciesList(numSpecies, tolerance, resource_vec,
                                     movement, param)
-    @test_nowarn sppl = SpeciesList(numSpecies, numTraits, resource_vec,
-                                    movement, param)
+    # Drawing a tree is deprecated: a pool takes one, `add_phylogeny!`.
+    @test_deprecated SpeciesList(numSpecies, numTraits, resource_vec, movement,
+                                 param)
 
     sppl = SpeciesList(numSpecies, tolerance, resource_vec, movement, param)
     newsppl = SpeciesList{typeof(sppl.tolerance),
@@ -69,9 +70,9 @@ using Phylo
                                          100.0km^2, movement, param,
                                          [0.5, 0.5])
 
-    # Test
-    @test_nowarn sppl = SpeciesList(numSpecies, numTraits, resource_vec,
-                                    movement, UniqueTypes(numSpecies), param)
+    # The form taking a similarity structure is deprecated with the rest.
+    @test_deprecated SpeciesList(numSpecies, numTraits, resource_vec, movement,
+                                 UniqueTypes(numSpecies), param)
 end
 
 # **Species building, and placing them, must leave the global generator alone.** A seeded abundance
@@ -109,13 +110,16 @@ end
     Random.seed!(4)
     @test build() == unseeded
 
-    # The tree-growing constructors: the tree, and the tolerances evolved along it, from one stream.
+    # The tree-growing constructors, deprecated: the tree, and the tolerances evolved along it, from
+    # one stream, and the types in the species' order, so each species' abundances meet its own tip.
     demand = Demand{SolarRadiation}(fill(2.0kJ / day, n))
     movement = fill(InsectDispersal()(meandist = 2.0km,
                                       thresh = 10e-4),
                     n)
     param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2)
     grow(; kw...) = SpeciesList(n, 2, demand, movement, param; kw...)
+    grown = @test_deprecated grow(seed = 7)
+    @test Diversity.gettypenames(grown, true) == grown.names
     branchlengths(sl) = sort([getlength(sl.types.tree, b)
                               for b in getbranches(sl.types.tree)])
     Random.seed!(1)

@@ -10,7 +10,7 @@ using MPI
 using Random
 using Diversity
 using DataFrames: DataFrame, nrow
-using Phylo: getbranches, getlength
+using Phylo: Phylo, getbranches, getlength
 using JLD2
 using Test
 using ArchGDAL
@@ -1249,17 +1249,36 @@ end
     sharedabuns = gatherabundance(shared)
     rank == 0 && @test vec(sum(sharedabuns, dims = 2)) == rootcounts
 
-    # A random phylogeny, and the tolerances evolved on it, travel whole.
-    kernels = fill(GaussianKernel(meandist = 1.0km, thresh = 1e-4), numSpecies)
-    treed = SpeciesList(numSpecies, 2,
-                        Demand{SolarRadiation}(fill(1.0kJ / day, numSpecies)),
-                        InsectDispersal().(kernels),
-                        EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2))
+    # A random phylogeny, and the niche classes evolved on it, drawn on every rank, each its own:
+    # the pool takes the root's, and a species list built from it travels whole.
+    names = string.(1:numSpecies)
+    drawn = rand(Phylo.Ultrametric{Phylo.BinaryTree{Phylo.OneRoot, DataFrame,
+                                                    DataFrame}}(names))
+    EcoSISTEM.assigntraits!(drawn, [0.5], DataFrame(trait1 = [1, 2]))
+    classes = EcoSISTEM.gettraits(drawn, true)
+    treepool = SpeciesPool(names, verbosity = :silent)
+    add_phylogeny!(treepool, drawn, verbosity = :silent)
+    add_trait!(treepool,
+               DataFrame(species = classes.species, niche = classes.trait1),
+               verbosity = :silent)
+    branchlengths(tree) = sort([getlength(tree, b) for b in getbranches(tree)])
+    @test agreeing(branchlengths(treepool.phylogeny))
+    @test agreeing(Int.(treepool.species.niche))
+    treed = build_species(treepool,
+                          tolerance = SimpleCategoricalTolerance(Int.(treepool.species.niche),
+                                                                 axis = EcoSISTEM.TypologyAxis,
+                                                                 penalty = 0.5),
+                          demand = Demand{SolarRadiation}(fill(1.0kJ / day,
+                                                               numSpecies)),
+                          movement = MovementSpec(InsectDispersal(),
+                                                  meandist = 1.0km,
+                                                  thresh = 1e-4),
+                          birth = 0.6 / year, death = 0.6 / year,
+                          longevity = 1.0, survival = 0.2, verbosity = :silent)
     ext = Base.get_extension(EcoSISTEM, :EcoSISTEMMPIExt)
     received = ext._rootspecies(treed, comm)
     @test typeof(received) === typeof(treed)
-    tree = received.types.tree
-    @test agreeing(sort([getlength(tree, b) for b in getbranches(tree)]))
+    @test agreeing(branchlengths(received.types.tree))
     @test agreeing(received.tolerance.vals)
 
     # A seed must be the same on every rank, or given on none.

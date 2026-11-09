@@ -10,7 +10,8 @@
 # that raises an error saying how to rewrite the call. Mirrored by `test/test_deprecations.jl`. The
 # shims whose signatures name a `RasterDataSources` type are in
 # `ext/EcoSISTEMRasterDataSourcesExt/deprecations.jl`, since they cannot be defined without it; it
-# holds none at present.
+# holds none at present. Those drawing a tree are in `ext/EcoSISTEMPhyloExt/deprecations.jl`, since
+# they need `Phylo`.
 #
 # ## Every section says which release deprecated or removed it
 #
@@ -312,6 +313,61 @@ function _valuephrase(value::AbstractVector, name::Symbol, notes)
 end
 
 _valuephrase(value, ::Symbol, notes) = sprint(show, value)
+
+# ---------------------------------------------------------------------------
+# A species list with a phylogeny is built from a pool given the tree, `add_phylogeny!`, and the
+# traits evolved along it, `add_trait!`. The forms drawing a tree are in
+# `ext/EcoSISTEMPhyloExt/deprecations.jl`, since they need `Phylo`; this one, taking no `switch`,
+# forwards to them, and carries the docstring, since none can live in an extension.
+#
+# Deprecated in v0.11.0.
+# ---------------------------------------------------------------------------
+"""
+    SpeciesList(numspecies::Int64, numtraits::Int64, demand::DM, movement::MO, params::P;
+      seed = nothing)
+    SpeciesList(numspecies::Int64, numtraits::Int64, demand::DM, movement::MO, params::P,
+      switch::Vector{Float64}; seed = nothing)
+    SpeciesList(numspecies::Int64, numtraits::Int64, demand::DM, movement::MO, phy::T,
+      params::P; seed = nothing)
+
+Deprecated: create a `SpeciesList` whose categorical niche tolerances are **evolved along a random
+ultrametric phylogeny**, with a `PhyloBranches` similarity structure computed from that tree, its
+types in the species' order. The third form takes a similarity structure explicitly instead; the
+tolerances are still evolved along a random ultrametric tree.
+
+Build the species from a [`SpeciesPool`](@ref) instead: draw the tree with Phylo
+(`rand(Ultrametric(names))`), give it to the pool with [`add_phylogeny!`](@ref), the niche classes
+evolved along it with [`add_trait!`](@ref), and build the species with [`build_species`](@ref).
+
+All three forms need `Phylo`, whose extension holds them.
+
+# Arguments
+
+  - `numspecies`: how many species.
+  - `numtraits`: how many categorical niche classes the tolerances are drawn from.
+  - `demand`: what each species takes from the shared pool.
+  - `movement`: one [`SpeciesDispersal`](@ref) per species, saying which individuals disperse and
+    how far.
+  - `params`: the demographic rates.
+  - `switch`: the mean time between changes of the niche class along a root-to-tip path, as a
+    fraction of its length, so a larger value changes it less often. Defaults to `[0.5]`.
+  - `phy`: a similarity structure to use in place of the one the tree would give.
+  - `seed`: an integer fixing the tree, and so the tolerances evolved along it. They are drawn
+    from a stream of their own, so the same seed gives the same phylogeny whatever else has been
+    drawn; left unset, they come from the global generator.
+"""
+function SpeciesList(numspecies::Int64,
+                     numtraits::Int64,
+                     demand::DM,
+                     movement::MO,
+                     params::P;
+                     seed = nothing) where {DM <: AbstractDemand,
+                                            MO <:
+                                            AbstractVector{<:SpeciesDispersal},
+                                            P <: AbstractParams}
+    return SpeciesList(numspecies, numtraits, demand, movement, params, [0.5],
+                       seed = seed)
+end
 
 # ---------------------------------------------------------------------------
 # A run's species are all declared in its pool before it is built, so a recording has a row for each

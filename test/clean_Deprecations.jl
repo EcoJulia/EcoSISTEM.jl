@@ -57,7 +57,8 @@ end
     main = pkgdir(EcoSISTEM, "src", "deprecations.jl")
     for path in [main,
             pkgdir(EcoSISTEM, "ext", "EcoSISTEMRasterDataSourcesExt",
-                   "deprecations.jl")]
+                   "deprecations.jl"),
+            pkgdir(EcoSISTEM, "ext", "EcoSISTEMPhyloExt", "deprecations.jl")]
         @test isfile(path)
         secs = sections(path)
         unlabelled = [n

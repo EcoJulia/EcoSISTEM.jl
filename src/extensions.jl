@@ -208,6 +208,28 @@ generator.
 """
 function brownian_motion end
 
+# A phylogeny's tip names, as strings. Untyped here, where Phylo's tree type cannot be named: the
+# extension's method takes a `Phylo.AbstractTree`, so anything else, or a tree before `using Phylo`,
+# reaches this refusal.
+function _tipnames(tree)
+    return error("a phylogeny is a tree of Phylo's, a `Phylo.AbstractTree`, which `using Phylo` " *
+                 "makes available; got a $(typeof(tree)).")
+end
+
+# A copy of a phylogeny holding only the tips `rename` names, each renamed to its value.
+function _renamedtree end
+
+# A copy of a phylogeny with the tips `names` pruned away.
+function _prunedtree end
+
+# A copy of a phylogeny with a tip `copy` beside the tip `original`, the two at no distance from each
+# other or from where `original` was.
+function _graftedtree end
+
+# The phylogenetic similarity of species named `names`, in their order, over a phylogeny whose tips
+# are those names: a `PhyloBranches`.
+function _phylotypes end
+
 # ---------------------------------------------------------------------------
 # EcoSISTEMMPIExt - requires MPI
 # ---------------------------------------------------------------------------

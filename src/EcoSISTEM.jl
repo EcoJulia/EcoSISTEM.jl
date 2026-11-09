@@ -437,11 +437,12 @@ public AbstractNameAuthority, resolve_name, lineage
 
 include("SpeciesPool.jl")
 
-export SpeciesPool, RefuseMerge, MergeWith
+export SpeciesPool, RefuseMerge, MergeWith, RefuseMissingSpecies,
+       RemoveMissingSpecies
 export deactivate_species!, activate_species!, remove_species!, copy_species!,
-       add_trait!, name_table
+       add_trait!, add_phylogeny!, name_table
 
-public AbstractMergeRule
+public AbstractMergeRule, AbstractMissingSpeciesRule
 
 # What a species list is built from, one spec per trait, each parameter a value for all, a column of
 # the pool, a draw or a function of the species' row.

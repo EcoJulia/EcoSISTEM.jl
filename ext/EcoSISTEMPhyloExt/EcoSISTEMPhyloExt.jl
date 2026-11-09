@@ -65,8 +65,12 @@ include("traits.jl")
 
 include("species_list.jl")
 
+include("phylogeny.jl")
+
 include("models.jl")
 
 include("diversity.jl")
+
+include("deprecations.jl")
 
 end

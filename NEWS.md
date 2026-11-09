@@ -61,6 +61,10 @@
     - Two Natural Earth levels: `ADMIN1`, each country's states, provinces and council areas
       (`NaturalEarthSpec("Fife")`), a name used in several countries named for each ("Limburg,
       Netherlands"); and `ISO_3166_2`, the same subdivisions by code (`"GB-FIF"`).
+    - `add_phylogeny!(pool, tree; onmissing)` gives a pool's species a phylogeny, a tree of Phylo's
+      matched to them by name (`Quercus_robur` matching `Quercus robur`), a species with no tip refused
+      (`RefuseMissingSpecies()`) or removed (`RemoveMissingSpecies()`); a species list built from the
+      pool is then phylogenetic. Needs Diversity 0.6.6.
   - Changed
     - `build_ecosystem(species, habitat)` places 1000 individuals of each active species, split at
       random and placed by supply, and announces it; it takes `verbosity`. `repopulate!(eco, placement = eco.placement; seed)` places again by the
@@ -103,8 +107,13 @@
       active cells only and takes its numbers from the placement.
     - `maxspecies` on `RecordAbundance` and `generate_storage`, now ignored: the storage has a row for
       every species of the pool. `repopulate!(eco, abun)`, for `AddSpecies` or `AddAbundance`.
+    - The `SpeciesList` constructors drawing a tree, `SpeciesList(numspecies, numtraits, ...)`: give
+      a pool the tree with `add_phylogeny!` and the classes evolved along it with `add_trait!`. The
+      form taking a similarity structure still evolves its tolerances on a tree unrelated to it.
   - Fixed
     - `discrete_evolve` uses the switch value it is given.
+    - A species list built with a tree scores each species' abundances against its own tip: its
+      types followed the tree's order, so a phylogenetic diversity paired species with other tips.
     - The switch parameter of `assigntraits!`, `discrete_evolve` and the phylogeny-building `SpeciesList`
       constructor is documented as what it is: the mean time between trait changes as a fraction of the
       root-to-tip length, so a larger value means fewer changes.

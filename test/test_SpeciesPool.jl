@@ -2,19 +2,26 @@
 #
 # Tests `src/SpeciesPool.jl`: a pool of species made from a count, names or a table, standardised
 # through a name authority (a made-up WFO release), merged by its rule, changed by its verbs, given
-# values by `add_trait!`, read as a table, and saying how each name was matched and what it was
-# read from; and the error severity its refusals are raised at. Run with
+# values by `add_trait!` and a phylogeny by `add_phylogeny!` (its species then phylogenetic), read as
+# a table, and saying how each name was matched and what it was read from; and the error severity
+# its refusals are raised at. Run with
 #     julia --project -e 'using Pkg; Pkg.test(test_args = ["test_SpeciesPool.jl"])'
 
 module TestSpeciesPool
 
 using CSV
 using DataFrames
+using Diversity
+using Diversity.Ecology: faith_pd
 using EcoSISTEM
 using EcoSISTEM: AbstractMergeRule, ProblemError
 using EcoSISTEM.Provenancer
+using EcoSISTEM.Units
+# `import`, not `using`: a phylogeny needs the extension `Phylo` activates, and nothing of its names.
+import Phylo
 using Tables
 using Test
+using Unitful, Unitful.DefaultSymbols
 
 include("wfofixtures.jl")
 
@@ -352,6 +359,137 @@ end
     @test EcoSISTEM._severitytag(ProblemError()) == "error"
     @test_throws "cannot go on" EcoSISTEM._report(ProblemError(),
                                                   "cannot go on")
+end
+
+@testset "a pool's phylogeny names a tip for each species" begin
+    newick = "(((Quercus_robur:1.0,Fagus_sylvatica:1.0):1.0," *
+             "(Betula_pendula:1.5,Alnus_glutinosa:1.5):0.5):1.0,Pinus_sylvestris:3.0);"
+    tree = Phylo.parsenewick(newick)
+    names = ["Betula pendula", "Quercus robur", "Fagus sylvatica",
+        "Pinus sylvestris"]
+    pool = SpeciesPool(names, verbosity = :silent)
+    # A tip reaching no species is pruned, and one written with underscores is matched with spaces.
+    @test_logs((:info,
+                r"1 tip of the tree reaches no species.*`Alnus_glutinosa`"),
+               (:info, r"4 tips matched with their underscores read as spaces"),
+               add_phylogeny!(pool, tree))
+    @test sort(Phylo.getleafnames(pool.phylogeny)) == sort(names)
+    # The tree given is left as it was.
+    @test "Alnus_glutinosa" in Phylo.getleafnames(tree)
+    tips = name_table(pool)[name_table(pool).source .== "phylogeny", :]
+    @test Set(tips.name) == Set(Phylo.getleafnames(tree))
+    @test ismissing(only(tips[tips.name .== "Alnus_glutinosa", :species]))
+    @test occursin("phylogeny a tree of 4 tips",
+                   sprint(show, MIME"text/plain"(), pool))
+    @test_throws "has a phylogeny already" add_phylogeny!(pool, tree)
+
+    # The tree follows the pool: a removed species' tip is pruned, and a copy is placed beside its
+    # original, at no distance from it.
+    remove_species!(pool, "Pinus sylvestris", verbosity = :silent)
+    copy_species!(pool, "Fagus sylvatica", as = "Fagus planted")
+    @test sort(Phylo.getleafnames(pool.phylogeny)) ==
+          sort([
+                   "Betula pendula",
+                   "Quercus robur",
+                   "Fagus sylvatica",
+                   "Fagus planted"
+               ])
+    @test Phylo.distance(pool.phylogeny, "Fagus sylvatica", "Fagus planted") ==
+          0.0
+    @test Phylo.distance(pool.phylogeny, "Quercus robur", "Fagus planted") ==
+          Phylo.distance(pool.phylogeny, "Quercus robur", "Fagus sylvatica")
+    # A copy made before the tree has no tip of its own, and is placed the same way.
+    early = SpeciesPool(names, verbosity = :silent)
+    copy_species!(early, "Betula pendula", as = "Betula planted")
+    @test_logs((:info, r"1 copy placed beside its original"), match_mode = :any,
+               add_phylogeny!(early, tree))
+    @test Phylo.distance(early.phylogeny, "Betula pendula", "Betula planted") ==
+          0.0
+
+    # Every species needs one tip, inactive ones too, and no species takes two. A species with none is
+    # refused by default, naming the remedy, and the pool is left as it was.
+    lacking = SpeciesPool(["Betula pendula", "Picea abies"],
+                          verbosity = :silent)
+    deactivate_species!(lacking, "Picea abies", verbosity = :silent)
+    refusal = r"but 1 has none: `Picea abies`; remove it from the pool first"
+    @test_throws refusal add_phylogeny!(lacking, tree, verbosity = :silent)
+    @test_throws refusal add_phylogeny!(lacking, tree,
+                                        onmissing = RefuseMissingSpecies(),
+                                        verbosity = :silent)
+    @test isnothing(lacking.phylogeny)
+    @test_throws TypeError add_phylogeny!(lacking, tree, onmissing = :remove)
+    # Or they are removed, active or not, a copy of one going with it, and the tree added; every
+    # other species keeps its key.
+    removing = SpeciesPool(["Betula pendula", "Picea abies", "Quercus robur",
+                               "Larix decidua"], verbosity = :silent)
+    deactivate_species!(removing, "Picea abies", verbosity = :silent)
+    copy_species!(removing, "Larix decidua", as = "Larix planted")
+    keys = Dict(zip(removing.species.name, removing.species.key))
+    @test_logs((:info,
+                r"3 species with no tip of the tree removed from the pool, 2 of them active: `Picea abies`, `Larix decidua`, `Larix planted`; 2 remain\."),
+               match_mode = :any,
+               add_phylogeny!(removing, tree,
+                              onmissing = RemoveMissingSpecies()))
+    @test removing.species.name == ["Betula pendula", "Quercus robur"]
+    @test all(r -> keys[r.name] == r.key, eachrow(removing.species))
+    @test sort(Phylo.getleafnames(removing.phylogeny)) ==
+          sort(removing.species.name)
+    @test "Picea abies" in name_table(removing).name
+    quercus = only(eachrow(filter(r -> r.name == "Quercus_robur",
+                                  removing.names)))
+    @test (quercus.species, quercus.key) ==
+          ("Quercus robur", keys["Quercus robur"])
+    @test nameof(typeof(build_species(removing,
+                                      tolerance = ToleranceSpec(Temperature,
+                                                                μ = 10.0°C,
+                                                                σ = 3.0K),
+                                      demand = DemandSpec(SolarRadiation,
+                                                          1.0e9kJ / day),
+                                      verbosity = :silent).types)) ===
+          :PhyloBranches
+    # A pool is never left with no species.
+    nothing_in_it = SpeciesPool(["Picea abies"], verbosity = :silent)
+    @test_throws "would leave the pool with no species" add_phylogeny!(nothing_in_it,
+                                                                       tree,
+                                                                       onmissing = RemoveMissingSpecies())
+    @test length(nothing_in_it) == 1 && isnothing(nothing_in_it.phylogeny)
+    twice = Phylo.parsenewick("((Betula_pendula:1.0,'Betula pendula':1.0):1.0,Quercus_robur:2.0);")
+    @test_throws "`Betula pendula` has 2" add_phylogeny!(SpeciesPool([
+                                                                         "Betula pendula",
+                                                                         "Quercus robur"
+                                                                     ],
+                                                                     verbosity = :silent),
+                                                         twice,
+                                                         verbosity = :silent)
+    @test_throws "a tree of Phylo's" add_phylogeny!(SpeciesPool(names,
+                                                                verbosity = :silent),
+                                                    newick)
+end
+
+@testset "a species list built from a pool with a phylogeny is phylogenetic" begin
+    # Species listed in another order than the tree's: a community holding D and A spans the four
+    # branches from them to the root, 4.0 long; were rows paired with the tree's own order, it would
+    # be A and B, 3.0.
+    tree = Phylo.parsenewick("((A:1.0,B:1.0):1.0,(C:1.5,D:1.5):0.5);")
+    pool = SpeciesPool(["D", "A", "C", "B"], verbosity = :silent)
+    add_phylogeny!(pool, tree, verbosity = :silent)
+    species = build_species(pool,
+                            tolerance = ToleranceSpec(Temperature, μ = 10.0°C,
+                                                      σ = 3.0K),
+                            demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
+                            verbosity = :silent)
+    @test nameof(typeof(species.types)) === :PhyloBranches
+    @test Diversity.gettypenames(species, true) == species.names
+    community = [1.0, 1.0, 0.0, 0.0]
+    @test only(faith_pd(Metacommunity(community / 2, species.types)).diversity) ≈
+          4.0
+    # Without a tree, the species are maximally distinct.
+    plain = build_species(SpeciesPool(["D", "A"], verbosity = :silent),
+                          tolerance = ToleranceSpec(Temperature, μ = 10.0°C,
+                                                    σ = 3.0K),
+                          demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
+                          verbosity = :silent)
+    @test plain.types isa UniqueTypes
 end
 
 end

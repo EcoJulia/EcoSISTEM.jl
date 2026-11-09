@@ -129,63 +129,11 @@ function Base.show(io::IO, ::MIME"text/plain", sl::SpeciesList)
     return nothing
 end
 
-# The two tree-generating constructors live in `EcoSISTEMPhyloExt`. They do not merely accept a
-# phylogeny - they build one and derive a `PhyloBranches` similarity from it - so they cannot work
-# without `Phylo`. Their docstrings stay here, immediately above the stubs, because `api.md`'s
-# `@autodocs` cannot see into an extension.
-#
-# Every other `SpeciesList` constructor is unaffected: they take the tolerances, and the similarity,
-# explicitly, which is the path `build_species` uses.
-"""
-    SpeciesList(numspecies::Int64, numtraits::Int64, demand::DM, movement::MO, params::P;
-      seed = nothing)
-    SpeciesList(numspecies::Int64, numtraits::Int64, demand::DM, movement::MO, params::P,
-      switch::Vector{Float64}; seed = nothing)
-    SpeciesList(numspecies::Int64, numtraits::Int64, demand::DM, movement::MO, phy::T,
-      params::P; seed = nothing)
-
-Create a `SpeciesList` whose categorical niche tolerances are **evolved along a random ultrametric
-phylogeny**, with a `PhyloBranches` similarity structure computed from that tree.
-
-The third form takes a similarity structure explicitly instead of computing one from the tree; the
-tolerances are still evolved along a random ultrametric tree.
-
-**All three forms need `Phylo`** - each builds the tree, or forwards to one that does - so
-`using Phylo` is required and without it the call is a `MethodError`. The implementation is in
-`EcoSISTEMPhyloExt`.
-
-# Arguments
-
-  - `numspecies`: how many species.
-  - `numtraits`: how many categorical niche classes the tolerances are drawn from.
-  - `demand`: what each species takes from the shared pool.
-  - `movement`: one [`SpeciesDispersal`](@ref) per species, saying which individuals disperse and
-    how far.
-  - `params`: the demographic rates.
-  - `switch`: the mean time between changes of the niche class along a root-to-tip path, as a
-    fraction of its length, so a larger value changes it less often. Defaults to `[0.5]`.
-  - `phy`: a similarity structure to use in place of the one the tree would give.
-  - `seed`: an integer fixing the tree, and so the tolerances evolved along it. They are drawn
-    from a stream of their own, so the same seed gives the same phylogeny whatever else has been
-    drawn; left unset, they come from the global generator.
-"""
-function SpeciesList(numspecies::Int64,
-                     numtraits::Int64,
-                     demand::DM,
-                     movement::MO,
-                     params::P;
-                     seed = nothing) where {DM <: AbstractDemand,
-                                            MO <:
-                                            AbstractVector{<:SpeciesDispersal},
-                                            P <: AbstractParams}
-    return SpeciesList(numspecies, numtraits, demand, movement, params, [0.5],
-                       seed = seed)
-end
 # ---------------------------------------------------------------------------
 # The size-based (`SizeDemand`) constructor is parked - still commented out - in
-# `ext/EcoSISTEMPhyloExt/`. It evolves body mass along a phylogeny, so were it ever uncommented it
-# would need `Phylo` like the two constructors above, and keeping it beside them keeps the open
-# decision about `SizeDemand` in one place rather than two. See `src/Demand.jl`.
+# `ext/EcoSISTEMPhyloExt/species_list.jl`. It evolves body mass along a phylogeny, so were it ever
+# uncommented it would need `Phylo`, and keeping it there keeps the open decision about `SizeDemand`
+# in one place rather than two. See `src/Demand.jl`.
 
 """
     SpeciesList(numspecies::Int64, tolerance::TL, demand::DM, movement::MO, params::P;
@@ -193,8 +141,8 @@ end
 
 Create a `SpeciesList` from requirements and rates already built, rather than from a
 [`SpeciesPool`](@ref) by [`build_species`](@ref). Species are treated as maximally distinct, with a
-`UniqueTypes` similarity structure. Where the individuals start is not the species list's: it is
-the placement [`build_ecosystem`](@ref) is given.
+`UniqueTypes` similarity structure, unless `pool` brings a phylogeny. Where the individuals start is
+not the species list's: it is the placement [`build_ecosystem`](@ref) is given.
 
 # Arguments
 
@@ -210,7 +158,8 @@ the placement [`build_ecosystem`](@ref) is given.
   - `provenance`: an [`ProvenanceRecord`](@ref), or a vector of them, for the published data the
     species were built from; [`provenance`](@ref) of an ecosystem built from them lists these.
   - `pool`: what [`build_species`](@ref) read from a [`SpeciesPool`](@ref) - its filled values, which
-    were filled, its authority and its names - or `nothing`, the default, for species built otherwise.
+    were filled, its authority, its names and its phylogeny, which gives the species a phylogenetic
+    similarity - or `nothing`, the default, for species built otherwise.
 """
 function SpeciesList(numspecies::Int64,
                      tolerance::TL,
@@ -228,9 +177,8 @@ function SpeciesList(numspecies::Int64,
                                             P <:
                                             AbstractParams}
     names = _speciesnames(names, numspecies)
-    # Species are maximally distinct, and the types carry the names so that nothing downstream
-    # can lose them.
-    ty = _uniquetypes(names)
+    # The types carry the names, so that nothing downstream can lose them.
+    ty = _speciestypes(pool, names)
     counttypes(demand) == numspecies ||
         throw(DimensionMismatch("$(counttypes(demand)) demands for $numspecies species: give " *
                                 "one demand per species."))
@@ -387,4 +335,13 @@ _poolfields(::Nothing, names) = NamedTuple()
 function _poolfields(pool::NamedTuple, names)
     return (traits = pool.traits, filled = pool.filled,
             authority = pool.authority, namemap = pool.namemap)
+end
+
+# The species' similarity: phylogenetic where the pool they were built from has a tree, its tips the
+# species' names, which order its types as the species are ordered; otherwise maximally distinct.
+_speciestypes(::Nothing, names) = _uniquetypes(names)
+
+function _speciestypes(pool::NamedTuple, names)
+    tree = get(pool, :phylogeny, nothing)
+    return isnothing(tree) ? _uniquetypes(names) : _phylotypes(tree, names)
 end

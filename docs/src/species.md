@@ -52,6 +52,22 @@ pool = SpeciesPool("envelopes.csv", authority = WFOPlantList(release = "2026-06"
                    merge = MergeWith(first))
 ```
 
+A pool may be given a phylogeny with [`add_phylogeny!`](@ref): a tree of
+[Phylo](https://github.com/EcoJulia/Phylo.jl)'s, read, built or drawn, whose tips are matched to the
+pool's species by name as a table's rows are (a tip written `Quercus_robur` matching `Quercus robur`).
+Tips naming no species of the pool are pruned. Every species needs a tip, inactive ones too, since a
+species list is built from every species of its pool: `onmissing` says what becomes of one with
+none, refused by default ([`RefuseMissingSpecies`](@ref)) or removed from the pool
+([`RemoveMissingSpecies`](@ref)), while a copy is placed beside its original. A species list built from the pool is then phylogenetic, so a diversity
+measure of its ecosystem is too. Traits evolved along the tree, or read with it, join the pool as any
+other values do:
+
+```julia
+using Phylo
+tree = open(parsenewick, "plants.tre")
+add_phylogeny!(pool, tree)
+```
+
 A table of records - occurrences, say - often names species a run does not hold. Filtering it by
 [`IsActiveSpecies`](@ref) keeps the rows naming one of the active species of a pool or a species list,
 each name found as the pool finds names (through its authority, where it has one, so a synonym

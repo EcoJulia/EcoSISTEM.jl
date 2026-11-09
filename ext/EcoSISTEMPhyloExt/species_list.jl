@@ -1,108 +1,12 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
-# --- The tree-generating `SpeciesList` constructors --------------------------------------------------
-#
-# These two do not merely *accept* a phylogeny - they **build** one
-# (`rand(rng, Ultrametric{BinaryTree{...}}(names))`) and derive a `PhyloBranches` similarity from
-# it, so they cannot work without `Phylo`. The tree and the traits evolved along it come from one
-# stream, `_phylogenyrng(seed)`, so a seed fixes both and an unseeded build draws from the global
-# generator without ever reseeding it. Every other `SpeciesList` constructor is untouched and stays
-# in `src/Species.jl`, including the one `build_species` uses; their docstrings stay there too.
-
-function EcoSISTEM.SpeciesList(numspecies::Int64,
-                               numtraits::Int64,
-                               demand::DM,
-                               movement::MO,
-                               params::P,
-                               switch::Vector{Float64};
-                               seed = nothing) where {DM <: AbstractDemand,
-                                                      MO <:
-                                                      AbstractVector{<:SpeciesDispersal},
-                                                      P <: AbstractParams}
-    names = map(x -> "$x", 1:numspecies)
-    movement = _dispersalvector(movement)
-    rng = _phylogenyrng(seed)
-    # Create tree
-    tree = rand(rng,
-                Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(names))
-    # Create tolerance and assign to tips
-    traits = DataFrame(trait1 = collect(1:numtraits))
-    assigntraits!(rng, tree, switch, traits)
-    # Get tolerance from tree
-    # `penalty = 0.5` is **soft** exclusion, and must be stated rather than left to the default:
-    # this evolves a *niche* label, and a species outside its niche should do worse there rather than
-    # be unable to live there at all. The tolerance defaults to `0.0` (hard), which is right for a
-    # habitat filter and wrong for this.
-    sp_trt = SimpleCategoricalTolerance(Array(gettraits(tree, true)[:, 1]),
-                                        axis = EcoSISTEM.TypologyAxis,
-                                        penalty = 0.5)
-    # Create similarity matrix (for now identity)
-    phy = PhyloBranches(tree)
-    counttypes(demand) == numspecies ||
-        throw(DimensionMismatch("Demand vector
- doesn't match number species"))
-    return SpeciesList{typeof(sp_trt),
-                       typeof(demand),
-                       typeof(movement),
-                       typeof(phy),
-                       typeof(params)}(names,
-                                       sp_trt,
-                                       demand,
-                                       phy,
-                                       movement,
-                                       params)
-end
-
-function EcoSISTEM.SpeciesList(numspecies::Int64,
-                               numtraits::Int64,
-                               demand::DM,
-                               movement::MO,
-                               phy::T,
-                               params::P;
-                               seed = nothing) where {DM <: AbstractDemand,
-                                                      MO <:
-                                                      AbstractVector{<:SpeciesDispersal},
-                                                      T <: AbstractTypes,
-                                                      P <: AbstractParams}
-    names = map(x -> "$x", 1:numspecies)
-    movement = _dispersalvector(movement)
-    rng = _phylogenyrng(seed)
-    # Create tree
-    tree = rand(rng,
-                Ultrametric{BinaryTree{OneRoot, DataFrame, DataFrame}}(names))
-    # Create tolerance and assign to tips
-    traits = DataFrame(trait1 = collect(1:numtraits))
-    assigntraits!(rng, tree, 0.5, traits)
-    # Get tolerance from tree
-    # `penalty = 0.5` is **soft** exclusion, and must be stated rather than left to the default:
-    # this evolves a *niche* label, and a species outside its niche should do worse there rather than
-    # be unable to live there at all. The tolerance defaults to `0.0` (hard), which is right for a
-    # habitat filter and wrong for this.
-    sp_trt = SimpleCategoricalTolerance(Array(gettraits(tree, true)[:, 1]),
-                                        axis = EcoSISTEM.TypologyAxis,
-                                        penalty = 0.5)
-    counttypes(demand) == numspecies ||
-        throw(DimensionMismatch("Demand vector
- doesn't match number species"))
-    return SpeciesList{typeof(sp_trt),
-                       typeof(demand),
-                       typeof(movement),
-                       typeof(phy),
-                       typeof(params)}(names,
-                                       sp_trt,
-                                       demand,
-                                       phy,
-                                       movement,
-                                       params)
-end
-
 # ---------------------------------------------------------------------------
 # PARKED - the size-based `SpeciesList` constructor
 # ---------------------------------------------------------------------------
 # **Here rather than in `src/Species.jl` because uncommenting it would need `Phylo`**: it
-# evolves body mass as a continuous trait along a phylogeny, exactly as the two live tree-generating
-# constructors above do. It is *parked*, not dead - see `SizeDemand` in `src/Demand.jl`. Keeping
-# the two halves of that decision together is the point.
+# evolves body mass as a continuous trait along a phylogeny, as the deprecated tree-drawing
+# constructors in `deprecations.jl` evolve niche classes. It is *parked*, not dead - see `SizeDemand`
+# in `src/Demand.jl`. Keeping the two halves of that decision together is the point.
 
 # The size-based `SpeciesList` constructor - COMMENTED OUT with `SizeDemand`
 # ---------------------------------------------------------------------------

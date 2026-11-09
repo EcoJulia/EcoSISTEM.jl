@@ -1,10 +1,9 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
 using EcoSISTEM
-# **`Phylo` is a weak dependency**, so the `SpeciesList` constructor below - the one that *builds*
-# a phylogeny rather than taking tolerances directly - lives in `EcoSISTEMPhyloExt` and only exists
-# once `Phylo` is loaded. Loading it here is what activates that extension for every test file that
-# includes this one.
+# **`Phylo` is a weak dependency**: the species below are given a tree drawn with it, which
+# `add_phylogeny!` takes through `EcoSISTEMPhyloExt`, the extension loading `Phylo` activates for
+# every test file that includes this one.
 # **`import`, not `using`, and that is load-bearing**: extension loading is triggered by the
 # package being *loaded*, either way - but `using Phylo` would also drag its exports into every
 # includer's namespace, where `Phylo.DiscreteTrait` shadows EcoSISTEM's deprecated binding of the
@@ -15,6 +14,7 @@ using Distributions
 using EcoSISTEM.Units
 using Unitful
 using Random
+using DataFrames: DataFrame
 
 """
     Test1Ecosystem(seed = nothing, grid = (5, 7), numspecies = 15, mixed = false)
@@ -41,7 +41,6 @@ function Test1Ecosystem(; seed = nothing, grid = (5, 7), numspecies = 15,
     long = 1.0
     surv = 0.0
     timestep = 1.0month_mean_duration
-    param = EqualPop(birth, death, long, surv)
 
     # `(ny, nx)` - rows then columns, as everywhere in the package. Overridable so a test can
     # compare two grid sizes, which is how the hot loop's per-cell allocation is measured.
@@ -69,17 +68,44 @@ function Test1Ecosystem(; seed = nothing, grid = (5, 7), numspecies = 15,
     isnothing(seed) || Random.seed!(seed)
     abun = rand(Multinomial(individuals, numSpecies))
 
-    kernel = fill(GaussianKernel(meandist = 1.0km, thresh = 10e-04), numSpecies)
-    modes = mixed ?
-            (InsectDispersal(), AlwaysDispersal(),
-             WindDispersal(GaussianKernel)) :
-            (InsectDispersal(),)
-    movement = map(enumerate(kernel)) do (sp, k)
-        return mixed && sp % 4 == 0 ? NoDispersal()() :
-               modes[mod1(sp, length(modes))](k)
-    end
+    # Each species' movement by its `movement` column: with `mixed`, every fourth stays put and the
+    # rest take three modes in turn.
+    kernel = (meandist = 1.0km, thresh = 10e-04)
+    movement = ChosenBy(:movement,
+                        :insect => MovementSpec(InsectDispersal(); kernel...),
+                        :always => MovementSpec(AlwaysDispersal(); kernel...),
+                        :wind => MovementSpec(WindDispersal(GaussianKernel);
+                                     kernel...),
+                        :none => MovementSpec(NoDispersal()))
     resource = Demand{SolarRadiation}(fill(2.0kJ / day, numSpecies))
-    sppl = SpeciesList(numSpecies, numNiches, resource, movement, param)
+    # A random tree, and niche classes evolved along it, drawn from the global generator after the
+    # counts above; the pool takes both, and its species are phylogenetic.
+    names = string.(1:numSpecies)
+    tree = rand(Random.default_rng(),
+                Phylo.Ultrametric{Phylo.BinaryTree{Phylo.OneRoot, DataFrame,
+                                                   DataFrame}}(names))
+    EcoSISTEM.assigntraits!(Random.default_rng(), tree, [0.5],
+                            DataFrame(trait1 = collect(1:numNiches)))
+    classes = EcoSISTEM.gettraits(tree, true)
+    niche = Dict(zip(classes.species, classes.trait1))
+    modes = mixed ? (:insect, :always, :wind) : (:insect,)
+    pool = SpeciesPool(names, verbosity = :silent)
+    add_phylogeny!(pool, tree, verbosity = :silent)
+    add_trait!(pool,
+               DataFrame(species = names, niche = [niche[n] for n in names],
+                         movement = [mixed && sp % 4 == 0 ? :none :
+                                     modes[mod1(sp, length(modes))]
+                                     for sp in eachindex(names)]),
+               verbosity = :silent)
+    # `penalty = 0.5` is soft exclusion: a species does worse outside its niche class rather than
+    # being unable to live there.
+    tolerance = SimpleCategoricalTolerance(Int.(pool.species.niche),
+                                           axis = EcoSISTEM.TypologyAxis,
+                                           penalty = 0.5)
+    sppl = build_species(pool, tolerance = tolerance, demand = resource,
+                         movement = movement, birth = birth, death = death,
+                         longevity = long, survival = surv,
+                         verbosity = :silent)
 
     nichefit = CategoricalSuitability{EcoSISTEM.axisof(habitat.regime),
                                       eltype(habitat.regime)}()

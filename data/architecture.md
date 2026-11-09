@@ -911,10 +911,13 @@ classDiagram
     class AbstractNameAuthority
     class AbstractMergeRule
     class MergeWith~F~
+    class AbstractMissingSpeciesRule
     class ProvenanceRecord
     AbstractNameAuthority <|-- WFOPlantList
     AbstractMergeRule <|-- RefuseMerge
     AbstractMergeRule <|-- MergeWith
+    AbstractMissingSpeciesRule <|-- RefuseMissingSpecies
+    AbstractMissingSpeciesRule <|-- RemoveMissingSpecies
     SpeciesPool "1" *-- "0..1" AbstractNameAuthority : authority
     SpeciesPool "1" *-- "*" ProvenanceRecord : inputs
 ```
@@ -948,7 +951,8 @@ catalogued source read from its Darwin Core release. Each name reaches one speci
 its own name with its identifiers joined, so a table naming it by name alone still finds exactly
 one. Which of several rows reaching one species supplies its values is not the authority's
 question, since it turns on which names the data holds, and the pool's `AbstractMergeRule` answers
-it.
+it. A pool may hold a phylogeny with one tip per species, matched to them by name as a table's rows
+are; what becomes of a species the tree lacks is an `AbstractMissingSpeciesRule`'s question.
 
 **A species list is built from a pool one `AbstractTraitSpec` per trait**, each parameter a trait
 value: one value for every species, a `TraitColumn` of the pool, a `DrawFrom` a distribution, or a
