@@ -107,9 +107,8 @@ const Supply{A} = ContinuousLayer{Resource, A, V, Arr,
 
 # There is deliberately no `_getavailablesupply` here. Totalling a supply needs the habitat's
 # `active` mask - an inactive cell's resource is not available to anything - so it belongs with the
-# habitat, and `totalsupply` (`GridHabitat.jl`) is the whole of it. A supply-only version
-# existed, was called by nothing, and quietly became `sum(supply.matrix)` tested against
-# `sum(supply.matrix)`.
+# habitat, and `totalsupply` (`GridHabitat.jl`) is the whole of it. A supply-only version would
+# ignore the mask, and a test of it could only compare `sum(supply.matrix)` with itself.
 
 # --- Constructors ---------------------------------------------------------------------
 # **One pair of methods for every resource axis**, because the axis says everything that differs:
@@ -218,8 +217,7 @@ end
 # ---------------------------------------------------------------------------
 # A layer is routinely nested - inside a habitat, inside a collection, inside a vector - so it needs
 # the compact one-liner as much as the multi-line form. Without one the default prints the whole
-# matrix: measured at 50 016 characters for a 60 x 100 regime and 122 007 for a two-member
-# collection, on a single line.
+# matrix, on a single line.
 #
 # Every method here is constant in the grid size, and none reduces over the data. A `show` runs
 # every time a value is printed, so a `sum` or an `extrema` over the matrix would make displaying a
@@ -276,7 +274,7 @@ end
 # `Supply{A}` (defined in Layer.jl) is an alias over `ContinuousLayer{Resource, A, V, Arr}`, always
 # over `(Y, X)` and with the value type left free - the axis says what the unit is. The
 # constructors below fill the (unused) `size` and the per-timestep `change` rule and zero
-# NaNs, reproducing the old supply structs. A supply's `size` is never read
+# NaNs. A supply's `size` is never read
 # (geometry/dispersal use the regime), so a placeholder is stored. A supply built here never
 # changes; one read from a monthly stack carries a `SeriesLayerChange` installed by `_setseries!`.
 const _SUPPLY_SIZE = 1.0m
@@ -606,8 +604,8 @@ function _fillin!(rng::AbstractRNG, T, M, types, wv,
                 else
                     T[y, x] = sample(rng, T[M .> 1])
                 end
-                # Whichever branch wrote it, the cell is now assigned - this is what the old
-                # `isassigned` was trying and failing to say.
+                # Whichever branch wrote it, the cell is now assigned. Tracked explicitly, since
+                # `isassigned` is always true on an array of a bits type.
                 assigned[y, x] = true
             end
         end
@@ -1250,7 +1248,7 @@ end
 # `build_ecosystem`, from the series the environment already carries - never copied into a parallel
 # structure on the habitat, which would leave two places to say the same thing. Once resolved it is
 # applied *backwards*, by rewriting each series' `origin`: one number per series, after which the
-# hot path indexes by elapsed time exactly as before and does no date arithmetic at all.
+# hot path indexes by elapsed time alone and does no date arithmetic at all.
 #
 # It has to work this way round because the ecosystem does not exist when the layers are built.
 # Series times are resolved during `GridHabitat`, long before `build_ecosystem` runs, so the
@@ -1645,15 +1643,6 @@ function _yxcompatible(yx1, yx2)
 end
 
 # ---------------------------------------------------------------------------
-# Back-compat aliases (supply role)
-# ---------------------------------------------------------------------------
-# A supply is a `Resource`-role layer: the old supply structs are aliases over
-# `ContinuousLayer{Resource, axis, V, Arr}`, all over `(Y, X)`. The axis records the
-# resource measured; the (unused) `size` and the `change` rule are filled by the
-# constructors in Energy.jl. Every supply names its axis - the free/axis-less family is gone. A supply that
-# varies in time is not a separate type - it is one of these carrying a [`SeriesLayerChange`](@ref) change.
-
-# ---------------------------------------------------------------------------
 # Axis-driven canonicalisation + axis re-tagging (shared by the hand `*AE`
 # constructors in `GridHabitat.jl` and the `build_*`/`materialise` path in `materialise.jl`)
 # ---------------------------------------------------------------------------
@@ -1662,8 +1651,8 @@ end
 # value converts (proper affine - canonical units are absolute, so no interval subtlety); a bare value
 # attaches the unit. An axis with no canonical unit (`NicheAxis`/dimensionless, `NoUnits`/`nothing`)
 # keeps the value's magnitude but still **absolutises** an affine unit (°C->K) - regimes are always in an
-# absolute unit, which the downstream change machinery assumes. The single, axis-driven replacement
-# for the old dimension-sniffing conversions.
+# absolute unit, which the downstream change machinery assumes. The one place a regime value is
+# converted, decided by its axis rather than by its dimension.
 function _canonical(x, axis::Type{<:NicheAxis})
     return _tocanon(x, canonicalunit(axis), axis)
 end

@@ -81,8 +81,8 @@ end
 # named on the way in and constructed on the way out made every such change everyone's problem.
 #
 # The wrapper adds **no arithmetic of its own**: every raster in the expression is replaced by its
-# array and the work is done by DimensionalData exactly as before, so a broadcast means precisely
-# what it meant when it was written out by hand.
+# array and the work is done by DimensionalData itself, so a broadcast means precisely what it means
+# written out by hand.
 struct ClimateRasterStyle <: Broadcast.BroadcastStyle end
 
 # --- What a layer IS, and how one is declared ----------------------------------------------------
@@ -108,8 +108,8 @@ using SimpleTraits
 using RecipesBase
 
 # --- Display ------------------------------------------------------------------
-# A raster carries a whole array, so without this the default prints it: measured at 1 757
-# characters for a 5 x 5 synthetic one, and unbounded in the grid.
+# A raster carries a whole array, so without this the default prints it, at a length growing with
+# the grid.
 #
 # The source and the layer code are what identify a raster - they are the two things that decide
 # what its values *mean* - so both are on the line, with the code omitted where there is none.
@@ -228,11 +228,11 @@ struct CRUTS <: EcoSISTEMSource end
 #
 # **Three questions, deliberately kept apart.** `IsRasterData` asks *may this type name a source at
 # all*; `RasterDataAcceptableCode` asks *is this a plausible shape for a layer name*; and
-# `_preferredcode` asks *which layer is that, and what does this dataset call it*. Conflating
-# them is what the old `S <: RDS.RasterDataSource` bound did: one `<:` answered the first two by
-# accident and could not ask the third at all, so a raster with **no** dataset - a derived layer, a
-# synthetic field, an ECMWF download - had to name a dataset it did not come from, and a code naming
-# no layer was accepted without complaint.
+# `_preferredcode` asks *which layer is that, and what does this dataset call it*. A single bound such
+# as `S <: RDS.RasterDataSource` would conflate them: one `<:` answers the first two by accident and
+# cannot ask the third at all, so a raster with **no** dataset - a derived layer, a synthetic field,
+# an ECMWF download - would have to name a dataset it did not come from, and a code naming no layer
+# would pass without complaint.
 #
 # **A struct parameter cannot carry a trait bound** (`struct Bad{S; IsRasterData{S}}` is a syntax
 # error), so `ClimateRaster`'s `S` is unconstrained *in the type*. The guarantee comes from the single

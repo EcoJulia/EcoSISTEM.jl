@@ -179,8 +179,8 @@ end
     @test all(≈(276.0K), temp.matrix)
 
     # A pattern is a function of elapsed time, not of the layer's own values - so two layers at the
-    # same elapsed time agree however they got there. (The change function this replaces fed the
-    # matrix back into `sin`, making it a path-dependent walk.)
+    # same elapsed time agree however they got there. (A change feeding the matrix back into `sin`
+    # would be a path-dependent walk.)
     onestep = _testregime(274.0K, Temperature)
     EcoSISTEM.setchange!(onestep, OffsetBy(PatternedChange(5.0K, 1.0year)))
     EcoSISTEM._layerupdate!(onestep, 0.25year, 0.25year)
@@ -294,7 +294,8 @@ end
     monthof(k) = min(12,
                      floor(Int, ustrip(uconvert(month_mean_duration, k))) + 1)
 
-    # These three passed even against the bug - the first half of each month landed correctly.
+    # These three hold even for a lookup half a month late - the first half of each month lands
+    # correctly either way.
     @test EcoSISTEM._seriesindex(series, 0.0day) == 1
     @test EcoSISTEM._seriesindex(series, 10.0day) == 1
     @test EcoSISTEM._seriesindex(series, 45.0day) == 2
@@ -312,10 +313,10 @@ end
     # every other slice. Under the midpoint rule it was abandoned after 15.2 days.
     @test EcoSISTEM._seriesindex(series, 30.4day) == 1
 
-    # The general property, so a fix cannot satisfy the cases above by accident: across a whole year
-    # of daily steps, the current slice must always be the month elapsed time actually falls in.
-    # `HoldAtEnd` only so the sweep can reach day 364 - see the coverage bug below for why it
-    # otherwise cannot.
+    # The general property, so an implementation cannot satisfy the cases above by accident: across
+    # a whole year of daily steps, the current slice must always be the month elapsed time actually
+    # falls in. `HoldAtEnd` keeps the sweep independent of the series' reach, which the next testset
+    # pins.
     held = EcoSISTEM._attachchange(ReplaceWith(SeriesChange(stack,
                                                             atend = HoldAtEnd())),
                                    layer)

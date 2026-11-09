@@ -34,8 +34,7 @@ function _projected()
                        area = area)
 end
 
-# A real geographic grid - 0.5° cells over 7 × 11 cells - which is the case the old implementation
-# could not express at all.
+# A real geographic grid - 0.5° cells over 7 × 11 cells.
 function _geographic(; lat = (50.0:0.5:53.0) .* °, long = (0.0:0.5:5.0) .* °)
     raster = _testraster(WorldClim{BioClim},
                          fill(291.0K, length(lat),
@@ -79,7 +78,7 @@ end
 
     @test EcoBase.xcells(grid) == nx
     @test EcoBase.ycells(grid) == ny
-    # **Unitful, in the grid's own unit** - the old implementation returned a bare `Float64`.
+    # **Unitful, in the grid's own unit**, never a bare `Float64`.
     @test EcoBase.xcellsize(grid) == CELL
     @test EcoBase.ycellsize(grid) == CELL
     @test EcoBase.cellsize(grid) == (CELL, CELL)

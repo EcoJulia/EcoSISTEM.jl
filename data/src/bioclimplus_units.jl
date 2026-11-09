@@ -8,8 +8,8 @@
 #   * gdd0/gdd5/gdd10 ("Growing degree days above 0/5/10 C") - labelled `K`, but a degree-day SUM is `K*day`.
 #     Compared to gst (growing-season mean temperature, K) and gsl.
 #
-# It also shows that the reader now masks CHELSA's raw integer fill sentinels (typemax of the band, which the
-# file's declared nodata misses) - before the fix gsp's `0xffffffff` fill leaked as ~4.29e8.
+# It also shows that the reader masks CHELSA's raw integer fill sentinels (typemax of the band, which the
+# file's declared nodata misses) - unmasked, gsp's `0xffffffff` fill reads as ~4.29e8.
 #
 # **Both questions are SETTLED, and this script is the evidence behind the answers rather than an
 # open investigation.** `data/catalogue/BioClimPlus.csv` records them:

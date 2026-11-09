@@ -75,9 +75,10 @@ end
     @test_throws ErrorException md(0)
     @test_throws ErrorException md(13)
 
-    # A `TimeType` that is not Gregorian is refused too, and this is the guard that makes widening
-    # `_istimeaxis` to `Dates.TimeType` safe: every duration this returns is a *Gregorian* month
-    # length, so answering for another calendar would be silently wrong rather than approximate.
+    # A `TimeType` that is not Gregorian is also refused, and this is the guard that keeps
+    # `_istimeaxis` accepting any `Dates.TimeType` safe: every duration this returns is a
+    # *Gregorian* month length, so answering for another calendar would be silently wrong rather than
+    # approximate.
     # `Dates.Time` stands in for the general case here - it is a `TimeType` with no month at all, and
     # needs no extra dependency, where a real `CFTime` calendar would.
     @test Dates.Time(12, 30) isa Dates.TimeType
@@ -141,7 +142,7 @@ end
     # A duration is accepted too, including one in an equal-but-differently-named unit - which is
     # what the `uconvert` in `_monthindex` is for.
     @test EcoSISTEM.Units._monthindex(1month_mean_duration) == 1
-    # Out of range and fractional are refused, named in months rather than the old `error("NO")`.
+    # Out of range and fractional are refused, named in months.
     @test_throws ErrorException EcoSISTEM.Units._monthindex(0)
     @test_throws ErrorException EcoSISTEM.Units._monthindex(13)
     @test_throws ErrorException EcoSISTEM.Units._monthindex(1.5month_mean_duration)

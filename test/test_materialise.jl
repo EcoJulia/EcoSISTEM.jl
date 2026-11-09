@@ -440,7 +440,7 @@ end
     expected[1:3, 1:3] = shares * shares'
     # A tolerance, and it is not floating-point noise: a shape is read into WGS84 and transformed
     # back into the grid's CRS, so even a file drawn in that CRS arrives about a millimetre out -
-    # measured here as 0.24999987 against 0.25, a relative error of 5e-7 on 2500 m cells.
+    # here 0.24999987 against 0.25, a relative error of 5e-7 on 2500 m cells.
     @test isapprox(parent(materialise(land, area).matrix), expected,
                    atol = 1e-5)
     # ...and it is a continuous layer: a covered share is a number, not a class code. The values

@@ -30,8 +30,7 @@ totalK = (4.5e11kJ / km^2 / month_mean_duration, 192.0mm / month_mean_duration)
 # A `StudyArea` decides the grid, then `GridHabitat` builds on it. With no data-backed layer
 # to shape it, `extent` and `cellsize` give a **synthetic** grid with no CRS - which is exactly what a
 # synthetic `UniformSpec` needs, since it is generated at whatever shape it is handed. A square
-# `area` split `grd[1]` ways gives the same 10x10 grid of 1 km^2 cells the old `simplehabitat(val, grd,
-# maxsupply, area)` derived, so nothing about the simulation below changes.
+# `area` split `grd[1]` ways gives a 10x10 grid of 1 km^2 cells.
 #
 # `verbosity = :silent` because this example runs under `@test_nowarn`, which fails on *any* stderr
 # output - and the default `:normal` announces each guessed value. Worth knowing outside a test:

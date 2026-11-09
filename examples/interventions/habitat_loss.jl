@@ -1,13 +1,11 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# `RandHabitatLoss!` and `ClustHabitatLoss!` from `examples/models/scenarios.jl`, recreated.
+# Habitat lost at random cells, and in a spreading cluster, declared as interventions.
 #
-# **The reproducibility difference is the headline.** Both originals drew from the **global** RNG
-# (`sample(pos, howmany)`), so no run using one could be reproduced, and under MPI every rank chose
-# *different* cells and silently diverged. `RandomCells`/`SpreadingCells` draw from a counter-based
-# stream keyed on `(seed, :intervention, k, step)`, so a run replays exactly and every rank agrees
-# without communicating. **New runs therefore will not reproduce old numbers** - the old ones were
-# not reproducible at all, which is the point.
+# **Reproducibility is the point.** `RandomCells`/`SpreadingCells` draw from a counter-based stream
+# keyed on `(seed, :intervention, k, step)`, so a run replays exactly and every rank agrees without
+# communicating. Cells drawn from the **global** RNG (`sample(pos, howmany)`) could be reproduced by no
+# run, and under MPI every rank would choose *different* cells and silently diverge.
 
 using EcoSISTEM
 using EcoSISTEM.Units

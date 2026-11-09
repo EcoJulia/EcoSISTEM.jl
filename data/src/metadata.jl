@@ -3,10 +3,9 @@
 using Pkg
 using EcoSISTEM
 
-# 🔴 Every path here is resolved from the package root, NOT from the working directory. This script
-# used to say `Pkg.activate(".")`, which was only ever correct when run from the root - and after it
-# moved into `data/src`, running it from beside itself would have activated `data/src` and resolved
-# the wrong environment entirely.
+# 🔴 Every path here is resolved from the package root, NOT from the working directory:
+# `Pkg.activate(".")` is right only when run from the root, and run from beside this script it
+# activates `data/src` and resolves the wrong environment entirely.
 const ROOT = pkgdir(EcoSISTEM)
 
 # Update EcoSISTEM folder packages

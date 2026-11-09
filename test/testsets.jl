@@ -23,7 +23,7 @@ const RASTERTESTS = ["test_datasetread", "test_rasters", "test_StudyArea",
 
 # The files to run one at a time rather than beside each other: all of `names` on a CI runner, where
 # memory and cores are scarce, and none on a development machine, where serialising costs real time
-# (measured on one, 2 minutes became 7.5) and buys nothing. The environment variable `override`,
+# (2 minutes become 7.5 on one) and buys nothing. The environment variable `override`,
 # when it is set, forces the question either way.
 function serialonrunner(names; override = nothing)
     !isnothing(override) && haskey(ENV, override) &&

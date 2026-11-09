@@ -28,7 +28,7 @@
 #
 # The model is deliberately started with ~1 billion individuals (see
 # benchmark_worker.jl) so it is compute-bound from the first timestep and a short
-# run gives a stable estimate; the grid and species count are as large as before.
+# run gives a stable estimate; the grid and species count stay at full size.
 #
 # The integer type storing species counts can be varied with
 # ECOSISTEM_BENCH_COUNT_TYPE (default Int64); the orchestrator applies it via the

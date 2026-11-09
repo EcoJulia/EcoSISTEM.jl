@@ -263,9 +263,9 @@ end
 rankprefix() = MPI.MPI_LIBRARY == "MPICH" ? `-prepend-rank` : ``
 
 # The Julia command a launch runs, with coverage instrumentation only where it is wanted. It roughly
-# doubles a launch - measured on a runner, this file took 861 s on the instrumented job against 402 s
-# uninstrumented - and each launch runs the same package code, so one carrying it covers the same
-# lines as three would. The parent process, which runs this file, keeps whatever it was given.
+# doubles a launch - this file takes 861 s instrumented on a runner, against 402 s without - and
+# each launch runs the same package code, so one carrying it covers the same lines as three would.
+# The parent process, which runs this file, keeps whatever it was given.
 function launchcmd(; coverage::Bool)
     cmd = Base.julia_cmd()
     coverage && return cmd

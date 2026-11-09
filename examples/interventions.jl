@@ -3,11 +3,9 @@
 # Runs every scenario recreation in `examples/interventions/`, so that they are exercised rather than
 # merely written. Discovered by `test/extras_examples.jl`, which includes each `examples/test_*.jl`.
 #
-# These recreate the scenarios of `examples/models/scenarios.jl` using the modern declarative
-# interface. They deliberately do **not** reproduce the old numbers: two of the originals drew from
-# the global RNG (so were not reproducible at all), and `TempFluct!` indexed a sine table by step
-# count rather than elapsed time. The old files stay where they are and keep running, so nothing is
-# lost while these are proven.
+# Climate change, habitat loss and invasion declared as interventions, so each replays exactly from
+# its seed: an intervention's random choices come from a counter-based stream rather than the global
+# generator, and a layer's change is a function of elapsed time rather than of a step count.
 
 # **A module, deliberately.** `test/extras_examples.jl` includes every top-level example into
 # **one** module, and more than one of them defines `runscale()` and `CONFIGURATIONS`. Julia 1.12

@@ -1060,8 +1060,8 @@ end
 
 # The subject's extent, refused if it has no area.
 #
-# `Overlaps` and `Within` are both empty for a point - measured, a point does not even overlap
-# itself - so an empty report would read as "nothing found" when the truth is that the question is
+# `Overlaps` and `Within` are both empty for a point, which does not even overlap itself, so an
+# empty report would read as "nothing found" when the truth is that the question is
 # malformed. A real grid always has area, so nothing legitimate is refused.
 function _areaextent(x, what::AbstractString)
     extent = _wgsextent(x)

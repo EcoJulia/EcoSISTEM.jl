@@ -294,8 +294,8 @@ if abspath(PROGRAM_FILE) == @__FILE__
         MemoryGuidance.describe(budget)
         println()
 
-        # **A canned illustration, not the real mechanism.** These are the Africa grids as
-        # measured, hardcoded so this file stays standalone - it depends on nothing but MPI and can
+        # **A canned illustration, not the real mechanism.** These are the Africa grids' cell
+        # counts, hardcoded so this file stays standalone - it depends on nothing but MPI and can
         # be run anywhere. A real script asks the package instead, and
         # `examples/HPC/Africa.jl` is the worked example: `investigate_study_area` resolves the grid
         # and `EcoSISTEM.getspeciesstorage` prices it, so nothing is written down.

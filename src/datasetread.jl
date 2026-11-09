@@ -283,8 +283,8 @@ end
 # Snap to a multiple of the **step**, not to a whole arcsecond. That distinction is the whole
 # correction: `bio1`'s Y origin is 302399.4975 arcsec, which rounds to *83.999722°* at arcsecond
 # granularity - the wrong way, and not a value anyone intended - but to exactly **84°** on its own 30
-# arcsec lattice. Testing against the arcsecond lattice is what previously made these origins look
-# irretrievably ambiguous.
+# arcsec lattice. Tested against the arcsecond lattice instead, these origins look irretrievably
+# ambiguous.
 #
 # Angular axes only, and only within `_ORIGIN_CELLFRAC` of the lattice. A projected grid has no
 # comparable anchor (and no representation error to fix - whole metres are exact in `Float64`), and a
@@ -733,8 +733,7 @@ end
 
 # **Land cover aggregates with a plain mean, and must not round.** Rounding each of the twelve
 # per-class bands back to an integer independently means a stack that summed to 100 before
-# aggregation need not afterwards: measured over Scotland at 10x, the RMS departure from
-# 100 is 0.466 with a worst case of 3.0 percentage points, against 0.027 and 0.18 for a plain mean.
+# aggregation need not afterwards: over Scotland at 10x the RMS departure from 100 is 0.466 with a worst case of 3.0 percentage points, against 0.027 and 0.18 for a plain mean.
 #
 # The metric that flatters rounding - more cells summing to exactly 100 - is an artefact of
 # **quantisation** rather than accuracy: rounding snaps most cells onto 100 and throws the rest

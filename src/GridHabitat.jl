@@ -139,8 +139,7 @@ struct GridHabitat{H, B, L, T <: AbstractTopology} <:
         yx = _yx(reg)
         act = parts.active isa DimensionalData.AbstractDimArray ? parts.active :
               DimArray(parts.active, yx)
-        # These four were the old parts-constructor's guards on what a *caller* handed in. They are
-        # kept as internal consistency checks: they are cheap, they run once per habitat, and they are
+        # Internal consistency checks on what the builder hands in: cheap, run once per habitat, and
         # the only thing between a builder bug and a silently wrong grid.
         _yxcompatible(dims(act, (Y, X)), yx) ||
             error("`active`'s grid does not match the regime's grid.")
@@ -307,16 +306,15 @@ end
 # that area and dispersal keep deriving from *one* Earth radius - and they do: `111.32 km/°` *is*
 # a radius, 6378.2 km, because `°` is dimensionless in Unitful.
 #
-# **`f` is NOT exactly 1 on the centre row**, and an earlier version of this comment claimed it
-# was. At `φ = φ_centre` the factor is `sin(h)/h` for a half-cell `h`, i.e. `1 - h_rad^2/6` - a
-# 1.1e-5 shortfall for a 0.95° cell (measured against `sin(h)/h` to 1e-15). That is the *nominal*
+# **`f` is NOT exactly 1 on the centre row.** At `φ = φ_centre` the factor is `sin(h)/h` for a
+# half-cell `h`, i.e. `1 - h_rad^2/6` - a 1.1e-5 shortfall for a 0.95° cell (agreeing with
+# `sin(h)/h` to 1e-15). That is the *nominal*
 # `Δφ*L` overstating a meridional arc, and correcting it is right; it is simply not the property to
 # assert.
 # **The property that IS exact, and the one to test**: the per-cell areas sum to the exact
 # spherical band area - verified to 1e-12 over an 11 × 7 grid.
-# And the reason this defect stayed invisible: over that same grid the old scalar was **0.139%
-# out in total** while individual cells were **-10.3% to +13.9%** out. Anything checking a total
-# would have passed.
+# A total alone cannot test this: over that same grid one nominal cell area for every cell is
+# **0.139% out in total** while individual cells are **-10.3% to +13.9%** out.
 #
 # The column is returned as `(ny, 1)` so it broadcasts across X - and across the `Ti` of a
 # monthly stack - without a full matrix ever being built. It follows the grid's own row order, so a

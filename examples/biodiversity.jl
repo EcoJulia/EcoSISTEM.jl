@@ -17,7 +17,7 @@
 # **It never runs under the test suite or in CI.** `test/extras_examples.jl` does execute every
 # top-level `examples/*.jl`, but `runtests.jl` sets `ECOSISTEM_SCALE=small` and this file skips itself
 # whenever it is set. It is ~20 whole simulations, several of 10-50 simulated years over 100-500
-# species, measured at **3 minutes** - far too slow for a routine gate. Run it deliberately:
+# species, taking about **3 minutes** - far too slow for a routine gate. Run it deliberately:
 #
 #     julia --project=examples examples/biodiversity.jl
 #     ECOSISTEM_SCALE=large julia --project -e 'using Pkg; Pkg.test(test_args = ["extras_examples.jl"])'
@@ -147,11 +147,10 @@ else
 
     # Total abundance, over the whole grid, of the species whose niche parameter falls in `[lo, hi)`.
     #
-    # This replaces a histogram built by `repeat`ing each optimum `endabun[i]` times for
-    # `i in eachindex(opts)`. `endabun` is a species × cells matrix, so those linear indices ran down
-    # column 1: the old assertions were measured on a *single grid cell* out of 100, and materialised a
-    # million-element vector of unit-carrying temperatures to do it. Summing per species over `dims = 2`
-    # asks the same ecological question of the entire landscape, and allocates one vector of 100.
+    # Summed per species over `dims = 2`, so it asks of the entire landscape and allocates one vector
+    # of 100. A histogram `repeat`ing each optimum `endabun[i]` times for `i in eachindex(opts)` would
+    # answer for a *single grid cell* out of 100 - `endabun` is a species × cells matrix, so those
+    # linear indices run down column 1 - and materialise a million-element vector to do it.
     function abundance_in(eco, values, lo, hi)
         byspecies = vec(sum(eco.abundances.matrix, dims = 2))
         return sum(byspecies[(lo .<= values) .& (values .< hi)])

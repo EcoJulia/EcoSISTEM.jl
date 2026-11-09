@@ -220,17 +220,13 @@ end
 
 # guard: every axis that declares a demand is measured in something the model can divide.
 #
-# **Restated at step 8, because the space resource is the first demand that is NOT a rate.**
-# Asserting `dimension(elt) / _basedimension(elt) == 𝐓^-1` of *every* demand holds only while every
-# resource is a flow - energy, water, carbon. A space demand is an **area** (m^2 per individual) with
-# no time in it at all.
-# **The rule is narrowed, not dropped, and the exception is named rather than tolerated.** What the
-# model actually requires is that supply / demand be a dimensionless, timestep-independent count -
-# which holds for a **flow / flow** (`kJ/day / kJ/day`) and equally for a **stock / stock**
-# (`m^2 / m^2`). What it would *not* survive is mixing the two on one axis, and that is what this now
-# checks: each axis is one or the other, consistently, on both sides.
-# Supplies are never depleted - they are recomputed in full each step - so a standing stock needs
-# no change to the loop. That is why space fits without one.
+# **A demand need not be a rate.** Asserting `dimension(elt) / _basedimension(elt) == 𝐓^-1` of
+# *every* demand holds only while every resource is a flow - energy, water, carbon - and a space
+# demand is an **area** (m^2 per individual) with no time in it at all. What the model requires is
+# that supply / demand be a dimensionless, timestep-independent count, which holds for a
+# **flow / flow** (`kJ/day / kJ/day`) and equally for a **stock / stock** (`m^2 / m^2`), but not for
+# the two mixed on one axis: so each axis must be one or the other, consistently, on both sides.
+# A supply is reinitialised in full each step, so a standing stock needs no change to the loop.
 @testset "guard: every declared resource is a flow or a stock, consistently" begin
     allaxes(T = EcoSISTEM.NicheAxis, acc = Type[]) = begin
         push!(acc, T)

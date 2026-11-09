@@ -717,7 +717,7 @@ if geometrytests()
     @testset "a spec selecting no ground says so" begin
         uk = NaturalEarthSpec("United Kingdom", level = "ADMIN")
         # Natural Earth's physical continents are landmass outlines, so EUROPE does not contain the
-        # British Isles at all - measured, Paris is inside it and central England is not. An empty
+        # British Isles at all - Paris is inside it and central England is not. An empty
         # intersection must be an error, not a grid with nothing active.
         eur = NaturalEarthSpec("EUROPE", level = "Physical Continent",
                                coverage = AllTerritories())

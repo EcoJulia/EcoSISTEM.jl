@@ -37,7 +37,7 @@ end
 # and needs no new dependency, where `CFTime` is only an indirect one (via `NCDatasets`).
 @testset "a Date axis is accepted - TimeType, not AbstractDateTime" begin
     @test Date <: Dates.TimeType
-    @test !(Date <: Dates.AbstractDateTime)      # the reason the old predicate refused it
+    @test !(Date <: Dates.AbstractDateTime)      # why an `AbstractDateTime` bound would refuse it
     dated = DimArray(fill(1.0K, 10, 10, 3),
                      (Y(1:10), X(1:10),
                       Ti([Date(2000, 1, 1), Date(2000, 1, 2), Date(2000, 1, 3)])))

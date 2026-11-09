@@ -58,9 +58,9 @@ mutable struct Cache
     end
 end
 
-# A one-liner is the whole of what a cache needs: the default prints all four scratch arrays,
-# measured at 462 054 characters. Its contents are meaningless between timesteps - `relativeabun` is
-# refilled on every call and never trusted - so its shape is the only fact worth showing.
+# A one-liner is the whole of what a cache needs: the default prints all four scratch arrays. Their
+# contents are meaningless between timesteps - `relativeabun` is refilled on every call and never
+# trusted - so its shape is the only fact worth showing.
 function Base.show(io::IO, c::Cache)
     nsp, ncells = size(c.netmigration)
     return print(io, "Cache($(nsp) species × $(ncells) cells)")
@@ -238,7 +238,7 @@ end
 # Display
 # ---------------------------------------------------------------------------
 # Without these an ecosystem falls through to Diversity's `AbstractMetacommunity` generic, which
-# prints its full type signature - measured at 6 169 characters, constant but unreadable.
+# prints its full type signature, too long to read.
 #
 # **Both sides of the model are named, not just the species count.** An ecosystem is species in an
 # environment, so what a reader needs is what the environment offers and what the species are matched
@@ -1106,9 +1106,9 @@ function loadfile(cache::CachedEcosystem, file::String, idx::Int,
     return GridLandscape(saved, names, grid)
 end
 
-# **There is no ordinariness to invalidate any more.** It is recomputed on demand into
-# `cache.relativeabun`, so no stale value can survive a change to the ecosystem - which is
-# exactly the hazard the old `eco.ordinariness` field carried.
+# **Ordinariness is not stored, so there is none to invalidate.** It is recomputed on demand into
+# `cache.relativeabun`, so no stale value can survive a change to the ecosystem; a stored copy would
+# have to be invalidated here on every change.
 function invalidatecaches!(eco::AbstractEcosystem)
     eco.cache.netmigration .= 0
     return eco.cache.valid = false

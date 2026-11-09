@@ -63,7 +63,7 @@ function canonical_reference()
 end
 
 # TOML holds numbers, strings and arrays of them - not `Quantity`s. Refusing a united value here, with
-# the fix in the message, is much clearer than letting `TOML.print` fail deep inside a write.
+# the remedy in the message, is much clearer than letting `TOML.print` fail deep inside a write.
 function _plain(name, value)
     value isa Real && return float(value)
     value isa AbstractArray{<:Real} && return float.(collect(value))

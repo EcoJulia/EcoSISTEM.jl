@@ -10,8 +10,8 @@
 # answers offline and instantly, while an actual *shape* still fetches the geometry.
 #
 # **So it must never be edited by hand.** Correct the generator, or the source, and re-run. A hand
-# edit would be silently reverted by the next regeneration - which is the hazard
-# `data/src/rate_table.jl` was fixed for, and the reason it is the shape copied here.
+# edit would be silently reverted by the next regeneration; `data/src/rate_table.jl` is shaped the
+# same way for the same reason.
 #
 # ## Why the generator calls the package rather than reimplementing it
 #

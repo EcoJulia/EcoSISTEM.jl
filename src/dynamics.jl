@@ -600,8 +600,8 @@ function _drawmoves!(lookup::Lookup, sp::Int64, eco::AbstractEcosystem,
 end
 
 # Resolve one coordinate against its axis's boundary condition. Two tiny methods, dispatched on the
-# condition, so the rule is stated once per axis rather than branched on - which is what lets the
-# three near-identical `calc_lookup_moves!` methods this replaces become one.
+# condition, so the rule is stated once per axis rather than branched on, and `calc_lookup_moves!`
+# needs one method for every boundary.
 #
 # `Bounded` returns `nothing` for a step off the edge, and the caller reads that as "dead cell";
 # `Periodic` always lands somewhere, wrapping with `mod`.

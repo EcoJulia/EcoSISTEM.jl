@@ -314,18 +314,16 @@ include("rasterfixtures.jl")
         @test plot(wm, 1month_mean_duration).n == 1
         @test plot(wm, 1month_mean_duration).n == 1
 
-        # The labels are what actually pin the direction: `January` is January, not February. Under the
-        # old `(time + 1month) / month` these came out one month late, and no test noticed.
-        # `_monthindex` itself is tested in `test_Units.jl`, where it now lives; what matters here
-        # is that the *recipe* uses it, which the titles below show.
+        # The labels are what actually pin the direction: `January` is January, not February, which an
+        # index of `(time + 1month) / month` would put a month late. `_monthindex` itself is tested in
+        # `test_Units.jl`; what matters here is that the *recipe* uses it, which the titles below show.
         @test plot(wm, January).subplots[1][:title] == "Jan"
         @test plot(wm, December).subplots[1][:title] == "Dec"
         # And the data really is that month's: slice `n` is filled with `n` K, so the plotted series
-        # for `March` must be all 3s. This is the assertion the old 0-based axis made impossible.
+        # for `March` must be all 3s - which a 0-based axis would put a slice out.
         @test all(==(3.0), plot(wm, March).series_list[1][:z].surf)
 
-        # Out-of-range and fractional months are refused, with a message naming the months rather than
-        # the old `error("NO")`.
+        # Out-of-range and fractional months are refused, with a message naming the months.
         @test_throws ErrorException plot(wm, 0)
         @test_throws ErrorException plot(wm, 13)
         @test_throws ErrorException plot(wm, 0month_mean_duration)

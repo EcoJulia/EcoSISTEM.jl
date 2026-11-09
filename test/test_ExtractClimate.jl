@@ -29,7 +29,7 @@ include("rasterfixtures.jl")
 # implementation hidden.
 #
 # Every fixture below therefore comes from `_testraster`, which builds exactly what `datasetread.jl`
-# builds, as measured against real `WorldClim`/`EarthEnv` reads.
+# builds, as checked against real `WorldClim`/`EarthEnv` reads.
 
 # **Non-square, and with a different step on each axis.** A square grid cannot see a Y/X
 # transposition, and equal steps cannot see a single step being reused for both axes - which is a
@@ -153,7 +153,7 @@ const DATED = _testraster(WorldClim{Climate},
         year2000 = extract_values(DATED, lat = 25.0°, long = 15.0°,
                                   date = Date(2000, 1, 1) .. Date(2000, 12, 31))
         @test length(year2000) == 12
-        # **The case the old interface could not express at all**: every March, across years.
+        # **One month across years**: every March.
         @test length(extract_values(DATED, lat = 25.0°, long = 15.0°,
                                     month = March)) == 2
         # ...and composed with a span, "March, but only in 2000" - one slice, but returned as a

@@ -212,8 +212,8 @@ struct StudyArea{G <: Union{StudyGrid, Nothing}}
         # describes a grid a `GridHabitat` was actually built on - its `active` has been narrowed by
         # layers the area never saw, and that narrowing is recorded nowhere else. Re-deriving from
         # `specs`/`constraints` would answer the *original* question and hand back the wider,
-        # as-investigated mask: measured at **48 cells against the habitat's 46**, silently
-        # discarding the narrowing *and* the `Problem` that recorded it.
+        # as-investigated mask, silently discarding the narrowing *and* the `Problem` that recorded
+        # it.
         # So an `AsBuilt` base with **no** keyword is taken **verbatim** - that is the whole point
         # of copying rather than rebuilding, and what the stage exists for.
         # **The copy keeps `AsBuilt`**: the flag says what a report *describes*,
@@ -345,8 +345,8 @@ end
 #
 # Seven methods, all reading the dimensions rather than a stored number, so there is nothing to
 # disagree with the coordinates. `cellsize`, `cells`, `xmax`/`ymax` and `xrange`/`yrange` are
-# EcoBase's own derivations from these and need nothing here - measured to work unchanged on
-# unitful values, angular ones included, which is why widening EcoBase was not needed.
+# EcoBase's own derivations from these and need nothing here: they work unchanged on unitful values,
+# angular ones included.
 
 # The rank of array position `i` along `d`, counting in **increasing coordinate** order.
 #
@@ -575,9 +575,9 @@ end
 # the first, a caller writing `cellsize = (30 / 3600)°` the second), so an equality test against
 # either one silently rejects values built the other way.
 #
-# The bound below is measured, not chosen: over all 3600 counts and both construction routes the worst
-# deviation is 1.0 ULP, while the nearest *wrong* answer is a whole arcsecond away - relatively
-# 2.8e-4, twelve orders of magnitude further. There is no value this can misclassify.
+# The bound below is set by the worst case, not chosen: over all 3600 counts and both construction
+# routes the worst deviation is 1.0 ULP, while the nearest *wrong* answer is a whole arcsecond away -
+# relatively 2.8e-4, twelve orders of magnitude further. There is no value this can misclassify.
 #
 # Rounding to an `Int`-valued arcsecond quantity keeps units through the comparison and hands back the
 # plain `Int` that `_stepratio`'s `%`/`÷` arithmetic needs, with no second rounding to get it.
@@ -695,8 +695,8 @@ _intdiv(::typeof(ceil)) = cld
 # for the case that matters most: a bound *already on* a cell boundary. `(bound - origin) / step`
 # should then be a whole number, but lands either side of one, so `floor` and `ceil` disagree and the
 # box grows by a spurious cell. Swept over every whole-cell bound of a global 30 arcsec lattice,
-# **7664 of 21601** did that; on integers it is 0. This is not fixed by the origin and step being
-# exact - they already are - because `range` elements in degrees cannot themselves be exact.
+# **7664 of 21601** do that; on integers none do. Exact origins and steps do not cure it - they are
+# exact already - because `range` elements in degrees cannot themselves be exact.
 #
 # Whether a *bound* is on the lattice decides which route is exact. When it is, `fld`/`cld` on
 # integers need no tolerance at all. When it is not - a shapefile envelope, a reprojected box - no

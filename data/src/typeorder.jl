@@ -13,8 +13,7 @@
 #
 # ⭐ **Why this exists.** The include order in `src/EcoSISTEM.jl` is a real invariant - a struct's
 # field types, its supertype and its type-parameter bounds must all be defined when it is declared -
-# and it used to be maintained by hand, defended by comments explaining which file had been hoisted
-# above which. This checks it instead.
+# and this checks it, where comments saying which file must come above which could not.
 
 module TypeOrderAudit
 

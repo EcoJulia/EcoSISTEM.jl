@@ -497,9 +497,7 @@ end
 end
 
 # **A sweep, because the checks above are a LIST and a list cannot catch a field it does not name.**
-# That is not hypothetical: `topology` was abstract from the day it was written, cost 240 bytes a
-# cell, and was absent from the list until it was measured - the four paths there were added when
-# `abundances` was fixed, and the next such field simply was not among them.
+# An abstract field no path names - `topology`, say, at 240 bytes a cell - passes every check there.
 #
 # Every entry here must be looked at rather than counted: a new abstract field on any type the loop
 # reaches fails this until it is either fixed or listed with the reason it is safe.

@@ -54,10 +54,10 @@ let
             # imported because `Plots` pulls a large stack in, and doing it here rather
             # than inside the first example keeps that noise out of `@test_nowarn` too.
             #
-            # `Pkg.precompile()` does **not** fix this - measured, both ways: with it alone the
-            # build still happens at `using` time and the test still fails; with only these imports
-            # and no `Pkg.precompile()` it passes. So the imports are the whole fix, and they keep
-            # `@test_nowarn`'s real job - catching warnings the examples themselves emit - intact.
+            # `Pkg.precompile()` does **not** do this: with it alone the build still happens at
+            # `using` time and the test fails, while these imports alone pass. So the imports are
+            # the whole remedy, and they keep `@test_nowarn`'s real job - catching warnings the
+            # examples themselves emit - intact.
             @eval using RasterDataSources
             @eval using Plots
             # **Every `.jl` at the top level of `examples/` is run** - there is no `test_` prefix

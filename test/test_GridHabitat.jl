@@ -423,8 +423,7 @@ end
         up = investigate_study_area(regime = bng, cellsize = 1.0km)
         @test only(up.layers).kind isa EcoSISTEM.LayerResampled
         @test :upsampling in [p.code for p in up.problems]
-        # At `:normal` the area announces both, so the information the old warning carried is still
-        # emitted - just per layer, and only when it is actually true.
+        # At `:normal` the area announces both, per layer, and only when it is true.
         @test_logs (:info,) match_mode=:any StudyArea(regime = bng,
                                                       cellsize = 5.0km)
         # 22.5 km of ground at 10 km cells is two whole cells and a 2.5 km remainder that fills no
@@ -508,8 +507,8 @@ end
         # Every EarthEnv read here is cut to Scotland AND read at `scale = 1`, and both halves are
         # load-bearing. A `within` mask cannot be windowed by the study area -- it is what DECIDES
         # the grid -- so an unbounded mask fetches, compresses and compares the whole world twice and
-        # then builds a habitat on every land cell on earth: measured at 14.6 GB resident for this
-        # file, against the 16 GB a runner has, and the file peaks at 2.1 GB without this testset.
+        # then builds a habitat on every land cell on earth: 14.6 GB resident for this file, against
+        # the 16 GB a runner has, where the file peaks at 2.1 GB without this testset.
         #
         # `scale` is the half that is easy to get wrong, so the measurements are recorded. Reading at
         # the default scale AGGREGATES, and the aggregate cache is keyed on the whole source file
@@ -523,7 +522,7 @@ end
         # second one passes vacuously -- coast and islands, cities, Highland barren and cultivated
         # ground supply all of them.
         #
-        # Two other levers were measured and do not work. `cellsize` on the study area does nothing
+        # Two other levers do not work. `cellsize` on the study area does nothing
         # (12.5 GB, and an error): the mask is materialised at native resolution to decide the extent,
         # so a coarser target grid arrives too late. `extent` is refused by construction, being a size
         # rather than a bounding box.
@@ -1004,8 +1003,8 @@ end
     end
 
     @testset "supply constructors preserve NaN and leave the caller's array alone" begin
-        # Both halves of the old behaviour were wrong: the zeroing destroyed the distinction between
-        # "no data" and "no resource", and it did so by mutating the array it was handed.
+        # Both halves matter: zeroing NaN would destroy the distinction between "no data" and "no
+        # resource", and a constructor must not mutate the array it is handed.
         rate = 1.0 *
                EcoSISTEM.canonicalunit(EcoSISTEM.Resource, SolarRadiation)
         arr = fill(rate, 3, 3)
@@ -1170,19 +1169,18 @@ end
                (sin(maximum(last, ivs)) - sin(minimum(first, ivs)))
         @test sum(areas) * length(longs) ≈ band rtol=1.0e-12
 
-        # **Why this was invisible for so long**: the old scalar is right in aggregate and badly
-        # wrong per cell, so anything checking a total - or a uniform grid - would have passed.
-        # Measured on this grid: **1.3% out in total, 1.2%-15.5% out per cell**, an order of
-        # magnitude apart. Asserted on the **worst** cell rather than on `areas[1]`, which under
-        # the corrected locus happens to be only 9.4% out - a threshold that picked one arbitrary
-        # cell was always going to be fragile against a change in where the cells sit.
+        # **One scalar area is right in aggregate and badly wrong per cell**, so anything checking a
+        # total - or a uniform grid - cannot see it: on this grid **1.3% out in total, 1.2%-15.5% out
+        # per cell**, an order of magnitude apart. Asserted on the **worst** cell rather than on
+        # `areas[1]`, only 9.4% out: a threshold on one arbitrary cell is fragile against a change in
+        # where the cells sit.
         old = EcoSISTEM._cellsize(lats, longs)^2 * length(lats) * length(longs)
         percell = old / length(lats) / length(longs)
         @test isapprox(old, band, rtol = 2.0e-2)          # total: nearly right
         @test maximum(abs(percell - a) / a for a in vec(areas)) > 0.15  # per cell: not
 
         # A projected grid is exact already, so the factor is a plain `1.0` and the area stays a
-        # scalar - no array is introduced where the old code had none.
+        # scalar, with no array where none is needed.
         pl = collect(range(0.0km, 50.0km, length = 11))
         pg = collect(range(0.0km, 30.0km, length = 7))
         pgrid = _bngraster(WorldClim{BioClim}, fill(291.0K, 11, 7),

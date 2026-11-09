@@ -241,7 +241,7 @@ using Unitful.DefaultSymbols
 """    SpaceAxis <: NicheAxis - the physical space niche axes: ground surface and soil; canopy later. """
 @nicheaxis(SpaceAxis <: NicheAxis)
 # `bounds = (0.0, 1.0)` is safe **only because axis bounds are consulted for the `Condition` role
-# alone** - measured: `_enforcebounds!`'s `Resource` method clamps at zero and never reads them. So a
+# alone**: `_enforcebounds!`'s `Resource` method clamps at zero and never reads them. So a
 # derived available-ground *supply* that sums to more than 1 is never checked against this, while an
 # individual land-cover band used as a *regime* maxes at exactly 1.0 and passes.
 """    SurfaceArea <: SpaceAxis - ground surface, as a fraction of a cell (EarthEnv LandCover 1-12, or a `SurfaceSpec`). """
@@ -306,7 +306,7 @@ it is no evidence either way.
 bounds(::Type{<:NicheAxis}) = (nothing, nothing)
 
 # **Deliberately not `public`.** `bounds` is exported by both `DimensionalData` and `Rasters`, so
-# `using EcoSISTEM, Rasters` would be a collision - measured, not assumed. Declaring an axis's bounds
+# `using EcoSISTEM, Rasters` would be a collision. Declaring an axis's bounds
 # goes through `@nicheaxis`, which is the public surface; reading them is internal.
 
 """

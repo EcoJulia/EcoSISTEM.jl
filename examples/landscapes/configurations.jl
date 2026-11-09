@@ -26,10 +26,9 @@
 # all. A bare `Island()` blocks moves that would leave the grid and then **renormalises** the
 # survivors (`_drawmoves!`), so nothing is *lost* at the edge - an individual in a corner is
 # redistributed inland rather than drowning. That is a *reflecting* boundary, and under it `Island`
-# and `Patch` come out statistically indistinguishable (measured: ~1% apart, the sign flipping with
-# the seed). `Island(false)` loses them instead, which is the wind-dispersed case and the one the
-# name implies: measured, the island settles at **0.68×** the patch's abundance, consistently across
-# seeds.
+# and `Patch` come out statistically indistinguishable (about 1% apart, the sign flipping with the
+# seed). `Island(false)` loses them instead, which is the wind-dispersed case and the one the name
+# implies: the island settles at **0.68×** the patch's abundance, consistently across seeds.
 
 using EcoSISTEM
 using EcoSISTEM.Units
@@ -105,10 +104,10 @@ _configuration(name) = CONFIGURATIONS[name][runscale()]
 # and the supply is derived from it so that **every configuration starts at its carrying capacity**.
 #
 # Getting this wrong is not subtle but it *is* invisible at one scale. Scaling `individuals` to
-# the originals' 100,000,000 while leaving the supply at the small configuration's value left the
-# carrying capacity ten thousand times too low: measured, the island crashed from 100,000,000 to
-# **124** individuals and the island/patch ratio moved from 0.68 to 0.175 - enough to fail the
-# runner's assertion, and only visible by actually running the large path.
+# 100,000,000 while leaving the supply at the small configuration's value makes the carrying
+# capacity ten thousand times too low: the island crashes from 100,000,000 to **124** individuals
+# and the island/patch ratio falls from 0.68 to 0.175 - enough to fail the runner's assertion, and
+# only visible by actually running the large path.
 # Named for the resource, not just `DEMAND`, because two other example files define a
 # `DEMAND` that is a **two-resource named tuple** (`(sunlight = ..., water = ...)`) rather than a
 # scalar. Nothing breaks - no two of them are ever included into one session - but a shared name

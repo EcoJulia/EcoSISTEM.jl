@@ -103,8 +103,8 @@ using DimensionalData: DimArray, X, Y, Ti
     # answering differently, and it returns a `Tuple` rather than an allocating `Vector`.
     @test map(EcoSISTEM._iscontinuous, values(regime)) == (true, true)
     # **Built from a plain `Tuple`, yet named by AXIS** - the two members are on distinguishable
-    # axes, so the collection derives `(:Temperature, :Precipitation)` rather than the old
-    # `(:one, :two)`. A repeated axis, or a member with none, falls back to the positional names.
+    # axes, so the collection derives `(:Temperature, :Precipitation)`. A repeated axis, or a member
+    # with none, falls back to positional names (`:one`, `:two`).
     @test keys(regime) == (:Temperature, :Precipitation)
     @test map(eltype, values(regime)) == (typeof(regime.Temperature.matrix[1]),
            typeof(regime.Precipitation.matrix[1]))
@@ -199,8 +199,7 @@ end
     @test plot(niches).n == 1
     @test plot(niches).subplots[1][:title] == "TypologyAxis"
 
-    # ...and so does a layer whose unit was not one of the four the old `Dict` knew - a `KeyError`
-    # before, and most axes are not one of those four.
+    # ...and so does a layer of any unit, not only of a few known ones, which most axes are not.
     wind = materialise(UniformSpec(3.0m / s, axis = WindSpeed), area)
     @test plot(wind).subplots[1][:title] == "WindSpeed (m s⁻¹)"
 end
@@ -246,15 +245,14 @@ end
 
 # **The generator is DETERMINISTIC given a seed - and this is the assertion that has teeth.**
 #
-# The sweep above cannot catch what this catches. `_fillin!` used `isassigned(T, y, x)` on a
-# `T = Array{Int64}(undef, ...)`, where it is **always `true`** (`isassigned` reports a filled
-# *reference* slot, so it means nothing for a bits eltype). Every neighbour therefore counted,
-# including never-written cells, and the tallies were taken over **uninitialised memory** - but the
-# result is still `types[ind]`, so `all(in(types), T)` passed happily. Measured: the same seed
-# gave **7 distinct maps in 12 runs**.
+# The sweep above cannot catch what this catches. `isassigned(T, y, x)` on a
+# `T = Array{Int64}(undef, ...)` is **always `true`** (it reports a filled *reference* slot, so it
+# means nothing for a bits eltype), so a fill counting neighbours by it counts never-written cells
+# and tallies **uninitialised memory** - yet each result is still `types[ind]`, so
+# `all(in(types), T)` passes while the same seed gives **7 distinct maps in 12 runs**.
 #
 # **The churn between the two draws is the point, not decoration.** Garbage read from uninitialised
-# memory comes from previously-freed pages, so a bare draw-twice can agree by luck; allocating and
+# memory comes from already-freed pages, so a bare draw-twice can agree by luck; allocating and
 # dropping a few megabytes in between makes the pages differ, which is exactly the condition under
 # which such a defect shows itself.
 # **The shapes and the clumpiness are CALIBRATED, not arbitrary** - detection is very sensitive to
@@ -286,7 +284,7 @@ end
 
 # **A seeded `NicheSpec` draws its layout from a stream of its own**, so the same seed gives the same
 # map whatever the global generator has done in between, and whether the map is inspected or built.
-# An unseeded one still draws from the global generator, so it follows `Random.seed!` as before.
+# An unseeded one draws from the global generator, so it follows `Random.seed!`.
 @testset "a seeded NicheSpec lays out the same niches on its own" begin
     area = StudyArea(extent = (7.0km, 11.0km), cellsize = 1.0km,
                      verbosity = :silent)

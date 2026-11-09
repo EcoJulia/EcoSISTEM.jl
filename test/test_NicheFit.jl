@@ -165,11 +165,9 @@ supply = UniformSpec(totalK, axis = SolarRadiation)
     @test getpref(tolerance, 1) == params(getdist(tolerance, 1)) ==
           (1.0, 2.0, 3.0, 4.0)
 
-    # The fixture this replaces held `1.0mm` - a **length**, where `Precipitation`'s canonical
-    # unit is a **rate**. Only the deprecated builder allowed that, by taking its raster verbatim;
-    # measured, `GridHabitat` refuses the length outright with a `DimensionError`. So the
-    # regime is a rate now and the nichefit is typed to match. The tolerance's own parameters are
-    # unitless - `_suitability` strips before evaluating - so both assertions are unchanged.
+    # The regime is a **rate**, `Precipitation`'s canonical unit - `GridHabitat` refuses a length
+    # such as `1.0mm` with a `DimensionError` - and the nichefit is typed to match. The tolerance's
+    # own parameters are unitless, since `_suitability` strips before evaluating.
     regime = GridHabitat(regime = UniformSpec(1.0mm / day,
                                               axis = Precipitation),
                          supply = supply, area = studyarea).regime

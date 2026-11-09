@@ -221,8 +221,8 @@ end
 # **species where a layer has cells**. That symmetry is the point - a tolerance and the regime it is
 # matched against should read alike, or the pairing the model rests on is invisible at the REPL.
 #
-# Without them the type parameter swamps the content: a 12-species two-axis tolerance collection
-# prints over 2 000 characters, nearly all of it `Distributions.Normal{Float64}` repeated.
+# Without them the type parameter swamps the content: a tolerance collection prints
+# `Distributions.Normal{Float64}` again for every species on every axis.
 function Base.show(io::IO, t::NicheTolerance)
     return print(io,
                  "NicheTolerance($(nameof(axisof(t))), $(length(t.dists)) species, $(unit(eltype(t))))")

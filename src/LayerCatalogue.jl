@@ -296,7 +296,7 @@ const _PERIOD_CATEGORIES = (:rate, :stock, :balance)
 # quantity it ranges over. The range of an instantaneous value (`bio2`, a diurnal temperature range)
 # has none; the range of an accumulated one (`cmi_range`, the difference of two monthly totals) has
 # its siblings'. So a per-row check cannot decide it, and `_checkrangerows` below does it against the
-# siblings instead - a stronger check than the blanket "must be blank" this replaces.
+# siblings instead - a stronger check than a blanket "must be blank" would be.
 #
 # Allowing a period on a `range` cannot make one supply-eligible: §4b moved supply-eligibility to
 # the axis's `Resource`-role `canonicalunit`, and no `*Range` axis declares one. That leak was the

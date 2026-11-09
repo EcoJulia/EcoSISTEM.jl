@@ -43,8 +43,7 @@ rank = MPI.Comm_rank(comm)
 # **Two testsets below run at some rank counts only.** `ext_EcoSISTEMMPIExt.jl` launches this file
 # at one rank and at several, in shapes chosen from the machine's cores. Each testset is about what
 # ranks do *to each other*, so at one rank there is nothing to see - and they are the two most
-# expensive things here, measured at 22 s and 9 s of a 53 s two-rank run, paid again in every
-# launch. What every launch still runs is everything a rank count can change: the partition, the
+# expensive things here, 22 s and 9 s of a 53 s two-rank run, paid again in every launch. What every launch still runs is everything a rank count can change: the partition, the
 # hot loop, the interventions, the recorders and the blessed comparisons.
 const MANYRANKS = MPI.Comm_size(comm) > 1
 # The shared build is the stricter case: a third and fourth rank receive exactly what the second
@@ -487,10 +486,9 @@ end
 # **Serial is the reference the distributed loop has to reproduce, and nothing else checks it.**
 # The comparison across launches in `ext_EcoSISTEMMPIExt.jl` is MPI against MPI: every one of them
 # takes the duplicated hot loop in `ext/EcoSISTEMMPIExt/dynamics.jl`, so a change made there and not
-# in `src/dynamics.jl` agrees with itself at every rank count and passes. That is exactly how the
-# birth draw stayed pre-2021 in the distributed loop while the serial one was fixed -- the serial
-# loop draws `Poisson(n * rate)`, the MPI loop drew `Poisson(n * (1 - exp(-rate)))`, which also
-# breaks the timestep independence the model requires.
+# in `src/dynamics.jl` agrees with itself at every rank count and passes. A distributed birth draw
+# of `Poisson(n * (1 - exp(-rate)))` beside the serial `Poisson(n * rate)` would do exactly that, and
+# also break the timestep independence the model requires; only this comparison sees it.
 #
 # Run at one rank only: the partition is trivial there, so a difference is the loop body alone
 # rather than anything about how the work was divided, and the serial answer cannot depend on the
@@ -988,9 +986,8 @@ end
 
 # **And asking for one directly is refused too, at every rank count.** A measure built on a
 # distributed ecosystem covers this rank's cells, so a metacommunity value taken from it answers for
-# that rank alone: measured at two ranks, `meta_gamma` gave 6.2237 against the serial 6.2512, the
-# ranks disagreed, and nothing was said. Every `meta_*` shorthand reaches `metadiv`, so one of them
-# stands for all.
+# that rank alone: unrefused at two ranks, `meta_gamma` gives 6.2237 against the serial 6.2512, and
+# the ranks disagree. Every `meta_*` shorthand reaches `metadiv`, so one of them stands for all.
 @test_throws "differ between ranks" meta_gamma(receco, 1.0)
 @test_throws "differ between ranks" norm_meta_alpha(receco, [0.0, 1.0])
 # Every refusing method is called by name as well. A shorthand meets `metadiv` first, so the
@@ -1018,13 +1015,13 @@ MPI.Barrier(comm)
 # similarity matrix applies with no slice. Gathering the column blocks must therefore rebuild the
 # serial matrix exactly.
 #
-# In the row partition the similarity matrix had to be cut to this rank's species on both axes,
-# which silently discarded every similarity between a species here and one elsewhere.
+# The row partition would cut the similarity matrix to this rank's species on both axes, silently
+# discarding every similarity between a species here and one elsewhere.
 #
 # This check alone cannot see the similarity half: the species list here is `UniqueTypes`, whose
-# similarity matrix is the identity, so the discarded off-diagonal was all zeros and the old code
-# got the right answer anyway. The `GeneralTypes` check below is what covers it - measured, a
-# mutation dropping every off-diagonal similarity leaves this assertion passing and fails that one.
+# similarity matrix is the identity, so the off-diagonal is all zeros and losing it changes nothing.
+# The `GeneralTypes` check below covers it: a mutation dropping every off-diagonal similarity passes
+# this assertion and fails that one.
 ordblock = getordinariness!(eco)
 @test size(ordblock, 1) == numSpecies
 @test size(ordblock, 2) ==
@@ -1110,9 +1107,8 @@ if MPI.Comm_size(comm) == 1
 end
 
 # **The distributed hot loop's own allocation and inference checks.** `test/test_dynamics.jl` has
-# these for the serial loop, and until now nothing had them for this one - which matters because the
-# distributed `update!` and `update_resource_usage!` are a **separate implementation**, so a serial
-# check cannot speak for them.
+# these for the serial loop, and this one needs its own: the distributed `update!` and
+# `update_resource_usage!` are a **separate implementation**, so a serial check cannot speak for them.
 #
 # Every rank must run the measurement, not just rank 0: `update!` is collective, so a rank that
 # skipped it would leave the others waiting inside an `Alltoallv`.

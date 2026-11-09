@@ -384,7 +384,7 @@ include("StudyArea.jl")
 # **Ask anything that knows the grid how big it is** - a `StudyArea`, a raster, a layer, a habitat
 # or an ecosystem. One dispatch hub (`_gridyx`) with a method per kind, so there is one answer and
 # one place it comes from. Here because `GridHabitat` is the last type that hub names, and because
-# `Layer.jl`'s `_uniformcellside` calls `getcellsizes` - a forward reference until now.
+# `Layer.jl`'s `_uniformcellside` calls `getcellsizes`, a forward reference resolved at call time.
 # `public`, not exported: supported API reached deliberately, not names wanted in every namespace.
 public getspeciesstorage
 

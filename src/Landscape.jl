@@ -116,7 +116,7 @@ end
 # Display
 # ---------------------------------------------------------------------------
 # Without these the default prints the whole abundance matrix twice over - `matrix` and `grid` are
-# two views of one buffer - measured at 291 648 characters on a single line for 12 species over a
+# two views of one buffer - far too much to read even for a small landscape, 12 species over a
 # 60 x 100 grid.
 #
 # The total abundance is a genuine reduction over the data, which every other `show` in the package

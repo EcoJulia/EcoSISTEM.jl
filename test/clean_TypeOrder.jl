@@ -7,10 +7,9 @@
 # Must go through `Pkg.test`: without the weak deps the extension types are invisible and the
 # audit covers less than it claims - the same constraint `clean_Architecture.jl` has.
 #
-# **What this replaces.** The include order in `src/EcoSISTEM.jl` is a real invariant - a struct's
-# supertype, field types and parameter bounds must all exist when it is declared - and it was
-# maintained by hand, a comment explaining which file sits above which could only ever *describe*
-# the order. This asserts it.
+# **Why a test.** The include order in `src/EcoSISTEM.jl` is a real invariant - a struct's
+# supertype, field types and parameter bounds must all exist when it is declared - and a comment
+# saying which file sits above which can only *describe* the order. This asserts it.
 
 module TestCleanTypeOrder
 

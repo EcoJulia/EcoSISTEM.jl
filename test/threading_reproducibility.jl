@@ -32,8 +32,8 @@ length(ARGS) == 1 && endswith(ARGS[1], ".jld2") ||
 # deterministic, so the whole run is reproducible.
 # **Run twice, and save both.** The second run is what tells a result that varies from one run to the
 # next apart from one that varies with the thread count, and doing it here rather than in a fourth
-# child process costs a simulation rather than a whole Julia start: measured, a child spends 6 s
-# loading the package and 8 s compiling the fixture build, while fifty timesteps take 0.3 s.
+# child process costs a simulation rather than a whole Julia start: a child spends 6 s loading the
+# package and 8 s compiling the fixture build, while fifty timesteps take 0.3 s.
 function simulate()
     eco = Test1Ecosystem(seed = 1234)
     for _ in 1:50

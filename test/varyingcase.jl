@@ -70,10 +70,10 @@ end
 # and the birth/death arithmetic is exercised against a gradient rather than one constant.
 #
 # **The supply gradient runs across the grid (`orientation = 90°`) while the regime's runs down it
-# (`180°`), and that orthogonality is the whole design.** Measured: the regime takes 7 distinct
-# values (one per row, `Y`) and the supply 11 (one per column, `X`). A transposed index therefore
-# swaps those counts - 11 temperatures and 7 supplies - which is loud, rather than producing a
-# plausible wrong number. On the old square, uniform grid neither could be seen at all.
+# (`180°`), and that orthogonality is the whole design.** The regime takes 7 distinct values (one
+# per row, `Y`) and the supply 11 (one per column, `X`). A transposed index therefore swaps those
+# counts - 11 temperatures and 7 supplies - which is loud, rather than producing a plausible wrong
+# number. On a square, uniform grid neither could be seen at all.
 function varying_supply()
     return (GradientSpec(3.0e11kJ / km^2 / day, 6.0e11kJ / km^2 / day,
                          axis = SolarRadiation, orientation = 90°),

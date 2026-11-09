@@ -47,8 +47,8 @@ include("TestCases.jl")
     # tree of any other height would make such a `pd` return something
     # that was not Faith's PD at all.
     @test mean(heightstoroot(tree)) ≈ 1.0
-    # There is no `q` to pass. Faith's PD is q = 0 by definition, and the old signature's `qs` was
-    # accepted and silently ignored - so `pd(eco, 1.0)` looked like a q = 1 measure and was not.
+    # There is no `q` to pass: Faith's PD is q = 0 by definition, and a `q` accepted and ignored
+    # would make `faith_pd(eco, 1.0)` look like a q = 1 measure.
     @test_throws MethodError faith_pd(eco, 1.0)
 end
 

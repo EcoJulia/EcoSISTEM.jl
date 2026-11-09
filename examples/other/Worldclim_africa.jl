@@ -36,9 +36,9 @@ temperature = SourceSpec(WorldClim{BioClim}, :bio1)
 rainfall = SourceSpec(WorldClim{BioClim}, :bio12)
 
 # --- decide the grid, before anything is built on it ------------------------------
-# **A projected CRS is required to simulate**, and this is the whole reason the old version of
-# this file could not run. `EPSG:10592` (WGS 84 / GLANCE Africa) is the package's *own* advice:
-# ask for this extent without a `crs` and the report names it in the warning it raises.
+# **A projected CRS is required to simulate.** `EPSG:10592` (WGS 84 / GLANCE Africa) is the
+# package's *own* advice: ask for this extent without a `crs` and the report names it in the warning
+# it raises.
 # `within` positions the area and is not optional - WorldClim is a global dataset, so without it
 # the grid is the world. `boundingbox` reads the shipped table, so naming a region costs no download.
 area = StudyArea(regime = temperature, supply = rainfall,

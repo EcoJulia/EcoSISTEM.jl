@@ -89,8 +89,8 @@ include("TestCases.jl")
         @test EcoSISTEM.getlookup(eco, 1) == eco.lookup[1]
         # `setchange!` installs a steady increment, checked against the regime's own unit per
         # second - here a dimensionless (land-cover) regime, so `s^-1`. A rate of the wrong
-        # dimension for *this* layer is rejected, where the old `resetrate!` methods accepted any
-        # `𝐓^-1` or `𝚯 𝐓^-1` rate on any regime whatsoever.
+        # dimension for *this* layer is rejected, not merely any `𝐓^-1` or `𝚯 𝐓^-1` rate on any
+        # regime whatsoever.
         @test_nowarn EcoSISTEM.setchange!(eco.habitat.regime,
                                           IncrementBy(0.1 / s))
         @test eco.habitat.regime.change ==
@@ -141,7 +141,7 @@ include("TestCases.jl")
     end
     @testset "collection-trait incompatibility message" begin
         # `_iscontinuous` of a collection is a `Vector{Bool}`; the constructor's incompatibility errors must
-        # format that rather than crash on a `Vector{Bool}` in a `?:` (the old bug threw a `TypeError`).
+        # format that rather than crash on a `Vector{Bool}` in a `?:`, which throws a `TypeError`.
         @test EcoSISTEM._kindlabel(true) == "continuous"
         @test EcoSISTEM._kindlabel(false) == "categorical"
         @test EcoSISTEM._kindlabel([true, false]) == "[continuous, categorical]"
@@ -209,7 +209,7 @@ include("TestCases.jl")
         @test !occursin("non-boolean", err.msg)
 
         # a per-member disagreement names the offending *layer*, which comparing two `Vector`s
-        # with `==` (the old `tematch`/`nfmatch`) never could
+        # with `==` cannot
         swapped = MultiplicativeFit((NicheSuitability{Precipitation,
                                                       typeof(1.0mm / day)}(),
                                      NicheSuitability{Temperature,
@@ -233,9 +233,8 @@ include("TestCases.jl")
 
     @testset "GridLandscape takes its grid from a StudyGrid" begin
         # A landscape is positioned by the `StudyGrid` it is built on, which is what lets its flat
-        # `location` dimension name each cell by extent. The `(Y, X)` order this used to guard by
-        # `MethodError` is now enforced one level up, by `StudyGrid` itself, so it cannot be got
-        # wrong here at all.
+        # `location` dimension name each cell by extent. The `(Y, X)` order is enforced one level
+        # up, by `StudyGrid` itself, so it cannot be got wrong here at all.
         area = StudyArea(extent = (2.0km, 3.0km), cellsize = 1.0km,
                          verbosity = :silent)
         habitat = GridHabitat(regime = UniformSpec(298.0K, axis = Temperature),
@@ -429,9 +428,8 @@ end
     proccache = Diversity.API._getabundance(cache, false)
     @test proccache ≈ proceco
 
-    # The assertion the fix is really about: processing maps species onto branches, so the answer is
-    # a *different shape* from the raw abundances. Returning the raw ones - the old behaviour -
-    # would make this test fail on size alone.
+    # The assertion that matters most: processing maps species onto branches, so the answer is a
+    # *different shape* from the raw abundances. Returning the raw ones would fail on size alone.
     @test size(proccache, 1) > size(rawcache, 1)
 end
 

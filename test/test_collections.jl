@@ -32,11 +32,11 @@ function _env(regime, supply; kw...)
 end
 const SUP = UniformSpec(1.0kJ / (km^2 * day), axis = SolarRadiation)
 
-# Two Julia-version facts this file has to know, both measured on 1.11.9 and 1.12.7.
+# Two Julia-version facts this file has to know, both true of 1.11.9 and 1.12.7.
 #
 # The unrolled fold and zipmap reach zero allocations only from 1.12. On 1.11 `_fold` over ten
-# members costs 16 bytes and a three-way `_zipmap` 32; the recursion is identical, and what changed
-# is that the newer compiler elides the tuple it builds. The assertion is therefore pinned where it
+# members costs 16 bytes and a three-way `_zipmap` 32; the recursion is identical, and the newer
+# compiler elides the tuple it builds. The assertion is therefore pinned where it
 # holds and SKIPPED where it does not, rather than relaxed to a bound that would pass on both and so
 # catch nothing. `skip` rather than a bare `if`, so the summary reports it as skipped and the gap
 # stays visible.
@@ -85,8 +85,8 @@ end
 
     @testset "the fold and the zipmap stay free at every arity" begin
         # `map` stops being unrolled at around seven elements and starts allocating; the recursion
-        # must not, at any arity a caller can reach. Pinned at the arities the design was measured
-        # at rather than only at the two the hot paths happen to use today.
+        # must not, at any arity a caller can reach. Pinned across arities rather than only at the two
+        # the hot paths use.
         for n in (2, 3, 6, 10)
             a = ntuple(i -> Float64(i), n)
             function zipped()
@@ -214,9 +214,7 @@ end
         @test temp[1] === temp
         @test temp[:Temperature] === temp
         @test NamedTuple(temp) === (Temperature = temp,)
-        # **Iterating a mixed collection must not allocate** - that claim is what the old
-        # "no container interface" rule rested on, and it was measured backwards: the fold it
-        # protected allocated where the loop does not. Guard it so it cannot regress.
+        # **Iterating a mixed collection must not allocate** - the container interface rests on it.
         count_members(c) = (n = 0; for _ in c
                                 n += 1
                             end; n)
@@ -433,7 +431,7 @@ end
     @test err isa ErrorException
     @test occursin(":temperature", err.msg) && occursin(":rainfall", err.msg)
 
-    # a positional tuple still numbers, as before
+    # a positional tuple numbers its members
     positional = (_reg(coarse, axis = Temperature),
                   _reg(fine, axis = Precipitation))
     @test Set(l.name for l in _area(regime = positional).report.layers) ==

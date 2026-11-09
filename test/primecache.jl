@@ -17,11 +17,11 @@
 # cost a few hundred MB whatever they fetch. Two of them deliberately DO read, to precompute the
 # aggregated forms the tests use: that is the expensive part, at over 10 GB resident, and it is why
 # this job has to exist rather than merely being an optimisation. Nothing else runs here, so the peak
-# has the machine to itself -- in the test job it did not, and the runner was shut down.
+# has the machine to itself -- in the test job it would not, and a runner out of memory is shut down.
 #
 # An incomplete list is SAFE, and that is deliberate. `getraster`/`download` each test their own
 # target file's existence before fetching, so anything missed here is simply downloaded by the test
-# job as before -- the cost of a gap is a few downloads, never a wrong answer. So this list is
+# job -- the cost of a gap is a few downloads, never a wrong answer. So this list is
 # maintained by hand without a mechanism to keep it honest, and should be extended when a test starts
 # reading something new. The same reasoning is written up beside the cache key in
 # `.github/workflows/testing.yaml`.

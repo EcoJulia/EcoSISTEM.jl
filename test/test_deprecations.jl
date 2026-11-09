@@ -35,8 +35,8 @@ using Unitful.DefaultSymbols
     @test old == new && samelookup(old, new)
 end
 
-# A list-wide movement is the vector of its species' movements, each in the mode the old type
-# named, with its own kernel, the kernel's type as the family and its own flag as the dead-cell
+# A list-wide movement is the vector of its species' movements, each in the mode the deprecated
+# type named, with its own kernel, the kernel's type as the family and its own flag as the dead-cell
 # fate.
 @testset "list-wide movements forward to each species' movement" begin
     kernels = [GaussianKernel(meandist = 1.0u"km"),

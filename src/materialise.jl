@@ -324,8 +324,8 @@ end
 # `SourceSpec(EarthEnv{LandCover}, 7)` would read file 7 twice: the keys differ, so neither hits.
 # Keyed per layer, the second request finds what the first already read. Narrowing the *key*
 # instead would be wrong - it must describe what was asked for, or one request is served another's
-# data - so the fix is to decompose the read, which is only possible because a spec's code list is
-# now explicit rather than a `nothing` sentinel.
+# data - so the read is decomposed instead, which needs a spec's code list to be explicit rather
+# than a `nothing` sentinel.
 #
 # Only reached for a spec whose layers can share one array; `_read` refuses the rest, and this
 # path goes through `_read` per layer, so each keeps its own correct unit before stacking.
@@ -437,8 +437,8 @@ end
 # A spec with **no** layers is a nullary thunk (what `in_memory_raster` builds): `_combineon` has
 # nothing to put on the target, so it returns the combine's own raster at its own resolution. As a
 # *layer of another spec* that matters, because the enclosing combine broadcasts its layers together
-# - measured, a `_reg(raster)` layer at 4×4 against a synthetic one generated at the target's 2×2
-# is a `DimensionMismatch`. Where the layers were already put on the target, this is a no-op:
+# - a `_reg(raster)` layer at 4×4 against a synthetic one generated at the target's 2×2 is a
+# `DimensionMismatch`. Where the layers were already put on the target, this is a no-op:
 # `_regrid` recognises a raster on the target grid and selects its cells instead of resampling.
 # A shape's covered fraction on `target`'s cells, and the two refusals both build paths share.
 # Geometry needs a frame to be placed in, and a shape selecting no ground is a mistake rather than an
@@ -892,11 +892,11 @@ end
 # decided may still have gaps, and those gaps make cells inactive - but they must never move or resize
 # the grid, or the area that was inspected would not be the area that gets built. Such a layer is
 # reported rather than silently narrowing the result.
-# Strip the declared changes, build the habitat exactly as before, then apply them to the layers
+# Strip the declared changes, build the habitat as a static one is built, then apply them to the layers
 # that were built. Splitting here - before the synthetic/data fork on the next line - is what keeps
 # every path downstream free of wrappers: `materialise` can never see one, on either fork, so
 # nothing below here needs a guard.
-# **Returns assembled PARTS, not a habitat**, because `GridHabitat`'s sole constructor is now the
+# **Returns assembled PARTS, not a habitat**, because `GridHabitat`'s sole constructor is the
 # specs-and-area one and `new` has to be the last thing that happens. The declared changes are
 # applied here, to the layers, before anything is constructed from them.
 #

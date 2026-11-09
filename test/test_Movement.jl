@@ -145,7 +145,7 @@ end
     # edge, so with every cell active there is nothing to lose and the two settings must agree
     # exactly - which they only do because `_drawmoves!` skips the extra `Binomial` draw when
     # `lost` is zero. Without that guard the draw re-phases the species' RNG stream and the totals
-    # diverge (measured: 5883 against 5805) despite identical ecology.
+    # diverge (5883 against 5805) despite identical ecology.
     @test _total(Torus(), true) == _total(Torus(), false)
 
     # A torus still has dead cells if any are *inactive*, and that is the case the flag exists

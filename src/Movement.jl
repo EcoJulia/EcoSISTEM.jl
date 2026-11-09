@@ -439,9 +439,9 @@ function Lookup(df::DataFrame)
                   zeros(Int64, nrow(df)))
 end
 
-# One line, because the default prints all five vectors - measured at 230 320 characters for a
-# single species' neighbourhood. What identifies a lookup is how far it reaches, not the numbers in
-# it: the last three fields are scratch rewritten on every cell of every timestep.
+# One line, because the default prints all five vectors, far too much even for a single species'
+# neighbourhood. What identifies a lookup is how far it reaches, not the numbers in it: the last
+# three fields are scratch rewritten on every cell of every timestep.
 function Base.show(io::IO, l::Lookup)
     return print(io, "Lookup($(length(l.y)) destinations)")
 end

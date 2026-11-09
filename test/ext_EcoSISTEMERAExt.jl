@@ -69,7 +69,7 @@ end
     @test_throws ErrorException CDSRequest(EcoSISTEM.ERA, "t2m_no_such",
                                            years = 1990:1990, path = "x")
     # A whole decade is named as one; a partial block by its years, so that asking later for
-    # one more year names a new file instead of finding the old one and stopping.
+    # one more year names a new file instead of finding the existing one and stopping.
     rs = EcoSISTEM.era5requests("tp", 1985:2004, dir = "d")
     @test length(rs) == 3
     @test [basename(q.path) for q in rs] ==

@@ -5,9 +5,8 @@
 # without changing a line.
 #
 # **Nothing here asserts a memory figure: it *measures* what is available and picks a resolution to
-# match.** A hardcoded `@assert Sys.total_memory() >= 100GB` guards a run that actually needs about
-# **8 GiB** - measured - so it is out by an order of magnitude and refuses most machines that could
-# run it perfectly well.
+# match.** A hardcoded `@assert Sys.total_memory() >= 100GB` would guard a run that needs about
+# **8 GiB**, out by an order of magnitude, and refuse most machines that could run it perfectly well.
 #
 # **The grid is chosen, not fixed, and nothing about its size is written down here.**
 # `examples/HPC/memory.jl` works out what this run can allocate - across every node when launched

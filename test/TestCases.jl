@@ -49,15 +49,13 @@ function Test1Ecosystem(; seed = nothing, grid = (5, 7), numspecies = 15,
     totalK = 1000000.0 * kJ / km^2 / day * numSpecies
 
     # The grid is decided first and only then built on. `extent` and `grid` are both `(y, x)`, so
-    # they are written in the same order -- stated explicitly rather than derived from a total area,
-    # which is what forced the old builder's `sqrt(area / prod(dimension))`.
+    # they are written in the same order -- stated explicitly rather than derived from a total area.
     studyarea = StudyArea(extent = (grid[1] * cellsize, grid[2] * cellsize),
                           cellsize = cellsize, verbosity = :silent)
-    # This `NicheSpec` is unseeded, so it draws its pattern from the **global** RNG. That is
-    # unchanged here: the old builder did the same, and
-    # `Random.seed!` below still runs *after* the environment is built, so the niche layout was
-    # never part of what `seed` pins. It does not need to be - a run is reproducible because the
-    # habitat is built once and then shared.
+    # This `NicheSpec` is unseeded, so it draws its pattern from the **global** RNG, and
+    # `Random.seed!` below runs *after* the environment is built, so the niche layout is not part of
+    # what `seed` pins. It does not need to be - a run is reproducible because the habitat is built
+    # once and then shared.
     habitat = GridHabitat(regime = NicheSpec(numNiches,
                                              axis = EcoSISTEM.TypologyAxis),
                           supply = UniformSpec(totalK,

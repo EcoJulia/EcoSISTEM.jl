@@ -108,11 +108,10 @@ axisof(demand::Demand) = axisof(typeof(demand))
 # ---------------------------------------------------------------------------
 # This is parked code, not dead code, and it must not be quietly deleted or quietly revived.
 #
-# `SizeDemand` was a demand whose per-species values are body size evolved along the phylogeny,
-# used directly as a rate in the free/dimensionless currency. When that currency's *supply* was
-# removed it became unusable: a species' demands must line up with the environment's supplies
-# (`_checkaligned`), and no `𝐓^-1` supply exists any more - measured, it constructed happily and
-# every `build_ecosystem` then refused it.
+# `SizeDemand` is a demand whose per-species values are body size evolved along the phylogeny, used
+# directly as a rate in the free/dimensionless currency, which has no supply. A species' demands must
+# line up with the environment's supplies (`_checkaligned`), and no `𝐓^-1` supply exists, so it would
+# construct happily and every `build_ecosystem` would refuse it.
 #
 # Why it is kept at all: its two extra fields, `pop_mass_rel` and `area`, belong to a **metabolic**
 # size-scaling reading - Kleiber-style - which is a real modelling idea nobody has implemented.

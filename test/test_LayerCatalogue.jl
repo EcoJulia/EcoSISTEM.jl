@@ -103,7 +103,7 @@ end
     # The only categorical layers in the shipped tables: the climate typologies.
     @test vt("kg0", :BioClimPlus) === :categorical
     @test vt("kg5", :BioClimPlus) === :categorical
-    # `discrete` is numeric and averageable - the case the old `_isdiscrete` name got backwards.
+    # `discrete` is numeric and averageable, unlike `categorical`.
     @test vt("gsl", :BioClimPlus) === :discrete
     @test vt("scd", :BioClimPlus) === :discrete
     @test vt("bio1", :BioClim) === :continuous
@@ -1035,8 +1035,8 @@ end
         # **The pin, taken from the FILE rather than from our own arithmetic.** Dividing a read by
         # 10 000 and then multiplying back would only test our own multiplication; this reads what
         # EarthEnv actually published. `evenness` is documented `0 to 1` and the file holds 0-9937,
-        # because nothing applies the `Scale = 0.0001` they document - not EarthEnv, not GDAL (their
-        # GeoTIFFs carry no scale tag, unlike CHELSA's), and until now not us.
+        # because neither EarthEnv nor GDAL applies the `Scale = 0.0001` they document (their
+        # GeoTIFFs carry no scale tag, unlike CHELSA's), so this package must.
         path = RasterDataSources.getraster(EarthEnv{HabitatHeterogeneity},
                                            :evenness)
         rawmax = maximum(skipmissing(Raster(path isa AbstractString ? path :

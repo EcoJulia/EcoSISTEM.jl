@@ -10,7 +10,7 @@
 #
 # Must run with the weak dependencies loaded, or the extensions never load and their private helpers
 # are invisible. ⭐ `data/src` is that environment - it carries MPI, Phylo and RasterDataSources
-# precisely so every extension loads, which no project in this repo used to do:
+# precisely so every extension loads:
 #
 #     julia --project=data/src data/src/api_surface.jl
 #

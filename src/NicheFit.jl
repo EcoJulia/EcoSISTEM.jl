@@ -240,7 +240,7 @@ _asscale(w::Real, ::Type) = float(w)
 # dimensionally-compatible-but-differently-scaled regime is corrected rather than silently wrong, and a
 # genuinely incompatible dimension still throws, just via `uconvert` instead of dispatch. `V` can also be
 # an abstract dimension (e.g. `Unitful.Temperature`) or a bare non-quantity type - neither names a single
-# fixed target scale to convert to, so just strip as before.
+# fixed target scale to convert to, so the value is only stripped.
 _toframe(::Type{V}, current) where {V <: Quantity} = ustrip(unit(V), current)
 
 _toframe(::Type{V}, current) where {V} = ustrip(current)

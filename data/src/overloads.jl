@@ -163,10 +163,10 @@ const NOTES = Dict(:Base => """
                `SpeciesList` in Diversity's hardcoded `Sim` slot.
                """,
                    :EcoBase => """
-               🔴 **Two types only, and that is the point.** These methods used to sit on `AbstractRegime` as well,
-               where `xmin`/`ymin` were hardcoded `0` and `xcellsize` was `Float64(size / km)` — so a geographic grid
-               answered `1.0 ° km⁻¹`, silently. **A layer is not a grid**; `StudyGrid` is, and it is the package's
-               only `EcoBase.AbstractRegularGrid`.
+               🔴 **Two types only, and that is the point. A layer is not a grid**: on `AbstractRegime` these
+               methods could only hardcode `xmin`/`ymin` as `0` and `xcellsize` as `Float64(size / km)`, so a
+               geographic grid would answer `1.0 ° km⁻¹`, silently. `StudyGrid` is a grid, and it is the
+               package's only `EcoBase.AbstractRegularGrid`.
 
                ⭐ **`indices`/`coordinates` report `(y, x)` columns, the package's own order, and the grid declares
                it**: `coordinateorder(::StudyGrid) = YThenX()`. EcoBase reorders from that declaration for anyone

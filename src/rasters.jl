@@ -750,8 +750,8 @@ end
 # another as centres it then reconstructs edges from, a third as a span; so a change of *locus*, a
 # labelling choice that moves no cell at all, propagates into all of them at once.
 #
-# **`DimensionalData.Lookups.intervalbounds` is locus-blind by construction**: measured, the
-# same three cells described as `Start` and as `Center` give **identical** per-cell `(lo, hi)`. So a
+# **`DimensionalData.Lookups.intervalbounds` is locus-blind by construction**: the same three
+# cells described as `Start` and as `Center` give **identical** per-cell `(lo, hi)`. So a
 # caller asks for what it means - the interval, the midpoint, or the span - and the convention stops
 # being load-bearing anywhere outside the one function that builds the grid.
 # A hand-rolled `± step/2` would have been the same mistake in a new place: it is itself a locus
@@ -783,9 +783,9 @@ end
 # this file.
 _gdalcrs(crs) = ArchGDAL.importCRS(crs, order = :trad)
 
-# The four bounds of an extent, in the order the old `(ylo, yhi, xlo, xhi)` convention used. An
-# escape hatch for the handful of places that genuinely need the numbers -- a message naming all
-# four, or a component-wise comparison -- not a licence to go back to passing them around.
+# The four bounds of an extent, as `(ylo, yhi, xlo, xhi)`. An escape hatch for the handful of places
+# that genuinely need the numbers -- a message naming all four, or a component-wise comparison -- not a
+# licence to pass them around in place of the extent.
 _extentvalues(e::Extents.Extent) = (e.Y[1], e.Y[2], e.X[1], e.X[2])
 
 # Build one from the same four, for the boundary where a foreign API hands them over separately.
@@ -1155,13 +1155,12 @@ function _crstemplate(crs, e::Extents.Extent, cellside)
     ylo, yhi, xlo, xhi = _extentvalues(e)
     u = _crsunit(crs)
     # **`Start`, and the lookup values are cell *edges*** - the convention `_syntheticyx`/`_sizedyx`
-    # already use, so there is now one grid convention rather than two. It is not cosmetic: `ylo`
-    # and `xlo` are the data's own outer **edges** (`_axisbounds`), so labelling them as *centres*
-    # made the template straddle the data by half a cell at the origin. Measured on the 9 × 9 /
-    # 2.5 km fixture at 10 km: the first cell went from **50 %** covered to **100 %**, and the grid
-    # stopped overhanging the data by 5 km at the bottom. Nothing downstream reads the raw values
-    # and assumes what they mean any more (`_cellintervals`/`_cellcentres`), which is what makes this
-    # a free choice - see the note on locus-blindness above.
+    # use too, so there is one grid convention. It is not cosmetic: `ylo` and `xlo` are the data's
+    # own outer **edges** (`_axisbounds`), so labelling them as *centres* would make the template
+    # straddle the data by half a cell at the origin - on the 9 × 9 / 2.5 km fixture at 10 km, the
+    # first cell half covered and the grid overhanging the data by 5 km at the bottom. Nothing
+    # downstream reads the raw values and assumes what they mean (`_cellintervals`/`_cellcentres`),
+    # which is what makes this a free choice - see the note on locus-blindness above.
     start = DimensionalData.Lookups.Intervals(DimensionalData.Lookups.Start())
     fwd = DimensionalData.Lookups.ForwardOrdered()
     # The step is `cellside` *exactly* - cells are square and of the requested side, which is the
@@ -1169,13 +1168,13 @@ function _crstemplate(crs, e::Extents.Extent, cellside)
     # span (`ceil`, so the requested extent is always fully enclosed rather than clipped) and the
     # far edge may overshoot slightly; deriving the step from the span instead would silently hand
     # back not-quite-`cellside` cells. **No `+ 1`**: these are cell *starts*, so `n` of them cover
-    # `n * cellside` and `ceil` already encloses the span. The `+ 1` belonged to the `Center` reading,
-    # where an n-cell run of centres covers only `(n - 1) * cellside`; kept under `Start` it added a
-    # spurious wholly-empty row and column that the recut then had to remove again.
+    # `n * cellside` and `ceil` already encloses the span. A `+ 1` belongs to a `Center` reading,
+    # where an n-cell run of centres covers only `(n - 1) * cellside`; under `Start` it would add a
+    # spurious wholly-empty row and column for the recut to remove.
     # **`uconvert`, not `ustrip`** - the template keeps its unit, and naming the
     # unit is what makes the *scale* explicit: a `cellside` in km against bounds in m is brought to
     # one unit before the arithmetic, which a bare strip would silently skip.
-    # **Measured bit-identical to the old bare-`Float64` arithmetic**, including for a
+    # **Bit-identical to bare-`Float64` arithmetic**, including for a
     # non-representable step (`0.1°`): a unitful `range` and a naive `Quantity` broadcast both agree
     # exactly with `range(bare) .* u`. So the unit costs nothing in precision and there is no reason
     # to strip, compute and re-dress.

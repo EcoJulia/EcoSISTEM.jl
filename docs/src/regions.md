@@ -235,7 +235,7 @@ anything the geometry library offers is reachable without a new operation.
 ## These are cartographic outlines
 
 Natural Earth draws its shapes to be printed at a scale, not to be authoritative boundaries, and this
-bites in practice rather than in principle. Two measured examples:
+bites in practice rather than in principle. Two examples:
 
 - Its own **`BRITISH ISLES`** polygon stops at 59.80°N, so it **omits Shetland**. The union of the
   United Kingdom, Ireland and the Isle of Man reaches 60.85°N and does not.
