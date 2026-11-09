@@ -10,8 +10,8 @@
 # answers offline and instantly, while an actual *shape* still fetches the geometry.
 #
 # **So it must never be edited by hand.** Correct the generator, or the source, and re-run. A hand
-# edit would be silently reverted by the next regeneration - which is the hazard
-# `data/src/rate_table.jl` was fixed for, and the reason it is the shape copied here.
+# edit would be silently reverted by the next regeneration; `data/src/rate_table.jl` is shaped the
+# same way for the same reason.
 #
 # ## Why the generator calls the package rather than reimplementing it
 #
@@ -23,7 +23,7 @@
 #
 # ## Running it
 #
-# Downloads about 25 MB of Natural Earth zips on a cold cache, into `EcoSISTEM.assetdir`, and takes a
+# Downloads about 40 MB of Natural Earth zips on a cold cache, into `EcoSISTEM.assetdir`, and takes a
 # few minutes. Not part of the test suite.
 #
 #     julia --project=data/src data/src/naturalearth_regions.jl
@@ -70,15 +70,21 @@ function regionrow(level, name)
                             :West => _lo(box.west), :South => _lo(box.south),
                             :East => _hi(box.east), :North => _hi(box.north),
                             :AreaKm2 => _area(sum(p -> p.area, parts)))
+    # A component the region does not have is `missing`, which is written as a bare blank and read
+    # back as missing; an empty string would be quoted, and read back as text.
     for i in 1:NPARTS
         p = i <= length(parts) ? parts[i] : nothing
-        row[Symbol("Part$(i)Area")] = isnothing(p) ? "" : _area(p.area)
+        row[Symbol("Part$(i)Area")] = isnothing(p) ? missing : _area(p.area)
         # A single component never crosses the date line - Natural Earth splits its polygons there -
         # so a part's box needs no wrap handling and is a plain envelope.
-        row[Symbol("Part$(i)West")] = isnothing(p) ? "" : _lo(p.envelope.MinX)
-        row[Symbol("Part$(i)South")] = isnothing(p) ? "" : _lo(p.envelope.MinY)
-        row[Symbol("Part$(i)East")] = isnothing(p) ? "" : _hi(p.envelope.MaxX)
-        row[Symbol("Part$(i)North")] = isnothing(p) ? "" : _hi(p.envelope.MaxY)
+        row[Symbol("Part$(i)West")] = isnothing(p) ? missing :
+                                      _lo(p.envelope.MinX)
+        row[Symbol("Part$(i)South")] = isnothing(p) ? missing :
+                                       _lo(p.envelope.MinY)
+        row[Symbol("Part$(i)East")] = isnothing(p) ? missing :
+                                      _hi(p.envelope.MaxX)
+        row[Symbol("Part$(i)North")] = isnothing(p) ? missing :
+                                       _hi(p.envelope.MaxY)
     end
     return row
 end

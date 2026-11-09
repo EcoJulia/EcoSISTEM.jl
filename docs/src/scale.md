@@ -43,7 +43,7 @@ Load `MPI` and the extension activates. [`build_ecosystem`](@ref) then chooses f
 using MPI, EcoSISTEM
 MPI.Init()
 
-eco = build_ecosystem(species, env, seed = 1)      # distributed = :auto, the default
+eco = build_ecosystem(species, env, seed = 1, verbosity = :silent)      # distributed = :auto, the default
 ```
 
 `distributed = :auto` builds a distributed ecosystem when MPI is initialised **and** there is more
@@ -61,7 +61,11 @@ With more than one rank, [`StudyArea`](@ref), [`investigate_study_area`](@ref),
 [`materialise`](@ref), [`GridHabitat`](@ref) and [`build_habitat`](@ref) are **collective calls**.
 The first rank reads the data and builds the result, and every other rank receives a copy of it, so
 the data is read once however many ranks there are, and every rank holds the same values. A failure
-while the first rank builds is raised on every rank.
+while the first rank builds is raised on every rank. Making and changing a [`SpeciesPool`](@ref) are
+collective in the same way, so a name authority's release is read on the first rank alone, and so is
+filtering a table by [`IsActiveSpecies`](@ref) or [`InActiveCell`](@ref): the first rank decides and
+reports, and every rank keeps the rows of its own table by that decision, so
+every rank filters the same table.
 
 So every rank must make each of these calls, in the same order. A rank that builds or inspects
 something the others do not is left waiting for them, with no error. Build a reference or diagnostic
@@ -94,16 +98,14 @@ and identically everywhere.
 
 ### Movement
 
-All three movement types work distributed. Each rank owns a block of species across the *whole*
-grid while the dynamics run, so an individual dispersing between cells stays rank-local whether it
-is a newborn under [`BirthOnlyMovement`](@ref) or an established individual under
-[`AlwaysMovement`](@ref); [`NoMovement`](@ref) disperses nothing at all.
+Every dispersal mode works distributed. Each rank owns a block of species across the *whole* grid
+while the dynamics run, so an individual dispersing between cells stays rank-local whether it is a
+newborn under [`SeedDispersal`](@ref) and the other modes dispersing at birth, or an established
+individual under [`AlwaysDispersal`](@ref); [`NoDispersal`](@ref) disperses nothing at all.
 
-### What is not supported
-
-The [`AddSpecies`](@ref) operation is refused in a distributed run. Species are what the ranks are
-partitioned by, so adding one changes the partition itself, where every other operation acts within
-a rank. Add the species before the run starts, or run that scenario serially.
+Every intervention works distributed, [`AddSpecies`](@ref) included: species are what the ranks are
+partitioned by, and every species a run may hold is declared in its pool before it is built, so a
+species joining the run is one every rank holds already, and the partition never changes.
 
 ## Threads
 
@@ -122,8 +124,8 @@ julia -t 8 --project myrun.jl
   - **Reading real rasters is the other memory peak**, and it is separate from the simulation's:
     a continental read can transiently need more than the run itself.
   - **Recording costs memory too.** [`generate_storage`](@ref) allocates
-    `species × cells × recordings × replicates` up front and cannot grow afterwards, so an
-    intervention that adds species needs `maxspecies` set for them in advance.
+    `species × cells × recordings × replicates` up front, a row for every species of the pool,
+    those not in the run until an `AddSpecies` brings them included.
 
 ## Where to go next
 

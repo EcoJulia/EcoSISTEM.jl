@@ -5,9 +5,8 @@
 # without changing a line.
 #
 # **Nothing here asserts a memory figure: it *measures* what is available and picks a resolution to
-# match.** A hardcoded `@assert Sys.total_memory() >= 100GB` guards a run that actually needs about
-# **8 GiB** - measured - so it is out by an order of magnitude and refuses most machines that could
-# run it perfectly well.
+# match.** A hardcoded `@assert Sys.total_memory() >= 100GB` would guard a run that needs about
+# **8 GiB**, out by an order of magnitude, and refuse most machines that could run it perfectly well.
 #
 # **The grid is chosen, not fixed, and nothing about its size is written down here.**
 # `examples/HPC/memory.jl` works out what this run can allocate - across every node when launched
@@ -92,7 +91,7 @@ const SAVE_DATES = [Dates.Date(2000 + y, 1, 1)
 
 # --- the layers, named before the grid is decided ----------------------------------------
 
-# Real temperature rather than the original's uniform 274 K: bio1 is WorldClim's annual mean, and
+# Real temperature rather than the original's uniform 1 °C: bio1 is WorldClim's annual mean, and
 # its unit and axis come from the shipped catalogue rather than being asserted here. The supply is
 # left uniform, so what varies across the continent is the *condition* species are matched to.
 #
@@ -174,26 +173,27 @@ const AREA = StudyArea(regime = TEMPERATURE, supply = SUNLIGHT, within = WITHIN,
 const ENVIRONMENT = GridHabitat(regime = TEMPERATURE, supply = SUNLIGHT,
                                 area = AREA)
 
-# Generalists: a wide 50 K tolerance about 274 K, as in the original, so the pool coexists rather
+# Generalists: a tolerance 50 degrees wide about 0 °C, as in the original, so the pool coexists rather
 # than partitioning the continent between narrow specialists.
-const SPECIES = build_species(NUMSPECIES,
-                              tolerance = (274.0K, 50.0K),
-                              toleranceaxis = Temperature,
-                              demand = 10.0kJ / month_mean_duration,
-                              demandaxis = SolarRadiation,
-                              dispersal = 15.0km,
-                              movement = BirthOnlyMovement,
-                              survival = 0.1,
-                              abundance = SMALL ? 10^6 : 3 * 10^8,
-                              seed = 1)
+const SPECIES = build_species(SpeciesPool(NUMSPECIES),
+                              tolerance = ToleranceSpec(Temperature,
+                                                        μ = 0.0°C, σ = 50.0K),
+                              demand = DemandSpec(SolarRadiation,
+                                                  10.0kJ / month_mean_duration),
+                              movement = MovementSpec(InsectDispersal(),
+                                                      meandist = 15.0km),
+                              survival = 0.1, seed = 1,
+                              verbosity = ISROOT ? :normal : :silent)
 
 # `distributed = :auto` is the whole point of one file for both: an `MPIEcosystem` when the
-# process is a live multi-rank MPI session, a serial `Ecosystem` otherwise.
+# process is a live multi-rank MPI session, a serial `Ecosystem` otherwise. The individuals are
+# split at random across the species and placed by supply.
 #
 # `MeanMonths()` counts every month as `month_mean_duration`, so each 1 January in `SAVE_DATES` is a
 # whole number of monthly steps from the epoch. Under exact dates it falls inside a step, and a run
 # recording on those dates is refused before it starts.
-const ECO = build_ecosystem(SPECIES, ENVIRONMENT, seed = 1, epoch = EPOCH,
+const ECO = build_ecosystem(BySupply(total = SMALL ? 10^6 : 3 * 10^8), SPECIES,
+                            ENVIRONMENT, seed = 1, epoch = EPOCH,
                             calendar = MeanMonths(), distributed = :auto)
 
 if ISROOT

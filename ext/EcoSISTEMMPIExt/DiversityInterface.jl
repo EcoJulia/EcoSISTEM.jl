@@ -23,10 +23,9 @@
 # below is a share of the whole, so each divides by this. Collective: an `Allreduce`, so every rank
 # must reach it.
 #
-# Taking `sum(rows_matrix)` instead was the single mistake behind two measured defects at once - the
-# weights summed to the **rank count** rather than to 1 (2.0 at two ranks, 4.0 at four), and every
-# abundance differed from the serial answer in its last digits because each block was scaled by its
-# own total.
+# Dividing by a rank's own `sum(rows_matrix)` instead makes the weights sum to the **rank count**
+# rather than to 1 (2.0 at two ranks, 4.0 at four), and scales each block by its own total, so every
+# abundance differs from the serial answer in its last digits.
 function _globaltotal(eco::MPIEcosystem)
     return MPI.Allreduce(sum(eco.abundances.rows_matrix),
                          +, MPI.COMM_WORLD)
@@ -69,8 +68,8 @@ end
 #
 # The arity matters and is easy to get wrong: Diversity calls `_getmetaabundance(m, raw::Bool)`.
 # A one-argument method is never reached, so the gather silently does not happen and Diversity's own
-# two-argument default answers from one rank's block instead - measured as a metaabundance vector of
-# 4 species at two ranks and 2 at four, where the metacommunity has 7.
+# two-argument default answers from one rank's block instead - a metaabundance vector of 4 species at
+# two ranks and 2 at four, where the metacommunity has 7.
 import Diversity.API: _getmetaabundance
 #
 # `vec` is load-bearing: `sum(..., dims = 2)` gives an n-by-1 **matrix**, and the buffer has to be a
@@ -124,11 +123,11 @@ end
 
 import Diversity.API: _getordinariness!
 using Diversity.API: _calcsimilarity, _calcabundance
-# **`[MPI-DUP]` - this had BOTH problems the serial path had, and a `grep` over `src/` finds
-# neither.** It cached into `eco.ordinariness` (stale the moment anything mutated the ecosystem),
-# and it hardcoded the scale as `one(eltype(relab))` - right only when the types carry no
-# similarity, and so wrong for exactly the phylogenetic case a scale exists for.
-# Now: no cache, and **one `_calcabundance` call giving both the processed abundances and the
+# **A second copy of the serial path, which a `grep` over `src/` does not find, so it must avoid
+# both of that path's traps by itself.** It must not cache (a cached value is stale the moment
+# anything mutates the ecosystem), and its scale must not be `one(eltype(relab))` - right only when
+# the types carry no similarity, and so wrong for exactly the phylogenetic case a scale exists for.
+# So: no cache, and **one `_calcabundance` call giving both the processed abundances and the
 # real scale**, as Diversity's own `Metacommunity` does.
 # **Computed in the COLUMN partition, and that is what makes it right rather than merely faster.**
 # Ordinariness multiplies the similarity matrix by the abundances, so a species' ordinariness in a
@@ -143,8 +142,8 @@ using Diversity.API: _calcsimilarity, _calcabundance
 # applies with no slice at all, and the result needs no communication: a cell's value is complete on
 # the rank that owns it.
 #
-# The one-argument `_calcordinariness(eco)` method this replaces was not in Diversity's contract
-# at all - that generic is `(types, abundances, scale)`.
+# Not a one-argument `_calcordinariness(eco)` method: that generic is `(types, abundances, scale)` in
+# Diversity's contract, so such a method is never called.
 # Fills `cache.relativeabun` in place, exactly as the serial path does - this is where the big
 # runs happen, so the ~1.9 GiB-a-call normalisation matters most here.
 function _getordinariness!(eco::MPIEcosystem)
@@ -251,9 +250,9 @@ function Diversity.Gamma(eco::MPIEcosystem)
 end
 
 # **A metacommunity value is REFUSED for a distributed ecosystem, not returned.** Each rank's
-# measure covers its own cells, so a power mean over them answers for that rank alone: measured at
-# two ranks, `meta_gamma` gave 6.2237 where the serial answer is 6.2512, the two ranks disagreed
-# with each other, and nothing was said. A uniform landscape hides it completely, because then every
+# measure covers its own cells, so a power mean over them answers for that rank alone: at two ranks
+# `meta_gamma` would give 6.2237 where the serial answer is 6.2512, the two ranks disagreeing with
+# each other, and nothing said. A uniform landscape hides it completely, because then every
 # cell is alike and any subset gives the same number.
 #
 # **Refused at both names, because the funnel moves between Diversity releases** - and `[compat]`

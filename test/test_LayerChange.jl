@@ -3,7 +3,7 @@
 module TestLayerChange
 
 using EcoSISTEM
-# `[C7-VIS]` C: these are `public` rather than exported - a spec is what a user writes,
+# These are `public` rather than exported - a spec is what a user writes,
 # and these are what it materialises into.
 using EcoSISTEM: AbsoluteChange, NoChange, PatternedLayerChange, RateChange,
                  RelativeChange, SeriesLayerChange, SteadyLayerChange,
@@ -45,15 +45,15 @@ end
 # fixture and so had never run.
 function _alignedspecies(demand)
     n = 3
-    abun = rand(Multinomial(100, n))
     tolerance = NicheTolerance(Temperature, Normal, fill(1.0K, n),
                                fill(0.1K, n))
-    movement = BirthOnlyMovement(GaussianKernel.(fill(1.0km, n), 10.0e-4))
+    movement = fill(InsectDispersal()(meandist = 1.0km,
+                                      thresh = 10.0e-4),
+                    n)
     # `longevity`/`survival` are plain `Float64`s; only the two rates carry a unit.
     param = EqualPop(0.1 / month_mean_duration, 0.1 / month_mean_duration, 1.0,
                      0.1)
-    return SpeciesList(n, tolerance, abun, demand, movement, param,
-                       fill(true, n))
+    return SpeciesList(n, tolerance, demand, movement, param)
 end
 
 @testset "Condition update" begin
@@ -92,10 +92,14 @@ end
     @test varying.supply.change isa SeriesLayerChange
     # The species list is incidental to what is under test - a series-backed layer advancing by
     # elapsed time - so it only has to align with this habitat: one `SolarRadiation` demand.
-    eco = Ecosystem(_alignedspecies(Demand{SolarRadiation}(fill(2.0kJ / day, 3))),
-                    varying,
-                    NicheSuitability{EcoSISTEM.axisof(varying.regime),
-                                     eltype(varying.regime)}())
+    eco = build_ecosystem(BySupply(total = 100),
+                          _alignedspecies(Demand{SolarRadiation}(fill(2.0kJ /
+                                                                      day,
+                                                                      3))),
+                          varying,
+                          nichefit = NicheSuitability{EcoSISTEM.axisof(varying.regime),
+                                                      eltype(varying.regime)}(),
+                          verbosity = :silent)
     @test_nowarn EcoSISTEM.regimeupdate!(eco, 1month_mean_duration)
     @test_nowarn EcoSISTEM.supplyupdate!(eco, 1month_mean_duration)
 end
@@ -175,8 +179,8 @@ end
     @test all(≈(276.0K), temp.matrix)
 
     # A pattern is a function of elapsed time, not of the layer's own values - so two layers at the
-    # same elapsed time agree however they got there. (The change function this replaces fed the
-    # matrix back into `sin`, making it a path-dependent walk.)
+    # same elapsed time agree however they got there. (A change feeding the matrix back into `sin`
+    # would be a path-dependent walk.)
     onestep = _testregime(274.0K, Temperature)
     EcoSISTEM.setchange!(onestep, OffsetBy(PatternedChange(5.0K, 1.0year)))
     EcoSISTEM._layerupdate!(onestep, 0.25year, 0.25year)
@@ -266,24 +270,20 @@ end
     @test occursin("not a change shape", err.msg)
 end
 
-# **Regression tests for the half-month phase bug - fixed 2026-08-05.** These were written
-# deliberately failing, against the unfixed behaviour, and passed **unchanged** when the fix landed.
-# That is why their expectations must not be edited: they are the statement of what correct means,
-# written before the code that satisfies them.
+# **A monthly series must apply each slice for its whole month.** These tests' expectations must
+# not be edited to match the code: they state what correct means, independently of the code that
+# satisfies them.
 #
-# **The bug they pin.** A monthly series applied every slice half a month early, and slice 1 for half
-# as long as the others. Coordinates are built 1-based (`_mkstackaxis` -> `Ti((1:12) .*
-# month_mean_duration)`) as slice *identifiers*, `origin` defaults to `first(times)` = 1 month, and
-# the lookup took the **nearest** coordinate - which treats each one as a slice *centre*, so
-# transitions landed on midpoints instead of month boundaries. The fix (`_current`, `LayerChange.jl`)
-# reads a coordinate as *when its slice becomes current* and floors, with a drift tolerance standing
-# in for what nearest was implicitly buying.
+# **What they guard against.** Coordinates are built 1-based (`_mkstackaxis` -> `Ti((1:12) .*
+# month_mean_duration)`) as slice *identifiers*, and `origin` defaults to `first(times)` = 1 month.
+# Taking the **nearest** coordinate would treat each one as a slice *centre*, landing transitions on
+# midpoints instead of month boundaries: every slice half a month early, and slice 1 for half as
+# long as the others. `_current` (`LayerChange.jl`) reads a coordinate as *when its slice becomes
+# current* and floors, with a drift tolerance standing in for what nearest would implicitly buy.
 #
-# **Why it survived so long, and why these tests are sub-monthly**: at `timestep =
-# 1month_mean_duration` every step lands exactly on a stored coordinate, so the right slice was picked
-# every time and the bug was invisible. Every timestep in this repo is `1month_mean_duration`, so
-# nothing exercised it. **A fix verified only at monthly steps would have proved nothing** - keep
-# these at sub-monthly elapsed times.
+# **Why these tests are sub-monthly**: at `timestep = 1month_mean_duration` every step lands exactly
+# on a stored coordinate, so either rule picks the right slice and the difference is invisible -
+# keep these at sub-monthly elapsed times.
 @testset "a monthly series applies each slice for its whole month" begin
     stack = _teststack(273.0K, 1.0K)
     layer = _testregime(274.0K, Temperature)
@@ -294,7 +294,8 @@ end
     monthof(k) = min(12,
                      floor(Int, ustrip(uconvert(month_mean_duration, k))) + 1)
 
-    # These three passed even against the bug - the first half of each month landed correctly.
+    # These three hold even for a lookup half a month late - the first half of each month lands
+    # correctly either way.
     @test EcoSISTEM._seriesindex(series, 0.0day) == 1
     @test EcoSISTEM._seriesindex(series, 10.0day) == 1
     @test EcoSISTEM._seriesindex(series, 45.0day) == 2
@@ -312,10 +313,10 @@ end
     # every other slice. Under the midpoint rule it was abandoned after 15.2 days.
     @test EcoSISTEM._seriesindex(series, 30.4day) == 1
 
-    # The general property, so a fix cannot satisfy the cases above by accident: across a whole year
-    # of daily steps, the current slice must always be the month elapsed time actually falls in.
-    # `HoldAtEnd` only so the sweep can reach day 364 - see the coverage bug below for why it
-    # otherwise cannot.
+    # The general property, so an implementation cannot satisfy the cases above by accident: across
+    # a whole year of daily steps, the current slice must always be the month elapsed time actually
+    # falls in. `HoldAtEnd` keeps the sweep independent of the series' reach, which the next testset
+    # pins.
     held = EcoSISTEM._attachchange(ReplaceWith(SeriesChange(stack,
                                                             atend = HoldAtEnd())),
                                    layer)
@@ -325,15 +326,14 @@ end
     @test isempty(wrong)
 end
 
-# **The same root cause, but this one was loud** - also fixed 2026-08-05, and also written before
-# the fix. `_seriesreach` added only *half* a gap past the last coordinate, to match the
-# nearest-coordinate rule, so a 12-slice monthly series covered 11.5 months: a full year of simulation
-# against a twelve-month climatology errored with "this series ran out" a fortnight early, and the
-# twelfth slice was never fully reached under the default `ErrorAtEnd`.
+# **A 12-slice monthly series must cover a full twelve months.** `_seriesreach` must add a whole
+# gap past the last coordinate: half a gap, which the nearest-coordinate rule would match, covers
+# 11.5 months, so a year's simulation against a twelve-month climatology would error with "this
+# series ran out" a fortnight early under the default `ErrorAtEnd`.
 #
 # Kept separate from the phase test above because this one *throws* rather than quietly returning
-# the wrong slice, so it is the symptom a user hits first - and a fix to the lookup alone would have
-# left it standing.
+# the wrong slice, so it is the symptom a user hits first - and the lookup and the reach can each be
+# wrong without the other.
 @testset "a 12-slice monthly series covers a full twelve months" begin
     stack = _teststack(273.0K, 1.0K)
     layer = _testregime(274.0K, Temperature)
@@ -361,8 +361,8 @@ end
 @testset "A SeriesLayerChange is indexed by elapsed time" begin
     stack = _teststack(273.0K, 1.0K)
 
-    # The wrap fix. The `StackCycle` this replaces reset to slice 1 and discarded the overshoot,
-    # so 13 months into a 12-slice series landed on slice 1; a true modulus lands on slice 2.
+    # A true modulus keeps the overshoot: 13 months into a 12-slice series lands on slice 2, not
+    # slice 1.
     layer = _testregime(274.0K, Temperature)
     repeating = EcoSISTEM._attachchange(ReplaceWith(SeriesChange(stack,
                                                                  atend = RepeatAtEnd())),
@@ -603,7 +603,7 @@ end
     # Regression. A supply's data gaps become "no resource" when it is placed in a habitat, but a
     # series holds the slices it will write on *later* steps. Cleaning only the matrix would let the
     # first update put the `NaN`s straight back - one step late, and where they reach the resource
-    # arithmetic and `populate!`'s supply-weighted placement.
+    # arithmetic and the supply-weighted placement.
     stack = cat(fill(10.0kJ / day, 3, 3), fill(20.0kJ / day, 3, 3), dims = 3)
     stack[1, 1, :] .= NaN * kJ / day
     supply = EcoSISTEM._setseries!(Supply{SolarRadiation}(_ongrid(stack[:, :,
@@ -904,11 +904,14 @@ end
                           supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                                axis = SolarRadiation),
                           area = area())
-        spp = build_species(3, tolerance = (285.0K, 30.0K),
-                            toleranceaxis = Temperature,
-                            demand = 1.0e5kJ / day, demandaxis = SolarRadiation,
-                            abundance = 100, seed = 1)
-        return build_ecosystem(spp, env; seed = 1, kw...)
+        spp = build_species(SpeciesPool(3),
+                            tolerance = ToleranceSpec(Temperature, μ = 285.0K,
+                                                      σ = 30.0K),
+                            demand = DemandSpec(SolarRadiation,
+                                                1.0e5kJ / day),
+                            seed = 1, verbosity = :silent)
+        return build_ecosystem(BySupply(total = 100), spp, env; seed = 1,
+                               verbosity = :silent, kw...)
     end
     shown(eco) = round(Int, ustrip(K, eco.habitat.regime.matrix[1, 1])) - 279
     month = 1.0month_mean_duration
@@ -1112,11 +1115,14 @@ end
                           supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                                axis = SolarRadiation),
                           area = area)
-        spp = build_species(3, tolerance = (285.0K, 5.0K),
-                            toleranceaxis = Temperature,
-                            demand = 1.0e9kJ / day, demandaxis = SolarRadiation,
-                            abundance = 300, seed = 1)
-        build_ecosystem(spp, env, seed = 1)
+        spp = build_species(SpeciesPool(3),
+                            tolerance = ToleranceSpec(Temperature, μ = 285.0K,
+                                                      σ = 5.0K),
+                            demand = DemandSpec(SolarRadiation,
+                                                1.0e9kJ / day),
+                            seed = 1, verbosity = :silent)
+        build_ecosystem(BySupply(total = 300), spp, env, seed = 1,
+                        verbosity = :silent)
     end
 
     # Caught BEFORE the first timestep: a constant rate over a known duration has a predictable

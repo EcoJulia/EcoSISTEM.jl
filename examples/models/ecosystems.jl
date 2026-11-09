@@ -32,7 +32,7 @@ end
 # of the map, not of the species dispersing over it. `Torus()` here because these experiments
 # were written against a wrapping grid; the ones that want an edge ask for `Island()`.
 """
-    uniform_environment(cells, area; temperature = 298.0K, supply = SUPPLY, topology = Torus())
+    uniform_environment(cells, area; temperature = 25.0°C, supply = SUPPLY, topology = Torus())
 
 Build a `cells × cells` environment over `area`, uniform in every respect: one temperature
 everywhere, with uniform solar and water supply, `supply.sunlight` and `supply.water`.
@@ -41,7 +41,7 @@ everywhere, with uniform solar and water supply, `supply.sunlight` and `supply.w
 regime is refused, deliberately, since there would be nothing to check it against. The supplies are
 named, so a gradient can say which resource it grades.
 """
-function uniform_environment(cells, area; temperature = 298.0K,
+function uniform_environment(cells, area; temperature = 25.0°C,
                              supply = SUPPLY, topology = Torus())
     return GridHabitat(regime = UniformSpec(temperature,
                                             axis = Temperature),
@@ -53,6 +53,11 @@ function uniform_environment(cells, area; temperature = 298.0K,
                        topology = topology)
 end
 
+# A per-species value as `build_species` reads it: one value for every species as it stands, and a
+# vector as a function of the species' row of its pool, whose `key` is the species' position.
+_pertrait(x::AbstractVector) = row -> x[row.key]
+_pertrait(x) = x
+
 """
     community(env, opts, widths; kw...)
 
@@ -61,25 +66,32 @@ Put `length(opts)` species on `env`, with Gaussian temperature tolerances (`opts
 plant, `demand.sunlight` and `demand.water`, so a species of body size `sizes` demands it times that.
 
 Every per-species keyword takes a scalar or a length-`n` vector, so an experiment can vary body
-size, dispersal or mortality across the pool without needing a different builder - which is what
-replaced the hand-built `PopGrowth`/`SpeciesRequirementCollection` of the original. `individuals` is a
-**total**, split across species from the seeded stream, so the starting state is identical on every
-run.
+size, dispersal or mortality across the pool without needing a different builder. `individuals` is
+a **total**, split across species from the seeded stream and placed by supply, so the starting
+state is identical on every run.
 """
 function community(env, opts, widths; dispersal = 2.4km,
                    individuals = 100_000_000,
                    birth = 0.15 / year, death = 0.15 / year, sizes = 1.0m^2,
                    longevity = 1.0, survival = 0.1, demand = DEMAND, seed = 1)
-    species = build_species(length(opts), tolerance = (opts, widths),
-                            toleranceaxis = Temperature,
-                            demand = map(d -> d .* sizes, demand),
-                            demandaxis = (sunlight = SolarRadiation,
-                                          water = Precipitation),
-                            dispersal = dispersal,
-                            birth = birth, death = death,
-                            longevity = longevity, survival = survival,
-                            abundance = individuals, seed = seed)
-    return build_ecosystem(species, env, seed = seed)
+    species = build_species(SpeciesPool(length(opts)),
+                            tolerance = ToleranceSpec(Temperature,
+                                                      μ = _pertrait(opts),
+                                                      σ = _pertrait(widths)),
+                            demand = (sunlight = DemandSpec(SolarRadiation,
+                                                            _pertrait(demand.sunlight .*
+                                                                      sizes)),
+                                      water = DemandSpec(Precipitation,
+                                                         _pertrait(demand.water .*
+                                                                   sizes))),
+                            movement = MovementSpec(InsectDispersal(),
+                                                    meandist = _pertrait(dispersal)),
+                            birth = _pertrait(birth), death = _pertrait(death),
+                            longevity = _pertrait(longevity),
+                            survival = survival, seed = seed,
+                            verbosity = :silent)
+    return build_ecosystem(BySupply(total = individuals), species, env,
+                           seed = seed)
 end
 
 # Total abundance per cell, laid back out on the grid - `(y, x)`, as everywhere in the package.

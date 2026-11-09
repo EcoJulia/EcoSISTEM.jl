@@ -188,12 +188,14 @@ env_both = build_habitat(env_space, verbosity = :silent,
 function community(env)
     species = build_species(DefaultEcosystem(), numspecies = 20,
                             verbosity = :silent,
-                            demand = (space = SPACEDEMAND, light = LIGHTDEMAND),
-                            demandaxis = (space = SurfaceArea,
-                                          light = SolarRadiation),
-                            dispersal = 2CELLSIZE, abundance = 500_000,
+                            demand = (space = DemandSpec(SurfaceArea,
+                                                         SPACEDEMAND),
+                                      light = DemandSpec(SolarRadiation,
+                                                         LIGHTDEMAND)),
+                            movement = MovementSpec(InsectDispersal(),
+                                                    meandist = 2CELLSIZE),
                             seed = 1)
-    eco = build_ecosystem(species, env, seed = 1)
+    eco = build_ecosystem(BySupply(total = 500_000), species, env, seed = 1)
     simulate!(eco, YEARS, 1month_mean_duration)
     return eco
 end

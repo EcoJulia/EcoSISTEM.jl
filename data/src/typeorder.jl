@@ -13,8 +13,7 @@
 #
 # ⭐ **Why this exists.** The include order in `src/EcoSISTEM.jl` is a real invariant - a struct's
 # field types, its supertype and its type-parameter bounds must all be defined when it is declared -
-# and it used to be maintained by hand, defended by comments explaining which file had been hoisted
-# above which. This checks it instead.
+# and this checks it, where comments saying which file must come above which could not.
 
 module TypeOrderAudit
 
@@ -263,9 +262,7 @@ Returns a named tuple:
     file that comes *before* the file declaring something it depends on. Should be empty.
   - `unplaced`: names of types whose declaring file could not be found in the source, so nothing
     could be checked about them.
-  - `legacy`: types and **type aliases** still declared in a not-yet-redistributed `src/_*.jl`.
-    Counts down to zero
-    across the reorganisation, and is its completion test.
+  - `legacy`: types and **type aliases** declared in a `src/_*.jl`, which must be none.
   - `ntypes`, `nedges`, `nfiles`: sizes, so a check can assert the audit is not vacuous.
 
 ⚠️ **Covers types and `const` type aliases.** A type that names an alias in its *declaration* is
@@ -358,18 +355,17 @@ function typeorder_report()
         end
     end
 
-    # ⭐ **The Phase A progress meter.** Every `src/_*.jl` is a file whose declarations have not yet
-    # been redistributed, so this counts down to zero as the reorganisation proceeds and becomes the
-    # completion test. ⚠️ `src/deprecations.jl` is deliberately *not* prefixed and so never counts.
+    # ⭐ **Types declared in a `src/_*.jl`**, which must be none: every type lives in a
+    # concept-named file. ⚠️ `src/deprecations.jl` is deliberately *not* prefixed and so never
+    # counts.
     legacy = String[]
     legacyvalues = String[]
     for (nm, d) in decls.types
         startswith(basename(d[1]), "_") && push!(legacy, nm)
     end
-    # 🔴 **A value `const` is NOT a Phase A declaration.** `_WINDOW_PAD`, `px`, `_SUPPLY_SIZE` and the
-    # rest specialise no type - they are tuning constants belonging to the *functions* that read them,
-    # so they travel in Phase B. Counting them here would give the Phase A ratchet a floor it could
-    # never reach. ⭐ A **type alias** does count, and the two are told apart exactly: an alias's
+    # 🔴 **A value `const` is not a type declaration.** One that specialises no type is a tuning
+    # constant belonging to the *functions* that read it, so it is counted apart. ⭐ A **type alias**
+    # does count, and the two are told apart exactly: an alias's
     # binding `isa Type`.
     for (nm, d) in decls.consts
         startswith(basename(d[1]), "_") || continue
@@ -386,9 +382,9 @@ if abspath(PROGRAM_FILE) == @__FILE__
     println("types placed: ", r.ntypes, "   dependency edges: ", r.nedges,
             "   source segments: ", r.nfiles)
     isempty(r.unplaced) || println("unplaced: ", join(r.unplaced, ", "))
-    println("still declared in a legacy `src/_*.jl`: ", length(r.legacy),
+    println("declared in a `src/_*.jl`: ", length(r.legacy),
             " types/aliases, plus ", length(r.legacyvalues),
-            " value constants (Phase B)")
+            " value constants")
     if isempty(r.violations)
         println("✅ include order is valid - every type follows what its declaration needs")
     else

@@ -46,9 +46,8 @@ Two columns do the work here, and they answer different questions:
   total into a rate.
 - **`Temporal Resolution`** - how often the layer is *sampled*. Nothing to do with units.
 
-They used to be one column, which was invisibly wrong for `prec` (both a month) and plainly
-wrong for `srad` (sampled monthly, but already a per-day flux). See
-[When the data accumulated](@ref).
+They are two columns because they can differ: for `prec` both are a month, while `srad` is sampled
+monthly but is already a per-day flux. See [When the data accumulated](@ref).
 
 So the read unit is not always the stored unit:
 
@@ -132,7 +131,7 @@ is materialised. It exists because the catalogue *cannot* answer the question:
 - **One axis spans rows that legitimately disagree.** WorldClim's `srad` is `kJ m^-2`,
   CHELSA's `rsds` is `MJ m^-2`. Both cells are right; without a declared scale the two are
   never reconciled.
-- **Synthetic layers have no row at all.** `UniformSpec(285.0K, axis = Temperature)` never
+- **Synthetic layers have no row at all.** `UniformSpec(10.0°C, axis = Temperature)` never
   touches a catalogue but must be comparable with a layer that did.
 - **Tolerances have no row either.** A species' niche is not a layer, and
   [`NicheTolerance`](@ref) takes its support unit from the axis.
@@ -388,9 +387,9 @@ matters whether or not a species responds to them.
     ```julia
     abstract type MyAxis <: EcoSISTEM.NicheAxis end   # ← not enough
     ```
-    This gives you a type, but none of the methods the rest of the package asks for. It used to
-    answer `nothing` for its canonical unit - that is, *"no axis was named"* about an axis you had
-    just named - and then accept any unit for it. It now **errors at first use**, naming the macro.
+    This gives you a type, but none of the methods the rest of the package asks for, so it
+    **errors at first use**, naming the macro. Answering `nothing` for its canonical unit would
+    say *"no axis was named"* about an axis you had just named, and then accept any unit for it.
 
 !!! warning "An axis may not contradict the unit it inherits"
     ```julia
@@ -426,28 +425,21 @@ deliberate refusal.
 as [`Evapotranspiration`](@ref) or [`ClimateMoisture`](@ref) is scaled by a stated unit rather than
 escaping the question.
 
-## How the rule was arrived at
+## Why the axis decides, not the unit
 
-The package once inferred a layer's *meaning* from its **unit**, and the clearest illustration of why
-that cannot work is the defect it caused:
-
-> A supply was built by looking at its value's dimension. `m/s` and `mm/day` are both `𝐋 𝐓^-1`, so a
-> **wind-speed layer offered as a supply was silently built as a water supply** - 3 m/s over a 1 km^2
-> cell becoming 2.6 * 10^14 L/day of rainfall.
-
-Nothing about that is a missing check: a unit genuinely cannot say what a quantity *means*, because
-two different quantities can share one. The fix was to make the axis the single declaration, on every
-side:
+A unit cannot say what a quantity *means*, because two different quantities can share one. `m/s` and
+`mm/day` are both `𝐋 𝐓^-1`, so a supply built by looking at its value's dimension would turn a
+**wind-speed layer offered as a supply into a water supply**, silently - 3 m/s over a 1 km^2 cell
+becoming 2.6 * 10^14 L/day of rainfall - and no check could catch it. So the axis is the single
+declaration, on every side:
 
   - a **supply**'s type comes from `supplytype(axis)`, and an axis declaring no resource is refused
     by name;
   - a **demand**'s type comes from `demandtype(axis)`, with the axis named at the call site
-    (`demandaxis`), and the unit checked against it rather than consulted to choose it;
-  - a **tolerance** is built in its axis's frame, as it always was;
-  - the free/dimensionless family - the one entry that could not have an axis, because it meant
-    "no axis" - was removed on both sides, which is what made deleting the tables possible at all.
+    (`DemandSpec(axis, value)`), and the unit checked against it rather than consulted to choose it;
+  - a **tolerance** is built in its axis's frame;
+  - there is no free or dimensionless family on either side, since it would mean "no axis".
 
-Two families arrived after the rule and cost nothing to add, which is the point of it: **space**
-(`SurfaceArea`, the first resource that is a stock rather than a flow) needed only a declaration, and
-`pet`/`cmi` became flows by declaring their canonical units rather than by changing any code that
-reads them.
+A new family costs only its declaration: **space** (`SurfaceArea`, a resource that is a stock rather
+than a flow) is a declaration alone, and `pet`/`cmi` are flows by their declared canonical units
+rather than by any code that reads them.

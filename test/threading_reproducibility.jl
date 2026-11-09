@@ -14,10 +14,10 @@ using JLD2
 
 include(pkgdir(EcoSISTEM, "test", "TestCases.jl"))
 
-# **Checking that an argument EXISTS is not enough, and this file destroyed itself proving it
-# (2026-08-13).** Named in `Pkg.test(test_args = ["threading_reproducibility.jl"])` - which is how
-# every *real* test file here is run - `ARGS` becomes that list, so `ARGS[1]` was this script's own
-# name. The length check passed and `@save ARGS[1]` wrote a 136 KB JLD2 over the source.
+# **Checking that an argument EXISTS is not enough.** Named in
+# `Pkg.test(test_args = ["threading_reproducibility.jl"])` - which is how every *real* test file
+# here is run - `ARGS` becomes that list, so `ARGS[1]` is this script's own name, a length check
+# passes, and `@save ARGS[1]` writes a JLD2 over the source.
 #
 # So the guard is on the argument's **shape**, not its presence: an output path must end `.jld2`,
 # which the harness in `test_dynamics.jl` supplies and a stray `test_args` never will.
@@ -32,8 +32,8 @@ length(ARGS) == 1 && endswith(ARGS[1], ".jld2") ||
 # deterministic, so the whole run is reproducible.
 # **Run twice, and save both.** The second run is what tells a result that varies from one run to the
 # next apart from one that varies with the thread count, and doing it here rather than in a fourth
-# child process costs a simulation rather than a whole Julia start: measured, a child spends 6 s
-# loading the package and 8 s compiling the fixture build, while fifty timesteps take 0.3 s.
+# child process costs a simulation rather than a whole Julia start: a child spends 6 s loading the
+# package and 8 s compiling the fixture build, while fifty timesteps take 0.3 s.
 function simulate()
     eco = Test1Ecosystem(seed = 1234)
     for _ in 1:50

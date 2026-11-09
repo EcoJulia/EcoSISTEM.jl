@@ -3,7 +3,7 @@
 module TestStudyArea
 
 using EcoSISTEM
-# `[C7-VIS]` C: these are `public` rather than exported - a spec is what a user writes,
+# These are `public` rather than exported - a spec is what a user writes,
 # and these are what it materialises into.
 using EcoSISTEM: SteadyLayerChange
 using EcoSISTEM: LayerCache, ReadKey, _asraster, Problem, _originaligned,
@@ -431,7 +431,7 @@ end
                                                      axis = EcoSISTEM.NicheAxis,
                                                      combinestage = CombineOnSourceGrid()),
                                target, cache)
-        # Division is cell-wise, so the old "cell-wise => safe to combine late" reading would call
+        # Division is cell-wise, so a "cell-wise => safe to combine late" reading would call
         # both of these correct. They are not the same number: early is the area-weighted mean of
         # the two cells' daily rates, late the total water over the mean season length.
         @test parent(early.array) != parent(late.array)
@@ -694,7 +694,7 @@ end
         @test EcoSISTEM._arcsecs(30.0arcsecond) ==
               EcoSISTEM._arcsecs(30arcsecond)
         # `30arcsecond` is an *`Int`* quantity, and `eps` has no `Integer` method - this is the
-        # literal a caller actually writes, and it threw a bare `MethodError` before `float` was added.
+        # literal a caller actually writes, so `_arcsecs` must `float` it first.
         @test EcoSISTEM._arcsecs(1°) == 3600
         # Not everything dimensionless is an angle, and a length never is.
         @test isnothing(EcoSISTEM._arcsecs(0.5))
@@ -815,7 +815,7 @@ end
 
     # The grid convention, and what happens to the remainder - one subject in two halves, so they
     # share a fixture. **Non-square throughout**: the cell count is computed per axis, so a square
-    # fixture cannot see a y/x swap in the `ceil` - the same class of bug as `[NICHE-YX]`.
+    # fixture cannot see a y/x swap in the `ceil`.
     @testset "the target grid starts on the data's own edge" begin
         # 7 × 11 cells of 2.5 km, so the data spans 17.5 km north-south by 27.5 km east-west.
         raw = _bngraster(WorldClim{BioClim}, fill(291.0K, 7, 11),
@@ -958,23 +958,23 @@ end
         bng = _reg(_bngraster(WorldClim{BioClim}, fill(291.0K, 9, 11),
                               east = (245000.0:2500.0:270000.0) .* m))
         area = StudyArea(regime = bng, cellsize = 5000.0m, verbosity = :silent)
-        # **Both bounds matter, and I got the longitude wrong once.** Latitude stops at 90° rather
-        # than reaching past it, because a cell edge beyond the pole makes PROJ refuse the (wrong-way)
-        # transform outright instead of returning the nonsense this test is about. And longitude must
-        # end exactly at **180°**, not past it: measured, labels `-175:10:175` put the last cell's
-        # far edge at **185°**, and that wrap alone changed the bogus envelope from
-        # `256 685...400 000 m` (which excludes most of the grid) to `-101 403...400 000 m` (which
-        # contains all of it) - so the fixture silently stopped reproducing the bug at all.
+        # **Both bounds matter.** Latitude stops at 90° rather than reaching past it, because a cell
+        # edge beyond the pole makes PROJ refuse the (wrong-way) transform outright instead of
+        # returning the nonsense this test is about. And longitude must end exactly at **180°**, not
+        # past it: labels `-175:10:175` put the last cell's far edge at **185°**, and that wrap alone
+        # moves the bogus envelope from `256 685...400 000 m` (which excludes most of the grid) to
+        # `-101 403...400 000 m` (which contains all of it), so the fixture would silently stop
+        # reproducing the case at all.
         global_ = _testraster(WorldClim{BioClim}, fill(290.0K, 14, 36),
                               lat = (-50.0:10.0:80.0) .* °,
                               long = (-180.0:10.0:170.0) .* °)
         # Every cell is covered - the layer spans the world.
         @test all(EcoSISTEM._fullycovered(global_, area.report.active))
-        # **The regression itself, executable** - not a threshold in metres, which would only be a
-        # number I chose. Asked the wrong way round the footprint is computed in the *target's* CRS,
-        # and the very same per-cell test then drops cells the layer plainly covers. This is what
-        # deleted 1859 of `ScottishCultivatedLand.jl`'s 3168 active cells, and it is what would come
-        # back if `_fullycovered` were ever repointed at `_dimsextent(A, tcrs)`.
+        # **The wrong way round, executable** - not a threshold in metres, which would only be an
+        # arbitrary number. Asked the wrong way round the footprint is computed in the *target's*
+        # CRS, and the very same per-cell test then drops cells the layer plainly covers - 1859 of
+        # `ScottishCultivatedLand.jl`'s 3168 active cells - which is what would happen if
+        # `_fullycovered` were ever repointed at `_dimsextent(A, tcrs)`.
         wrongway = EcoSISTEM._dimsextent(global_.array,
                                          Rasters.crs(area.report.active))
         @test !all(EcoSISTEM._cellsinbox(EcoSISTEM._cellintervals(area.report.active,
@@ -982,8 +982,8 @@ end
                                          EcoSISTEM._cellintervals(area.report.active,
                                                                   X), wrongway))
 
-        # ...and a layer that genuinely covers only part of the area still says so, so the fix is not
-        # simply "always true".
+        # ...and a layer that genuinely covers only part of the area still says so, so the check is
+        # not simply "always true".
         corner = _testraster(WorldClim{BioClim}, fill(290.0K, 3, 3),
                              lat = (55.7:0.05:55.8) .* °,
                              long = (-4.5:0.05:-4.4) .* °)
@@ -1270,8 +1270,8 @@ end
 # **The reason `build_habitat` can reseed from a habitat at all: the habitat's own as-built grid
 # survives the round trip.** A supply the study area never saw can cost cells, and that narrowing is
 # recorded *nowhere else* - so re-deriving a `StudyArea` from the report's `specs` answers the
-# original question and hands back the wider mask. Measured before the fix at 48 cells against 46.
-# `report.stage` is what makes the two distinguishable, and this is its first real consumer.
+# original question and hands back the wider mask: here 48 cells against 46. `report.stage` is what
+# makes the two distinguishable.
 @testset "an as-built area round-trips, narrowing and all" begin
     reg = _reg(_bngraster(WorldClim{BioClim}, fill(291.0K, 9, 9)),
                axis = Temperature)

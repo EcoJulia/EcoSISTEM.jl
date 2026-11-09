@@ -3,7 +3,7 @@
 module TestEcosystem
 
 using EcoSISTEM
-# `[C7-VIS]` B1/B2/B3: these are `public` rather than exported, so they must be named.
+# These are `public` rather than exported, so they must be named.
 using EcoSISTEM: getnichefit, update!
 using Random: Random
 using EcoSISTEM: getregime
@@ -16,14 +16,11 @@ using DimensionalData
 
 include("TestCases.jl")
 
-# A stand-in for any non-`UniqueTypes` similarity structure (a phylogeny, in practice), so the
-# refusal can be checked without building a tree.
-struct NotUniqueTypes <: Diversity.AbstractTypes end
-
 @testset "Ecosystem" begin
     eco = Test1Ecosystem()
     @test eco isa Ecosystem
-    @test sum(eco.abundances.matrix, dims = 2)[:, 1] == eco.spplist.abun
+    # Each species' individuals as placed, which the rebuild below places again.
+    abun = vec(sum(eco.abundances.matrix, dims = 2))
     # tolerances, regime and nichefit line up - arity, names, unit and kind, member by member
     @test isnothing(EcoSISTEM._checkaligned("t",
                                             EcoSISTEM._toleranceside(eco.spplist.tolerance),
@@ -38,34 +35,30 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
                        typeof(eco.spplist.movement), UniqueTypes,
                        typeof(eco.spplist.params)}(eco.spplist.names,
                                                    eco.spplist.tolerance,
-                                                   eco.spplist.abun,
                                                    eco.spplist.demand,
                                                    UniqueTypes(length(eco.spplist.names)),
                                                    eco.spplist.movement,
-                                                   eco.spplist.params,
-                                                   eco.spplist.native)
-    eco = Ecosystem(sppl, eco.habitat, eco.nichefit)
-    # Adding a species mid-run is the `AddSpecies` operation, applied either by declaring an
+                                                   eco.spplist.params)
+    eco = build_ecosystem(BySupply(each = row -> abun[row.key]), sppl,
+                          eco.habitat, nichefit = eco.nichefit,
+                          distributed = false)
+    # The placement places exactly the counts it is given, species by species.
+    @test vec(sum(eco.abundances.matrix, dims = 2)) == abun
+    # Bringing a species into a run is the `AddSpecies` operation, applied either by declaring an
     # intervention or - as here - through `applyinterventions!`, the supported imperative route.
-    # `step` must be one the run has actually reached: the selection RNG is keyed on it.
-    before = length(eco.spplist.names)
-    # The last species is given a set of classes no other species has, so that a copy of any other
-    # species cannot pass for a copy of the last.
-    vals = eco.spplist.tolerance.vals
-    vals[end] = sort(unique(reduce(vcat, vals)))
-    @test count(==(vals[end]), vals) == 1
-    lastset = copy(vals[end])
+    # `step` must be one the run has actually reached: the selection RNG is keyed on it. The run's
+    # species never change in number, and one in the run already gets its arrivals all the same.
+    shape = size(eco.abundances.matrix)
+    before = sum(eco.abundances.matrix[end, :])
     @test_nowarn EcoSISTEM.applyinterventions!(eco,
                                                Intervention(EveryStep(),
                                                             AllCells(),
-                                                            AddSpecies(abundance = 10)),
+                                                            AddSpecies(eco.spplist.names[end],
+                                                                       BySupply(total = 10))),
                                                1month_mean_duration,
                                                1month_mean_duration, 1)
-    @test length(eco.spplist.names) == before + 1
-    # With no tolerance given, the arrival's set of classes is the last species', as `AddSpecies`
-    # documents - a copy, so that changing either set leaves the other alone.
-    @test vals[end] == lastset
-    @test vals[end] !== vals[end - 1]
+    @test size(eco.abundances.matrix) == shape
+    @test sum(eco.abundances.matrix[end, :]) == before + 10
 
     @testset "get functions" begin
         # Test Simulation get functions
@@ -83,21 +76,21 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
         # `build_species` returned, by index or by name.
         @test_nowarn EcoSISTEM.speciesdispersal(eco, 1)
         @test EcoSISTEM.speciesdispersal(eco, 1) ===
-              eco.spplist.movement.kernels[1]
+              eco.spplist.movement[1].kernel
         @test EcoSISTEM.speciesdispersal(eco, "1") ===
               EcoSISTEM.speciesdispersal(eco, 1)
         @test EcoSISTEM.speciesdispersal(eco.spplist, 1) ===
               EcoSISTEM.speciesdispersal(eco, 1)
-        # The round trip the return type buys: it is exactly `AddSpecies`' `dispersal` keyword.
-        @test AddSpecies(dispersal = EcoSISTEM.speciesdispersal(eco, 1),
-                         abundance = 10).dispersal ===
-              eco.spplist.movement.kernels[1]
+        # The round trip the return type buys: a dispersal mode called with it gives a species'
+        # movement.
+        @test InsectDispersal()(EcoSISTEM.speciesdispersal(eco, 1)).kernel ===
+              eco.spplist.movement[1].kernel
         @test EcoSISTEM.getlookup(eco, "1") == eco.lookup[1]
         @test EcoSISTEM.getlookup(eco, 1) == eco.lookup[1]
         # `setchange!` installs a steady increment, checked against the regime's own unit per
         # second - here a dimensionless (land-cover) regime, so `s^-1`. A rate of the wrong
-        # dimension for *this* layer is rejected, where the old `resetrate!` methods accepted any
-        # `𝐓^-1` or `𝚯 𝐓^-1` rate on any regime whatsoever.
+        # dimension for *this* layer is rejected, not merely any `𝐓^-1` or `𝚯 𝐓^-1` rate on any
+        # regime whatsoever.
         @test_nowarn EcoSISTEM.setchange!(eco.habitat.regime,
                                           IncrementBy(0.1 / s))
         @test eco.habitat.regime.change ==
@@ -116,20 +109,23 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
     @testset "movement types" begin
         # Test other movement types
         eco = Test1Ecosystem()
+        abun = vec(sum(eco.abundances.matrix, dims = 2))
         # No topology here since step 19 - it belongs to the habitat, not the movement.
-        mov = AlwaysMovement(fill(LongTailKernel(10.0km, 10.0, 1e-10),
-                                  length(eco.spplist.names)))
+        mov = fill(AlwaysDispersal(LongTailKernel)(scale = 10.0km, shape = 10.0,
+                                                   thresh = 1e-10),
+                   length(eco.spplist.names))
         sppl = SpeciesList{typeof(eco.spplist.tolerance),
                            typeof(eco.spplist.demand), typeof(mov),
                            typeof(eco.spplist.types),
                            typeof(eco.spplist.params)}(eco.spplist.names,
                                                        eco.spplist.tolerance,
-                                                       eco.spplist.abun,
                                                        eco.spplist.demand,
                                                        eco.spplist.types, mov,
-                                                       eco.spplist.params,
-                                                       eco.spplist.native)
-        @test_nowarn Ecosystem(sppl, eco.habitat, eco.nichefit)
+                                                       eco.spplist.params)
+        @test_nowarn build_ecosystem(BySupply(each = row -> abun[row.key]),
+                                     sppl, eco.habitat,
+                                     nichefit = eco.nichefit,
+                                     distributed = false, verbosity = :silent)
     end
     @testset "diversity" begin
         # Test Diversity get functions
@@ -140,14 +136,12 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
         @test gettypes(eco) == eco.spplist
         @test_nowarn getordinariness!(eco)
         # **Recomputed every call, never cached.** Asserting that a *cache* was populated would be
-        # asserting the hazard: nothing that mutates the ecosystem can invalidate one, so after
-        # `_addspecies!` a cached matrix is the wrong shape. Measured: caching saved
-        # 16,720 B on a 217 MB `norm_sub_alpha` call.
+        # asserting the hazard: nothing that mutates the ecosystem can invalidate one.
         @test getordinariness!(eco) == getordinariness!(eco)
     end
     @testset "collection-trait incompatibility message" begin
         # `_iscontinuous` of a collection is a `Vector{Bool}`; the constructor's incompatibility errors must
-        # format that rather than crash on a `Vector{Bool}` in a `?:` (the old bug threw a `TypeError`).
+        # format that rather than crash on a `Vector{Bool}` in a `?:`, which throws a `TypeError`.
         @test EcoSISTEM._kindlabel(true) == "continuous"
         @test EcoSISTEM._kindlabel(false) == "categorical"
         @test EcoSISTEM._kindlabel([true, false]) == "[continuous, categorical]"
@@ -186,9 +180,9 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
                                                                       day,
                                                                       numSpecies))))
         abun = rand(Multinomial(1000, numSpecies))
-        movement = BirthOnlyMovement(GaussianKernel.(fill(1.0km, numSpecies),
-                                                     10e-4))
-        native = fill(true, numSpecies)
+        movement = fill(InsectDispersal()(meandist = 1.0km,
+                                          thresh = 10e-4),
+                        numSpecies)
         resource = SpeciesRequirementCollection((Demand{SolarRadiation}(fill(2.0kJ /
                                                                              day,
                                                                              numSpecies)),
@@ -197,13 +191,13 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
                                                                             numSpecies))))
         param = EqualPop(0.6 / month_mean_duration, 0.6 / month_mean_duration,
                          1.0, 0.0)
-        sppl = SpeciesList(numSpecies, tolerance, abun, resource, movement,
-                           param,
-                           native)
+        sppl = SpeciesList(numSpecies, tolerance, resource, movement, param)
+        placement = BySupply(each = row -> abun[row.key])
         # the matching nichefit is `MultiplicativeFit((...))`; a single `NicheSuitability` mismatches
         badrel = NicheSuitability{Temperature, typeof(1.0K)}()
         err = try
-            Ecosystem(sppl, habitat, badrel)
+            build_ecosystem(placement, sppl, habitat, nichefit = badrel,
+                            distributed = false)
             nothing
         catch e
             e
@@ -215,35 +209,32 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
         @test !occursin("non-boolean", err.msg)
 
         # a per-member disagreement names the offending *layer*, which comparing two `Vector`s
-        # with `==` (the old `tematch`/`nfmatch`) never could
+        # with `==` cannot
         swapped = MultiplicativeFit((NicheSuitability{Precipitation,
                                                       typeof(1.0mm / day)}(),
                                      NicheSuitability{Temperature,
                                                       typeof(1.0K)}()))
         swaperr = try
-            Ecosystem(sppl, habitat, swapped)
+            build_ecosystem(placement, sppl, habitat, nichefit = swapped,
+                            distributed = false)
             nothing
         catch e
             e
         end
         @test swaperr isa ErrorException
-        # **The offending layers are named by their AXES**, not by their positions - that is D25
-        # earning its keep on the error path: the message says *which measurements* disagree rather
-        # than which slots, and the reader does not have to count members to find out.
-        # **D3(a) moved which check catches this.** A nichefit now carries its own axis, so the
-        # swapped fit derives `(:Precipitation, :Temperature)` against the tolerance's
-        # `(:Temperature, :Precipitation)` and the **naming** check fires first - where before, the
-        # fit had no axis, both sides fell back to positional names, and it reached the per-member
-        # check. Caught earlier and by a better question; the axes are still what is named.
+        # **The offending layers are named by their AXES**, not by their positions: the message says
+        # *which measurements* disagree rather than which slots, and the reader does not have to
+        # count members to find out. A nichefit carries its own axis, so the swapped fit derives
+        # `(:Precipitation, :Temperature)` against the tolerance's `(:Temperature, :Precipitation)`
+        # and the **naming** check fires before the per-member one.
         @test occursin("Temperature", swaperr.msg) &&
               occursin("Precipitation", swaperr.msg)
     end
 
     @testset "GridLandscape takes its grid from a StudyGrid" begin
         # A landscape is positioned by the `StudyGrid` it is built on, which is what lets its flat
-        # `location` dimension name each cell by extent. The `(Y, X)` order this used to guard by
-        # `MethodError` is now enforced one level up, by `StudyGrid` itself, so it cannot be got
-        # wrong here at all.
+        # `location` dimension name each cell by extent. The `(Y, X)` order is enforced one level
+        # up, by `StudyGrid` itself, so it cannot be got wrong here at all.
         area = StudyArea(extent = (2.0km, 3.0km), cellsize = 1.0km,
                          verbosity = :silent)
         habitat = GridHabitat(regime = UniformSpec(298.0K, axis = Temperature),
@@ -265,28 +256,15 @@ struct NotUniqueTypes <: Diversity.AbstractTypes end
     end
 end
 
-@testset "_addtypes! keeps the names, and refuses what it cannot extend" begin
-    # Real names are essential: `build_species` yields `"1"`, `"2"`, ... , so the bug this guards -
-    # `UniqueTypes(count)` renaming **every existing species** to its index on each `_addspecies!` -
-    # cannot show itself on a synthetic list.
-    named = ["oak", "ash", "elm"]
-    types = EcoSISTEM._uniquetypes(named)
-    grown = EcoSISTEM._addtypes!(types, "yew")
-    @test gettypenames(grown, true) == [named; "yew"]
-    @test counttypes(grown, true) == 4
-
-    # And a species list whose types are not `UniqueTypes` - a phylogeny, in practice - is refused
-    # with the reason rather than falling off the end of dispatch as a `MethodError`.
-    @test_throws ErrorException EcoSISTEM._addtypes!(NotUniqueTypes(), "yew")
-end
-
 # --- `CachedEcosystem`, which is declared in `Ecosystem.jl` ---
 
 # Build a small, fully deterministic ecosystem. With a fixed `seed` the initial
-# abundances (a fixed vector) and the per-species RNG streams are identical every
-# time, so runs are byte-for-byte reproducible.
-function cache_test_eco(seed)
-    numSpecies = 8
+# abundances (a fixed number per species, placed by supply from the per-species
+# RNG streams) and those streams are identical every time, so runs are
+# byte-for-byte reproducible. `warming` makes its temperature rise steadily, a value that depends on
+# how far the run has gone.
+function cache_test_eco(seed; warming = false, numspecies = 8)
+    numSpecies = numspecies
     grid = (4, 4)
     area = 100.0km^2
     individuals = 1_000
@@ -294,27 +272,28 @@ function cache_test_eco(seed)
 
     resource = Demand{SolarRadiation}(fill(10.0kJ / day, numSpecies))
     param = EqualPop(0.2 / year, 0.2 / year, 1.0, 0.0)
-    kernel = fill(GaussianKernel(2.0km, 1.0e-3), numSpecies)
-    movement = BirthOnlyMovement(kernel)
+    kernel = fill(GaussianKernel(meandist = 2.0km, thresh = 1.0e-3), numSpecies)
+    movement = InsectDispersal().(kernel)
     tolerance = NicheTolerance(Temperature, Normal,
                                fill(274.0K, numSpecies),
                                fill(0.5K, numSpecies))
-    native = fill(true, numSpecies)
-    abun = fill(div(individuals, numSpecies), numSpecies)
 
-    sppl = SpeciesList(numSpecies, tolerance, abun, resource, movement, param,
-                       native)
+    sppl = SpeciesList(numSpecies, tolerance, resource, movement, param)
     # The grid is decided first, then built on: 100 km^2 over 4 × 4 is 2.5 km cells - the same
     # `sqrt(area / prod(dimension))` the deprecated builder computed internally.
     studyarea = StudyArea(extent = (sqrt(area), sqrt(area)),
                           cellsize = sqrt(area) / grid[1], verbosity = :silent)
-    habitat = GridHabitat(regime = UniformSpec(274.0K,
-                                               axis = Temperature),
+    temperature = UniformSpec(274.0K, axis = Temperature)
+    regime = warming ? Varying(temperature, IncrementBy(0.5K / year)) :
+             temperature
+    habitat = GridHabitat(regime = regime,
                           supply = UniformSpec(totalK,
                                                axis = SolarRadiation),
                           area = studyarea)
     nichefit = NicheSuitability{Temperature, typeof(1.0K)}()
-    return Ecosystem(sppl, habitat, nichefit, seed = seed)
+    return build_ecosystem(BySupply(each = div(individuals, numSpecies)), sppl,
+                           habitat, nichefit = nichefit, seed = seed,
+                           distributed = false)
 end
 
 @testset "CachedEcosystem save/load/resume" begin
@@ -351,6 +330,28 @@ end
     # clearcache! removes the saved files - the `!` is owed, it deletes them
     @test_nowarn EcoSISTEM.clearcache!(cache2)
     @test isempty(filter(f -> endswith(f, ".jld2"), readdir(dir)))
+end
+
+@testset "a CachedEcosystem picks a run up where its last checkpoint left it" begin
+    seed = 20250708
+    times = (0.0year):(1.0year):(5.0year)
+    ref = cache_test_eco(seed, warming = true)
+    for _ in 1:5
+        update!(ref, 1.0year)
+    end
+    # A run stopped at year 3, then the same script run again over its folder: the warming it had
+    # reached comes back with its abundances and streams, and the run ends as one never stopped.
+    dir = mktempdir()
+    stopped = CachedEcosystem(cache_test_eco(seed, warming = true), dir, times)
+    abundances(stopped, 3.0year)
+    again = CachedEcosystem(cache_test_eco(seed, warming = true), dir, times)
+    @test abundances(again, 5.0year).matrix == ref.abundances.matrix
+    warmed = parent(again.habitat.regime.matrix)
+    @test warmed ≈ parent(ref.habitat.regime.matrix)
+    # A folder written by another configuration is refused rather than continued from.
+    other = CachedEcosystem(cache_test_eco(seed, warming = true,
+                                           numspecies = 7), dir, times)
+    @test_throws "holds species this run does not" abundances(other, 5.0year)
 end
 
 @testset "CachedEcosystem matches Ecosystem" begin
@@ -427,9 +428,8 @@ end
     proccache = Diversity.API._getabundance(cache, false)
     @test proccache ≈ proceco
 
-    # The assertion the fix is really about: processing maps species onto branches, so the answer is
-    # a *different shape* from the raw abundances. Returning the raw ones - the old behaviour -
-    # would make this test fail on size alone.
+    # The assertion that matters most: processing maps species onto branches, so the answer is a
+    # *different shape* from the raw abundances. Returning the raw ones would fail on size alone.
     @test size(proccache, 1) > size(rawcache, 1)
 end
 

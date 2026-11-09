@@ -146,7 +146,8 @@ tracked spec is fetched by its data pipeline run, which registers what it fetche
     or a [`ShapeSpec`](@ref); a [`Varying`](@ref) of one; a [`ConstructedRasterSpec`](@ref) or
     a [`ConstructedShapeSpec`](@ref), through its members; a [`ShapeMaskSpec`](@ref) or a
     [`ShapeCoverage`](@ref), through its shape; or a tuple, named tuple or vector of any of
-    these. A synthetic spec, or a mask given as a matrix, reads no file and adds none.
+    these. A synthetic spec, or a mask given as a matrix, reads no file and adds none. Or a
+    [`WFOPlantList`](@ref), whose release's file species names are resolved against.
   - `dryrun`: `true` fetches nothing and instead returns, per file, a named tuple of the `entry`,
     whether it is `present`, and its `bytes` where the server states them (a plain download's
     `Content-Length`; a Climate Data Store request cannot say), so a user on a slow link can
@@ -166,6 +167,11 @@ end
 function fetchfiles(spec::ShapeSpec; dryrun::Bool = false)
     dryrun && return [_dryrunentry(spec.path)]
     return _fetchspec(spec)
+end
+
+function fetchfiles(authority::WFOPlantList; dryrun::Bool = false)
+    dryrun && return [_dryrunentry(_wfoasset(authority))]
+    return _fetched(authority.track, authority)
 end
 
 function fetchfiles(x; dryrun::Bool = false)
@@ -234,7 +240,10 @@ end
 
 # The specs among `x` that read files - a raster spec, a named region, a shape - in order, through
 # every wrapper and combination a habitat can be built from.
-_filespecs(spec::Union{RasterSpec, NaturalEarthSpec, ShapeSpec}) = Any[spec]
+function _filespecs(spec::Union{RasterSpec, NaturalEarthSpec, ShapeSpec,
+                                WFOPlantList})
+    return Any[spec]
+end
 
 _filespecs(spec::ConstructedRasterSpec) = _filespecs(spec.layers)
 
@@ -283,6 +292,8 @@ _wouldbepaths(spec::NaturalEarthSpec) = _specpaths(spec)
 
 _wouldbepaths(spec::ShapeSpec) = [_localpath(spec.path)]
 
+_wouldbepaths(authority::WFOPlantList) = _specpaths(authority)
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -312,9 +323,8 @@ _wouldbepaths(spec::ShapeSpec) = [_localpath(spec.path)]
 # constructors assume). Only the degrees->length direction survives: it is still needed for the
 # *geographic* branch of `_circle`. The old length->degrees `_deg` is gone - a physical cell side is
 # now only meaningful on a projected target, where it needs no conversion at all.
-# Renamed from `_side` 2026-08-24: that name is ALSO a three-argument helper in
-# `collections.jl` meaning *a side of a pairing check*. One generic function, two unrelated
-# meanings, colliding only by arity - the same confusion `_inrange`/`_indexrange` had.
+# Not `_side`, which is a three-argument helper in `collections.jl` meaning *a side of a pairing
+# check*: one generic function with two unrelated meanings would collide only by arity.
 _degreelength(step_deg) = abs(uconvert(NoUnits, step_deg / °)) * 111.32km
 
 # --- Combination-time reprojection ------------------------------------------
@@ -740,15 +750,15 @@ end
 # another as centres it then reconstructs edges from, a third as a span; so a change of *locus*, a
 # labelling choice that moves no cell at all, propagates into all of them at once.
 #
-# **`DimensionalData.Lookups.intervalbounds` is locus-blind by construction**: measured, the
-# same three cells described as `Start` and as `Center` give **identical** per-cell `(lo, hi)`. So a
+# **`DimensionalData.Lookups.intervalbounds` is locus-blind by construction**: the same three
+# cells described as `Start` and as `Center` give **identical** per-cell `(lo, hi)`. So a
 # caller asks for what it means - the interval, the midpoint, or the span - and the convention stops
 # being load-bearing anywhere outside the one function that builds the grid.
 # A hand-rolled `± step/2` would have been the same mistake in a new place: it is itself a locus
 # assumption.
 #
 # Both come in a two-argument form (one axis) and a no-argument-dimension form returning a named
-# `(lat, long)` - the pairing `[UNIT-DUP]` wanted, since nearly every caller needs both.
+# `(lat, long)`, since nearly every caller needs both.
 function _cellintervals(target, D)
     return DimensionalData.Lookups.intervalbounds(DimensionalData.lookup(target,
                                                                          D))
@@ -773,9 +783,9 @@ end
 # this file.
 _gdalcrs(crs) = ArchGDAL.importCRS(crs, order = :trad)
 
-# The four bounds of an extent, in the order the old `(ylo, yhi, xlo, xhi)` convention used. An
-# escape hatch for the handful of places that genuinely need the numbers -- a message naming all
-# four, or a component-wise comparison -- not a licence to go back to passing them around.
+# The four bounds of an extent, as `(ylo, yhi, xlo, xhi)`. An escape hatch for the handful of places
+# that genuinely need the numbers -- a message naming all four, or a component-wise comparison -- not a
+# licence to pass them around in place of the extent.
 _extentvalues(e::Extents.Extent) = (e.Y[1], e.Y[2], e.X[1], e.X[2])
 
 # Build one from the same four, for the boundary where a foreign API hands them over separately.
@@ -1145,13 +1155,12 @@ function _crstemplate(crs, e::Extents.Extent, cellside)
     ylo, yhi, xlo, xhi = _extentvalues(e)
     u = _crsunit(crs)
     # **`Start`, and the lookup values are cell *edges*** - the convention `_syntheticyx`/`_sizedyx`
-    # already use, so there is now one grid convention rather than two. It is not cosmetic: `ylo`
-    # and `xlo` are the data's own outer **edges** (`_axisbounds`), so labelling them as *centres*
-    # made the template straddle the data by half a cell at the origin. Measured on the 9 × 9 /
-    # 2.5 km fixture at 10 km: the first cell went from **50 %** covered to **100 %**, and the grid
-    # stopped overhanging the data by 5 km at the bottom. Nothing downstream reads the raw values
-    # and assumes what they mean any more (`_cellintervals`/`_cellcentres`), which is what makes this
-    # a free choice - see the note on locus-blindness above.
+    # use too, so there is one grid convention. It is not cosmetic: `ylo` and `xlo` are the data's
+    # own outer **edges** (`_axisbounds`), so labelling them as *centres* would make the template
+    # straddle the data by half a cell at the origin - on the 9 × 9 / 2.5 km fixture at 10 km, the
+    # first cell half covered and the grid overhanging the data by 5 km at the bottom. Nothing
+    # downstream reads the raw values and assumes what they mean (`_cellintervals`/`_cellcentres`),
+    # which is what makes this a free choice - see the note on locus-blindness above.
     start = DimensionalData.Lookups.Intervals(DimensionalData.Lookups.Start())
     fwd = DimensionalData.Lookups.ForwardOrdered()
     # The step is `cellside` *exactly* - cells are square and of the requested side, which is the
@@ -1159,13 +1168,13 @@ function _crstemplate(crs, e::Extents.Extent, cellside)
     # span (`ceil`, so the requested extent is always fully enclosed rather than clipped) and the
     # far edge may overshoot slightly; deriving the step from the span instead would silently hand
     # back not-quite-`cellside` cells. **No `+ 1`**: these are cell *starts*, so `n` of them cover
-    # `n * cellside` and `ceil` already encloses the span. The `+ 1` belonged to the `Center` reading,
-    # where an n-cell run of centres covers only `(n - 1) * cellside`; kept under `Start` it added a
-    # spurious wholly-empty row and column that the recut then had to remove again.
+    # `n * cellside` and `ceil` already encloses the span. A `+ 1` belongs to a `Center` reading,
+    # where an n-cell run of centres covers only `(n - 1) * cellside`; under `Start` it would add a
+    # spurious wholly-empty row and column for the recut to remove.
     # **`uconvert`, not `ustrip`** - the template keeps its unit, and naming the
     # unit is what makes the *scale* explicit: a `cellside` in km against bounds in m is brought to
     # one unit before the arithmetic, which a bare strip would silently skip.
-    # **Measured bit-identical to the old bare-`Float64` arithmetic**, including for a
+    # **Bit-identical to bare-`Float64` arithmetic**, including for a
     # non-representable step (`0.1°`): a unitful `range` and a naive `Quantity` broadcast both agree
     # exactly with `range(bare) .* u`. So the unit costs nothing in precision and there is no reason
     # to strip, compute and re-dress.
@@ -1498,7 +1507,9 @@ const _ShapeComponent = @NamedTuple{geometry::ArchGDAL.IGeometry,
                                     area::typeof(1.0km^2)}
 
 # Every feature of `level`'s file, grouped by the value of its naming attribute and keyed by the
-# lowercased form of it. Each group keeps the source's own spelling of the name alongside.
+# lowercased form of it. Each group keeps the source's own spelling of the name alongside. On a level
+# with a qualifier, a name used under several of its values is grouped once per value and named for
+# it, "Limburg, Belgium".
 #
 # This is the ONE place a name becomes geometry: `_selectfeatures` is a lookup into it and
 # `_levelvalues` reads its keys, so the shipped table's generator and a built shape cannot disagree
@@ -1520,9 +1531,8 @@ function _groupfeatures(level::NaturalEarthLevel)
     return get!(_REGION_GROUPS, level.name) do
         dataset = ArchGDAL.read("/vsizip/" * assetpath(_nesource(level)))
         lyr = ArchGDAL.getlayer(dataset, 0)
-        groups = Dict{String,
-                      @NamedTuple{name::String,
-                                  geometries::Vector{ArchGDAL.IGeometry}}}()
+        named = @NamedTuple{name::String, place::String,
+                            geometry::ArchGDAL.IGeometry}[]
         for feature in lyr
             isnothing(level.within) ||
                 _fieldmatches(feature, level.within.first,
@@ -1531,10 +1541,28 @@ function _groupfeatures(level::NaturalEarthLevel)
             # "-99" is Natural Earth's unset marker. Left in, it would become a region of its own
             # holding every unassigned feature - a name that looks real and spans the globe.
             (isnothing(name) || isempty(name) || name == "-99") && continue
+            place = isnothing(level.qualifier) ? "" :
+                    something(_fieldvalue(feature, level.qualifier), "")
+            push!(named,
+                  (name = name, place = place,
+                   geometry = ArchGDAL.clone(ArchGDAL.getgeom(feature))))
+        end
+        places = Dict{String, Set{String}}()
+        for f in named
+            push!(get!(places, lowercase(f.name)) do
+                      return Set{String}()
+                  end, f.place)
+        end
+        groups = Dict{String,
+                      @NamedTuple{name::String,
+                                  geometries::Vector{ArchGDAL.IGeometry}}}()
+        for f in named
+            name = length(places[lowercase(f.name)]) > 1 ?
+                   string(f.name, ", ", f.place) : f.name
             group = get!(groups, lowercase(name)) do
                 return (name = name, geometries = ArchGDAL.IGeometry[])
             end
-            push!(group.geometries, ArchGDAL.clone(ArchGDAL.getgeom(feature)))
+            push!(group.geometries, f.geometry)
         end
         return groups
     end
@@ -2168,6 +2196,8 @@ end
 
 _specpaths(spec::ShapeSpec) = [_localpath(spec.path)]
 
+_specpaths(authority::WFOPlantList) = [_localpath(_wfoasset(authority))]
+
 # One file's dry-run report: where it would land, whether it is there, and what the server says
 # it weighs.
 function _dryrunentry(entry)
@@ -2326,8 +2356,8 @@ end
 # Divide a freshly-read array by the interval each of its slices accumulated over, so the values are
 # rates before any unit is attached.
 #
-# **This is the step the whole layer-units subproject exists for.** A monthly total divided by a
-# fixed 30.4375-day month is wrong for every real month - 7.7% low for February. Dividing by the
+# **A monthly total must be divided by its own month.** One divided by a fixed 30.4375-day month
+# is wrong for every real month - 7.7% low for February. Dividing by the
 # slice's *own* month makes the rate honest, and because every divisor is a time, all twelve slices
 # still share one unit (`sl.unit`, already the rate under `layerrate`); only their values differ.
 #
@@ -2366,8 +2396,8 @@ end
 # **A raster is not a spec, and is refused as one.** A `ClimateRaster` holds values and a layer
 # *code*; a niche axis is resolved from that code through the shipped catalogue, so a raster carrying
 # no code - every derived one - silently becomes `NicheAxis`, with no keyword anywhere to correct
-# it. That is the one remaining way a layer's meaning could go undeclared, which is what this whole
-# subproject exists to prevent. Wrapping it in a spec is not ceremony: the spec is *where the axis
+# it, and a layer's meaning must never go undeclared. Wrapping it in a spec is not ceremony: the
+# spec is *where the axis
 # is stated*, which is exactly the thing a raster cannot say.
 #
 # Shared by every entry point (`_asraster` with and without a cache, and `materialise` itself)

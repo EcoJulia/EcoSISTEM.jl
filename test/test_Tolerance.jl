@@ -3,7 +3,7 @@
 module TestTolerance
 
 using EcoSISTEM
-# `[C7-VIS]` B1/B2/B3: these are `public` rather than exported, so they must be named.
+# These are `public` rather than exported, so they must be named.
 using EcoSISTEM: getdist, gettraits, discrete_evolve, continuous_evolve
 using Test
 using Distributions

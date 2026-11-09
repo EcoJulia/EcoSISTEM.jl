@@ -58,7 +58,8 @@ bins = 10
 offset = "1.0K"
 
 # Figures 8 and 9: the circular continent, its generalists and the specialist introduced into them,
-# and figure 9's specialists of each width; `founders` individuals seed a species at its cell.
+# and figure 9's specialists of each width; a specialist arrives as `founders` individuals at the
+# origin cell.
 [large.continent]
 side = 100
 cellsize = "80.0km"

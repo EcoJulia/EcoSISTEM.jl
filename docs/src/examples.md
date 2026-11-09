@@ -27,6 +27,7 @@ to [`GridHabitat`](@ref), [`build_species`](@ref) and [`build_ecosystem`](@ref):
 ```@example examples
 using EcoSISTEM, EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
+using DataFrames
 
 const SOLAR = 4.5e11kJ / (km^2 * month_mean_duration)   # supplied per unit area, per month
 const WATER = 192.0mm / month_mean_duration
@@ -36,7 +37,7 @@ const NEEDS = (sunlight = 450000.0kJ / month_mean_duration,   # consumed per ind
 # A `cells × cells` grid over a square landscape of side `side`, uniform in every respect.
 # `topology` says how the grid's edges join, and it is an **environment** keyword: whether the
 # world wraps is a property of the map, not of the species dispersing over it.
-function uniform_env(cells, side; temperature = 298.0K, topology = Torus())
+function uniform_env(cells, side; temperature = 25.0°C, topology = Torus())
     area = StudyArea(extent = (side, side), cellsize = side / cells,
                      verbosity = :silent)
     return GridHabitat(regime = UniformSpec(temperature,
@@ -48,15 +49,21 @@ function uniform_env(cells, side; temperature = 298.0K, topology = Torus())
                              area = area, topology = topology)
 end
 
-# A community of `length(opts)` species, with the given temperature optima and niche widths.
+# A community of `length(opts)` species, with the given temperature optima and niche widths, each
+# a column of the species pool's table, and `individuals` shared between them, placed by supply.
 function community(env, opts, widths; dispersal = 2.4km,
                    individuals = 10_000_000)
-    species = build_species(length(opts), tolerance = (opts, widths), toleranceaxis = Temperature,
-                            demand = NEEDS, demandaxis = (sunlight = SolarRadiation, water = Precipitation), dispersal = dispersal,
-                            birth = 0.15 / year,
-                            death = 0.15 / year, survival = 0.1,
-                            abundance = individuals, seed = 20260805)
-    return build_ecosystem(species, env; seed = 20260805)
+    pool = SpeciesPool(DataFrame(species = string.(eachindex(opts)),
+                                 optimum = opts, width = widths))
+    species = build_species(pool,
+                            tolerance = ToleranceSpec(Temperature, μ = TraitColumn(:optimum),
+                                                      σ = TraitColumn(:width)),
+                            demand = (sunlight = DemandSpec(SolarRadiation, NEEDS.sunlight),
+                                      water = DemandSpec(Precipitation, NEEDS.water)),
+                            movement = MovementSpec(InsectDispersal(), meandist = dispersal),
+                            birth = 0.15 / year, death = 0.15 / year, survival = 0.1,
+                            seed = 20260805, verbosity = :silent)
+    return build_ecosystem(BySupply(total = individuals), species, env, seed = 20260805)
 end
 
 # Run, and report the total abundance of each species across the whole landscape.
@@ -73,18 +80,18 @@ this page is reproducible, and independent of how many threads the simulation us
 ## Niche preference
 
 Fifty species differing only in the temperature they prefer, spread either side of the
-landscape's own 298 K. The species matched to the environment should end up commonest:
+landscape's own 25 °C. The species matched to the environment should end up commonest:
 
 ```@example examples
 n = 50
 widths = fill(2.0K, n)
-opts = 298.0K .+ widths .* range(-3, stop = 3, length = n)
+opts = 25.0°C .+ widths .* range(-3, stop = 3, length = n)
 
 abundance = run_totals(community(uniform_env(10, 10.0km), opts, widths))
 
-(matched = sum(abundance[(opts .>= 298.0K) .& (opts .< 299.0K)]),
- cold = sum(abundance[(opts .>= 292.0K) .& (opts .< 293.0K)]),
- warm = sum(abundance[(opts .>= 303.0K) .& (opts .< 304.0K)]))
+(matched = sum(abundance[(opts .>= 25.0°C) .& (opts .< 26.0°C)]),
+ cold = sum(abundance[(opts .>= 19.0°C) .& (opts .< 20.0°C)]),
+ warm = sum(abundance[(opts .>= 30.0°C) .& (opts .< 31.0°C)]))
 ```
 
 The species whose optimum sits on the landscape's temperature are the most abundant, and
@@ -98,7 +105,7 @@ the specialists should win:
 
 ```@example examples
 widths = collect(range(0.05K, stop = 5.0K, length = n))
-opts = fill(298.0K, n)
+opts = fill(25.0°C, n)
 
 abundance = run_totals(community(uniform_env(10, 10.0km), opts, widths))
 (narrowest = sum(abundance[1:10]), widest = sum(abundance[(end - 9):end]))
@@ -128,7 +135,7 @@ for (j, fraction) in enumerate(range(0.25, stop = 1.0, length = 10))
     env.supply.sunlight.matrix[:, j] .= fraction * full
 end
 
-eco = community(env, fill(298.0K, n), fill(2.0K, n))
+eco = community(env, fill(25.0°C, n), fill(2.0K, n))
 simulate!(eco, 5year, 1month_mean_duration)
 percell = reshape(sum(eco.abundances.matrix, dims = 1), (10, 10))
 (west = sum(percell[:, 1]), east = sum(percell[:, end]))
@@ -144,7 +151,7 @@ Total abundance is a property of the landscape, not of the mesh laid over it. Th
 divided into 1, 4, 25 or 100 cells supports the same number of individuals:
 
 ```@example examples
-opts, widths = fill(298.0K, n), fill(2.0K, n)
+opts, widths = fill(25.0°C, n), fill(2.0K, n)
 map([1, 2, 5, 10]) do cells
     sum(run_totals(community(uniform_env(cells, 10.0km;
                                              topology = Island()),
@@ -181,12 +188,12 @@ while the centre column rises.
 *Total abundance of two species seeded at opposite edges, after simulation, for mean dispersal
 distances of (A) 0.5 km, (B) 1 km, (C) 2 km and (D) 4 km.*
 
-By default a boundary redistributes rather than removes: an individual whose dispersal is aimed
-off the grid, or into an inactive cell, is reallocated among the destinations it *can* reach, so
-no boundary loses individuals. Pass `disperse_safely = false` to any of [`Torus`](@ref),
-[`Cylinder`](@ref) or [`Island`](@ref) - as `Torus(false)` - to make those individuals die
-instead, which is the difference between an animal-dispersed seed, carried somewhere the animal
-can reach, and a wind-dispersed one blown out to sea. Because it is about dead cells rather than
+An insect-dispersed species, as here, is redistributed rather than removed: an individual whose
+dispersal is aimed off the grid, or into an inactive cell, is reallocated among the destinations it
+*can* reach, so no boundary loses individuals. `disperse_safely = false` on a species' dispersal
+mode - `InsectDispersal(disperse_safely = false)`, or [`WindDispersal`](@ref)'s default - makes
+those individuals die instead, which is the difference between an animal-dispersed seed, carried
+somewhere the animal can reach, and a wind-dispersed one blown out to sea. Because it is about dead cells rather than
 the map edge, it matters for a torus too, which has no edge but may still contain inactive cells.
 
 ## Large species pools

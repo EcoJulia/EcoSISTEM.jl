@@ -4,10 +4,9 @@ using FillArrays: Fill
 
 # --- Cell geometry: one question, asked of anything that knows the grid -----
 #
-# **Why these exist.** A cell's size was previously stored on each layer as a scalar `size` field,
-# supplied at construction and therefore able to disagree with the coordinates beside it - which is
-# exactly what happened: every supply reported `1.0 m` whatever its grid. These read the grid itself,
-# so there is one answer and one place it comes from.
+# **Why these exist.** They read a cell's size from the grid itself, so there is one answer and one
+# place it comes from: a size stored on each layer, supplied at construction, could disagree with the
+# coordinates beside it.
 #
 # **Setup-only, deliberately.** `dynamics.jl` never calls these: dispersal lookups are built once
 # in the `Ecosystem` constructor and the hot loop reads the cached table. So a `Union{T, Nothing}`
@@ -146,7 +145,7 @@ function getcellsizes(units, x; force = false)
     # Both are materialised at grid shape even though `y` is uniform, because the two components of a
     # `SpatialSize` share one type. Compressing `y` to a `Fill` and leaving `x` a matrix would not
     # typecheck, and compressing both to their average would claim a uniformity the grid does not
-    # have -- which is what the old stored `size` field was removed for doing.
+    # have.
     # Angular asked of a projected grid: the inverse transform, one answer per cell. It varies, and
     # on an equal-area projection it is exactly what varies while the area does not.
     if !(units isa Unitful.LengthFreeUnits) && native.y isa Unitful.Length
@@ -378,10 +377,10 @@ end
 # `getcellareas` is the kind of thing that reads fine and confuses later.
 #
 # **The angular set still has to be named, and Unitful gives no way round it.** `°`, `°^2` and `sr`
-# are all `NoDims`, so a solid-angle unit cannot be told from an angle by dimension - measured:
-# `uconvert(°, 1.0sr)` cheerfully returns `57.29577951308232°` rather than refusing. `Unitful.AreaUnits`
-# catches `km^2` because that is `𝐋^2`; there is no `SolidAngleUnits` to catch `sr`. So this is the same
-# small hardcoded set as before, repurposed from *squaring* to *validating*.
+# are all `NoDims`, so a solid-angle unit cannot be told from an angle by dimension:
+# `uconvert(°, 1.0sr)` returns `57.29577951308232°` rather than refusing. `Unitful.AreaUnits` catches
+# `km^2` because that is `𝐋^2`; there is no `SolidAngleUnits` to catch `sr`. So the angular area units
+# are a small named set.
 function _isareaunit(u)
     return u isa Unitful.AreaUnits || u == u"sr" || u == °^2 ||
            u == u"rad"^2

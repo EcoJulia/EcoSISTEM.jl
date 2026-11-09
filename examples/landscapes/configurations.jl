@@ -8,13 +8,13 @@
 #
 # | | temperature | boundary | grid (full scale) | species |
 # |---|---|---|---|---|
-# | `Island`     | uniform 298 K   | `Island(false)` | 10 × 10 |    100 |
-# | `Patch`      | uniform 298 K   | `Torus`             | 10 × 10 |    100 |
-# | `RegionEven` | uniform 298 K   | `Cylinder`          | 40 × 25 |  1,000 |
-# | `RegionGrad` | 293 -> 303 K     | `Cylinder`          | 40 × 25 |  1,000 |
-# | `Peaked`     | peaked 293-303 K| `Torus`             | 50 × 50 | 10,000 |
+# | `Island`     | uniform 25 °C  | `Island(false)` | 10 × 10 |    100 |
+# | `Patch`      | uniform 25 °C  | `Torus`             | 10 × 10 |    100 |
+# | `RegionEven` | uniform 25 °C  | `Cylinder`          | 40 × 25 |  1,000 |
+# | `RegionGrad` | 20 -> 30 °C     | `Cylinder`          | 40 × 25 |  1,000 |
+# | `Peaked`     | peaked 20-30 °C| `Torus`             | 50 × 50 | 10,000 |
 #
-# `Island` and `Patch` are the **same habitat** - `simplehabitat(298.0K, (10,10), ...)` in both. The
+# `Island` and `Patch` are the **same habitat** - one `simplehabitat` call in both. The
 # only substantive difference between those two files is the boundary. So what the set really varies
 # is **what the environment looks like** and **what happens at the edge**, and the names describe the
 # second more than the first.
@@ -26,10 +26,9 @@
 # all. A bare `Island()` blocks moves that would leave the grid and then **renormalises** the
 # survivors (`_drawmoves!`), so nothing is *lost* at the edge - an individual in a corner is
 # redistributed inland rather than drowning. That is a *reflecting* boundary, and under it `Island`
-# and `Patch` come out statistically indistinguishable (measured: ~1% apart, the sign flipping with
-# the seed). `Island(false)` loses them instead, which is the wind-dispersed case and the one the
-# name implies: measured, the island settles at **0.68×** the patch's abundance, consistently across
-# seeds.
+# and `Patch` come out statistically indistinguishable (about 1% apart, the sign flipping with the
+# seed). `Island(false)` loses them instead, which is the wind-dispersed case and the one the name
+# implies: the island settles at **0.68×** the patch's abundance, consistently across seeds.
 
 using EcoSISTEM
 using EcoSISTEM.Units
@@ -105,15 +104,14 @@ _configuration(name) = CONFIGURATIONS[name][runscale()]
 # and the supply is derived from it so that **every configuration starts at its carrying capacity**.
 #
 # Getting this wrong is not subtle but it *is* invisible at one scale. Scaling `individuals` to
-# the originals' 100,000,000 while leaving the supply at the small configuration's value left the
-# carrying capacity ten thousand times too low: measured, the island crashed from 100,000,000 to
-# **124** individuals and the island/patch ratio moved from 0.68 to 0.175 - enough to fail the
-# runner's assertion, and only visible by actually running the large path.
+# 100,000,000 while leaving the supply at the small configuration's value makes the carrying
+# capacity ten thousand times too low: the island crashes from 100,000,000 to **124** individuals
+# and the island/patch ratio falls from 0.68 to 0.175 - enough to fail the runner's assertion, and
+# only visible by actually running the large path.
 # Named for the resource, not just `DEMAND`, because two other example files define a
 # `DEMAND` that is a **two-resource named tuple** (`(sunlight = ..., water = ...)`) rather than a
-# scalar. Nothing breaks - no two of them are ever included into one session - but the shared
-# name genuinely misled a sweep that inferred each demand's axis from the constant it was
-# written as, and gave this call a two-member `demandaxis` for a one-member demand.
+# scalar. Nothing breaks - no two of them are ever included into one session - but a shared name
+# invites reading this demand's axes off another file's two.
 const SOLARDEMAND = 4.5e5kJ / month_mean_duration
 _supplydensity(individuals, area) = individuals * SOLARDEMAND / area
 
@@ -128,7 +126,7 @@ end
 """Uniform temperature - the `Island`, `Patch` and `RegionEven` environment."""
 function even_environment(; grid = (10, 10), area = 100.0km^2,
                           supply = _supplydensity(10_000, area),
-                          temperature = 298.0K,
+                          temperature = 25.0°C,
                           topology = Island())
     return GridHabitat(regime = UniformSpec(temperature,
                                             axis = Temperature),
@@ -141,7 +139,7 @@ end
 """A monotone temperature gradient across the grid - the `RegionGrad` environment."""
 function gradient_environment(; grid = (40, 25), area = 10_000.0km^2,
                               supply = _supplydensity(10_000, area),
-                              from = 293.0K, to = 303.0K,
+                              from = 20.0°C, to = 30.0°C,
                               topology = Island())
     return GridHabitat(regime = GradientSpec(from, to,
                                              axis = Temperature),
@@ -159,7 +157,7 @@ pushed.
 """
 function peaked_environment(; grid = (25, 25), area = 200_000.0km^2,
                             supply = _supplydensity(10_000, area),
-                            from = 293.0K, to = 303.0K,
+                            from = 20.0°C, to = 30.0°C,
                             topology = Island())
     return GridHabitat(regime = PeakedSpec(from, to,
                                            axis = Temperature),
@@ -180,16 +178,14 @@ end
 # This file is where the two were most visibly conflated: `Island(false)` meant "hard edges
 # **and** dispersers are lost", one object carrying a map fact and a species fact at once.
 function landscape_species(disperse_safely; numspecies = 20,
-                           individuals = 10_000,
-                           temperature = 298.0K, seed = 1)
-    return build_species(numspecies,
-                         tolerance = (temperature, 3.0K),
-                         toleranceaxis = Temperature,
-                         demand = SOLARDEMAND,
-                         demandaxis = SolarRadiation,
-                         movement = BirthOnlyMovement,
-                         disperse_safely = disperse_safely,
-                         abundance = individuals, seed = seed)
+                           temperature = 25.0°C, seed = 1)
+    return build_species(SpeciesPool(numspecies),
+                         tolerance = ToleranceSpec(Temperature,
+                                                   μ = temperature, σ = 3.0K),
+                         demand = DemandSpec(SolarRadiation, SOLARDEMAND),
+                         movement = MovementSpec(InsectDispersal(disperse_safely = disperse_safely),
+                                                 meandist = 10.0km),
+                         seed = seed, verbosity = :silent)
 end
 
 """
@@ -235,9 +231,10 @@ function landscape(name::Symbol; scaling = _configuration(name),
         error("unknown landscape `$name`; the five are :island, :patch, :region_even, " *
               ":region_gradient and :peaked.")
     end
-    species = landscape_species(safely, numspecies = numspecies,
-                                individuals = individuals, seed = seed)
-    return build_ecosystem(species, env, seed = seed)
+    species = landscape_species(safely, numspecies = numspecies, seed = seed)
+    # The individuals are split at random among the species and placed by supply.
+    return build_ecosystem(BySupply(total = individuals), species, env,
+                           seed = seed)
 end
 
 const LANDSCAPES = (:island, :patch, :region_even, :region_gradient, :peaked)

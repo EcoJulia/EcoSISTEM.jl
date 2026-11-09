@@ -139,8 +139,7 @@ struct GridHabitat{H, B, L, T <: AbstractTopology} <:
         yx = _yx(reg)
         act = parts.active isa DimensionalData.AbstractDimArray ? parts.active :
               DimArray(parts.active, yx)
-        # These four were the old parts-constructor's guards on what a *caller* handed in. They are
-        # kept as internal consistency checks: they are cheap, they run once per habitat, and they are
+        # Internal consistency checks on what the builder hands in: cheap, run once per habitat, and
         # the only thing between a builder bug and a silently wrong grid.
         _yxcompatible(dims(act, (Y, X)), yx) ||
             error("`active`'s grid does not match the regime's grid.")
@@ -307,16 +306,15 @@ end
 # that area and dispersal keep deriving from *one* Earth radius - and they do: `111.32 km/°` *is*
 # a radius, 6378.2 km, because `°` is dimensionless in Unitful.
 #
-# **`f` is NOT exactly 1 on the centre row**, and an earlier version of this comment claimed it
-# was. At `φ = φ_centre` the factor is `sin(h)/h` for a half-cell `h`, i.e. `1 - h_rad^2/6` - a
-# 1.1e-5 shortfall for a 0.95° cell (measured against `sin(h)/h` to 1e-15). That is the *nominal*
+# **`f` is NOT exactly 1 on the centre row.** At `φ = φ_centre` the factor is `sin(h)/h` for a
+# half-cell `h`, i.e. `1 - h_rad^2/6` - a 1.1e-5 shortfall for a 0.95° cell (agreeing with
+# `sin(h)/h` to 1e-15). That is the *nominal*
 # `Δφ*L` overstating a meridional arc, and correcting it is right; it is simply not the property to
 # assert.
 # **The property that IS exact, and the one to test**: the per-cell areas sum to the exact
 # spherical band area - verified to 1e-12 over an 11 × 7 grid.
-# And the reason this defect stayed invisible: over that same grid the old scalar was **0.139%
-# out in total** while individual cells were **-10.3% to +13.9%** out. Anything checking a total
-# would have passed.
+# A total alone cannot test this: over that same grid one nominal cell area for every cell is
+# **0.139% out in total** while individual cells are **-10.3% to +13.9%** out.
 #
 # The column is returned as `(ny, 1)` so it broadcasts across X - and across the `Ti` of a
 # monthly stack - without a full matrix ever being built. It follows the grid's own row order, so a
@@ -436,18 +434,18 @@ end
 # resource": supply constructors preserve their `NaN`s so the grid builder can *see* the gaps (they
 # mark cells inactive, warn, and trim the grid), and only once that has happened is the information
 # safe to discard. It keeps the defensive property that no `NaN` ever reaches the resource arithmetic
-# or `populate!`'s supply-weighted placement, where it would throw or silently spread every
-# individual onto nothing.
+# or a placement's supply weights, where it would throw or silently spread every individual onto
+# nothing.
 #
 # **It deliberately does NOT zero merely-inactive cells** - that is the `active` mask's job, and
-# `active` is read live. Zeroing them here destroyed the supply of any cell that might later be
+# `active` is read live. Zeroing them here would destroy the supply of any cell that might later be
 # *reactivated*, and a zero supply is not inert: `death_resource` is `E/K`, so `K = 0` in a cell that
 # holds individuals gives `Inf` and a death probability of exactly 1. A reactivated cell would not
 # merely fail to support life, it would kill everything that dispersed into it, silently. Every
 # consumer that needs the mask already applies it for itself - the hot loop gates on
 # `active && totaldemand > 0` before reading any supply, `populate!`/`repopulate!` (and their MPI
 # counterparts) re-derive `activity` and zero their own working copy, and `totalsupply` passes
-# the mask in. (R3/R6, decided with the user 2026-08-05.)
+# the mask in.
 #
 # Rebuilds rather than mutating: `ContinuousLayer` is mutable, so zeroing in place would reach back
 # into the caller's own supply object.

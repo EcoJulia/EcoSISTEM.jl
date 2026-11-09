@@ -175,8 +175,8 @@ end
 # bytes rather than gigabytes at UK scale, because `_calcabundance` and `_calcordinariness` pass a
 # `UniqueTypes` array straight through instead of copying it.
 #
-# The shape check is what makes adding a species safe, and it is deliberately a check rather than a
-# hook into `_addspecies!` - nothing then has to remember to keep the two in step.
+# The scratch's shape is checked rather than assumed, so one made for abundances of another shape is
+# replaced rather than written past.
 function _relativeabundance!(eco::AbstractEcosystem)
     abun = eco.abundances.matrix
     size(eco.cache.relativeabun) == size(abun) ||

@@ -17,7 +17,7 @@
 # **It never runs under the test suite or in CI.** `test/extras_examples.jl` does execute every
 # top-level `examples/*.jl`, but `runtests.jl` sets `ECOSISTEM_SCALE=small` and this file skips itself
 # whenever it is set. It is ~20 whole simulations, several of 10-50 simulated years over 100-500
-# species, measured at **3 minutes** - far too slow for a routine gate. Run it deliberately:
+# species, taking about **3 minutes** - far too slow for a routine gate. Run it deliberately:
 #
 #     julia --project=examples examples/biodiversity.jl
 #     ECOSISTEM_SCALE=large julia --project -e 'using Pkg; Pkg.test(test_args = ["extras_examples.jl"])'
@@ -80,7 +80,7 @@ else
     # experiments were written against a wrapping grid, and several of their assertions depend on
     # having no edge - the ones that want an edge say so.
     """
-        uniform_environment(cells, area; temperature = 298.0K)
+        uniform_environment(cells, area; temperature = 25.0°C)
 
     Build a `cells × cells` environment over `area`, uniform in every respect: one temperature
     everywhere, with uniform solar and water supply.
@@ -88,7 +88,7 @@ else
     Returned on its own rather than folded into the community builder so that a test can impose a
     supply gradient on it before the species arrive - see "more resource supports more individuals".
     """
-    function uniform_environment(cells, area; temperature = 298.0K,
+    function uniform_environment(cells, area; temperature = 25.0°C,
                                  topology = Torus())
         return GridHabitat(regime = UniformSpec(temperature,
                                                 axis = Temperature),
@@ -100,6 +100,11 @@ else
                            topology = topology)
     end
 
+    # A per-species value as `build_species` reads it: one value for every species as it stands, and
+    # a vector as a function of the species' row of its pool, whose `key` is the species' position.
+    _pertrait(x::AbstractVector) = row -> x[row.key]
+    _pertrait(x) = x
+
     """
         community(env, opts, widths; kw...)
 
@@ -108,22 +113,30 @@ else
 
     Every per-species keyword takes a scalar or a length-`n` vector, so a test can vary body size,
     dispersal or mortality across the pool without a different builder. `individuals` is a **total**,
-    split across species from the seeded stream - so the starting state is identical on every run,
-    without which none of the assertions here are reproducible.
+    split across species from the seeded stream and placed by supply - so the starting state is
+    identical on every run, without which none of the assertions here are reproducible.
     """
     function community(env, opts, widths; dispersal = 2.4km,
                        individuals = 100_000_000,
                        birth = 0.15 / year, death = 0.15 / year,
                        sizes = 1.0m^2, seed = SEED)
-        species = build_species(length(opts), tolerance = (opts, widths),
-                                toleranceaxis = Temperature,
-                                demand = map(d -> d .* sizes, DEMAND),
-                                demandaxis = (sunlight = SolarRadiation,
-                                              water = Precipitation),
-                                dispersal = dispersal,
-                                birth = birth, death = death, survival = 0.1,
-                                abundance = individuals, seed = seed)
-        return build_ecosystem(species, env, seed = seed)
+        species = build_species(SpeciesPool(length(opts)),
+                                tolerance = ToleranceSpec(Temperature,
+                                                          μ = _pertrait(opts),
+                                                          σ = _pertrait(widths)),
+                                demand = (sunlight = DemandSpec(SolarRadiation,
+                                                                _pertrait(DEMAND.sunlight .*
+                                                                          sizes)),
+                                          water = DemandSpec(Precipitation,
+                                                             _pertrait(DEMAND.water .*
+                                                                       sizes))),
+                                movement = MovementSpec(InsectDispersal(),
+                                                        meandist = _pertrait(dispersal)),
+                                birth = _pertrait(birth),
+                                death = _pertrait(death), survival = 0.1,
+                                seed = seed, verbosity = :silent)
+        return build_ecosystem(BySupply(total = individuals), species, env,
+                               seed = seed)
     end
 
     # Run for `times` and hand back the ecosystem, so each assertion reads as one statement.
@@ -134,11 +147,10 @@ else
 
     # Total abundance, over the whole grid, of the species whose niche parameter falls in `[lo, hi)`.
     #
-    # This replaces a histogram built by `repeat`ing each optimum `endabun[i]` times for
-    # `i in eachindex(opts)`. `endabun` is a species × cells matrix, so those linear indices ran down
-    # column 1: the old assertions were measured on a *single grid cell* out of 100, and materialised a
-    # million-element vector of unit-carrying temperatures to do it. Summing per species over `dims = 2`
-    # asks the same ecological question of the entire landscape, and allocates one vector of 100.
+    # Summed per species over `dims = 2`, so it asks of the entire landscape and allocates one vector
+    # of 100. A histogram `repeat`ing each optimum `endabun[i]` times for `i in eachindex(opts)` would
+    # answer for a *single grid cell* out of 100 - `endabun` is a species × cells matrix, so those
+    # linear indices run down column 1 - and materialise a million-element vector to do it.
     function abundance_in(eco, values, lo, hi)
         byspecies = vec(sum(eco.abundances.matrix, dims = 2))
         return sum(byspecies[(lo .<= values) .& (values .< hi)])
@@ -151,24 +163,24 @@ else
 
     @testset "Biodiversity properties" begin
         @testset "commonest at the temperature optimum" begin
-            # Optima spread ±3 widths around the environment's own 298 K, so the species matched to
+            # Optima spread ±3 widths around the environment's own 25 °C, so the species matched to
             # the regime should end up commoner than those at either extreme of the gradient.
             widths = fill(2.0K, NUMSPECIES)
-            opts = 298.0K .+
+            opts = 25.0°C .+
                    widths .* range(-3, stop = 3, length = NUMSPECIES)
             eco = simulated(community(uniform_environment(CELLS, AREA), opts,
                                       widths))
-            @test abundance_in(eco, opts, 298.0K, 299.0K) >
-                  abundance_in(eco, opts, 292.0K, 293.0K)
-            @test abundance_in(eco, opts, 298.0K, 299.0K) >
-                  abundance_in(eco, opts, 303.0K, 304.0K)
+            @test abundance_in(eco, opts, 25.0°C, 26.0°C) >
+                  abundance_in(eco, opts, 19.0°C, 20.0°C)
+            @test abundance_in(eco, opts, 25.0°C, 26.0°C) >
+                  abundance_in(eco, opts, 30.0°C, 31.0°C)
         end
 
         @testset "specialists beat generalists in a matched regime" begin
             # Every species shares the environment's optimum and differs only in niche width. In a
             # constant regime there is nothing for a wide niche to buy, so the narrowest should win.
             widths = collect(range(0.0001K, stop = 5.0K, length = NUMSPECIES))
-            opts = fill(298.0K, NUMSPECIES)
+            opts = fill(25.0°C, NUMSPECIES)
             eco = simulated(community(uniform_environment(CELLS, AREA), opts,
                                       widths))
             @test abundance_in(eco, widths, 0.1K, 0.3K) >
@@ -180,8 +192,8 @@ else
             # are excluded by the mismatch and the widest are still too diffuse, so the peak moves
             # inwards - the one case in this file where the answer is non-monotonic, and why it is here.
             widths = collect(range(0.0001K, stop = 5.0K, length = NUMSPECIES))
-            opts = fill(298.0K, NUMSPECIES)
-            env = uniform_environment(CELLS, AREA, temperature = 299.0K)
+            opts = fill(25.0°C, NUMSPECIES)
+            env = uniform_environment(CELLS, AREA, temperature = 26.0°C)
             eco = simulated(community(env, opts, widths))
             @test abundance_in(eco, widths, 1.1K, 1.3K) >
                   abundance_in(eco, widths, 4.7K, 4.9K)
@@ -206,7 +218,7 @@ else
             # It also runs 0.25 -> 1, not 0 -> 1: a zero-supply edge is uninhabitable, and `0 < 0` fails
             # an increasing-abundance test for a reason that has nothing to do with the property.
             fracs = range(0.25, stop = 1.0, length = CELLS)
-            opts, widths = fill(298.0K, NUMSPECIES), fill(2.0K, NUMSPECIES)
+            opts, widths = fill(25.0°C, NUMSPECIES), fill(2.0K, NUMSPECIES)
 
             # Named supplies, so these read as the resource they grade rather than as `.one`/`.two`.
             byrow = uniform_environment(CELLS, AREA, topology = Island())
@@ -230,7 +242,7 @@ else
             totals = map([1, 2, 5, 10]) do cells
                 eco = community(uniform_environment(cells, AREA,
                                                     topology = Island()),
-                                fill(298.0K, NUMSPECIES),
+                                fill(25.0°C, NUMSPECIES),
                                 fill(2.0K, NUMSPECIES))
                 return sum(simulated(eco).abundances.matrix)
             end
@@ -243,7 +255,7 @@ else
             totals = map([10.0, 20.0, 50.0, 100.0]) do a
                 eco = community(uniform_environment(CELLS, a * km^2,
                                                     topology = Island()),
-                                fill(298.0K, NUMSPECIES),
+                                fill(25.0°C, NUMSPECIES),
                                 fill(2.0K, NUMSPECIES))
                 return sum(simulated(eco).abundances.matrix)
             end
@@ -261,7 +273,7 @@ else
             surviving = map(pool) do n
                 rng = Xoshiro(SEED)
                 widths = rand(rng, Uniform(1.0, 5.0), n) .* K
-                opts = 298.0K .+ widths .* range(-3, stop = 3, length = n)
+                opts = 25.0°C .+ widths .* range(-3, stop = 3, length = n)
                 death = abs.(rand(rng, Normal(0.15, 0.135), n)) ./ year
                 eco = community(uniform_environment(CELLS, AREA), opts, widths,
                                 dispersal = rand(rng, Uniform(0.6, 2.4), n) .*
@@ -281,7 +293,7 @@ else
             totals = map([0.5, 1.0, 2.0, 4.0] .* km) do d
                 eco = community(uniform_environment(CELLS, AREA,
                                                     topology = Island()),
-                                fill(298.0K, 2), fill(2.0K, 2),
+                                fill(25.0°C, 2), fill(2.0K, 2),
                                 dispersal = d, individuals = 0)
                 # Start each species pinned to one edge, rather than spread over the grid, so that what
                 # the assertions measure is dispersal and nothing else.

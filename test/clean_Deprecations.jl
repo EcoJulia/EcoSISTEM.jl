@@ -44,20 +44,27 @@ end
     # The releases whose shims the files carry, named rather than counted, so a release appearing
     # here has to be looked at and one disappearing shrinks the list instead of passing silently.
     # A new deprecation adds its release here.
-    known = ["Deprecated in v0.10.0"]
-    version(label) = VersionNumber(label[(length("Deprecated in v") + 1):end])
+    known = [
+        "Removed in v0.11.0",
+        "Deprecated in v0.11.0",
+        "Deprecated in v0.10.0"
+    ]
+    version(label) = VersionNumber(last(split(label, " in v")))
     labelsin(secs) = [m.match
                       for (_, text) in secs
-                      for m in eachmatch(r"Deprecated in v\d+\.\d+\.\d+", text)]
+                      for m in eachmatch(r"(Deprecated|Removed) in v\d+\.\d+\.\d+",
+                                         text)]
     main = pkgdir(EcoSISTEM, "src", "deprecations.jl")
     for path in [main,
             pkgdir(EcoSISTEM, "ext", "EcoSISTEMRasterDataSourcesExt",
-                   "deprecations.jl")]
+                   "deprecations.jl"),
+            pkgdir(EcoSISTEM, "ext", "EcoSISTEMPhyloExt", "deprecations.jl")]
         @test isfile(path)
         secs = sections(path)
         unlabelled = [n
                       for (n, text) in secs
-                      if !occursin(r"Deprecated in v\d+\.\d+\.\d+", text)]
+                      if !occursin(r"(Deprecated|Removed) in v\d+\.\d+\.\d+",
+                                   text)]
         @test isempty(unlabelled)
         # The labels must name releases it knows, so a typo cannot pass as a new one.
         labels = labelsin(secs)

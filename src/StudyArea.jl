@@ -212,11 +212,11 @@ struct StudyArea{G <: Union{StudyGrid, Nothing}}
         # describes a grid a `GridHabitat` was actually built on - its `active` has been narrowed by
         # layers the area never saw, and that narrowing is recorded nowhere else. Re-deriving from
         # `specs`/`constraints` would answer the *original* question and hand back the wider,
-        # as-investigated mask: measured at **48 cells against the habitat's 46**, silently
-        # discarding the narrowing *and* the `Problem` that recorded it.
+        # as-investigated mask, silently discarding the narrowing *and* the `Problem` that recorded
+        # it.
         # So an `AsBuilt` base with **no** keyword is taken **verbatim** - that is the whole point
-        # of copying rather than rebuilding, and it is why `[AREA-PROV]` Part C added the stage.
-        # **The copy keeps `AsBuilt`** (user's decision): the flag says what a report *describes*,
+        # of copying rather than rebuilding, and what the stage exists for.
+        # **The copy keeps `AsBuilt`**: the flag says what a report *describes*,
         # and resetting it to protect the connotation that "a `StudyArea` is a proposal" would be a
         # lie that also breaks the copy on its second hop.
         # **Any keyword sends it down the ordinary path**, with no warning: overriding is an
@@ -345,8 +345,8 @@ end
 #
 # Seven methods, all reading the dimensions rather than a stored number, so there is nothing to
 # disagree with the coordinates. `cellsize`, `cells`, `xmax`/`ymax` and `xrange`/`yrange` are
-# EcoBase's own derivations from these and need nothing here - measured to work unchanged on
-# unitful values, angular ones included, which is why widening EcoBase was not needed.
+# EcoBase's own derivations from these and need nothing here: they work unchanged on unitful values,
+# angular ones included.
 
 # The rank of array position `i` along `d`, counting in **increasing coordinate** order.
 #
@@ -575,9 +575,9 @@ end
 # the first, a caller writing `cellsize = (30 / 3600)°` the second), so an equality test against
 # either one silently rejects values built the other way.
 #
-# The bound below is measured, not chosen: over all 3600 counts and both construction routes the worst
-# deviation is 1.0 ULP, while the nearest *wrong* answer is a whole arcsecond away - relatively
-# 2.8e-4, twelve orders of magnitude further. There is no value this can misclassify.
+# The bound below is set by the worst case, not chosen: over all 3600 counts and both construction
+# routes the worst deviation is 1.0 ULP, while the nearest *wrong* answer is a whole arcsecond away -
+# relatively 2.8e-4, twelve orders of magnitude further. There is no value this can misclassify.
 #
 # Rounding to an `Int`-valued arcsecond quantity keeps units through the comparison and hands back the
 # plain `Int` that `_stepratio`'s `%`/`÷` arithmetic needs, with no second rounding to get it.
@@ -643,7 +643,7 @@ function _preaggregated(reason::AbstractString, ratio)
     return "$reason; pre-aggregated $(floor(Int, ratio))× on its own lattice first"
 end
 
-# Pick the layer whose grid is preserved exactly. The rule (user's choice) is "whichever is already in
+# Pick the layer whose grid is preserved exactly. The rule is "whichever is already in
 # the target CRS", since that is the one needing no reprojection, which maximises how many layers
 # survive untouched. Ties are broken by finest resolution, then by the order the layers were given
 # (regime before supply) so the choice is deterministic. Returns `nothing` when no layer matches the
@@ -695,8 +695,8 @@ _intdiv(::typeof(ceil)) = cld
 # for the case that matters most: a bound *already on* a cell boundary. `(bound - origin) / step`
 # should then be a whole number, but lands either side of one, so `floor` and `ceil` disagree and the
 # box grows by a spurious cell. Swept over every whole-cell bound of a global 30 arcsec lattice,
-# **7664 of 21601** did that; on integers it is 0. This is not fixed by the origin and step being
-# exact - they already are - because `range` elements in degrees cannot themselves be exact.
+# **7664 of 21601** do that; on integers none do. Exact origins and steps do not cure it - they are
+# exact already - because `range` elements in degrees cannot themselves be exact.
 #
 # Whether a *bound* is on the lattice decides which route is exact. When it is, `fld`/`cld` on
 # integers need no tolerance at all. When it is not - a shapefile envelope, a reprojected box - no
@@ -973,7 +973,7 @@ end
 # Say how many cells `simulate_safely = false` let through - cells the simulation will run on although
 # the data does not describe all of them, and which are handed a whole cell's worth of supply anyway.
 #
-# **Nothing is said on the `true` path** (user, 2026-08-13): a cell is dropped at the edge of almost
+# **Nothing is said on the `true` path**: a cell is dropped at the edge of almost
 # every re-gridded area, so a notice there would fire on nearly all of them and mean nothing.
 function _partialcover!(problems, covered::NamedTuple, cellsize,
                         simulate_safely::Bool)

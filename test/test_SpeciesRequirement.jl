@@ -37,7 +37,7 @@ _dem() = Demand{SolarRadiation}(fill(450000.0kJ / m^2 / day * 1.0m^2, NSP))
     @test typeof(tol) <: AbstractSpeciesRequirement
     @test typeof(dem) <: AbstractSpeciesRequirement
     # And the alias carries the **axis and** the eltype as well as the role, so it is usable in
-    # a `where`. The axis slot came first (D3(a)) and is what the three families now share.
+    # a `where`. The axis slot comes first and is what the three families share.
     @test eltype(tol) == typeof(1.0K)
     @test typeof(tol) <: AbstractTolerance{Temperature, typeof(1.0K)}
     @test !(typeof(tol) <: AbstractTolerance{Temperature, Float64})
@@ -105,14 +105,13 @@ end
 # This asserts that spelling still rejects the swap, which is what makes the merge free.
 @testset "SpeciesList still refuses the two sides swapped" begin
     tol, dem = _tol(), _dem()
-    abun = fill(10, NSP)
-    movement = BirthOnlyMovement(GaussianKernel.(fill(1.0km, NSP), 10e-4))
+    movement = fill(InsectDispersal()(meandist = 1.0km,
+                                      thresh = 10e-4),
+                    NSP)
     param = EqualPop(0.1 / year, 0.1 / year, 1.0, 0.1)
-    native = fill(true, NSP)
-    @test_nowarn SpeciesList(NSP, tol, abun, dem, movement, param, native)
+    @test_nowarn SpeciesList(NSP, tol, dem, movement, param)
     # The swap is a `MethodError`, not a runtime check - the signature refuses it.
-    @test_throws MethodError SpeciesList(NSP, dem, abun, tol, movement, param,
-                                         native)
+    @test_throws MethodError SpeciesList(NSP, dem, tol, movement, param)
 end
 
 end

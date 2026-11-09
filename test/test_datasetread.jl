@@ -168,9 +168,8 @@ if !Sys.iswindows()
     # no bounds, so anything needing them fails: `_applycut`'s `Touches` selector compares
     # `nothing < 60.86°` and throws a bare `MethodError`, which breaks
     # `read(EarthEnv{LandCover}, ..., cut = ...)` outright and forces a whole-globe read and a crop.
-    # A coarsened EarthEnv read is what surfaced it, which made it look source-specific rather
-    # than a general consequence of aggregating. Guarded because it needs the
-    # real file: the vector-lookup condition that triggers it cannot be reproduced synthetically.
+    # It follows from aggregating, not from the source. Guarded because it needs the real file: the
+    # vector-lookup condition that triggers it cannot be reproduced synthetically.
     @testset "a coarsened read can be cut (Regular span with real bounds)" begin
         L = DimensionalData.Lookups
         scotland = EcoSISTEM.boundingbox("Scotland",
@@ -180,7 +179,7 @@ if !Sys.iswindows()
             @test L.span(dims(whole.array, d)) isa L.Regular
             @test all(!isnothing, L.bounds(dims(whole.array, d)))
         end
-        # The end the fix exists for - this threw a MethodError before it.
+        # ...so the coarsened read can be cut.
         cut = read(SourceSpec(EarthEnv{LandCover}, 7, scale = 10),
                    cut = scotland)
         @test size(cut.array, 1) < size(whole.array, 1)

@@ -10,14 +10,13 @@
 #
 #     ECOSISTEM_BLESS=true julia --project -e 'using Pkg; Pkg.test(test_args = ["extras_canonical.jl"])'
 #
-# Kept out of the unit suite because these run whole simulations and read real rasters. The
-# directory was, until now, run by *nothing at all*: `runtests.jl` discovers `test_*.jl` directly
-# inside `test/`, so a `canonical/` subdirectory matches nothing and a file there is never run -
-# which is how one can sit dead long enough to accumulate assertions that no longer pass. This file
-# is what makes the directory reachable.
+# Kept out of the unit suite because these run whole simulations and read real rasters. Nothing
+# else runs the directory: `runtests.jl` discovers `test_*.jl` directly inside `test/`, so a
+# `canonical/` subdirectory matches nothing, and a file nobody runs accumulates assertions that no
+# longer pass. This file is what makes the directory reachable.
 #
 # Discovery here is by glob too (`canonical/test_*.jl`), which is the same trap: a file dropped
-# into `canonical/` under any other name is not run and will rot exactly as that one did.
+# into `canonical/` under any other name is not run, and rots.
 
 module ExtrasCanonical
 

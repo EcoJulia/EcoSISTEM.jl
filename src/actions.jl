@@ -24,10 +24,8 @@
 # (`DefaultEcosystem.jl`) and the grid-decision machinery behind `investigate_study_area`
 # (`StudyArea.jl`).
 #
-# The `populate!` family is the exception, and it is absent for the opposite reason: those five
-# share one signature so that any of them can be passed to `Ecosystem(popfun, ...)`, so they are the
-# shipped values of a user-selectable strategy rather than verbs in their own right. They stay
-# exported, and they live with the abundance machinery they are values for.
+# The placements are absent for the opposite reason: they are values `build_ecosystem` takes rather
+# than verbs in their own right, so they live with the placement machinery (`Placement.jl`).
 #
 # THE STRICT COUNTERPARTS. Each builder here is the forgiving face of a constructor that refuses to
 # guess, and those live with their own types:
@@ -139,201 +137,168 @@ function build_habitat(source = DefaultEcosystem();
                        # evaluate in declaration order, and one passed explicitly is never evaluated
                        # - so naming a keyword suppresses exactly its own message.
                        verbosity::Symbol = :normal,
-                       regime = _getdefaultvalue(AbstractRegime, source,
-                                                 verbosity),
-                       supply = _getdefaultvalue(AbstractSupply, source,
-                                                 verbosity),
-                       area = _getdefaultvalue(StudyArea, source, verbosity),
-                       topology = _getdefaultvalue(AbstractTopology, source,
-                                                   verbosity))
+                       regime = _getdefaultvalue(Val(:regime), source,
+                                                 verbosity, _HABITAT),
+                       supply = _getdefaultvalue(Val(:supply), source,
+                                                 verbosity, _HABITAT),
+                       area = _getdefaultvalue(Val(:area), source, verbosity,
+                                               _HABITAT),
+                       topology = _getdefaultvalue(Val(:topology), source,
+                                                   verbosity, _HABITAT))
     return GridHabitat(; regime, supply, area, topology)
 end
 
 """
-    build_species(numspecies::Integer; tolerance, toleranceaxis, demand, demandaxis, dispersal = 10.0km,
-        pthresh = 1.0e-9, movement = BirthOnlyMovement, disperse_safely = true, birth = 0.6/year,
-        death = 0.6/year, longevity = 1.0, survival = 0.2,
-        abundance = 1000 * numspecies, native = true, names = nothing, seed = nothing,
-        provenance = ProvenanceRecord[])
+    build_species(pool::SpeciesPool; tolerance, demand,
+                  movement = MovementSpec(InsectDispersal(), meandist = 10.0km),
+                  birth = 0.6 / year, death = 0.6 / year, longevity = 1.0, survival = 0.2,
+                  seed = nothing, verbosity = :normal, provenance = ProvenanceRecord[])
+    build_species(DefaultEcosystem(); numspecies = 10, tolerance, demand, ...)
 
-Build a `SpeciesList` of `numspecies` species. `tolerance` (the environmental **Condition** a
-species is matched to) and `demand` (the **Resource** it consumes) are **required**, and so is the
-[`NicheAxis`](@ref) each is measured on - `toleranceaxis` and `demandaxis`. Omitting any of the four
-errors (use `build_species(DefaultEcosystem(); ...)` to fill omissions with announced defaults). Every per-species keyword accepts either a scalar (applied to all species) or a
-length-`numspecies` vector (validated, with a clear error naming the argument on a length
-mismatch):
+Build a `SpeciesList` of every species of `pool`, one spec per trait. `tolerance` and `demand` are
+required: they must match the habitat the species will live in, axis for axis. Every other trait
+has a default, announced when it is taken. Each parameter is a trait value - one value for every
+species, a [`TraitColumn`](@ref) of the pool, a [`DrawFrom`](@ref) a distribution, or a function of
+the species' row of the pool - and the pool's missing values are filled first, as
+[`fill_traits`](@ref) fills them; the filled values, and which were filled, are kept on the species
+list. Nothing is taken by position.
 
-  - `tolerance = (mean, width)` - Gaussian niche tolerance (a [`NicheTolerance`](@ref) with a `Normal`
-    response). A tuple of `(mean, width)` pairs, e.g. `((298.0K, 2.0K), (50.0mm, 10.0mm))`, gives one
-    tolerance per regime (a [`SpeciesRequirementCollection`](@ref)), to match a
-    multi-variable environment.
-  - `toleranceaxis` - the [`NicheAxis`](@ref) the tolerance is on. A `NicheTolerance`'s unit comes
-    from its axis, so the axis is what says which environmental variable the species responds to and
-    in what unit its `(mean, width)` are read. For a per-regime tolerance tuple, pass a matching
-    tuple of axes.
-  - `demand` - per-species resource demand rate, in the axis's own unit
-    (`Demand{SolarRadiation}` is `kJ/day`, `Demand{Precipitation}` `L/day`,
-    `Demand{CarbonFlux}` `g/day`); any scale of the right dimension is converted. A tuple of two
-    demands (e.g. `(10.0kJ/day, 5.0L/day)`) gives a [`SpeciesRequirementCollection`](@ref) to match a
-    two-resource supply.
-  - `demandaxis` - the [`NicheAxis`](@ref) the demand is on, matching `demand`'s arity as
-    `toleranceaxis` matches `tolerance`'s.
+A deactivated species is built with the rest, and a placement places none of it; where the
+individuals start is the placement [`build_ecosystem`](@ref) is given. The pool's records, and its
+authority's, are the species list's inputs, which [`provenance`](@ref) of an ecosystem lists.
 
-!!! note "The axis is named, never inferred"
-    Both axes used to be guessable: `axis` defaulted to `Temperature`, and a demand's type was
-    chosen from its **unit** (`kJ/day` -> solar, and so on). Neither is true now. A unit cannot say
-    what a value *means* - `m/s` and `mm/day` share a dimension, which is how a wind-speed layer
-    once became a water supply - so the axis is the single declaration, on both sides, and it is
-    required.
-  - `dispersal` - mean Gaussian dispersal distance, cut off below `pthresh`.
-  - `movement` - the movement type: [`BirthOnlyMovement`](@ref) (default), [`AlwaysMovement`](@ref)
-    or [`NoMovement`](@ref).
-  - `disperse_safely` - per species, what becomes of an individual whose dispersal is aimed at a
-    **dead cell** (off the grid, or an inactive one): `true` (the default) redistributes it among
-    the reachable destinations, `false` loses it. A property of the *disperser*, so it may differ
-    between species - a wind-dispersed seed blown out to sea is gone, an animal-dispersed one is
-    not. The **grid's** topology (whether the world wraps) is a different question, answered by
-    `GridHabitat(..., topology = ...)`.
-  - `birth`, `death`, `longevity`, `survival` - demographic rates
-    (scalar rates give an [`EqualPop`](@ref), vectors a [`PopGrowth`](@ref)).
+# Arguments
 
-`abundance` is either a total number of individuals split at random across
-species (seedable via `seed`) or an explicit per-species vector. `native` marks
-species as native (default all `true`). `names` gives the species their names, one unique string
-each - binomials, say - which also label their Diversity types; left unset they are `"1"` to
-`"numspecies"`. `provenance` is an [`ProvenanceRecord`](@ref), or a vector of them, for the published
-data the species were built from - an occurrence download, a trait table - which
-[`provenance`](@ref) of the ecosystem then lists.
+  - `pool`: the species, a [`SpeciesPool`](@ref); or `DefaultEcosystem()` for a pool of `numspecies`
+    species named `"1"` onwards, whose `tolerance` and `demand`, like every other trait, default
+    and are announced.
+  - `numspecies`: with `DefaultEcosystem()`, how many species.
+  - `tolerance`: each species' niche, a [`ToleranceSpec`](@ref), a tuple or named tuple of them for
+    a habitat with several regimes, or an [`AbstractTolerance`](@ref) built already.
+  - `demand`: what each species takes from the shared supply, a [`DemandSpec`](@ref), a tuple or
+    named tuple of them for several supplies, or an [`AbstractDemand`](@ref) built already.
+  - `movement`: how each species disperses, a [`MovementSpec`](@ref), or a [`ChosenBy`](@ref)
+    choosing one per species.
+  - `birth`, `death`: each species' rates, per unit time.
+  - `longevity`: the exponent on each species' own demand, which sets the tempo of its turnover.
+  - `survival`: the exponent on niche suitability, one number for every species.
+  - `seed`: an integer fixing every value drawn, each from a stream of its own; left unset, they
+    come from the global generator.
+  - `verbosity`: `:silent` says nothing, `:normal` announces each default taken and notes each column
+    read and filled, `:verbose` names every name a note concerns.
+  - `provenance`: a [`ProvenanceRecord`](@ref), or a vector of them, for what nothing else records -
+    a paper parameters were taken from.
 """
-function build_species(numspecies::Integer;
+function build_species(pool::SpeciesPool;
+                       # Declared first, because the defaults below announce themselves through it.
+                       verbosity::Symbol = :normal,
                        tolerance = _require(:tolerance),
-                       # Required *unless* `tolerance` is already built - a pre-built one
-                       # carries its own axis, so demanding a second statement of it would be
-                       # ceremony that could also disagree.
-                       toleranceaxis = nothing,
                        demand = _require(:demand),
-                       demandaxis = _require(:demandaxis),
-                       dispersal = 10.0km,
-                       pthresh::Real = 1.0e-9,
-                       movement::Type{<:AbstractMovement} = BirthOnlyMovement,
-                       disperse_safely = true,
-                       birth = 0.6 / year,
-                       death = 0.6 / year,
-                       longevity::Real = 1.0,
-                       survival::Real = 0.2,
-                       abundance = 1000 * numspecies,
-                       native = true,
-                       names = nothing,
-                       seed = nothing,
+                       movement = _getdefaultvalue(Val(:movement),
+                                                   DefaultEcosystem(),
+                                                   verbosity, _POOLSPECIES),
+                       birth = _getdefaultvalue(Val(:birth), DefaultEcosystem(),
+                                                verbosity, _POOLSPECIES),
+                       death = _getdefaultvalue(Val(:death), DefaultEcosystem(),
+                                                verbosity, _POOLSPECIES),
+                       longevity = _getdefaultvalue(Val(:longevity),
+                                                    DefaultEcosystem(),
+                                                    verbosity,
+                                                    _POOLSPECIES),
+                       survival = _getdefaultvalue(Val(:survival),
+                                                   DefaultEcosystem(),
+                                                   verbosity, _POOLSPECIES),
+                       seed::Union{Nothing, Integer} = nothing,
                        provenance = ProvenanceRecord[])
-    n = Int64(numspecies)
-    _prebuilt = tolerance isa AbstractTolerance ||
-                (tolerance isa Union{Tuple, NamedTuple} &&
-                 all(t -> t isa AbstractTolerance, values(tolerance)))
-    (_prebuilt || !isnothing(toleranceaxis)) || _require(:toleranceaxis)
-
-    # **A pre-built tolerance must be checked FIRST**, because the branches below reach inside
-    # `tolerance` with `first(...)`, and on a `NicheTolerance` object that gives
-    # `MethodError: no method matching iterate(::NicheTolerance{...})` - an error naming `iterate`
-    # rather than the mistake.
-    # **And accepting one is better than merely reporting it well**, because it is the only way to
-    # build a species against a layer whose frame `build_species` cannot otherwise express: a
-    # tolerance on `NicheAxis` carrying a real unit, say, which `NicheTolerance(..., support = ...)`
-    # can construct and no combination of keywords here could.
-    traits = if tolerance isa AbstractTolerance
-        _checktolerancespecies(tolerance, n)
-        tolerance
-    elseif tolerance isa Union{Tuple, NamedTuple} &&
-           all(t -> t isa AbstractTolerance, values(tolerance))
-        foreach(t -> _checktolerancespecies(t, n), values(tolerance))
-        SpeciesRequirementCollection(tolerance)
-    elseif first(tolerance) isa Tuple
-        axes = toleranceaxis isa Union{Tuple, NamedTuple} ?
-               values(toleranceaxis) :
-               ntuple(_ -> toleranceaxis, length(tolerance))
-        # Built positionally, then put back into whichever backing `tolerance` had, so a named
-        # `tolerance = (temperature = ..., rainfall = ...)` gives a named collection
-        # however `axis` was written.
-        built = _zipmap(axes, values(tolerance)) do ax, tol
-            return _nichetolerance(ax, tol, n)
-        end
-        SpeciesRequirementCollection(_asbacking(tolerance, built))
-    else
-        _nichetolerance(toleranceaxis, tolerance, n)
+    _checkverbosity(verbosity)
+    n = length(pool)
+    n > 0 || error("the pool holds no species to build.")
+    slots = _TraitSlot[]
+    _slots!(slots, pool, "tolerance", tolerance, Colon())
+    _slots!(slots, pool, "demand", demand, Colon())
+    _slots!(slots, pool, "movement", movement, Colon())
+    for (name, value) in ((:birth, birth), (:death, death),
+        (:longevity, longevity))
+        push!(slots, _TraitSlot(name, value, Colon(), nothing))
     end
-
-    kernels = GaussianKernel.(_tofield(dispersal, n, "dispersal"),
-                              Float64(pthresh))
-    move = movement(kernels, _tofield(disperse_safely, n, "disperse_safely"))
-
-    # A tuple `demand` gives one demand per resource -> a collection; the backing is put back
-    # so a named `demand` gives a named collection. `demandaxis` is zipped against it exactly as
-    # `toleranceaxis` is against `tolerance` - including `_zipmap`'s arity check, so a mismatched
-    # pair is refused rather than silently truncated.
-    demands = if demand isa Union{Tuple, NamedTuple}
-        daxes = demandaxis isa Union{Tuple, NamedTuple} ? values(demandaxis) :
-                ntuple(_ -> demandaxis, length(demand))
-        built = _zipmap(daxes, values(demand)) do ax, d
-            return _demand(ax, _tofield(d, n, "demand"))
-        end
-        SpeciesRequirementCollection(_asbacking(demand, built))
-    else
-        _demand(demandaxis, _tofield(demand, n, "demand"))
-    end
-    param = _params(birth, death, longevity, survival, n)
-    nat = _tofield(native, n, "native")
-    abun = _abundances(abundance, n, seed)
-
-    return SpeciesList(n, traits, abun, demands, move, param, nat,
-                       names = names, provenance = provenance)
+    filled = _fillpool(pool, slots, seed, verbosity)
+    table = filled.values
+    rows = 1:n
+    problems = Problem[]
+    tolerances = _buildtrait(tolerance, pool, table, "tolerance", rows,
+                             problems,
+                             verbosity)
+    demands = _buildtrait(demand, pool, table, "demand", rows, problems,
+                          verbosity)
+    movements = _buildmovement(movement, pool, table, "movement", rows,
+                               problems,
+                               verbosity)
+    params = _buildparams(birth, death, longevity, survival, pool, table, rows,
+                          problems, verbosity)
+    _reportproblems(problems, verbosity)
+    return SpeciesList(n, tolerances, demands, movements, params,
+                       names = table.name,
+                       provenance = vcat(pool.inputs,
+                                         _recordvector(provenance)),
+                       pool = (traits = table, filled = filled.filled,
+                               authority = pool.authority,
+                               namemap = _speciesnamemap(pool),
+                               phylogeny = pool.phylogeny))
 end
 
-# As above for `build_species`: default `numspecies`, `tolerance` and `demand` if omitted, announce,
-# then delegate. Any other keyword (dispersal, movement, rates, abundance, ...) passes straight through.
-function build_species(::DefaultEcosystem; numspecies = nothing,
-                       tolerance = nothing, toleranceaxis = nothing,
-                       demand = nothing, demandaxis = nothing,
-                       verbosity::Symbol = :normal, kw...)
-    if isnothing(numspecies)
-        numspecies = 10
-        _announce(verbosity,
-                  "build_species(DefaultEcosystem()): `numspecies` defaulted to 10.")
-    end
-    if isnothing(tolerance)
-        tolerance = (298.0K, 2.0K)
-        _announce(verbosity,
-                  "build_species(DefaultEcosystem()): `tolerance` defaulted to a (298.0 K, 2.0 K) temperature niche.")
-    end
-    if isnothing(toleranceaxis)
-        toleranceaxis = Temperature
-        _announce(verbosity,
-                  "build_species(DefaultEcosystem()): `toleranceaxis` defaulted to `Temperature`.")
-    end
-    if isnothing(demand)
-        demand = 10.0 * canonicalunit(Resource, SolarRadiation)
-        _announce(verbosity,
-                  "build_species(DefaultEcosystem()): `demand` defaulted to 10× the canonical solar rate.")
-    end
-    if isnothing(demandaxis)
-        demandaxis = SolarRadiation
-        _announce(verbosity,
-                  "build_species(DefaultEcosystem()): `demandaxis` defaulted to `SolarRadiation`.")
-    end
-    return build_species(numspecies; tolerance = tolerance,
-                         toleranceaxis = toleranceaxis, demand = demand,
-                         demandaxis = demandaxis, kw...)
+# As `build_habitat` fills its inputs: `numspecies`, `tolerance` and `demand` from
+# `DefaultEcosystem()` where omitted, announced, then built from a pool of that many anonymous
+# species. Any other keyword (movement, rates, seed, ...) passes straight through; one only the
+# removed `build_species(numspecies; ...)` took is refused with its rewrite.
+function build_species(source::DefaultEcosystem;
+                       verbosity::Symbol = :normal,
+                       numspecies = _getdefaultvalue(Val(:numspecies), source,
+                                                     verbosity,
+                                                     _DEFAULTSPECIES),
+                       tolerance = _getdefaultvalue(Val(:tolerance), source,
+                                                    verbosity, _DEFAULTSPECIES),
+                       demand = _getdefaultvalue(Val(:demand), source,
+                                                 verbosity,
+                                                 _DEFAULTSPECIES),
+                       kw...)
+    _refuseremovedkeywords(numspecies, tolerance, demand, kw)
+    return build_species(SpeciesPool(numspecies, verbosity = :silent);
+                         tolerance = tolerance, demand = demand,
+                         verbosity = verbosity, kw...)
 end
 
 """
-    build_ecosystem(species::SpeciesList, environment::GridHabitat;
+    build_ecosystem(placement, species::SpeciesList, environment::GridHabitat;
         nichefit = nothing, seed = nothing, distributed = :auto, epoch = nothing,
-        calendar = ExactDates(), provenance = ProvenanceRecord[])
+        calendar = ExactDates(), provenance = ProvenanceRecord[], verbosity = :normal)
+    build_ecosystem(species::SpeciesList, environment::GridHabitat; ...)
+    build_ecosystem(species::SpeciesList, environment::GridHabitat; from, elapsed = nothing, ...)
+    build_ecosystem(species, environment; ...) do species, habitat, context
+        ...
+    end
 
-Assemble an ecosystem from a `species` list and an `environment`. When
-`nichefit` is not given it is inferred from the trait type (`NicheTolerance` ->
+Assemble an ecosystem from a `species` list and an `environment`, its individuals placed by
+`placement`. When `nichefit` is not given it is inferred from the trait type (`NicheTolerance` ->
 `NicheSuitability`, any `AbstractCategoricalTolerance` -> `CategoricalSuitability`). Checks that the
 species' resource demand matches the environment's supply before building,
 and passes `seed` through for reproducibility.
+
+`placement` says how many individuals of each species start in each cell: a shipped placement -
+[`BySupply`](@ref), [`BySuitability`](@ref), [`ByLayer`](@ref), [`Weighted`](@ref),
+[`FromTable`](@ref), [`FromOccurrences`](@ref), [`NoAbundance`](@ref), any filled to capacity by
+[`ToCapacity`](@ref), or several added with `+` -
+or any function of `(species, habitat, context)`, as a `do` block, returning a
+[`PlacedAbundances`](@ref) or a table of the individuals it places. It is called with the species list, the environment and a
+[`PlacementContext`](@ref) - the cells it may place in (the active ones), a random stream per
+species, the run's dates - and its table is checked before anything is written: a row naming a
+species the list does not hold or that is not active, or a place off the grid or in an inactive
+cell, is dropped and reported, and a count that is not a whole number stops the build. Under MPI the
+first rank alone calls it. Left out, it is `DefaultEcosystem()`, 1000 individuals of each active
+species, split at random and placed by supply, and is announced. The ecosystem keeps it, for
+[`repopulate!`](@ref) and the run's provenance.
+
+`verbosity` is `:silent`, `:normal` or `:verbose`; `:silent` announces nothing, and reports only what
+could not be placed.
 
 `distributed` selects the ecosystem type: `:auto` (the default) builds a
 distributed `MPIEcosystem` when the MPI extension is loaded and the process is
@@ -367,13 +332,40 @@ real months are 28 to 31 days long and the step skips some. The calendar also de
 the run as a whole rather than to its species or its environment - the records a starting
 population was seeded from, say, or the study's own DOI. [`provenance`](@ref) of the ecosystem lists
 them beside everything else it was built from.
+
+`from` starts the ecosystem from a state [`write_state`](@ref) saved, a path or its record, in place of
+a placement. The species and habitat are built from the same pool and study area as the run that
+saved it, on its grid: every species it saved is in the list, matched by name and key in the pool,
+and the list may hold more, which start with none and as their pool says. The state gives every
+saved species its abundances and whether it is in the run, the habitat its active cells and every
+layer's values, and the run its epoch and calendar, which a run given others refuses. On the
+state's own seed, the default, each saved species continues its own random stream, so the run goes
+on as the saved one would have; another `seed` gives fresh streams, for replicates from one state.
+The clock starts at `elapsed`, the state's own unless given (`elapsed = 0.0s` starts a run afresh
+from it), and any series a layer follows takes its values at that time. A layer's change rule is not
+saved: at its first step a run continuing a state installs again the rules its interventions would
+have installed by then, so given the saved run's interventions it goes on with the saved run's rules,
+and a run whose rules still differ from those saved is warned. The state's record is among the
+ecosystem's inputs.
 """
-function build_ecosystem(species::SpeciesList, environment::GridHabitat;
+function build_ecosystem(placement, species::SpeciesList,
+                         environment::GridHabitat;
                          nichefit = nothing, seed = nothing,
                          distributed = :auto,
                          epoch::Union{Nothing, Dates.TimeType} = nothing,
                          calendar::AbstractRunCalendar = ExactDates(),
-                         provenance = ProvenanceRecord[])
+                         provenance = ProvenanceRecord[],
+                         verbosity::Symbol = :normal, from = nothing,
+                         elapsed = nothing)
+    isnothing(from) ||
+        error("`from` starts an ecosystem from a saved state, which says where its individuals " *
+              "are, so it takes no placement: give `build_ecosystem(species, habitat; from = " *
+              "...)`.")
+    isnothing(elapsed) ||
+        error("`elapsed` sets the clock of an ecosystem started from a saved state, so it goes " *
+              "with `from`.")
+    _checkverbosity(verbosity)
+    _checkplacement(placement)
     records = _recordvector(provenance)
     _checksimulatable(environment)
     # Checked here as well as in the `Ecosystem` constructor, and *before* the nichefit is inferred:
@@ -403,16 +395,28 @@ function build_ecosystem(species::SpeciesList, environment::GridHabitat;
     _primeseries!(environment.regime, zero(1.0s))
     _primeseries!(environment.supply, zero(1.0s))
     eco = if _resolvedistributed(distributed)
-        isnothing(seed) ? MPIEcosystem(species, environment, nichefit) :
-        MPIEcosystem(species, environment, nichefit, seed = seed)
+        _emptympiecosystem(species, environment, nichefit, seed = seed)
     else
-        isnothing(seed) ? Ecosystem(species, environment, nichefit) :
-        Ecosystem(species, environment, nichefit, seed = seed)
+        isnothing(seed) ? _emptyecosystem(species, environment, nichefit) :
+        _emptyecosystem(species, environment, nichefit, seed = seed)
     end
     eco.epoch = resolved
     eco.calendar = calendar
     eco.inputs = _uniqueinputs(records)
-    return eco
+    context = _placementcontext(eco, eco.seed)
+    return _placeinto!(eco, placement, context, verbosity, clear = false)
+end
+
+# The placement left out: a saved state, or the default, announced.
+function build_ecosystem(species::SpeciesList, environment::GridHabitat;
+                         verbosity::Symbol = :normal, from = nothing, kw...)
+    isnothing(from) ||
+        return _startfromstate(species, environment, from;
+                               verbosity = verbosity, kw...)
+    placement = _getdefaultvalue(Val(:placement), DefaultEcosystem(), verbosity,
+                                 "build_ecosystem")
+    return build_ecosystem(placement, species, environment;
+                           verbosity = verbosity, kw...)
 end
 
 # Complete the trio: build the default environment and default species (each announcing its own
@@ -421,12 +425,14 @@ function build_ecosystem(::DefaultEcosystem; seed = nothing,
                          distributed = :auto,
                          epoch::Union{Nothing, Dates.TimeType} = nothing,
                          calendar::AbstractRunCalendar = ExactDates(),
-                         provenance = ProvenanceRecord[])
-    environment = build_habitat()
-    species = build_species(DefaultEcosystem())
+                         provenance = ProvenanceRecord[],
+                         verbosity::Symbol = :normal)
+    environment = build_habitat(verbosity = verbosity)
+    species = build_species(DefaultEcosystem(), verbosity = verbosity)
     return build_ecosystem(species, environment, seed = seed,
                            distributed = distributed, epoch = epoch,
-                           calendar = calendar, provenance = provenance)
+                           calendar = calendar, provenance = provenance,
+                           verbosity = verbosity)
 end
 
 # == Running it =================================================================================
@@ -442,9 +448,12 @@ function simulate!(eco::AbstractEcosystem, duration::Unitful.Time,
     checkcoverage(eco, duration, timestep)
     check_bounds(eco, duration, timestep)
     _checkschedules(intervention, eco, duration, timestep)
+    _prepareinterventions!(intervention, eco)
     for _ in 1:_stepcount(duration, timestep)
         update!(eco, timestep, intervention)
     end
+    _finishinterventions!(eco, intervention)
+    return nothing
 end
 
 """
@@ -500,16 +509,19 @@ function simulate!(f, eco::AbstractEcosystem, duration::Unitful.Time,
     checkcoverage(eco, duration, timestep)
     check_bounds(eco, duration, timestep)
     _checkschedules(intervention, eco, duration, timestep)
+    _prepareinterventions!(intervention, eco)
     _checkschedule(schedule, eco, duration, timestep)
     count = 0
     if iszero(simulationtime(eco))
         _startrun!(eco, intervention, timestep)
         count = _occur(f, schedule, eco, timestep, count)
     end
+    _resumerun!(eco, intervention, timestep)
     for _ in 1:_stepcount(duration, timestep)
         _step!(eco, timestep, intervention)
         count = _occur(f, schedule, eco, timestep, count)
     end
+    _finishinterventions!(eco, intervention)
     return nothing
 end
 
@@ -545,41 +557,31 @@ function simulate!(cache::CachedEcosystem, srt::Unitful.Time,
                                             cache.seed,
                                             cache.epoch)
     eco.calendar = cache.calendar
+    eco.placement = cache.placement
     update!(eco, timestep)
     return cache.abundances.matrix[Ti(At(srt + timestep))] = eco.abundances
 end
 
 """
-    generate_storage(eco::Ecosystem, times::Int64, reps::Int64;
-                     maxspecies = length(eco.spplist.abun))
+    generate_storage(eco::Ecosystem, times::Int64, reps::Int64)
 
-Allocate an integer array of shape `(maxspecies, gridSize, times, reps)` for
-recording species abundances across the ecosystem `eco` over multiple timesteps
-and replicate runs.
+Allocate an integer array of shape `(numspecies, gridSize, times, reps)` for recording species
+abundances across the ecosystem `eco` over multiple timesteps and replicate runs: a row for every
+species of its pool, those an [`AddSpecies`](@ref) brings in during the run included.
 
-`maxspecies` defaults to the number of species `eco` starts with, which is what
-a run that never gains one needs. **Raise it to make room for species that
-arrive during the run** - an [`AddSpecies`](@ref) intervention, an invasion - and
-the recorder then has somewhere to put them:
+# Arguments
 
-```julia
-storage = generate_storage(eco, times, reps, maxspecies = 12)
-```
-
-The array is sized **once**, before the run, and cannot grow afterwards: it is
-a dense array indexed by species number, so growing it mid-run would mean
-reallocating and copying every recorded step. A run that gains more species than
-`maxspecies` allows for says so when it tries to record them, rather than
-silently dropping them.
+  - `eco`: the ecosystem whose species and cells size the storage.
+  - `times`: how many occurrences to leave room for.
+  - `reps`: how many replicate runs.
+  - `maxspecies`: deprecated, and ignored: every species a run may hold has its row already.
 """
 function generate_storage(eco::Ecosystem, times::Int64, reps::Int64;
-                          maxspecies::Int64 = length(eco.spplist.abun))
-    maxspecies >= length(eco.spplist.abun) ||
-        error("`maxspecies` is $maxspecies but the ecosystem already has " *
-              "$(length(eco.spplist.abun)) species - the recording has to hold at least what is " *
-              "there before the run starts.")
+                          maxspecies = nothing)
+    isnothing(maxspecies) || _maxspeciesdeprecated(:generate_storage)
     gridSize = countsubcommunities(eco.habitat.regime)
-    return abun = Array{Int64, 4}(undef, maxspecies, gridSize, times, reps)
+    return abun = Array{Int64, 4}(undef, length(eco.spplist.names), gridSize,
+                                  times, reps)
 end
 
 """

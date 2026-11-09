@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# HOW ABUNDANCES CHANGE. Everything that writes to an ecosystem's abundance matrix: `populate!` and
-# its relatives, which set it up, and `update!`, which is one timestep of the model - the demographic
-# draws, then dispersal, then the layer changes.
+# HOW ABUNDANCES CHANGE. Everything that writes to an ecosystem's abundance matrix: placing its
+# individuals, at build and by `repopulate!`, and `update!`, which is one timestep of the model - the
+# demographic draws, then dispersal, then the layer changes.
 #
 # `update!` is what `simulate!` calls repeatedly; the order within it is load-bearing and stated at
 # the function itself. Nothing here decides *what* a species needs or *where* it can live - that is
 # the species requirements and the niche fit; this is only what those imply for the numbers.
 #
-# The MPI extension **duplicates** `update!`, `move!` and `populate!` rather than calling them, so
+# The MPI extension **duplicates** `update!` and `update_resource_usage!` rather than calling them, so
 # a rule phrased as "the hot loop" has two places to apply and the second is in `ext/`.
 
 using StatsBase
@@ -22,178 +22,115 @@ using Random
 # == Functions ==================================================================================
 
 """
-    populate!(ml::GridLandscape, spplist::SpeciesList, habitat::AbstractHabitat,
-              nichefit::AbstractNicheFit, rngs::Vector{Random.Xoshiro})
-    populate!(ml::GridLandscape, spplist::SpeciesList,
-              habitat::GridHabitat{H, <:LayerCollection{Resource}}, nichefit, rngs)
+    repopulate!(eco::AbstractEcosystem, placement = eco.placement; seed = eco.seed,
+                verbosity = :normal)
 
-Populate the grid landscape `ml` by randomly scattering each species' total
-abundance (taken from `spplist.abun`) across the grid cells, choosing each cell
-with probability proportional to its available resource supply. Inactive cells are
-given zero probability, so no individuals are placed outside the habitable
-region. Each species is drawn from its own generator in `rngs`, so the result is
-reproducible and independent of the number of threads or MPI processes.
+Place an ecosystem's individuals again from scratch: its abundances are cleared, and `placement`
+places them over its active cells and layers as they now are, as [`build_ecosystem`](@ref) placed
+them. The ecosystem keeps `placement` as its own, so a later `repopulate!(eco)` repeats it. The
+placement draws from streams of its own made from `seed`, so on an unchanged habitat, with the
+ecosystem's own placement and seed, it places what its build placed; the clock, and the streams the
+dynamics draw from, are left as they are. Under MPI with more than one rank this is a collective
+call.
 
-`nichefit` is unused by these resource-based methods; it is accepted only so that they
-share a signature with [`populate_by_tolerance!`](@ref) and can be passed
-interchangeably as the population function when constructing an
-[`Ecosystem`](@ref). For a multi-supply environment (a [`LayerCollection`](@ref)) the
-sampling weight of a cell is the product of its two separately normalised
-supplies.
+# Arguments
+
+  - `eco`: the ecosystem.
+  - `placement`: any placement [`build_ecosystem`](@ref) takes; one reading a table that can be read
+    only once is refused.
+  - `seed`: the seed of the placement's streams.
+  - `verbosity`: `:silent` reports only what the placement could not place; anything else reports
+    its notices too.
 """
-function populate!(ml::GridLandscape,
-                   spplist::SpeciesList,
-                   habitat::AB,
-                   nichefit::NF,
-                   rngs::Vector{Random.Xoshiro}) where {AB <: AbstractHabitat,
-                                                        NF <:
-                                                        AbstractNicheFit}
-    grid, activity = _gridactivity(habitat)
-    # Set up copy of supply
-    b = reshape(parent(ustrip.(_getsupply(habitat.supply))), length(grid))
-    units = unit(b[1])
-    b[.!activity] .= 0.0 * units
-    # A compensated sum, for the correctly rounded total: `sum` may reassociate once vectorised,
-    # and this sum affects reproducibility. For speed, we should revert to sum().
-    B = b ./ sum_kbn(b)
-    # Loop through species, drawing from each species' own RNG stream. Three per-species things
-    # walked in lockstep, so there is no index to keep: `eachrow` yields exactly the writable
-    # `@view ml.matrix[i, :]` that `rand!` needs.
-    for (rng, abun, row) in zip(rngs, spplist.abun, eachrow(ml.matrix))
-        rand!(rng, Multinomial(abun, B), row)
+function repopulate!(eco::AbstractEcosystem, placement = eco.placement;
+                     seed::Integer = eco.seed, verbosity::Symbol = :normal)
+    _checkverbosity(verbosity)
+    isnothing(placement) &&
+        error("this ecosystem records no placement to place by again; give one, as " *
+              "`repopulate!(eco, BySupply())`.")
+    _checkplacement(placement)
+    _reusable(placement) ||
+        error("$(_placementphrase(placement)) reads a table that can be read only once, so it " *
+              "cannot place again; give `FromTable` a path, a record or a table of columns.")
+    context = _placementcontext(eco, seed)
+    _placeinto!(eco, placement, context, verbosity, clear = true)
+    invalidatecaches!(eco)
+    return eco
+end
+
+# The context of a placement in `eco`: its active cells, a placement stream per species and the
+# community stream, both made from `seed`, and its nichefit, epoch and calendar, at its start.
+function _placementcontext(eco::AbstractEcosystem, seed::Integer)
+    streams = _placementrngs(seed, eco.spplist)
+    return PlacementContext(cells = findall(parent(eco.habitat.active)),
+                            streams = Dict(zip(eco.spplist.names, streams)),
+                            community = _abundancerng(seed),
+                            nichefit = eco.nichefit, epoch = eco.epoch,
+                            calendar = eco.calendar)
+end
+
+# Place `placement`'s individuals in `eco`: called and checked first, its problems reported, then -
+# its abundances cleared, where `clear` - written, and its records kept, the placement too where
+# `keep` (as at build, not at an intervention's firing). A dated table is refused where `undated`.
+function _placeinto!(eco::AbstractEcosystem, placement,
+                     context::PlacementContext, verbosity::Symbol; clear::Bool,
+                     keep::Bool = true, undated::Bool = false)
+    outcome = _resolveplacement(eco, placement, context, verbosity,
+                                undated = undated)
+    _reportproblems(vcat(outcome.placed.problems, outcome.resolved.problems),
+                    verbosity)
+    clear && (_ownedabundances(eco).rows .= 0)
+    _writeplaced!(eco, outcome.resolved)
+    keep && (eco.placement = placement)
+    eco.inputs = _uniqueinputs(vcat(eco.inputs, outcome.placed.records))
+    return eco
+end
+
+# What `placement` places in `eco`, called and checked but not yet written: its result, its table in
+# one form with its species matched to the species list, and its rows resolved against the grid.
+# Under MPI the root alone calls it and matches its names - so only the root reads a name authority -
+# once every rank has built the layers it weights by together, and every rank takes the root's result.
+function _resolveplacement(eco::AbstractEcosystem, placement,
+                           context::PlacementContext, verbosity::Symbol;
+                           undated::Bool = false)
+    prepared = _prepared(placement, eco.habitat)
+    placed = _sharedresult(eco, context) do
+        raw = _callplacement(prepared, eco.spplist, eco.habitat, context)
+        undated && :time in Tables.columnnames(Tables.columns(raw.table)) &&
+            error("`AddAbundance` adds this placement's individuals at each firing, and its table is " *
+                  "dated: a table served by its dates is a `FromTable` with a `time` column or a " *
+                  "`FromOccurrences` given `date` or `time`, alone in an `Intervention` with " *
+                  "`EveryStep()`.")
+        matched = _matchedtable(_canonicaltable(raw.table, eco.habitat,
+                                                context),
+                                eco.spplist, context, verbosity)
+        return PlacedAbundances(matched.table, records = raw.records,
+                                problems = vcat(raw.problems, matched.problems))
     end
+    return (placed = placed,
+            resolved = _resolveplaced(placed, eco.habitat, context))
 end
 
-function populate!(ml::GridLandscape,
-                   spplist::SpeciesList,
-                   habitat::GridHabitat{H, <:LayerCollection{Resource}},
-                   nichefit::NF,
-                   rngs::Vector{Random.Xoshiro}) where {H <: AbstractRegime,
-                                                        NF <:
-                                                        AbstractNicheFit}
-    # Calculate size of regime
-    grid, activity = _gridactivity(habitat)
-    # Set up a copy of each supply, zeroed outside the active cells and normalised to its own
-    # total, then multiply them together so a cell needs every resource to be worth populating.
-    fractions = _zipmap(values(habitat.supply)) do supply
-        b = reshape(parent(copy(_getsupply(supply))), length(grid))
-        b[.!activity] .= zero(eltype(b))
-        return b ./ sum_kbn(b)
+# A placement's result, serially; under MPI the extension's method has the root build it and every
+# rank take it.
+_sharedresult(build, ::AbstractEcosystem, ::PlacementContext) = build()
+
+# Placed individuals added to an ecosystem's abundances, each rank its own species'.
+function _writeplaced!(eco::AbstractEcosystem, resolved::NamedTuple)
+    owned = _ownedabundances(eco)
+    held = axes(owned.rows, 1)
+    for (sp, column, n) in zip(resolved.species, resolved.cells,
+                               resolved.counts)
+        row = sp - owned.firstspecies + 1
+        row in held || continue
+        owned.rows[row, column] += n
     end
-    B = _fold(fractions) do f1, f2
-        return f1 .* f2
-    end
-    # Loop through species, drawing from each species' own RNG stream
-    for sp in eachindex(spplist.abun)
-        rand!(rngs[sp], Multinomial(spplist.abun[sp], B ./ sum_kbn(B)),
-              (@view ml.matrix[sp, :]))
-    end
+    return _rowswritten!(eco)
 end
 
-"""
-    repopulate!(eco::Ecosystem)
-    repopulate!(eco::Ecosystem, abun::Int64)
-
-Repopulate an ecosystem `eco` by redistributing abundances according to resource
-availability. If an `abun` parameter is given, that number of individuals of the
-final species is added at randomly sampled locations instead.
-"""
-function repopulate!(eco::Ecosystem)
-    eco.abundances = empty_landscape(eco.habitat, eco.spplist)
-    eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun),
-                                        length(eco.spplist.abun)))
-    return populate!(eco.abundances, eco.spplist, eco.habitat, eco.nichefit,
-                     eco.rngs)
-end
-
-function repopulate!(eco::Ecosystem, abun::Int64)
-    grid, activity = _gridactivity(eco.habitat)
-    # Set up copy of supply
-    b = reshape(parent(copy(_getsupply(eco.habitat.supply))), length(grid))
-    units = unit(b[1])
-    b[.!activity] .= 0.0 * units
-    # Draw locations from the last species' own RNG stream
-    pos = sample(getrng(eco, lastindex(eco.rngs)), grid[b .> (0 * units)], abun)
-    # Add individual to this location
-    map(pos) do p
-        return eco.abundances.matrix[end, p] += 1
-    end
-end
-
-"""
-    populate_by_tolerance!(ml::GridLandscape, spplist::SpeciesList, habitat::AbstractHabitat,
-                   nichefit::AbstractNicheFit, rngs::Vector{Random.Xoshiro})
-
-Populate the grid landscape `ml` by scattering each species' total abundance
-(taken from `spplist.abun`) across the grid cells with probability proportional
-to how well the species tolerances match each cell's environment, as scored by the
-trait nichefit `nichefit` applied to `spplist.tolerance` and `habitat.regime`. Where a
-species matches no cell the distribution falls back to uniform. Only native
-species (those flagged in `spplist.native`) are placed; non-native species are
-left empty.
-
-This is the trait-based counterpart of [`populate!`](@ref), which instead weights
-cells by their available resource supply.
-"""
-function populate_by_tolerance!(ml::GridLandscape,
-                                spplist::SpeciesList,
-                                habitat::AB,
-                                nichefit::NF,
-                                rngs::Vector{Random.Xoshiro}) where {AB <:
-                                                                     AbstractHabitat,
-                                                                     NF <:
-                                                                     AbstractNicheFit}
-    # Calculate size of regime
-    dim = getgridshape(habitat)
-    numsquares = dim[1] * dim[2]
-    numspp = length(spplist.names)
-    probabilities = [_suitability(habitat.regime, spplist.tolerance, nichefit,
-                                  sc, sp)
-                     for sc in 1:numsquares,
-                         sp in 1:numspp]
-    # Loop through species, drawing from each species' own RNG stream
-    for sp in eachindex(spplist.abun)
-        if spplist.native[sp]
-            # Get abundance of species
-            probs = probabilities[:, sp] ./ sum(probabilities[:, sp])
-            probs[isnan.(probs)] .= 1 / numsquares
-            abun = rand(rngs[sp], Multinomial(spplist.abun[sp], probs))
-            # Add individual to this location
-            ml.matrix[sp, :] .+= abun
-        end
-    end
-end
-
-"""
-    repopulate_by_tolerance!(eco::Ecosystem)
-
-Repopulate an ecosystem `eco` according to how well species tolerances match their
-environment, redistributing the total abundance across species at random.
-"""
-function repopulate_by_tolerance!(eco::Ecosystem)
-    eco.abundances = empty_landscape(eco.habitat, eco.spplist)
-    eco.spplist.abun = rand(Multinomial(sum(eco.spplist.abun),
-                                        length(eco.spplist.abun)))
-    return populate_by_tolerance!(eco.abundances, eco.spplist, eco.habitat,
-                                  eco.nichefit, eco.rngs)
-end
-
-"""
-    emptypopulate!(ml::GridLandscape, spplist::SpeciesList, habitat::AB, nichefit::NF,
-                   rngs::Vector{Random.Xoshiro}) where {AB <: EcoSISTEM.AbstractHabitat, NF <: EcoSISTEM.AbstractNicheFit}
-
-Placeholder population function that leaves the landscape empty and warns.
-"""
-function emptypopulate!(ml::GridLandscape,
-                        spplist::SpeciesList,
-                        habitat::AB,
-                        nichefit::NF,
-                        rngs::Vector{Random.Xoshiro}) where {AB <:
-                                                             EcoSISTEM.AbstractHabitat,
-                                                             NF <:
-                                                             EcoSISTEM.AbstractNicheFit}
-    @warn "Ecosystem not populated!"
-end
+# What follows writing the rows of an ecosystem's abundances: nothing, serially; under MPI the
+# extension's method rebuilds the columns from them.
+_rowswritten!(::AbstractEcosystem) = nothing
 
 """
     update!(eco::AbstractEcosystem, timestep::Unitful.Time)
@@ -222,6 +159,7 @@ due at the start run once more *before* the dynamics, so they act on the startin
 """
 function update!(eco::AbstractEcosystem, timestep::Unitful.Time, intervention)
     iszero(simulationtime(eco)) && _startrun!(eco, intervention, timestep)
+    _resumerun!(eco, intervention, timestep)
     return _step!(eco, timestep, intervention)
 end
 
@@ -231,6 +169,22 @@ end
 function _startrun!(eco::Ecosystem, intervention, timestep::Unitful.Time)
     applyinterventions!(eco, intervention, simulationtime(eco), timestep, 0)
     invalidatecaches!(eco)
+    return eco
+end
+
+# The first step of a run started from a saved state, after anything due at the start: a state keeps
+# a layer's values but not its change rule, so a run continuing one installs again the rules its
+# interventions would have installed by then, and is warned of any layer whose rule still differs from
+# the one it was saved with. A run restarted at zero has its rules installed as it reaches them. Under
+# MPI every rank installs the same rules, as every rank holds the layers.
+function _resumerun!(eco::AbstractEcosystem, intervention,
+                     timestep::Unitful.Time)
+    saved = eco.savedchanges
+    isnothing(saved) && return eco
+    iszero(simulationtime(eco)) ||
+        _replaychanges!(eco, intervention, timestep)
+    _isrootrank(eco) && _warnchanges(saved, eco.habitat)
+    eco.savedchanges = nothing
     return eco
 end
 
@@ -299,8 +253,8 @@ function _step!(eco::Ecosystem, timestep::Unitful.Time, intervention)
                 eco.abundances.matrix[sp, sc] += (births - deaths)
 
                 # Calculate moves and write to cache
-                move!(eco, eco.spplist.movement, sc, sp, eco.cache.netmigration,
-                      births)
+                move!(eco, eco.spplist.movement[sp], sc, sp,
+                      eco.cache.netmigration, births)
             end
         end
     end
@@ -510,9 +464,9 @@ function _resourceadjustment(eco::AbstractEcosystem, supply::AbstractSupply,
     # Traits
     ϵ̄real = 1 / suitability(eco, sc, sp)
     # Alter rates by resource available in current pop & own demands
-    birth_resource = ϵ̄^-params.longevity * ϵ̄real^-params.survival *
+    birth_resource = ϵ̄^-params.longevity[sp] * ϵ̄real^-params.survival *
                      min(K / E, 1.0)
-    death_resource = ϵ̄^-params.longevity * ϵ̄real^params.survival * (E / K)
+    death_resource = ϵ̄^-params.longevity[sp] * ϵ̄real^params.survival * (E / K)
     return birth_resource, death_resource
 end
 
@@ -565,9 +519,9 @@ function _resourceadjustment(eco::AbstractEcosystem,
     ϵ̄real = 1 / suitability(eco, sc, sp)
     # Alter rates by resource available in current pop & own demands
     demanded = _fold(*, ϵ̄)
-    birth_resource = demanded^-params.longevity * ϵ̄real^-params.survival *
+    birth_resource = demanded^-params.longevity[sp] * ϵ̄real^-params.survival *
                      min(_fold(min, _zipmap(/, K, E)), 1.0)
-    death_resource = demanded^-params.longevity * ϵ̄real^params.survival *
+    death_resource = demanded^-params.longevity[sp] * ϵ̄real^params.survival *
                      _fold(max, _zipmap(/, E, K))
     return birth_resource, death_resource
 end
@@ -646,8 +600,8 @@ function _drawmoves!(lookup::Lookup, sp::Int64, eco::AbstractEcosystem,
 end
 
 # Resolve one coordinate against its axis's boundary condition. Two tiny methods, dispatched on the
-# condition, so the rule is stated once per axis rather than branched on - which is what lets the
-# three near-identical `calc_lookup_moves!` methods this replaces become one.
+# condition, so the rule is stated once per axis rather than branched on, and `calc_lookup_moves!`
+# needs one method for every boundary.
 #
 # `Bounded` returns `nothing` for a step off the edge, and the caller reads that as "dead cell";
 # `Periodic` always lands somewhere, wrapping with `mod`.
@@ -698,18 +652,20 @@ function calc_lookup_moves!(::EdgeTopology{BCY, BCX},
 end
 
 """
-    move!(eco::Ecosystem, ::AbstractMovement, sc::Int64, sp::Int64, grd::Matrix{Int64}, births::Int64)
+    move!(eco::AbstractEcosystem, movement::SpeciesDispersal, sc::Int64, sp::Int64,
+          grd::Matrix{Int64}, births::Int64)
 
 Calculate the movement of species `sp` from a given position in the landscape
 `sc`, using the lookup table found in the [`Ecosystem`](@ref) and updating the
 movement patterns on a cached grid, `grd`. The number of births are passed in
 as `births` so that the movement can be restricted to only the newly born
-individuals, if desired. The movement type is specified by the second argument,
-which can be one of [`AlwaysMovement`](@ref), [`NoMovement`](@ref), or
-[`BirthOnlyMovement`](@ref). Only in the last case is the `births` argument used.
+individuals. `movement` is the species' own, and its mode says which
+individuals disperse: only the `births` under [`SeedDispersal`](@ref) and the
+other modes dispersing at birth, the whole standing population under
+[`AlwaysDispersal`](@ref), and none under [`NoDispersal`](@ref).
 """
 function move!(eco::AbstractEcosystem,
-               ::AlwaysMovement,
+               ::SpeciesDispersal{<:AlwaysDispersal},
                sc::Int64,
                sp::Int64,
                grd::Matrix{Int64},
@@ -719,7 +675,7 @@ function move!(eco::AbstractEcosystem,
 end
 
 function move!(eco::AbstractEcosystem,
-               ::NoMovement,
+               ::SpeciesDispersal{NoDispersal},
                ::Int64,
                ::Int64,
                ::Matrix{Int64},
@@ -728,7 +684,7 @@ function move!(eco::AbstractEcosystem,
 end
 
 function move!(eco::AbstractEcosystem,
-               ::BirthOnlyMovement,
+               ::SpeciesDispersal{<:_BirthDispersal},
                sc::Int64,
                sp::Int64,
                grd::Matrix{Int64},
@@ -744,8 +700,8 @@ end
 # the failure this whole file's header warns about.
 _landscaperow(::AbstractEcosystem, sp::Int64) = sp
 
-# How many individuals of species `sp` are standing in cell `sc` - what `AlwaysMovement` disperses
-# in full, as against the newborns `BirthOnlyMovement` is handed directly. Serially the whole
+# How many individuals of species `sp` are standing in cell `sc` - what `AlwaysDispersal` disperses
+# in full, as against the newborns a mode dispersing at birth is handed directly. Serially the whole
 # abundance matrix is to hand; a distributed run holds only its own block of species, so the MPI
 # extension reads the same count from its rank-local rows. A hook rather than a branch, for the same
 # reason `_landscaperow` above is one: `move!` stays a single body serving both sides.
@@ -779,21 +735,4 @@ function _move!(eco::AbstractEcosystem,
         grd[row, loc] += moves[i]
     end
     return eco
-end
-
-# Return the two ingredients the population routines share when spreading
-# individuals across the grid:
-# `grid`     - a vector of the linear indices `1:ncells` of every grid cell,
-# used both to size/flatten the supply and to sample cell locations;
-# `activity` - a flattened copy of `habitat.active`, the boolean mask of which cells
-# are habitable. Callers zero the supply of inactive (`false`) cells so
-# that no individuals are ever placed outside the active region.
-function _gridactivity(habitat::AbstractHabitat)
-    dim = getgridshape(habitat)
-    len = dim[1] * dim[2]
-    grid = collect(1:len)
-    # `reshape` on a `DimArray` isn't a clean zero-copy operation the way a plain `Array`
-    # reshape is - unwrap via `parent()` first.
-    activity = reshape(copy(parent(habitat.active)), len)
-    return grid, activity
 end

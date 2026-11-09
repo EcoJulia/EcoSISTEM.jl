@@ -1,13 +1,11 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
-# `RandHabitatLoss!` and `ClustHabitatLoss!` from `examples/models/scenarios.jl`, recreated.
+# Habitat lost at random cells, and in a spreading cluster, declared as interventions.
 #
-# **The reproducibility difference is the headline.** Both originals drew from the **global** RNG
-# (`sample(pos, howmany)`), so no run using one could be reproduced, and under MPI every rank chose
-# *different* cells and silently diverged. `RandomCells`/`SpreadingCells` draw from a counter-based
-# stream keyed on `(seed, :intervention, k, step)`, so a run replays exactly and every rank agrees
-# without communicating. **New runs therefore will not reproduce old numbers** - the old ones were
-# not reproducible at all, which is the point.
+# **Reproducibility is the point.** `RandomCells`/`SpreadingCells` draw from a counter-based stream
+# keyed on `(seed, :intervention, k, step)`, so a run replays exactly and every rank agrees without
+# communicating. Cells drawn from the **global** RNG (`sample(pos, howmany)`) could be reproduced by no
+# run, and under MPI every rank would choose *different* cells and silently diverge.
 
 using EcoSISTEM
 using EcoSISTEM.Units
@@ -16,17 +14,18 @@ using Unitful.DefaultSymbols
 
 function loss_ecosystem(; numspecies = configuration().numspecies,
                         individuals = configuration().individuals, seed = 1)
-    env = GridHabitat(regime = UniformSpec(285.0K, axis = Temperature),
+    env = GridHabitat(regime = UniformSpec(10.0°C, axis = Temperature),
                       supply = UniformSpec(supply_density(individuals),
                                            axis = SolarRadiation),
                       area = study_area())
-    species = build_species(numspecies, tolerance = (285.0K, 5.0K),
-                            toleranceaxis = Temperature,
-                            demand = intervention_demand(),
-                            demandaxis = SolarRadiation,
-                            abundance = individuals,
-                            seed = seed)
-    return build_ecosystem(species, env, seed = seed)
+    species = build_species(SpeciesPool(numspecies),
+                            tolerance = ToleranceSpec(Temperature, μ = 10.0°C,
+                                                      σ = 5.0K),
+                            demand = DemandSpec(SolarRadiation,
+                                                intervention_demand()),
+                            seed = seed, verbosity = :silent)
+    return build_ecosystem(BySupply(total = individuals), species, env,
+                           seed = seed)
 end
 
 # ---------------------------------------------------------------------------

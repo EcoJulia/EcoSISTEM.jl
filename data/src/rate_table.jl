@@ -11,9 +11,9 @@
 # those drifted out of agreement with the shipped tables the moment the catalogue was corrected. A
 # second source of truth for data that already has one is a bug waiting for someone to re-run it.
 #
-# It also used to **rewrite every shipped CSV in place** from those maps. That block was removed on
-# 2026-08-04; re-running it would have silently reverted the catalogue corrections. This script is now
-# read-only apart from its own `rate_table.csv`.
+# **It must never write the shipped CSVs**: rewriting them from maps of its own would silently
+# revert every correction made to the catalogue since. It is read-only apart from its own
+# `rate_table.csv`.
 #
 # ## The columns
 #

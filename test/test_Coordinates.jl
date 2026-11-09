@@ -3,7 +3,7 @@
 module TestCoordinates
 
 using EcoSISTEM
-# `[C7-VIS]` C: the unit-general spatial aliases are `public`, not exported.
+# The unit-general spatial aliases are `public`, not exported.
 using EcoSISTEM: SpatialLocation, SpatialSize, getlat, getlong
 using EcoSISTEM.Units
 using Unitful
@@ -30,7 +30,7 @@ using Test
     # `lat`/`long`: a projected `y` is not a latitude.
     @test_throws MethodError getlat(SpatialLocation(5.0km, 3.0km))
 
-    # out-of-bounds points error, as before
+    # out-of-bounds points error
     @test_throws ErrorException LatLong(100.0°, 0.0°)     # latitude > 90°
     @test_throws ErrorException LatLong(0.0°, 200.0°)     # longitude > 180°
 

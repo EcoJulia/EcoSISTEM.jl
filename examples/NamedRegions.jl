@@ -5,7 +5,7 @@
 # **The question this answers.** You have a coordinate, or a raster, or a study area, and you want to
 # know what it is *in* - or you want to simulate "the British Isles" and have no shapefile for it.
 # Both are lookups against Natural Earth's own polygons, shipped with the package as a table of
-# 2 444 named regions.
+# named regions.
 #
 # **Three things it shows, in order:**
 #
@@ -32,7 +32,6 @@ using EcoSISTEM.Units
 using RasterDataSources
 using Rasters: EPSG
 using Unitful, Unitful.DefaultSymbols
-using Distributions
 using Diversity
 using Random
 
@@ -119,14 +118,15 @@ println("  cells: ", size(ENVIRONMENT.active), "  active: ",
         count(ENVIRONMENT.active), " of ", length(ENVIRONMENT.active))
 println("  cell size: ", AREA.report.cellsize, "\n")
 
-const SPECIES = build_species(8,
-                              tolerance = NicheTolerance(Temperature, Normal,
-                                                         fill(285.0K, 8),
-                                                         fill(3.0K, 8)),
-                              demand = 5.0kJ / day,
-                              demandaxis = SolarRadiation)
+const SPECIES = build_species(SpeciesPool(8),
+                              tolerance = ToleranceSpec(Temperature,
+                                                        μ = 10.0°C, σ = 3.0K),
+                              demand = DemandSpec(SolarRadiation, 5.0kJ / day),
+                              verbosity = :silent)
 
-const ECO = build_ecosystem(SPECIES, ENVIRONMENT, seed = SEED)
+# 8000 individuals, split at random among the species and placed by supply.
+const ECO = build_ecosystem(BySupply(total = 8000), SPECIES, ENVIRONMENT,
+                            seed = SEED)
 simulate!(ECO, 2.0year, 1.0month_mean_duration)
 
 println("After two simulated years on the British Isles:")

@@ -69,6 +69,27 @@ end
     @test_throws "IsFetchable" E._fileroute(Int)
 end
 
+@testset "a name authority's release is registered as a catalogued source" begin
+    wfo = WFOPlantList(release = "2026-06")
+    entry = only(E._specroutes(wfo))
+    @test entry.route == E.VersionOfRecord() && isnothing(entry.code)
+    @test entry.url ==
+          "https://zenodo.org/records/20782718/files/_DwC_backbone_R.zip"
+    @test entry.path == only(E._specpaths(wfo)) == only(E._wouldbepaths(wfo))
+    @test E._filespecs(wfo) == Any[wfo]
+    # Registered with the catalogue row's facts: its version DOI, a deposit of several files.
+    src = E._trackedsource(wfo)
+    @test src.facts.doi == "10.5281/zenodo.20782718" && !src.fileversioned
+    facts = E._currentfacts(wfo, entry)
+    @test facts["url"] == entry.url
+    @test facts["version"] == "2026-06" && facts["licence"] == "CC0-1.0"
+    @test E._catalogued(wfo).namespace == "WFO"
+    # A track saying which release a fetched file is from is refused, as for any fetched source.
+    @test_throws "Leave them out" WFOPlantList(release = "2026-06",
+                                               track = Track(nothing, "wfo",
+                                                             release_version = "1"))
+end
+
 @testset "a file's version is its source's, its bytes' or a stamped one" begin
     day = Dates.Date(2023, 1, 4)
     # Not yet registered, or registered with these very bytes: the source's own, in full.

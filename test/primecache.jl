@@ -17,11 +17,11 @@
 # cost a few hundred MB whatever they fetch. Two of them deliberately DO read, to precompute the
 # aggregated forms the tests use: that is the expensive part, at over 10 GB resident, and it is why
 # this job has to exist rather than merely being an optimisation. Nothing else runs here, so the peak
-# has the machine to itself -- in the test job it did not, and the runner was shut down.
+# has the machine to itself -- in the test job it would not, and a runner out of memory is shut down.
 #
 # An incomplete list is SAFE, and that is deliberate. `getraster`/`download` each test their own
 # target file's existence before fetching, so anything missed here is simply downloaded by the test
-# job as before -- the cost of a gap is a few downloads, never a wrong answer. So this list is
+# job -- the cost of a gap is a few downloads, never a wrong answer. So this list is
 # maintained by hand without a mechanism to keep it honest, and should be extended when a test starts
 # reading something new. The same reasoning is written up beside the cache key in
 # `.github/workflows/testing.yaml`.
@@ -99,9 +99,9 @@ const WANTED = [
 ]
 
 # Each entry is tried three times, a minute apart. The hosts these come from are occasionally
-# unreachable and occasionally truncate a transfer part way (measured 2026-09-18: a morning of
-# connection timeouts from `geodata.ucdavis.edu`, then `EOFError: read end of file` mid-download an
-# hour later), and one flaky minute here costs every raster test job its own download attempt.
+# unreachable and occasionally truncate a transfer part way (a morning of connection timeouts from
+# `geodata.ucdavis.edu`, then `EOFError: read end of file` mid-download an hour later), and one
+# flaky minute here costs every raster test job its own download attempt.
 # `getraster` and the readers test each file's own existence before fetching, so a retry resumes
 # rather than repeating what already arrived.
 const ATTEMPTS = 3
@@ -141,8 +141,8 @@ else
     # **Said to the workflow as well, because a gap must not be saved under the full key.** That key
     # is what the next run probes to decide whether to prime at all, so an entry with gaps claiming
     # it makes the gaps permanent: every later job skips priming and fetches the missing files
-    # itself, for as long as the key stands. Measured 2026-09-18: one morning of connection timeouts
-    # to the WorldClim host left a 656 MB entry that every raster job then failed against.
+    # itself, for as long as the key stands: one morning of connection timeouts to the WorldClim
+    # host is enough to leave an entry that every raster job then fails against.
     out = get(ENV, "GITHUB_OUTPUT", "")
     isempty(out) || open(f -> println(f, "gaps=true"), out, "a")
 end

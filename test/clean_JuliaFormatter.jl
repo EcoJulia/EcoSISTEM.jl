@@ -10,9 +10,8 @@ using JuliaFormatter
 include("GitUtils.jl")
 using .GitUtils
 
-# No Windows guard is needed here any more: `runtests.jl` skips the whole `extras_*` group on a
-# Windows CI runner, so this file is never reached there. It still runs on Windows *locally*, where
-# the file-writing problem that motivated the old guard does not arise.
+# No Windows guard is needed: `runtests.jl` skips the whole `extras_*` group on a Windows CI runner,
+# so this file is never reached there, and run on Windows locally it works.
 @testset "JuliaFormatter" begin
     git_dir = readchomp(`$(Git.git()) rev-parse --show-toplevel`)
     @test_nowarn format(EcoSISTEM)

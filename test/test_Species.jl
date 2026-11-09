@@ -10,12 +10,13 @@ using Distributions
 using EcoSISTEM.Units
 using Diversity
 using EcoBase
+using Random
 # **Load-bearing, and it took a parallel runner to notice.** The `SpeciesList` forms this file
 # builds are completed by `EcoSISTEMPhyloExt` - `src/Species.jl`'s 7-argument constructor forwards
 # to an 8-argument one (`switch::Vector{Float64}`) that only exists once `Phylo` is loaded. This file
 # never said so, and passed anyway: run serially, some *earlier* test file had already loaded `Phylo`
 # into the shared process. Each parallel worker is a fresh process, so the order-dependency became
-# a `MethodError`. The rule it broke is `CLAUDE.md`'s: a file needing a weak dependency must name it.
+# a `MethodError`. A file needing a weak dependency must name it.
 using Phylo
 
 @testset "SpeciesList" begin
@@ -36,48 +37,109 @@ using Phylo
     # Collect model parameters together (in this order!!)
     param = EqualPop(birth, death, long, surv)
 
-    individuals = 100
-
     # Create ecosystem
-    kernel = GaussianKernel.(fill(2.0km, numSpecies), 10e-4)
-    movement = AlwaysMovement(kernel)
+    kernel = fill(GaussianKernel(meandist = 2.0km, thresh = 10e-4), numSpecies)
+    movement = AlwaysDispersal().(kernel)
 
     opts = fill(5.0°C, numSpecies)
     vars = rand(Uniform(0, 25 / 9), numSpecies) * °C
     tolerance = NicheTolerance(Temperature, Normal, opts, vars)
-    abun = rand(Multinomial(individuals, numSpecies))
-    native = fill(true, numSpecies)
-    @test_nowarn sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
-                                    movement, param, native)
-    @test_nowarn sppl = SpeciesList(numSpecies, numTraits, abun, resource_vec,
-                                    movement, param, native)
+    @test_nowarn sppl = SpeciesList(numSpecies, tolerance, resource_vec,
+                                    movement, param)
+    # Drawing a tree is deprecated: a pool takes one, `add_phylogeny!`.
+    @test_deprecated SpeciesList(numSpecies, numTraits, resource_vec, movement,
+                                 param)
 
-    sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec, movement,
-                       param,
-                       native)
+    sppl = SpeciesList(numSpecies, tolerance, resource_vec, movement, param)
     newsppl = SpeciesList{typeof(sppl.tolerance),
                           typeof(sppl.demand),
                           typeof(sppl.movement),
                           typeof(sppl.types),
-                          typeof(sppl.params)}(sppl.tolerance, sppl.abun,
+                          typeof(sppl.params)}(sppl.names, sppl.tolerance,
                                                sppl.demand, sppl.types,
-                                               sppl.movement, sppl.params,
-                                               sppl.native)
+                                               sppl.movement, sppl.params)
     @test newsppl.names == sppl.names
 
-    # The mass-based `SpeciesList` constructor is **commented out** in `src/Species.jl`,
-    # together with the `SizeDemand` it was the only caller of: with the free/dimensionless supply
-    # gone there was nothing for that demand to pair with, so a species list built this way could
-    # be constructed but never simulated. Both are parked against a metabolic reading of size that
-    # nobody has implemented - see the note above `SizeDemand` in `src/Layer.jl`.
+    # The mass-based `SpeciesList` constructor is **commented out** in
+    # `ext/EcoSISTEMPhyloExt/species_list.jl`, together with the `SizeDemand` it was the only caller
+    # of: with no free/dimensionless supply there is nothing for that demand to pair with, so a
+    # species list built this way could be constructed but never simulated. Both are parked against a
+    # metabolic reading of size that nobody has implemented - see the note above `SizeDemand` in
+    # `src/Demand.jl`.
     @test_throws MethodError SpeciesList(numSpecies, numTraits, 10.0, 10.0, 0.5,
-                                         100.0km^2, movement, param, native,
+                                         100.0km^2, movement, param,
                                          [0.5, 0.5])
 
-    # Test
-    @test_nowarn sppl = SpeciesList(numSpecies, numTraits, abun, resource_vec,
-                                    movement, UniqueTypes(numSpecies), param,
-                                    native)
+    # The form taking a similarity structure is deprecated with the rest.
+    @test_deprecated SpeciesList(numSpecies, numTraits, resource_vec, movement,
+                                 UniqueTypes(numSpecies), param)
+end
+
+# **Species building, and placing them, must leave the global generator alone.** A seeded abundance
+# split, or a seeded phylogeny, comes from a stream of its own: it is the same whatever was drawn
+# before it, and drawing it moves nothing drawn after it. Unseeded, both come from the global
+# generator, as an unseeded `NicheSpec` does. A reseed of the global generator would pass the first
+# two checks and fail the third.
+@testset "species building and placing draw from streams of their own" begin
+    n = 6
+    species = build_species(SpeciesPool(n, verbosity = :silent),
+                            tolerance = ToleranceSpec(Temperature, μ = 298.0K,
+                                                      σ = 2.0K),
+                            demand = DemandSpec(SolarRadiation, 2.0kJ / day),
+                            verbosity = :silent)
+    habitat = build_habitat(EcoSISTEM.DefaultEcosystem(), verbosity = :silent)
+    # Each species' individuals, as a community total split across the species and placed.
+    function build(; kw...)
+        eco = build_ecosystem(BySupply(total = 100_000), species, habitat,
+                              verbosity = :silent; kw...)
+        return vec(sum(eco.abundances.matrix, dims = 2))
+    end
+    Random.seed!(1)
+    seeded = build(seed = 7)
+    Random.seed!(2)
+    @test build(seed = 7) == seeded
+    @test build(seed = 8) != seeded
+    @test sum(seeded) == 100_000
+    Random.seed!(3)
+    untouched = rand(UInt64)
+    Random.seed!(3)
+    build(seed = 7)
+    @test rand(UInt64) == untouched
+    Random.seed!(4)
+    unseeded = build()
+    Random.seed!(4)
+    @test build() == unseeded
+
+    # The tree-growing constructors, deprecated: the tree, and the tolerances evolved along it, from
+    # one stream, and the types in the species' order, so each species' abundances meet its own tip.
+    demand = Demand{SolarRadiation}(fill(2.0kJ / day, n))
+    movement = fill(InsectDispersal()(meandist = 2.0km,
+                                      thresh = 10e-4),
+                    n)
+    param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2)
+    grow(; kw...) = SpeciesList(n, 2, demand, movement, param; kw...)
+    grown = @test_deprecated grow(seed = 7)
+    @test Diversity.gettypenames(grown, true) == grown.names
+    branchlengths(sl) = sort([getlength(sl.types.tree, b)
+                              for b in getbranches(sl.types.tree)])
+    Random.seed!(1)
+    tree = grow(seed = 7)
+    Random.seed!(2)
+    again = grow(seed = 7)
+    @test branchlengths(again) == branchlengths(tree)
+    @test again.tolerance.vals == tree.tolerance.vals
+    @test branchlengths(grow(seed = 8)) != branchlengths(tree)
+    Random.seed!(3)
+    grow(seed = 7)
+    @test rand(UInt64) == untouched
+    # The seed reaches the other two forms as well: the one taking the switch rates, and the one
+    # taking a similarity structure, which keeps no tree but evolves the tolerances along one.
+    @test branchlengths(SpeciesList(n, 2, demand, movement, param, [0.5],
+                                    seed = 7)) ==
+          branchlengths(tree)
+    @test SpeciesList(n, 2, demand, movement, UniqueTypes(n), param,
+                      seed = 7).tolerance.vals ==
+          tree.tolerance.vals
 end
 
 # **Diversity's API hooks drifted, and nothing noticed for a release.** `_calcsimilarity`'s second
@@ -90,11 +152,10 @@ end
     tolerance = NicheTolerance(Temperature, Normal, fill(298.0K, n),
                                fill(2.0K, n))
     demand = Demand{SolarRadiation}(fill(2.0kJ / day, n))
-    movement = AlwaysMovement(GaussianKernel.(fill(2.0km, n), 10e-4))
+    movement = fill(AlwaysDispersal()(meandist = 2.0km,
+                                      thresh = 10e-4), n)
     param = EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2)
-    build(;
-          kw...) = SpeciesList(n, tolerance, fill(100, n), demand, movement,
-                               param, fill(true, n); kw...)
+    build(; kw...) = SpeciesList(n, tolerance, demand, movement, param; kw...)
     # Unset, the names are the positions, and the types say the same.
     anon = build()
     @test anon.names == ["1", "2", "3"]
@@ -145,22 +206,20 @@ end
     @test Diversity.API._getscale(eco) == 1          # `UniqueTypes`: no similarity, so unit scale
 
     # **Never cached - it must track the ecosystem.** A cache on `eco.ordinariness` is one nothing
-    # invalidates when the ecosystem changes: after `_addspecies!` it returns a `(10, 100)` matrix
-    # for an 11-species ecosystem. Such a cache is safe only by *position*, every mutator happening
-    # to run after `update!`'s single `invalidatecaches!`.
-    before = size(getordinariness!(eco), 1)
-    EcoSISTEM._addspecies!(eco, 10)
-    @test counttypes(eco) == before + 1
-    @test size(getordinariness!(eco), 1) == before + 1
+    # invalidates when the abundances change, safe only by *position*, every mutator happening to
+    # run after `update!`'s single `invalidatecaches!`.
+    before = copy(getordinariness!(eco))
+    eco.abundances.matrix[1, :] .+= 10
+    @test getordinariness!(eco) != before
 end
 
 # **The forwarding rule, asserted by ENUMERATION rather than by a list.** A `SpeciesList` holds
 # an `AbstractTypes`; every Diversity hook about the types must therefore give the same answer for
-# the list as for what it wraps. Every defect found on 2026-08-18 was a breach of exactly this -
-# hardcoded (`floattypes`, `_hassimilarity`), drifted (`_calcsimilarity` gained a **scale**), or
-# absent (`_subsettypes`, `_calcordinariness`, `_addedoutputcols`, `_getaddedoutput`).
+# the list as for what it wraps. A breach takes one of three forms - a hook hardcoded
+# (`floattypes`, `_hassimilarity`), drifted (`_calcsimilarity` gaining a **scale**), or absent
+# (`_subsettypes`, `_calcordinariness`, `_addedoutputcols`, `_getaddedoutput`).
 # Written as a sweep over `Diversity.API` so that a hook added upstream is caught here rather
-# than by whatever breaks first - the failure mode was always silence, never an error.
+# than by whatever breaks first - the failure mode is silence, never an error.
 @testset "SpeciesList forwards every AbstractTypes hook" begin
     species = build_species(EcoSISTEM.DefaultEcosystem(), verbosity = :silent)
     habitat = build_habitat(EcoSISTEM.DefaultEcosystem(), verbosity = :silent)

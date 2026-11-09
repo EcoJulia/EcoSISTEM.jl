@@ -31,6 +31,24 @@ function EcoSISTEM._sharedreport(build, layers::NamedTuple, cons::NamedTuple,
     end
 end
 
+# A small value made on the root and sent whole - a species pool, a filter's answers for its names, a
+# placement's result - since only the root read what made it, a name authority's release among it.
+function EcoSISTEM._sharedwhole(build)
+    return _sharedbuild(build, _wholepayload, nothing) do skeleton, _
+        return skeleton
+    end
+end
+
+# A placement's result, made on the root and sent whole. Its streams are its own, which no rank draws
+# from again, so nothing of them need be sent.
+function EcoSISTEM._sharedresult(build, ::MPIEcosystem,
+                                 ::EcoSISTEM.PlacementContext)
+    return EcoSISTEM._sharedwhole(build)
+end
+
+# A value as a payload: all skeleton, no arrays to send in place.
+_wholepayload(value) = (skeleton = value, descriptors = (), arrays = ())
+
 # The root runs `build` and takes its result apart with `pack`; every other rank receives the parts
 # and puts them together with `rebuild`. Then the root's input records replace everyone else's in
 # `cache`.

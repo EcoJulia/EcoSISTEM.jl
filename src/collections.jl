@@ -90,14 +90,6 @@ _asnamedtuple(t::Tuple) = NamedTuple{_derivenames(t)}(t)
 # ones from its own members.
 _likebacking(c, vals::Tuple) = NamedTuple{keys(c)}(vals)
 
-# The same idea one step earlier, and **not** the same function. `_likebacking` takes a built
-# **collection**; this takes the caller's raw `tolerance = ...` or `demand = ...` spec, which is a
-# plain `Tuple` or `NamedTuple` and not a collection at all. A caller who named their spec keeps those
-# names; a caller who wrote a tuple gets a tuple back, and the collection's own constructor derives
-# names from the built members' axes.
-_asbacking(::Tuple, vals::Tuple) = vals
-_asbacking(nt::NamedTuple, vals::Tuple) = NamedTuple{keys(nt)}(vals)
-
 # Every collection's members must be of its own family's abstract type, and there must be at least
 # one. Called from each family's *sole inner constructor*, so a collection of the wrong thing cannot
 # be built at all, rather than failing later from somewhere that assumed otherwise.
@@ -130,7 +122,7 @@ end
 # ---------------------------------------------------------------------------
 # Folds - how members are combined on any path that can be hot
 # ---------------------------------------------------------------------------
-# Recursive rather than `map` plus `reduce`: measured, `map` stops being unrolled at around seven
+# Recursive rather than `map` plus `reduce`: `map` stops being unrolled at around seven
 # members and starts allocating, while the recursion stays allocation-free and fully inferred at every
 # arity. `map` is still fine for construction-time work - `eltype`, `_iscontinuous`, coverage.
 
@@ -297,8 +289,8 @@ _zipmap(f, a::Tuple, b::Tuple, c::Tuple) = _samearity(a, b, c)
 
 # The recursion itself - arities already checked by `_zipmap`, so it can index freely.
 #
-# Recursive rather than `ntuple(..., Val(N))`, and the difference is not cosmetic: measured, the
-# `ntuple` form runs into inference's recursion limiter on the path that matters most - `_suitability`
+# Recursive rather than `ntuple(..., Val(N))`, and the difference is not cosmetic: the `ntuple` form
+# runs into inference's recursion limiter on the path that matters most - `_suitability`
 # over a collection assembling per-layer results - and widens the whole tuple to `Tuple{Any, Any}`, at
 # 288 bytes a call. The recursion infers exactly, at zero.
 _zipped(f, ::Tuple{}) = ()

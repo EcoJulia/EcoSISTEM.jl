@@ -144,7 +144,7 @@ end
         @test mean(EcoSISTEM.getcellareas(u"sr", geo)) ≈
               uconvert(u"sr", mean(EcoSISTEM.getcellareas(°^2, geo)))
         # A length or an angle is a caller mistake, not an unanswerable question - so it errors
-        # rather than returning `nothing`, and the message names the fix. This is what keeps the
+        # rather than returning `nothing`, and the message names the remedy. This is what keeps the
         # first argument meaning the *same thing* in both functions: the unit of the answer.
         @test_throws ErrorException EcoSISTEM.getcellareas(km, syn)
         @test_throws ErrorException EcoSISTEM.getcellareas(°, geo)
@@ -287,8 +287,7 @@ end
 
         # The property that makes this worth computing rather than approximating: a projected
         # cell's ANGULAR extent varies across the grid, even where its projected extent does not.
-        # A single answer would be wrong everywhere it was not taken - which is why the old API
-        # refused instead of averaging.
+        # A single answer would be wrong everywhere it was not taken, so there is no average.
         @test !allequal(ang.x)
         # A degree of longitude spans more ground the further south you are, so a fixed-width cell
         # spans FEWER degrees there: the east-west angular extent grows northwards.

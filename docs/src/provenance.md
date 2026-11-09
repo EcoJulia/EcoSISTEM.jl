@@ -98,7 +98,7 @@ for data an intervention is built from - whose records join the ecosystem's once
 ```@example provenance
 species = build_species(DefaultEcosystem(), numspecies = 3, verbosity = :silent)
 habitat = build_habitat(DefaultEcosystem(), verbosity = :silent)
-eco = build_ecosystem(species, habitat, seed = 1, provenance = seeding)
+eco = build_ecosystem(species, habitat, seed = 1, provenance = seeding, verbosity = :silent)
 provenance(eco)
 ```
 

@@ -64,8 +64,8 @@ a full suite of Diversity.jl measures and draws the figures. `models.jl` also re
 
 **Supply is derived from the population**, in both `landscapes/` and `interventions/`, so every
 configuration starts at its carrying capacity. Scaling the population alone does not work: it
-leaves capacity where it was and the run collapses straight back to it - measured, an island seeded
-with 100,000,000 individuals against the small supply crashed to **124**. At full scale the derived
+leaves capacity where it was and the run collapses straight back to it: an island seeded with
+100,000,000 individuals against the small supply crashes to **124**. At full scale the derived
 figure comes out at the published `4.5e11 kJ/km^2/month`.
 
 **Every top-level example is a `module`.** `test/extras_examples.jl` includes them all into one

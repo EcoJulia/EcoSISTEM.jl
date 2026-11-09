@@ -221,8 +221,8 @@ end
 # **species where a layer has cells**. That symmetry is the point - a tolerance and the regime it is
 # matched against should read alike, or the pairing the model rests on is invisible at the REPL.
 #
-# Without them the type parameter swamps the content: a 12-species two-axis tolerance collection
-# prints over 2 000 characters, nearly all of it `Distributions.Normal{Float64}` repeated.
+# Without them the type parameter swamps the content: a tolerance collection prints
+# `Distributions.Normal{Float64}` again for every species on every axis.
 function Base.show(io::IO, t::NicheTolerance)
     return print(io,
                  "NicheTolerance($(nameof(axisof(t))), $(length(t.dists)) species, $(unit(eltype(t))))")
@@ -390,8 +390,8 @@ _nichemeans(tolerance::NicheTolerance) = Distributions.mean.(tolerance.dists)
 function _checktolerancespecies(tolerance::AbstractTolerance, n::Integer)
     len = length(_nichedists(tolerance))
     len == n ||
-        error("a pre-built tolerance covers $len species but `numspecies` is $n: it is used as " *
-              "given, so it must already have one entry per species.")
+        error("a tolerance built already covers $len species, but there are $n: it is used as " *
+              "given, so it must hold one entry per species.")
     return nothing
 end
 
@@ -401,10 +401,3 @@ end
 _nichedists(t::NicheTolerance) = t.dists
 
 _nichedists(t::SimpleCategoricalTolerance) = t.vals
-
-# A single `(mean, width)` pair, filled out to `n` species as a Gaussian `NicheTolerance`.
-function _nichetolerance(axis, tolerance, n::Integer)
-    return NicheTolerance(axis, Normal,
-                          _tofield(tolerance[1], n, "tolerance mean"),
-                          _tofield(tolerance[2], n, "tolerance width"))
-end

@@ -3,7 +3,7 @@
 module TestDynamics
 
 using EcoSISTEM
-# `[C7-VIS]` B2: `update!` is `public` rather than exported, so it must be named.
+# `update!` is `public` rather than exported, so it must be named.
 using EcoSISTEM: update!
 using Test
 using Unitful
@@ -11,6 +11,7 @@ using Unitful.DefaultSymbols
 using Distributions
 using EcoSISTEM.Units
 using JLD2
+using DataFrames: DataFrame
 
 include("TestCases.jl")
 
@@ -22,10 +23,7 @@ include("TestCases.jl")
     @test typeof(EcoSISTEM.calc_lookup_moves!(eco.habitat.topology,
                                               1, 1, 1, eco, 10)) ==
           Vector{Int64}
-    @test_nowarn populate!(EcoSISTEM.empty_landscape(eco.habitat,
-                                                     eco.spplist),
-                           eco.spplist, eco.habitat, eco.nichefit, eco.rngs)
-    @test_nowarn repopulate!(eco)
+    @test_nowarn repopulate!(eco, verbosity = :silent)
 
     # Test Cylinder
     @test_nowarn EcoSISTEM.calc_lookup_moves!(Cylinder(), 1, 1, 1, eco, 10)
@@ -40,10 +38,7 @@ include("TestCases.jl")
     @test typeof(EcoSISTEM.calc_lookup_moves!(eco.habitat.topology,
                                               1, 1, 1, eco, 10)) ==
           Vector{Int64}
-    @test_nowarn populate!(EcoSISTEM.empty_landscape(eco.habitat,
-                                                     eco.spplist),
-                           eco.spplist, eco.habitat, eco.nichefit, eco.rngs)
-    @test_nowarn repopulate!(eco)
+    @test_nowarn repopulate!(eco, verbosity = :silent)
 end
 
 @testset "Dispersal from a cell with no reachable destination" begin
@@ -97,15 +92,15 @@ end
                                              1.0, 0.0)
     tolerance = NicheTolerance(Temperature, Normal, fill(274.0K, N),
                                fill(0.5K, N))
-    movement = BirthOnlyMovement(fill(GaussianKernel(1.0km, 1.0e-3), N))
-    native = fill(true, N)
-    abun = fill(10, N)
+    movement = fill(InsectDispersal()(meandist = 1.0km,
+                                      thresh = 1.0e-3),
+                    N)
     nichefit = NicheSuitability{Temperature, typeof(1.0K)}()
 
     # single supply
-    sppl1 = SpeciesList(N, tolerance, abun,
+    sppl1 = SpeciesList(N, tolerance,
                         Demand{SolarRadiation}(fill(10.0kJ / day, N)),
-                        movement, nogrowth, native)
+                        movement, nogrowth)
     # Grid decided first: 100 km^2 over 4 × 4 is 2.5 km cells.
     habitat1 = GridHabitat(regime = UniformSpec(274.0K,
                                                 axis = Temperature),
@@ -116,7 +111,8 @@ end
                                             cellsize = sqrt(area) /
                                                        grid[1],
                                             verbosity = :silent))
-    eco1 = Ecosystem(sppl1, habitat1, nichefit)
+    eco1 = build_ecosystem(BySupply(each = 10), sppl1, habitat1,
+                           nichefit = nichefit, distributed = false)
     @test EcoSISTEM.resource_adjustment(eco1, eco1.habitat.supply, 1, 1) ==
           (0.0, 0.0)
 
@@ -127,8 +123,7 @@ end
                                               Demand{Precipitation}(fill(2.0Unitful.L /
                                                                          day,
                                                                          N))))
-    sppl2 = SpeciesList(N, tolerance, abun, resource2, movement, nogrowth,
-                        native)
+    sppl2 = SpeciesList(N, tolerance, resource2, movement, nogrowth)
     side = sqrt(area)
     habitat2 = GridHabitat(regime = UniformSpec(274.0K,
                                                 axis = Temperature),
@@ -139,7 +134,8 @@ end
                            area = StudyArea(extent = (side, side),
                                             cellsize = side / grid[1],
                                             verbosity = :silent))
-    eco2 = Ecosystem(sppl2, habitat2, nichefit)
+    eco2 = build_ecosystem(BySupply(each = 10), sppl2, habitat2,
+                           nichefit = nichefit, distributed = false)
     @test EcoSISTEM.resource_adjustment(eco2, eco2.habitat.supply, 1, 1) ==
           (0.0, 0.0)
 end
@@ -148,17 +144,31 @@ end
 # limit anything when a second resource is added. The whole shipped corpus uses *scalar* demands,
 # so ϵ̄ = 1 for every species and none of the properties below is observable in it - which is exactly
 # why a multi-resource arithmetic bug survived for years unnoticed.
+#
+# `demand` is the three species' demands on one resource, or a tuple of them, one per supply, on the
+# axes `demandaxis` names; each is a column of the species' pool.
 function _demandeco(demand, supply, demandaxis = SolarRadiation;
-                    tolerance = (280.0K, 5.0K))
+                    tolerance = ToleranceSpec(Temperature, μ = 280.0K,
+                                              σ = 5.0K))
     area = StudyArea(extent = (3.0km, 5.0km), cellsize = 1.0km,
                      verbosity = :silent)
     env = GridHabitat(regime = UniformSpec(285.0K, axis = Temperature),
                       supply = supply, area = area)
-    spp = build_species(3, tolerance = tolerance,
-                        toleranceaxis = Temperature, demand = demand,
-                        demandaxis = demandaxis,
-                        abundance = 300, seed = 1)
-    eco = build_ecosystem(spp, env, seed = 1)
+    members = demand isa Tuple ? demand : (demand,)
+    resourceaxes = demandaxis isa Tuple ? demandaxis : (demandaxis,)
+    columns = ntuple(i -> Symbol(:demand, i), length(members))
+    table = DataFrame(species = string.(1:3))
+    for (column, member) in zip(columns, members)
+        table[!, column] = member
+    end
+    specs = map(resourceaxes, columns) do axis, column
+        return DemandSpec(axis, TraitColumn(column))
+    end
+    spp = build_species(SpeciesPool(table, verbosity = :silent),
+                        tolerance = tolerance,
+                        demand = demand isa Tuple ? specs : only(specs),
+                        seed = 1, verbosity = :silent)
+    eco = build_ecosystem(BySupply(total = 300), spp, env, seed = 1)
     eco.abundances.matrix .= 10
     EcoSISTEM.update_resource_usage!(eco)
     return eco
@@ -187,9 +197,9 @@ const _SPAREWATER = UniformSpec(1.0e12Unitful.L / (m^2 * day),
 
     # REGRESSION GUARD. A second resource that can never limit anything, and that every species
     # demands equally (ϵ̄ = 1, the product's fixed point), must leave birth and death *exactly*
-    # unchanged. This failed before 2026-08-06: the suitability term was applied once per resource,
-    # so it moved birth by ×0.5457 and death by ×1.8325 - `suit^∓survival` - for a resource that
-    # could not possibly matter.
+    # unchanged. Applying the suitability term once per resource would move birth by a factor of
+    # 0.5457 and death by 1.8325 here - `suit^∓survival` - for a resource that cannot possibly
+    # matter.
     inert = _demandeco((solar, fill(1.0Unitful.L / day, 3)),
                        (_SOLAR, _SPAREWATER),
                        (SolarRadiation, Precipitation))
@@ -208,11 +218,39 @@ const _SPAREWATER = UniformSpec(1.0e12Unitful.L / (m^2 * day),
         ϵ = only(EcoSISTEM.values(one.spplist.demand)).resource[sp] *
             only(EcoSISTEM.values(one.spplist.demand)).exchange_rate
         # birth and death both carry `demanded^-longevity`, so both scale by ϵ̄^-longevity again.
-        @test all(adj(twice, sp) .≈ adj(one, sp) .* ϵ^-longevity)
+        @test all(adj(twice, sp) .≈ adj(one, sp) .* ϵ^-longevity[sp])
     end
     # The average species is the fixed point of that compounding and is *not* a witness to it -
     # ϵ̄ = 1 there, so it alone would pass whatever the combining rule.
     @test adj(twice, 2) == adj(one, 2)
+end
+
+# Each species' own longevity is the exponent on its own demand, on birth and death alike, so changing
+# one species' longevity scales that species' two terms by its demand to the change, leaves their
+# ratio - the equilibrium - as it was, and touches no other species; one ecosystem holding several
+# exponents does so for every species at once, single resource or several.
+@testset "each species' longevity sets its own tempo" begin
+    solar = [1.0e9, 2.0e9, 3.0e9] .* kJ / day        # ϵ̄ = 0.5, 1.0, 1.5
+    adj(eco, sp) = EcoSISTEM._resourceadjustment(eco, eco.habitat.supply, 1,
+                                                 sp)
+    for (demand, supply, axes) in ((solar, _SOLAR, SolarRadiation),
+                                   ((solar, fill(1.0Unitful.L / day, 3)),
+                                    (_SOLAR, _SPAREWATER),
+                                    (SolarRadiation, Precipitation)))
+        even = _demandeco(demand, supply, axes)
+        varied = _demandeco(demand, supply, axes)
+        varied.spplist.params.longevity .= [0.5, 1.0, 2.0]
+        for sp in 1:3
+            ϵ = solar[sp] / mean(solar)
+            factor = ϵ^-(varied.spplist.params.longevity[sp] - 1.0)
+            @test all(adj(varied, sp) .≈ adj(even, sp) .* factor)
+            (b, d) = adj(varied, sp)
+            (b0, d0) = adj(even, sp)
+            @test b / d ≈ b0 / d0
+        end
+        # ϵ̄ = 1 is the fixed point: the average species' terms do not move at all.
+        @test adj(varied, 2) == adj(even, 2)
+    end
 end
 
 # A supply that never runs short leaves a whole run unchanged, and a stock does so as a flow does. A
@@ -287,12 +325,10 @@ end
                                fill(0.5K, N))
     param = EqualPop(0.6 / month_mean_duration, 0.6 / month_mean_duration, 1.0,
                      0.0)
-    kernel = GaussianKernel.(fill(1.0km, N), 1.0e-3)
-    movement = BirthOnlyMovement(kernel)
-    native = fill(true, N)
-    abun = fill(10, N)
+    kernel = fill(GaussianKernel(meandist = 1.0km, thresh = 1.0e-3), N)
+    movement = InsectDispersal().(kernel)
     resource = Demand{SolarRadiation}(fill(2.0kJ / day, N))
-    sppl = SpeciesList(N, tolerance, abun, resource, movement, param, native)
+    sppl = SpeciesList(N, tolerance, resource, movement, param)
 
     # A fully-active habitat for exercising calc_lookup_moves!/update! at
     # extreme y/x coordinates - every cell reachable, so no cell's move
@@ -310,7 +346,8 @@ end
 
     nichefit = NicheSuitability{EcoSISTEM.axisof(habitat.regime),
                                 eltype(habitat.regime)}()
-    eco = Ecosystem(sppl, habitat, nichefit)
+    eco = build_ecosystem(BySupply(each = 10), sppl, habitat,
+                          nichefit = nichefit, distributed = false)
 
     # getgridshape must report (ny, nx) - the actual array shape - not (nx, ny).
     @test EcoSISTEM.getgridshape(eco) == grid
@@ -400,13 +437,13 @@ end
 
 # -- The hot loop must not allocate per cell -----------------------------------------------------
 #
-# **Why these exist, and why there are two.** A62: `Ecosystem` declares `abundances::GridLandscape`,
-# and when that type gained parameters the bare name became a `UnionAll` -- an abstract field -- so
-# every `eco.abundances.matrix` reached inside a threaded body was boxed. It cost about 176 bytes
-# per cell, grew with the grid, and shipped in v0.5.0 unnoticed for a release.
+# **Why these exist, and why there are two.** `Ecosystem` declares `abundances::GridLandscape`,
+# the bare name of a parametric type, so the field is abstract. Were a field the loop reads through
+# it to name a type parameter, every `eco.abundances.matrix` reached inside a threaded body would be
+# boxed, at about 176 bytes per cell, growing with the grid.
 #
-# Nothing in the suite could have caught it. The change that caused it was in `Landscape.jl`; the
-# damage was in `dynamics.jl`, whose text never changed. Reading the loop finds nothing.
+# The cause would be in `Landscape.jl` and the damage in `dynamics.jl`, whose text need not change,
+# so reading the loop finds nothing.
 #
 # The two checks catch different halves and neither subsumes the other: the first names the boxing
 # directly and fails the moment a type on the path gains a parameter, the second catches any
@@ -418,6 +455,7 @@ _readgrid(eco) = eco.abundances.grid
 _readtotaldemand(eco) = eco.cache.totaldemand
 _readnetmigration(eco) = eco.cache.netmigration
 _readtopology(eco) = eco.habitat.topology
+_readmovement(eco) = eco.spplist.movement
 
 # Behind a function barrier, as `test_collections.jl`'s allocation checks are: `eco` arrives as a
 # typed argument, so the test's own necessarily-unstable local cannot land on the measurement, and
@@ -435,8 +473,8 @@ end
     # **Deliberately NOT `isconcretetype(fieldtype(T, :abundances))`.** That field is still the bare
     # `GridLandscape` `UnionAll` and is *meant* to be: the landscape holds concrete raw arrays
     # inside an abstract container, and Julia infers a field through it so long as the field's own
-    # declared type names no type parameter. A field-concreteness walk would fail on the very field
-    # A62 was about, and would have to carve it out -- worse than no check.
+    # declared type names no type parameter. A field-concreteness walk would fail on exactly this
+    # field, and would have to carve it out -- worse than no check.
     @test !isconcretetype(fieldtype(T, :abundances))
     @test Base.return_types(_readmatrix, (T,))[1] === Matrix{Int64}
     @test Base.return_types(_readgrid, (T,))[1] === Array{Int64, 3}
@@ -446,12 +484,20 @@ end
     # `AbstractTopology` it did not infer, so the `calc_lookup_moves!` call in `_move!` dispatched
     # dynamically and boxed its `Int64` arguments once per species per cell per timestep.
     @test isconcretetype(Base.return_types(_readtopology, (T,))[1])
+    # Each species' movement is read per species per cell: the vector must infer concretely, its
+    # element a concrete movement or a union of at most four that the call to `move!` splits.
+    for eco in (eco, Test1Ecosystem(seed = 1, mixed = true))
+        M = Base.return_types(_readmovement, (typeof(eco),))[1]
+        @test isconcretetype(M)
+        @test length(Base.uniontypes(eltype(M))) <= 4
+    end
+    @test length(Base.uniontypes(eltype(Test1Ecosystem(seed = 1,
+                                                       mixed = true).spplist.movement))) ==
+          4
 end
 
 # **A sweep, because the checks above are a LIST and a list cannot catch a field it does not name.**
-# That is not hypothetical: `topology` was abstract from the day it was written, cost 240 bytes a
-# cell, and was absent from the list until it was measured - the four paths there were added when
-# `abundances` was fixed, and the next such field simply was not among them.
+# An abstract field no path names - `topology`, say, at 240 bytes a cell - passes every check there.
 #
 # Every entry here must be looked at rather than counted: a new abstract field on any type the loop
 # reaches fails this until it is either fixed or listed with the reason it is safe.
@@ -475,6 +521,22 @@ const _ABSTRACT_BY_DESIGN = Dict((:Ecosystem,
                                      "an `AbstractRunCalendar`, a marker set " *
                                      "by `build_ecosystem` and read only when " *
                                      "dates become elapsed time. Not read in the loop.",
+                                 (:Ecosystem,
+                                  :placement) =>
+                                     "`Any`, because a placement may be any " *
+                                     "function. Read only by `repopulate!` and " *
+                                     "the run's provenance, never in the loop.",
+                                 (:Ecosystem,
+                                  :savedchanges) =>
+                                     "a `Union{Nothing, _SavedChanges}`, set " *
+                                     "only from a saved state until the first " *
+                                     "step. Read once a step by `update!`, " *
+                                     "outside the loop, and allocates nothing.",
+                                 (:SpeciesList,
+                                  :authority) =>
+                                     "a `Union{Nothing, AbstractNameAuthority}`, " *
+                                     "because species may have no name authority. " *
+                                     "Not read in the loop.",
                                  (:GridHabitat,
                                   :active) =>
                                      "abstract, and measured to cost nothing: " *
@@ -514,7 +576,7 @@ end
     ncells(eco) = size(eco.abundances.matrix, 2)
     extracells = ncells(large) - ncells(small)
     @test extracells > 500
-    # Fewer than one byte per additional cell: A62 cost about 176 of them.
+    # Fewer than one byte per additional cell: a boxed field costs about 176 of them.
     @test _usagealloc(large) - _usagealloc(small) < extracells
 end
 
@@ -551,6 +613,23 @@ end
     # And under a byte per added species, where it was about 560.
     @test _updatealloc(manyspecies, timestep) -
           _updatealloc(fewspecies, timestep) < extraspecies
+end
+
+# The same with four kinds of movement, the most a species list may mix: each species' `move!` is
+# chosen from a union the compiler splits, which must cost nothing per cell or species, as it would
+# not were the union abstract or larger.
+@testset "a timestep with four kinds of movement allocates nothing per cell or species" begin
+    timestep = 1.0month_mean_duration
+    smallgrid = Test1Ecosystem(seed = 1, grid = (5, 7), mixed = true)
+    largegrid = Test1Ecosystem(seed = 1, grid = (20, 28), mixed = true)
+    extracells = size(largegrid.abundances.matrix, 2) -
+                 size(smallgrid.abundances.matrix, 2)
+    @test _updatealloc(largegrid, timestep) -
+          _updatealloc(smallgrid, timestep) < extracells
+    fewspecies = Test1Ecosystem(seed = 1, numspecies = 12, mixed = true)
+    manyspecies = Test1Ecosystem(seed = 1, numspecies = 80, mixed = true)
+    @test _updatealloc(manyspecies, timestep) -
+          _updatealloc(fewspecies, timestep) < 80 - 12
 end
 
 end

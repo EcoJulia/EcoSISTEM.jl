@@ -13,7 +13,7 @@ module TestRasters
 
 using EcoSISTEM
 using Statistics: mean
-# `[C7-VIS]` C: these are `public` rather than exported - a spec is what a user writes,
+# These are `public` rather than exported - a spec is what a user writes,
 # and these are what it materialises into.
 using EcoSISTEM: SeriesLayerChange, AbsoluteChange
 using EcoSISTEM: hasdata, landcoverclass
@@ -34,8 +34,8 @@ include("buildfixtures.jl")
 # edges, never at their reference corners. `extrema` of the lookup values gives corners: with the
 # `Start` locus GDAL files declare, the largest value is where the last cell *begins*, so a whole
 # cell is discarded off the top and right of every layer - WorldClim reporting -90°...89.8333° for a
-# grid that reaches 90°. It matters because `Touches`, which
-# `_applycut` selects with, works on intervals, so the footprint and the read disagreed.
+# grid that reaches 90°. It matters because `Touches`, which `_applycut` selects with, works on
+# intervals, so a footprint taken from corners would disagree with the read.
 @testset "a layer's footprint reaches its cells' outer edges" begin
     # The fixtures use the `Intervals(Start)` locus a reader produces, so a coordinate is its
     # cell's **lower** edge and the extent runs one whole cell beyond the last value.
@@ -43,12 +43,12 @@ include("buildfixtures.jl")
     e = EcoSISTEM._dimsextent(r.array, nothing)
     @test e.Y == (0.0°, 5.0°)       # values are 0°...4°, cells 1° wide
     @test e.X == (0.0°, 5.0°)
-    # ...and asked for `Center` explicitly the same five values describe different ground, which is
-    # the half-cell difference that made the old default a misdescription of real data.
+    # ...and asked for `Center` explicitly the same five values describe different ground, half a
+    # cell away.
     c = _testraster(WorldClim{BioClim}, fill(290.0K, 5, 5),
                     locus = DimensionalData.Lookups.Center())
     @test EcoSISTEM._dimsextent(c.array, nothing).Y == (-0.5°, 4.5°)
-    # ...and the span is a whole number of cells, which the value-extrema version never gave.
+    # ...and the span is a whole number of cells, which value extrema do not give.
     @test e.Y[2] - e.Y[1] == 5.0° && e.X[2] - e.X[1] == 5.0°
 
     # A projected layer is measured the same way, in its own units.
@@ -75,12 +75,12 @@ end
 
 # A layer the plan calls `:exact` must be **cropped, not warped**. A GDAL warp onto an
 # identical grid does leave the values alone (bilinear's weights collapse to (1,0,0,0) on
-# coincident cells - measured max difference 2e-9), but it does *not* leave the nodata mask
+# coincident cells - a largest difference of 2e-9), but it does *not* leave the nodata mask
 # alone: it poisons any output cell whose input stencil touches a `NaN`, so the coastline erodes,
 # and which cells that catches depends on GDAL's internal source windowing - which the extent of
-# the *read* changes. Reading a global layer and reading a window of the same layer therefore
-# produced study areas differing in 138 coastal cells. Cropping removes the warp, so the answer
-# is invariant by construction, and the report's "kept exactly" becomes true.
+# the *read* changes. Reading a global layer and reading a window of the same layer would therefore
+# give study areas differing in 138 coastal cells. Cropping removes the warp, so the answer is
+# invariant by construction, and the report's "kept exactly" is true.
 @testset "an exactly-aligned layer is cropped, never resampled" begin
     r = _testraster(WorldClim{BioClim},
                     reshape(collect(1.0:25.0), 5, 5) .* K)
@@ -330,8 +330,8 @@ end
     @test !EcoSISTEM._iscategorical(Temperature)
 end
 
-# The step this whole subproject exists for: a monthly total becomes a rate by being divided by
-# **its own** month, not by a fixed 30.4375-day one. Exercised on a synthetic array so it costs no
+# A monthly total becomes a rate by being divided by **its own** month, not by a fixed 30.4375-day
+# one. Exercised on a synthetic array so it costs no
 # download - what is being tested is the arithmetic and the slice-to-month mapping, not the reader.
 @testset "a monthly read is divided by each slice's own month" begin
     spec = SourceSpec(WorldClim{Climate}, :prec)
@@ -339,8 +339,7 @@ end
     array = fill(100.0, 2, 2, 12)
     out = EcoSISTEM._applyperiod(array, spec, NamedTuple())
 
-    # February is the case the plan is named after: 100/28.25 rather than 100/30.4375, which is
-    # 7.7% higher - the error that was silently in every monthly climatology until now.
+    # February shows it most: 100/28.25 rather than 100/30.4375, which is 7.7% higher.
     @test out[1, 1, 2] ≈ 100 / 28.25
     @test out[1, 1, 2] / (100 / 30.4375) ≈ 1.0774 atol = 1e-4
     @test out[1, 1, 1] ≈ 100 / 31           # January
@@ -351,8 +350,8 @@ end
                                           30,
                                           31, 30, 31]))
 
-    # A partial read is divided by the months actually requested. Under the old fixed divisor this
-    # distinction did not exist; getting it wrong here would be silent.
+    # A partial read is divided by the months actually requested, not by a fixed divisor; getting it
+    # wrong here would be silent.
     part = EcoSISTEM._applyperiod(fill(100.0, 2, 2, 3), spec,
                                   (month = 2:4,))
     @test part[1, 1, 1] ≈ 100 / 28.25       # February, not January
@@ -406,10 +405,9 @@ end
     @test isnothing(t.scale)
     @test_throws ErrorException SourceSpec(WorldClim{BioClim}, 1, scale = 0)
 
-    # ...and the keywords really do reach `read` through `GridHabitat`. This is the
-    # regression test: A1 deleted the only method that forwarded read keywords, so `month` became
-    # silently unreachable. Asking for 2 months must give a 2-slice series - not the source's
-    # own default of all 12.
+    # ...and the keywords really do reach `read` through `GridHabitat`: without the method that
+    # forwards read keywords, `month` is silently unreachable. Asking for 2 months must give a
+    # 2-slice series - not the source's own default of all 12.
     wind = SourceSpec(WorldClim{Climate}, :wind, month = 1:2)
     env = _env(wind, SUP,
                within = EcoSISTEM.boundingbox("Scotland",

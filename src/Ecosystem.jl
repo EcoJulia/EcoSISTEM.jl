@@ -11,13 +11,13 @@ using Missings
 
 using Random
 
-using JLD2
-
 using DimensionalData
 
 using DimensionalData: Ti, At
 
 using HCubature
+
+using Distributions: ContinuousUnivariateDistribution, InverseGaussian, pdf
 
 using DataFrames
 
@@ -58,12 +58,21 @@ mutable struct Cache
     end
 end
 
-# A one-liner is the whole of what a cache needs: the default prints all four scratch arrays,
-# measured at 462 054 characters. Its contents are meaningless between timesteps - `relativeabun` is
-# refilled on every call and never trusted - so its shape is the only fact worth showing.
+# A one-liner is the whole of what a cache needs: the default prints all four scratch arrays. Their
+# contents are meaningless between timesteps - `relativeabun` is refilled on every call and never
+# trusted - so its shape is the only fact worth showing.
 function Base.show(io::IO, c::Cache)
     nsp, ncells = size(c.netmigration)
     return print(io, "Cache($(nsp) species × $(ncells) cells)")
+end
+
+# What a saved state recorded of each layer's change rule, by role and then layer name, kept by an
+# ecosystem started from it until its first step has installed the rules the run's interventions give,
+# then compared with them: a state holds a layer's values but not its rule, which is code.
+struct _SavedChanges
+    path::String
+    regime::Dict{String, @NamedTuple{change::String, phrase::String}}
+    supply::Dict{String, @NamedTuple{change::String, phrase::String}}
 end
 
 """
@@ -72,7 +81,7 @@ end
 
 Ecosystem houses information on species and their interaction with their
 environment. For species, it holds abundances and locations, as well as
-properties such as trait information, `spplist`, and movement types, `lookup`.
+properties such as trait information, `spplist`, and dispersal neighbourhoods, `lookup`.
 For environments, it provides information on environmental conditions and
 available resources,`habitat`. Finally, there is a slot for the nichefit
 between the environment and the characteristics of the species, `nichefit`.
@@ -81,8 +90,11 @@ seed the per-species RNG streams were derived from. `epoch` is the real date ela
 corresponds to, or `nothing` for a run with no calendar - see [`simulationdate`](@ref) - and
 `calendar` the [`AbstractRunCalendar`](@ref) its dates are placed by. `inputs`
 holds the [`ProvenanceRecord`](@ref)s of published data belonging to the run as a whole - those given to
-[`build_ecosystem`](@ref), and those of every intervention that has acted - which
-[`provenance`](@ref) lists.
+[`build_ecosystem`](@ref), those its placement read, and those of every intervention that has acted -
+which [`provenance`](@ref) lists. `placement` is the placement its individuals were placed by, as it
+was given (see [`AbstractPlacement`](@ref)), which [`repopulate!`](@ref) places by again.
+`savedchanges` is what the saved state it was started from recorded of each layer's change rule, held
+until its first step, and otherwise `nothing`.
 """
 mutable struct Ecosystem{Part <: AbstractHabitat,
                          SL <: SpeciesList,
@@ -105,6 +117,9 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
     # hot path.
     calendar::AbstractRunCalendar
     inputs::Vector{ProvenanceRecord}
+    # Abstract on purpose: a placement may be any function, and nothing in the step reads it.
+    placement::Any
+    savedchanges::Union{Nothing, _SavedChanges}
 
     function Ecosystem{Part, SL, NF}(abundances::GridLandscape,
                                      spplist::SL,
@@ -149,77 +164,11 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
                                  seed,
                                  epoch,
                                  ExactDates(),
-                                 ProvenanceRecord[])
+                                 ProvenanceRecord[],
+                                 nothing,
+                                 nothing)
     end
 end
-
-"""
-    Ecosystem(spplist::SpeciesList, habitat::GridHabitat,
-        nichefit::AbstractNicheFit)
-
-Create an `Ecosystem` given a species list, an abiotic environment and trait
-nichefit. An optional population function can be added, `popfun`, which
-defaults to generic random filling of the ecosystem. A `seed` may be supplied to
-make the run reproducible: it deterministically seeds one random number
-generator per species (see [`makerngs`](@ref)), so results are identical
-regardless of the number of threads used. If no `seed` is given, one is drawn at
-random.
-"""
-function Ecosystem(popfun::F,
-                   spplist::SpeciesList{TL, DM},
-                   habitat::GridHabitat,
-                   nichefit::AbstractNicheFit;
-                   seed::Integer = rand(UInt64)) where {F <: Function, TL, DM}
-    # **First, and before `genlookups` below.** The inner constructor checks this too, but it runs
-    # last - and `genlookups` divides the regime's cell size by a dispersal distance, so on a
-    # geographic grid (`size` in `°`) it raises `DimensionError: ° km^-1` before the tailored message
-    # is ever reached. That was invisible while the geographic cell size was silently converted to
-    # kilometres; making it honest is what exposed the ordering.
-    _checksimulatable(habitat)
-
-    # Check there is enough resource to support number of individuals at set up
-    # Commented out since before this rewrite, and left so deliberately - but note it would no
-    # longer typecheck: `getdemand` returns the demand now, not a total. The total is `_getdemand`.
-    #all(_getdemand(spplist.abun, spplist.demand) .<= totalsupply(habitat)) ||
-    #error("Environment does not have enough resource to support species")
-    # Create matrix landscape of zero abundances
-    ml = empty_landscape(habitat, spplist)
-    # One deterministically-seeded RNG per species, so births/deaths/dispersal
-    # and the initial population draw are reproducible across thread counts
-    rngs = makerngs(seed, size(ml.matrix, 1))
-    # Populate this matrix with species abundances
-    popfun(ml, spplist, habitat, nichefit, rngs)
-    # Create lookup table of all moves and their probabilities
-    lookup_tab = collect(map(k -> genlookups(habitat.regime, k),
-                             getkernels(spplist.movement)))
-    nm = zeros(Int64, size(ml.matrix))
-    totaldemand = zeros(Float64, (size(ml.matrix, 2), numdemands(DM)))
-    return Ecosystem{typeof(habitat), typeof(spplist), typeof(nichefit)}(ml,
-                                                                         spplist,
-                                                                         habitat,
-                                                                         nichefit,
-                                                                         lookup_tab,
-                                                                         Cache(nm,
-                                                                               totaldemand,
-                                                                               false),
-                                                                         rngs,
-                                                                         0.0s,
-                                                                         _storedseed(seed))
-end
-
-function Ecosystem(spplist::SpeciesList,
-                   habitat::GridHabitat,
-                   nichefit::AbstractNicheFit;
-                   seed::Integer = rand(UInt64))
-    return Ecosystem(populate!, spplist, habitat, nichefit, seed = seed)
-end
-
-# The constructor's own docstring, looked up by signature: `@doc Ecosystem` would return the type's
-# docstring and the constructor's together, which the documentation build cannot render as one.
-@doc (@doc Ecosystem(::Function, ::SpeciesList, ::GridHabitat,
-                     ::AbstractNicheFit)) Ecosystem(::SpeciesList,
-                                                    ::GridHabitat,
-                                                    ::AbstractNicheFit)
 
 """
     CachedEcosystem{Part <: AbstractHabitat, SL <: SpeciesList,
@@ -245,6 +194,7 @@ mutable struct CachedEcosystem{Part <: AbstractHabitat,
     epoch::Union{Nothing, Dates.TimeType}
     calendar::AbstractRunCalendar
     inputs::Vector{ProvenanceRecord}
+    placement::Any
 end
 
 """
@@ -280,14 +230,15 @@ function CachedEcosystem(eco::Ecosystem, outputfile::String,
                                                  eco.seed,
                                                  eco.epoch,
                                                  eco.calendar,
-                                                 eco.inputs)
+                                                 eco.inputs,
+                                                 eco.placement)
 end
 
 # ---------------------------------------------------------------------------
 # Display
 # ---------------------------------------------------------------------------
 # Without these an ecosystem falls through to Diversity's `AbstractMetacommunity` generic, which
-# prints its full type signature - measured at 6 169 characters, constant but unreadable.
+# prints its full type signature, too long to read.
 #
 # **Both sides of the model are named, not just the species count.** An ecosystem is species in an
 # environment, so what a reader needs is what the environment offers and what the species are matched
@@ -351,7 +302,14 @@ end
 
 Extract abundances for an ecosystem, `cache`, at a certain point in time, `tm`.
 If the abundances for that time are missing from the ecosystem, then the
-function checks on disk for the last saved version and simulates forward.
+function checks on disk for the last saved version and simulates forward, saving as it goes - so a
+cache built again over the same folder, by the same script run again, goes on from the last state
+saved there.
+
+# Arguments
+
+  - `cache`: the cached ecosystem.
+  - `tm`: the time to give its abundances at, one of the times it was built with.
 """
 function abundances(cache::CachedEcosystem, tm::Unitful.Time)
     return _abundances(cache, tm)[2]
@@ -595,7 +553,8 @@ end
     speciesdispersal(eco::AbstractEcosystem, sp)
     speciesdispersal(spplist::SpeciesList, sp)
 
-Return species `sp`'s dispersal **kernel** - a `GaussianKernel` or `LongTailKernel`. `sp` may be an
+Return species `sp`'s dispersal **kernel**, an [`AbstractKernel`](@ref), or `nothing` for a species
+that does not disperse. `sp` may be an
 index or a name.
 
 **The exception to the `NamedTuple` shape** of the other four: a species has one dispersal kernel,
@@ -603,15 +562,15 @@ not one per layer or per resource, so there is nothing to key a tuple by.
 
 It returns the kernel itself rather than a parameterisation, which is both more honest - the
 distance distribution is Rayleigh rather than Normal, and a `LongTailKernel` is a 2Dt with a `shape`
-a Normal cannot express - and directly reusable: it is exactly what [`AddSpecies`](@ref)'s
-`dispersal` keyword takes, so an arrival can be given an existing species' dispersal.
+a Normal cannot express - and directly reusable: a dispersal mode called with it gives a species'
+movement, so another species can be given this one's dispersal.
 
 ```julia
-AddSpecies(dispersal = speciesdispersal(eco, 3), abundance = 500)
+InsectDispersal()(speciesdispersal(eco, 3))
 ```
 """
 function speciesdispersal(spplist::SpeciesList, sp::Int64)
-    return getkernels(spplist.movement)[sp]
+    return spplist.movement[sp].kernel
 end
 
 function speciesdispersal(spplist::SpeciesList, sp::AbstractString)
@@ -655,24 +614,29 @@ end
 Convert type of similarity in [`SpeciesList`](@ref) to UniqueTypes, i.e. an
 identity matrix.
 
-The species keep their names: only the similarity structure is dropped.
+The species keep their names, their identity and values from the pool they were built from, and
+their name authority: only the similarity structure is dropped.
 """
 function makeunique(eco::Ecosystem)
     sppl = eco.spplist
     EcoSISTEM.invalidatecaches!(eco)
+    # Every field but `types` must reach the new list: a pool-built list's identity (`traits`,
+    # `namemap`) and its `authority` cannot be rebuilt from the rest.
     newsppl = SpeciesList{typeof(sppl.tolerance),
                           typeof(sppl.demand),
                           typeof(sppl.movement),
                           UniqueTypes,
                           typeof(sppl.params)}(sppl.names,
                                                sppl.tolerance,
-                                               sppl.abun,
                                                sppl.demand,
                                                _uniquetypes(sppl.names),
                                                sppl.movement,
                                                sppl.params,
-                                               sppl.native,
-                                               provenance = sppl.inputs)
+                                               provenance = sppl.inputs,
+                                               traits = sppl.traits,
+                                               filled = sppl.filled,
+                                               authority = sppl.authority,
+                                               namemap = sppl.namemap)
     newsppl.susceptible = sppl.susceptible
     stripped = Ecosystem{typeof(eco.habitat), typeof(newsppl),
                          typeof(eco.nichefit)}(eco.abundances,
@@ -687,6 +651,8 @@ function makeunique(eco::Ecosystem)
                                                eco.epoch)
     stripped.calendar = eco.calendar
     stripped.inputs = eco.inputs
+    stripped.placement = eco.placement
+    stripped.savedchanges = eco.savedchanges
     return stripped
 end
 
@@ -744,6 +710,37 @@ function makerngs(seed::Integer, n::Integer)
     return [Random.Xoshiro(UInt64[seed % UInt64, j]) for j in 1:n]
 end
 
+# An ecosystem of `spplist` in `habitat` with no individuals yet, its streams made from `seed`: what
+# `build_ecosystem` places into.
+function _emptyecosystem(spplist::SpeciesList{TL, DM}, habitat::GridHabitat,
+                         nichefit::AbstractNicheFit;
+                         seed::Integer = rand(UInt64)) where {TL, DM}
+    # **First, and before `genlookups` below.** The inner constructor checks this too, but it runs
+    # last, and `genlookups` divides the regime's cell size by a dispersal distance, so on a
+    # geographic grid (`size` in `°`) it would raise `DimensionError: ° km^-1` before the tailored
+    # message is reached.
+    _checksimulatable(habitat)
+    ml = empty_landscape(habitat, spplist)
+    # One deterministically-seeded RNG per species, so births, deaths, dispersal and the placement
+    # are reproducible across thread counts.
+    rngs = makerngs(seed, size(ml.matrix, 1))
+    lookup_tab = collect(map(k -> genlookups(habitat.regime, k),
+                             getkernels(spplist.movement)))
+    nm = zeros(Int64, size(ml.matrix))
+    totaldemand = zeros(Float64, (size(ml.matrix, 2), numdemands(DM)))
+    return Ecosystem{typeof(habitat), typeof(spplist), typeof(nichefit)}(ml,
+                                                                         spplist,
+                                                                         habitat,
+                                                                         nichefit,
+                                                                         lookup_tab,
+                                                                         Cache(nm,
+                                                                               totaldemand,
+                                                                               false),
+                                                                         rngs,
+                                                                         0.0s,
+                                                                         _storedseed(seed))
+end
+
 # Narrow a user-supplied seed of any integer type to the `UInt64` the ecosystem stores. `%` rather
 # than `UInt64(...)`, so a negative seed reinterprets rather than throwing - `seed` only ever seeds
 # a stream, it is never used as a magnitude. `makerngs` narrows the same way, so the stored seed
@@ -755,119 +752,6 @@ _storedseed(seed::Integer) = seed % UInt64
 function _mcmatch(m::AbstractMatrix, sppl::SpeciesList, part::AbstractHabitat)
     return _counttypes(sppl, true) == size(m, 1) &&
            _countsubcommunities(part) == size(m, 2)
-end
-
-# The one implementation, reached only through the [`AddSpecies`](@ref) operation. Every trait
-# defaults to `nothing`, which clones the last species - what a plain reintroduction wants.
-function _addspecies!(eco::AbstractEcosystem, abun::Integer;
-                      tolerance = nothing, demand = nothing,
-                      dispersal = nothing, birth = nothing, death = nothing,
-                      name = nothing)
-    n = counttypes(eco.spplist, true)
-    newnames = vcat(eco.spplist.names, isnothing(name) ? string(n + 1) : name)
-    newmat = vcat(eco.abundances.matrix,
-                  zeros(Int64, 1, size(eco.abundances.matrix, 2)))
-    # `GridLandscape` is immutable - the only way to change shape is to construct a whole new
-    # one (via the constructor, which reshape-pairs `.matrix`/`.grid` correctly) and reassign the
-    # `Ecosystem` field holding it. The grid comes from the habitat, which is what it describes.
-    eco.abundances = GridLandscape(newmat, newnames, getcoords(eco.habitat))
-    # Give the new species its own RNG stream, seeded from `(seed, j)` like every other species.
-    # Drawing one from an existing species' stream instead would break the scheme twice over: the
-    # new stream would depend on how many species had been added rather than on the seed, and the
-    # draw would re-phase the demography of the species it came from.
-    push!(eco.rngs, Random.Xoshiro(UInt64[eco.seed, n + 1]))
-    repopulate!(eco, abun)
-    push!(eco.spplist.names, isnothing(name) ? string(n + 1) : name)
-    append!(eco.spplist.abun, abun)
-    # An arrival carrying its own traits is by definition not native.
-    append!(eco.spplist.native, all(isnothing, (tolerance, demand, dispersal)))
-    push!(eco.spplist.susceptible, missing)
-    _addtolerance!(eco.spplist.tolerance, tolerance)
-    _addmovement!(eco.spplist.movement, dispersal)
-    _addparams!(eco.spplist.params, birth, death)
-    _adddemand!(eco.spplist.demand, demand)
-    # Reassigned, not discarded: `_addtypes!` returns a new `UniqueTypes` because it is immutable.
-    # Handed the name just pushed onto `names`, so the two name sources cannot drift apart.
-    eco.spplist.types = _addtypes!(eco.spplist.types, eco.spplist.names[end])
-    # A `Lookup` for the new species, or the first `move!` is a `BoundsError`. Built the same way
-    # the constructor builds them, from the species' own movement kernel.
-    push!(eco.lookup,
-          genlookups(eco.habitat.regime, getkernels(eco.spplist.movement)[end]))
-    # ...and the migration cache has to match the new landscape, or applying net migration is a
-    # `DimensionMismatch`.
-    eco.cache.netmigration = zeros(Int64, size(eco.abundances.matrix))
-    eco.cache.valid = false
-    return eco
-end
-
-# **Each of these takes the new species' own value, and falls back to cloning the last species only
-# when none is given** - which is what a plain reintroduction wants.
-function _addtolerance!(tolerance::NicheTolerance, dist = nothing)
-    return push!(tolerance.dists,
-                 isnothing(dist) ? tolerance.dists[end] : dist)
-end
-
-# Takes the new species' **set** of tolerated classes, and clones the last species' set where none is
-# given. `push!` of a set of its own, never `append!` into one or `push!` of the last species' own
-# vector: a species' tolerance is one set per species, and sharing or appending into the set being
-# cloned would alter that species as well as building the new one.
-function _addtolerance!(tolerance::SimpleCategoricalTolerance, val = nothing)
-    return push!(tolerance.vals,
-                 isnothing(val) ? copy(tolerance.vals[end]) :
-                 _categoryset(val))
-end
-
-# Takes a dispersal **kernel**, not an `AbstractMovement`: the movement *type* belongs to the whole
-# assemblage, while the kernel and `disperse_safely` are per-species. That is why `AddSpecies`'
-# keyword is `dispersal`, matching `build_species`, rather than `movement`.
-#
-# **`disperse_safely` must grow with `kernels`, or the first `move!` after `addspecies!` is a
-# `BoundsError`** - the same trap the `Lookup` push above already documents, and it bit for the same
-# reason: two per-species vectors that must stay the same length, only one of which was being
-# extended. Caught by `extras_examples` (the invasion intervention adds a species mid-run), not by
-# any unit test. The new species inherits the last one's setting, as its kernel and rates do.
-function _addmovement!(mv::AbstractMovement, kernel = nothing)
-    push!(mv.kernels, isnothing(kernel) ? mv.kernels[end] : kernel)
-    hasproperty(mv, :disperse_safely) &&
-        push!(mv.disperse_safely, mv.disperse_safely[end])
-    return mv.kernels
-end
-
-# **Two vectors, and both must grow** - `birth` and `death` are separate per-species vectors on the
-# same params object, so extending one and not the other leaves them different lengths and the
-# demographic loop reads off the end. Cloning the last species' rates is the `nothing` default the
-# family shares.
-function _addparams!(params::AbstractParams, birth = nothing, death = nothing)
-    append!(params.birth, isnothing(birth) ? params.birth[end] : birth)
-    return append!(params.death, isnothing(death) ? params.death[end] : death)
-end
-
-# One entry per species - `counttypes(::Demand)` is `length(demand.resource)` - so this grows the
-# vector by exactly one, cloning the last species' demand when none is given, as elsewhere in the
-# family. A **multi-resource** demand is a `SpeciesRequirementCollection` of several `Demand`s, not
-# a longer `resource`, so this method only ever sees one resource's worth.
-function _adddemand!(d::AbstractDemand, resource = nothing)
-    return append!(d.resource,
-                   isnothing(resource) ? d.resource[end] : resource)
-end
-
-# `UniqueTypes` is immutable, so this **returns** a new one and the caller must reassign; assigning
-# to the argument would throw the result away.
-# Takes the new species' `name` and goes through `_uniquetypes`, so the existing species keep
-# theirs - the count constructor used here before renamed **every** species to its index, silently
-# and on every `addspecies!`.
-function _addtypes!(ut::UniqueTypes, name::AbstractString)
-    return _uniquetypes([gettypenames(ut, true); name])
-end
-
-# Adding a species to anything else is refused, with the reason rather than a `MethodError` off the
-# end of dispatch. A phylogeny-backed `SpeciesList` is the real case: a new species has no position on
-# the tree, and inventing one would change what every diversity measure computes.
-function _addtypes!(types::AbstractTypes, ::AbstractString)
-    return error("`addspecies!` cannot extend a $(typeof(types)): only `UniqueTypes` can gain a " *
-                 "species without saying anything more. A phylogeny-backed species list needs the " *
-                 "new species' position on the tree, which nothing here can supply - rebuild the " *
-                 "`SpeciesList` from a tree that already contains it.")
 end
 
 # The abundances at `tm`, simulating forward from the last checkpoint if that time was never saved.
@@ -902,8 +786,11 @@ function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
     end
     simulate!(cache, newtm, timestep)
     if issave
-        @save joinpath(cache.abundances.outputfolder, string(idx, ".jld2")) abuns=SavedLandscape(cache.abundances.matrix[Ti(At(tm))],
-                                                                                                 cache.rngs)
+        _writestate(joinpath(cache.abundances.outputfolder,
+                             string(idx, ".jld2")),
+                    cache.abundances.matrix[Ti(At(tm))].matrix,
+                    _streamwords(cache.rngs), cache.spplist, cache.habitat,
+                    tm, cache.seed, cache.epoch, cache.calendar)
     end
     return _abundances(cache, newtm + timestep)
 end
@@ -971,28 +858,51 @@ function _2Dtdisperse(r, b)
     return ((b - 1) / (π)) * (1 + ((r[3] - r[1])^2 + (r[4] - r[2])^2))^-b
 end
 
+# The density of landing at a point, per unit area, for a kernel stated as the distribution of the
+# distance travelled: the distance density spread round the circle at that distance, `pdf(dist, d)
+# / (2pi d)`. The point `d = 0` has measure zero and is given zero rather than the limit, since the
+# cubature samples it at the centre of the source cell.
+function _distancedisperse(r, dist::ContinuousUnivariateDistribution)
+    d = sqrt((r[3] - r[1])^2 + (r[4] - r[2])^2)
+    return d > 0 ? pdf(dist, d) / (2π * d) : 0.0
+end
+
 """
-    genlookups(regime::AbstractRegime, kernel::GaussianMovement)
+    genlookups(regime::AbstractRegime, kernel::AbstractKernel)
 
 Generate lookup tables, which hold information on the probability of moving to
 neighbouring squares.
 """
 function genlookups(regime::AbstractRegime, kernel::GaussianKernel)
-    sd = (2 * kernel.dist) / sqrt(pi)
-    relsize = uconvert(NoUnits, _uniformcellside(regime) / sd)
+    relsize = uconvert(NoUnits, _uniformcellside(regime) / kernel.scale)
     m = maximum(getgridshape(regime))
     p = kernel.thresh
     return Lookup(_lookup(relsize, m, p, _gaussiandisperse))
 end
 
 function genlookups(regime::AbstractRegime, kernel::LongTailKernel)
-    sd = (2 * kernel.dist) / sqrt(pi)
-    relsize = uconvert(NoUnits, _uniformcellside(regime) / sd)
+    relsize = uconvert(NoUnits, _uniformcellside(regime) / kernel.scale)
     m = maximum(getgridshape(regime))
     p = kernel.thresh
     b = kernel.shape
     return EcoSISTEM.Lookup(EcoSISTEM._lookup(relsize, m, p, b,
                                               EcoSISTEM._2Dtdisperse))
+end
+
+# Distances in units of the mean, so the inverse Gaussian is `InverseGaussian(1, scale / meandist)`.
+function genlookups(regime::AbstractRegime, kernel::WaldKernel)
+    relsize = uconvert(NoUnits, _uniformcellside(regime) / kernel.meandist)
+    m = maximum(getgridshape(regime))
+    distance = InverseGaussian(1.0,
+                               uconvert(NoUnits,
+                                        kernel.scale / kernel.meandist))
+    return Lookup(_lookup(relsize, m, kernel.thresh,
+                          r -> _distancedisperse(r, distance)))
+end
+
+# A species that does not disperse has no neighbourhood, and its movement never reads one.
+function genlookups(::AbstractRegime, ::Nothing)
+    return Lookup(Int64[], Int64[], Float64[], Float64[], Int64[])
 end
 
 # Build one species' dispersal neighbourhood: every offset the kernel reaches with probability above
@@ -1167,46 +1077,52 @@ end
              yx::Tuple{<:Y, <:X})
 
 Load a cached [`GridLandscape`](@ref) from the folder `file` for checkpoint index
-`idx`, reshaping the abundance matrix onto `names`/`yx` (the ecosystem's own
-species names and `(Y, X)` grid). The saved per-species RNG streams are
-restored into `cache.rngs` so the resumed run continues a reproducible random
-stream.
+`idx`, a state in [`write_state`](@ref)'s layout, putting its abundances onto `names` and `grid` (the
+ecosystem's own species names and grid). The checkpoint is checked against the cache's grid, species,
+epoch and calendar, so a folder written by another configuration is refused rather than continued
+from; and as a run started from a state does, the cache takes the saved species' activity, the
+active cells, every layer's values and each species' random stream, so the resumed run goes on
+exactly as the saved one would have.
 """
 function loadfile(cache::CachedEcosystem, file::String, idx::Int,
                   names::Vector{String}, grid::StudyGrid)
-    @load joinpath(file, string(idx, ".jld2")) abuns
-    # Restore the per-species RNG streams for a reproducible resumed run
-    cache.rngs .= copy.(abuns.rngs)
+    path = joinpath(file, string(idx, ".jld2"))
+    state = _readstate(path)
+    _checkstategrid(state, cache.habitat, path)
+    columns = _statecolumns(state, cache.spplist, path)
+    _stateepoch(state, cache.epoch, path)
+    _statecalendar(state, cache.calendar, path)
+    _checkstreamfields(state, path)
+    _restoreground!(cache.spplist, cache.habitat, state, columns, path)
+    _setstreams!(cache.rngs, state.streams, columns)
+    saved = zeros(Int64, length(names), size(state.abundances, 2))
+    for (row, column) in enumerate(columns)
+        iszero(column) || (saved[row, :] .= view(state.abundances, column, :))
+    end
     # The saved state the run resumes from is among what it was built from.
-    state = ProvenanceRecord(role = :state, source = "saved state",
-                             path = string(idx, ".jld2"))
-    state in cache.inputs || push!(cache.inputs, state)
-    return GridLandscape(abuns, names, grid)
+    record = ProvenanceRecord(role = :state, source = "saved state",
+                              path = string(idx, ".jld2"))
+    record in cache.inputs || push!(cache.inputs, record)
+    return GridLandscape(saved, names, grid)
 end
 
-# **There is no ordinariness to invalidate any more.** It is recomputed on demand into
-# `cache.relativeabun`, so no stale value can survive a change to the ecosystem - which is
-# exactly the hazard the old `eco.ordinariness` field carried.
+# **Ordinariness is not stored, so there is none to invalidate.** It is recomputed on demand into
+# `cache.relativeabun`, so no stale value can survive a change to the ecosystem; a stored copy would
+# have to be invalidated here on every change.
 function invalidatecaches!(eco::AbstractEcosystem)
     eco.cache.netmigration .= 0
     return eco.cache.valid = false
 end
 
-# Write the current abundances into an abundance recording. Indexed by *the species there are now*
-# rather than by the whole first dimension, because `generate_storage`'s `maxspecies` may leave room
-# for species that have not arrived yet - and `storage[:, :, i] = matrix` would be a
-# `DimensionMismatch` the moment it does.
-#
-# Rows beyond the current count are left as they were. They are `undef` until a species occupies
-# them, which is correct: "this species did not exist yet" is not the same as "it had zero
-# abundance", and writing zeros would assert the latter.
+# Write the current abundances into an abundance recording. Indexed by the species there are rather
+# than by the whole first dimension, so storage of the caller's own with rows to spare can be given;
+# rows beyond the species are left as they were.
 function _record!(storage::AbstractArray, eco::AbstractEcosystem,
                   counting::Integer)
     nspp = size(eco.abundances.matrix, 1)
     nspp <= size(storage, 1) ||
-        error("this run now has $nspp species but the recording was sized for $(size(storage, 1)). " *
-              "Pass `maxspecies` to `generate_storage` to leave room for species that arrive " *
-              "during the run.")
+        error("this run has $nspp species but the recording was sized for $(size(storage, 1)). " *
+              "`generate_storage` sizes it from the ecosystem.")
     storage[1:nspp, :, counting] = eco.abundances.matrix
     return storage
 end

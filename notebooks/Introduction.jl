@@ -63,7 +63,7 @@ begin
     totalK = (4.5e11kJ / km^2 / month_mean_duration,
               192.0mm / month_mean_duration)
     side = sqrt(area)
-    habitat = GridHabitat(regime = UniformSpec(298.0K,
+    habitat = GridHabitat(regime = UniformSpec(25.0°C,
                                                axis = Temperature),
                           supply = (UniformSpec(totalK[1],
                                                 axis = SolarRadiation),
@@ -76,18 +76,16 @@ begin
 
     # Species characteristics
     individuals = 100_000
-    abun = rand(Multinomial(individuals, numSpecies))
     death = 0.15 / year
     birth = death
     long = 1.0
     surv = 0.1
     param = EqualPop(birth, death, long, surv)
-    native = fill(true, numSpecies)
 
     # Dispersal
     av_dist = fill(2.4, numSpecies) .* km
-    kernel = GaussianKernel.(av_dist, 10e-10)
-    movement = BirthOnlyMovement(kernel)
+    kernel = [GaussianKernel(meandist = d, thresh = 10e-10) for d in av_dist]
+    movement = InsectDispersal().(kernel)
 
     # Resource demands
     demand = (450000.0kJ / m^2 / month_mean_duration,
@@ -101,18 +99,18 @@ begin
 
     # Condition preferences
     vars = fill(2.0, numSpecies) .* K
-    opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
+    opts = 25.0°C .+ vars .* range(-3, stop = 3, length = numSpecies)
     tolerance = NicheTolerance(Temperature, Normal, opts, vars)
 
     # Species list
-    sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
-                       movement, param, native)
+    sppl = SpeciesList(numSpecies, tolerance, resource_vec, movement, param)
 
     # Trait nichefit
     nichefit = NicheSuitability{Temperature, typeof(first(opts))}()
 
-    # Build ecosystem
-    eco = Ecosystem(sppl, habitat, nichefit)
+    # Build ecosystem, its individuals split at random across the species and placed by supply
+    eco = build_ecosystem(BySupply(total = individuals), sppl, habitat,
+                          nichefit = nichefit)
 
     # Run simulation
     times = 10year
@@ -192,7 +190,7 @@ begin
     totalW = 200.0mm / day
 
     # Overall temperature it will be
-    totalT = 298.0K
+    totalT = 25.0°C
 
     # Perfect, now we can build a simple environment! The grid is decided *first*, on its own,
     # and only then is anything built on it - a square 100 km^2 split 10 ways each way is 1 km
@@ -210,7 +208,8 @@ begin
                            area = area)
 
     # Let's plot it to see what it looks like
-    heatmap(temp_env.regime.matrix ./ K, clim = (278, 308), title = "Condition",
+    heatmap(ustrip.(°C, temp_env.regime.matrix), clim = (5, 35),
+            title = "Condition",
             layout = 2)
     heatmap!(temp_env.supply.matrix ./ (mm / day),
              title = "Resource",
@@ -219,7 +218,7 @@ begin
 end
 
 # ╔═╡ d1602be3-2724-4441-8dc3-8fa7713ed249
-md"Very boring! But we have succeeded in making a simple environment with a temperature of 298K (or 25 degrees C) with 200 mm of water in each square.
+md"Very boring! But we have succeeded in making a simple environment with a temperature of 25 °C with 200 mm of water in each square.
 
 Let's try something slightly more adventurous:"
 
@@ -241,7 +240,7 @@ begin
                                 area = area)
 
     # Let's plot it to see what it looks like now
-    heatmap(temp_grad_env.regime.matrix' ./ K, clim = (278, 308),
+    heatmap(ustrip.(°C, temp_grad_env.regime.matrix'), clim = (5, 35),
             title = "Condition")
 end
 
@@ -264,7 +263,7 @@ begin
                                 area = area)
 
     # Let's plot it to see what it looks like now
-    heatmap(temp_peak_env.regime.matrix' ./ K, clim = (278, 308),
+    heatmap(ustrip.(°C, temp_peak_env.regime.matrix'), clim = (5, 35),
             title = "Condition")
 end
 
@@ -280,15 +279,9 @@ begin
     # First things first - how many species?
     numSpp = 10
 
-    # And how many individuals overall
+    # And how many individuals overall - they are shared between the species when the
+    # ecosystem is built
     numInd = 100_000
-
-    # Great, now we'll randomly allocate those individuals evenly (but randomly!) 
-    # across the species
-    start_abuns = rand(Multinomial(numInd, numSpp))
-
-    # Are they all native?
-    is_native = fill(true, numSpp)
 
     # Next up, we need to decide on some base rates for the simulation to run on - 
     # like birth and death
@@ -307,11 +300,12 @@ begin
     # Now we have to consider movement - let's say the species move an average of 
     # 2.4km according to a Gaussian kernel
     average_dist = fill(2.4, numSpp) .* km
-    gauss_kernel = GaussianKernel.(average_dist, 10e-10)
+    gauss_kernel = [GaussianKernel(meandist = d, thresh = 10e-10)
+                    for d in average_dist]
 
     # Because we are considering plants, let's assume the seed production is combined 
     # with dispersal, so only new seeds move
-    move = BirthOnlyMovement(gauss_kernel)
+    move = InsectDispersal().(gauss_kernel)
 
     # We must also decide how much water each species needs per timestep
     water_req = (100.0Unitful.L / m^2 / day)
@@ -322,15 +316,14 @@ begin
     niche_width = fill(2.0, numSpp) .* K
 
     # And what is their niche optimum - here we have a range around 25 degrees
-    optima = 298.0K .+ niche_width .* range(-3, stop = 3, length = numSpp)
+    optima = 25.0°C .+ niche_width .* range(-3, stop = 3, length = numSpp)
 
     # Let's combine these pieces of information together so that each species has a 
     # Gaussian curve representing their match to the current temperature
     tolerance = NicheTolerance(Temperature, Normal, optima, niche_width)
 
     # Okay, now we are ready for our species list!
-    species_list = SpeciesList(numSpp, tolerance, start_abuns, water_vec,
-                               move, parameters, is_native)
+    species_list = SpeciesList(numSpp, tolerance, water_vec, move, parameters)
 end
 
 # ╔═╡ 8e33c75b-d128-4b25-9b2b-5cff452c3a4e
@@ -368,7 +361,10 @@ md"Now we can build our ecosystem! EcoSISTEM is integrated with SpatialEcology.j
 
 # ╔═╡ ffd5ca3f-00b3-4444-9f89-77062358c439
 begin
-    example_eco = Ecosystem(species_list, temp_grad_env, trait_relationship)
+    # The individuals are allocated evenly (but randomly!) across the species, and each
+    # species' share is placed by the supply
+    example_eco = build_ecosystem(BySupply(total = numInd), species_list,
+                                  temp_grad_env, nichefit = trait_relationship)
 end
 
 # ╔═╡ 7492f556-957c-48a3-8597-9c7c7ba20547

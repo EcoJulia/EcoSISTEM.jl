@@ -12,7 +12,7 @@
 using Random
 using Test
 using EcoSISTEM
-# `[C7-VIS]` B1/B2/B3: these are `public` rather than exported, so they must be named.
+# These are `public` rather than exported, so they must be named.
 using EcoSISTEM: empty_landscape, synchronise_from_cols!,
                  synchronise_from_rows!
 using ParallelTestRunner: find_tests, runtests
@@ -42,8 +42,8 @@ include(joinpath(@__DIR__, "testsets.jl"))
                    # `Modules`, so the duplicates are invisible rather than rendered twice.
                    # Listed with real counts, not exempted: a **new** docstring in these files
                    # still fails this test and has to be looked at.
-                   "EcoSISTEMMPIExt/Ecosystem.jl" => 2,
-                   "EcoSISTEMMPIExt/dynamics.jl" => 4,
+                   "EcoSISTEMMPIExt/Ecosystem.jl" => 1,
+                   "EcoSISTEMMPIExt/dynamics.jl" => 2,
                    "EcoSISTEMMPIExt/Landscape.jl" => 3)
     extdir = joinpath(@__DIR__, "..", "ext")
     for (root, _, files) in walkdir(extdir)

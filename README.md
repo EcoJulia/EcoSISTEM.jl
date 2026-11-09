@@ -47,19 +47,19 @@ using Unitful, Unitful.DefaultSymbols
 area = StudyArea(extent = (50km, 50km), cellsize = 10km)
 
 # One condition species are matched to, and one resource they compete for
-env = GridHabitat(regime = UniformSpec(285.0K, axis = Temperature),
+env = GridHabitat(regime = UniformSpec(10.0°C, axis = Temperature),
                   supply = UniformSpec(1.0e5kJ / (m^2 * day), axis = SolarRadiation),
                   area = area)
 
-# Ten species suited to 285 K, sharing 10,000 individuals
-species = build_species(10,
-                        tolerance = (285.0K, 3.0K), toleranceaxis = Temperature,
-                        demand = 1.0e9kJ / day, demandaxis = SolarRadiation,
-                        dispersal = 5.0km,
-                        abundance = 10_000,
+# Ten species suited to 10 °C, within a few degrees either side
+species = build_species(SpeciesPool(10),
+                        tolerance = ToleranceSpec(Temperature, μ = 10.0°C, σ = 3.0K),
+                        demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
+                        movement = MovementSpec(InsectDispersal(), meandist = 5.0km),
                         seed = 1)
 
-eco = build_ecosystem(species, env)
+# 10,000 individuals, shared among them and placed by supply
+eco = build_ecosystem(BySupply(total = 10_000), species, env)
 simulate!(eco, 10year, 1month_mean_duration)
 
 sum(eco.abundances.matrix)      # individuals still alive

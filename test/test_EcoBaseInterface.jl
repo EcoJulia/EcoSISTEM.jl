@@ -34,8 +34,7 @@ function _projected()
                        area = area)
 end
 
-# A real geographic grid - 0.5° cells over 7 × 11 cells - which is the case the old implementation
-# could not express at all.
+# A real geographic grid - 0.5° cells over 7 × 11 cells.
 function _geographic(; lat = (50.0:0.5:53.0) .* °, long = (0.0:0.5:5.0) .* °)
     raster = _testraster(WorldClim{BioClim},
                          fill(291.0K, length(lat),
@@ -79,7 +78,7 @@ end
 
     @test EcoBase.xcells(grid) == nx
     @test EcoBase.ycells(grid) == ny
-    # **Unitful, in the grid's own unit** - the old implementation returned a bare `Float64`.
+    # **Unitful, in the grid's own unit**, never a bare `Float64`.
     @test EcoBase.xcellsize(grid) == CELL
     @test EcoBase.ycellsize(grid) == CELL
     @test EcoBase.cellsize(grid) == (CELL, CELL)
@@ -96,10 +95,10 @@ end
     @test length(EcoBase.yrange(grid)) == ny
 end
 
-# **The measurement that made B3 a defect fix rather than a tidy-up.** The old
-# `Float64(regime.size / km)` did not throw on a geographic grid - it returned `1.0 ° km^-1`, a unit
-# that means nothing, *silently*, and the `DimensionError` only surfaced two functions later inside
-# EcoBase's own `xmax`, where it read as the caller's fault.
+# **Why a geographic grid has a test of its own.** `Float64(regime.size / km)` does not throw on a
+# geographic grid - it returns `1.0 ° km^-1`, a unit that means nothing, *silently*, and the
+# `DimensionError` only surfaces two functions later inside EcoBase's own `xmax`, where it reads as
+# the caller's fault.
 @testset "a geographic grid answers in degrees, and its derivations work" begin
     hab = _geographic()
     grid = EcoBase.getcoords(hab)

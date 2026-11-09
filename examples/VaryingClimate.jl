@@ -47,8 +47,9 @@ const AREA = StudyArea(extent = (20.0km, 30.0km), cellsize = 5.0km,
 
 const SUNLIGHT = UniformSpec(1.0e4kJ / (km^2 * day), axis = SolarRadiation)
 
-# The three regimes. All start at the same 285 K, so any divergence is the change and nothing else.
-const BASE = UniformSpec(285.0K, axis = Temperature)
+# The three regimes. All start at the same 10 °C, so any divergence is the change and nothing else.
+const START = 10.0°C
+const BASE = UniformSpec(START, axis = Temperature)
 
 # `IncrementBy` accumulates a **rate** each step - the only shape that takes a bare constant,
 # because "the same increment every step" is the one thing a constant can unambiguously mean.
@@ -56,23 +57,29 @@ const WARMING = Varying(BASE, IncrementBy(0.1K / year))
 
 # `OffsetBy` displaces the layer from its own values rather than accumulating, which is what makes
 # it the right shape for something that must come back: a cycle that accumulated would drift.
-# `PatternedChange(amplitude, period)` is a sinusoid, so this returns to 285 K every year.
+# `PatternedChange(amplitude, period)` is a sinusoid, so this returns to 10 °C every year.
 const SEASONAL = Varying(BASE, OffsetBy(PatternedChange(8.0K, 1year)))
 
 # One species, wide enough to survive all three so the comparison is about where it thrives rather
 # than whether it lives.
 function _species()
-    return build_species(20, tolerance = (285.0K, 6.0K),
-                         toleranceaxis = Temperature,
-                         demand = 5.0kJ / day, demandaxis = SolarRadiation,
-                         dispersal = 5.0km, abundance = 200_000, seed = 1)
+    return build_species(SpeciesPool(20),
+                         tolerance = ToleranceSpec(Temperature, μ = START,
+                                                   σ = 6.0K),
+                         demand = DemandSpec(SolarRadiation, 5.0kJ / day),
+                         movement = MovementSpec(InsectDispersal(),
+                                                 meandist = 5.0km),
+                         seed = 1, verbosity = :silent)
 end
 
-# Run one regime and report where it ended. Seeded identically each time, so the runs are comparable.
+# Run one regime and report where it ended. Seeded identically each time, so the runs are comparable:
+# each starts from the same 200,000 individuals, split at random among the species and placed by
+# supply.
 function _run(name, regime)
     environment = GridHabitat(regime = regime, supply = SUNLIGHT,
                               area = AREA)
-    eco = build_ecosystem(_species(), environment, seed = 1)
+    eco = build_ecosystem(BySupply(total = 200_000), _species(), environment,
+                          seed = 1)
     simulate!(eco, YEARS, TIMESTEP)
     # Read the temperature off the **built habitat** after the run, not off the spec - the layer
     # holds the values current now, which is the whole point.
@@ -86,14 +93,14 @@ end
 
 # `println`, not `@info`: logging goes to stderr and `test/extras_examples.jl` wraps each example
 # in `@test_nowarn`, which fails on *any* stderr output.
-println("Three climates over $(YEARS), from the same 285.0 K start:")
+println("Three climates over $(YEARS), from the same $(START) start:")
 
 const RESULTS = [_run("static", BASE), _run("warming", WARMING),
     _run("seasonal", SEASONAL)]
 
 for r in RESULTS
     println("  ", rpad(r.name, 9), "ends at ",
-            round(typeof(1.0K), r.temperature, digits = 2), " after ",
+            round(typeof(1.0°C), r.temperature, digits = 2), " after ",
             round(typeof(1.0year), r.elapsed, digits = 2), ", ",
             r.abundance, " individuals")
 end
@@ -103,11 +110,11 @@ end
 const STATIC, WARM, SEASON = RESULTS
 
 # The control has not moved at all.
-STATIC.temperature == 285.0K ||
+STATIC.temperature == uconvert(K, START) ||
     error("the static regime changed, and nothing should have moved it")
 
 # Warming has accumulated its rate over the elapsed time - read from the clock, not assumed.
-const EXPECTED = 285.0K + 0.1K / year * WARM.elapsed
+const EXPECTED = uconvert(K, START) + 0.1K / year * WARM.elapsed
 isapprox(WARM.temperature, EXPECTED, atol = 0.01K) ||
     error("warming reached $(WARM.temperature), expected about $(EXPECTED)")
 
@@ -115,13 +122,14 @@ isapprox(WARM.temperature, EXPECTED, atol = 0.01K) ||
 # - that is only true at whole periods, and a run need not end on one. The real distinction is
 # that a cycle stays **bounded** by its amplitude however long it runs, while `IncrementBy` grows
 # without limit. Run it for a century and this still holds; the warming assertion above does not.
-abs(SEASON.temperature - 285.0K) <= 8.0K ||
+abs(SEASON.temperature - uconvert(K, START)) <= 8.0K ||
     error("the seasonal regime left its amplitude: $(SEASON.temperature)")
 
 # ...and it is exactly the sinusoid evaluated at the clock, which is what "a pure function of elapsed
 # time" means. `sinpi(2φ)` is `PatternedChange`'s own default shape.
 const PHASE = SEASON.elapsed / 1year
-isapprox(SEASON.temperature, 285.0K + 8.0K * sinpi(2 * PHASE), atol = 0.01K) ||
+isapprox(SEASON.temperature, uconvert(K, START) + 8.0K * sinpi(2 * PHASE),
+         atol = 0.01K) ||
     error("the seasonal regime is not its declared shape at elapsed $(SEASON.elapsed)")
 
 println("\n✓ static held, warming accumulated its rate, and the cycle stayed bounded by its",

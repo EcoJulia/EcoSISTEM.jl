@@ -36,9 +36,9 @@ temperature = SourceSpec(WorldClim{BioClim}, :bio1)
 rainfall = SourceSpec(WorldClim{BioClim}, :bio12)
 
 # --- decide the grid, before anything is built on it ------------------------------
-# **A projected CRS is required to simulate**, and this is the whole reason the old version of
-# this file could not run. `EPSG:10592` (WGS 84 / GLANCE Africa) is the package's *own* advice:
-# ask for this extent without a `crs` and the report names it in the warning it raises.
+# **A projected CRS is required to simulate.** `EPSG:10592` (WGS 84 / GLANCE Africa) is the
+# package's *own* advice: ask for this extent without a `crs` and the report names it in the warning
+# it raises.
 # `within` positions the area and is not optional - WorldClim is a global dataset, so without it
 # the grid is the world. `boundingbox` reads the shipped table, so naming a region costs no download.
 area = StudyArea(regime = temperature, supply = rainfall,
@@ -53,13 +53,16 @@ env = GridHabitat(regime = temperature, supply = rainfall, area = area)
 # --- one species, tolerant of warmth and limited by water -------------------------
 # The tolerance is a `Temperature` and the demand a `Precipitation`, and each says so: meaning
 # comes from the declared axis, never from the values or their units.
-species = build_species(1, tolerance = (280.0K, 10.0K),
-                        toleranceaxis = Temperature,
-                        demand = 0.1Unitful.L / day,
-                        demandaxis = Precipitation,
-                        dispersal = 2CELLSIZE, abundance = 20_000, seed = 1)
+species = build_species(SpeciesPool(1),
+                        tolerance = ToleranceSpec(Temperature, μ = 5.0°C,
+                                                  σ = 10.0K),
+                        demand = DemandSpec(Precipitation, 0.1Unitful.L / day),
+                        movement = MovementSpec(InsectDispersal(),
+                                                meandist = 2CELLSIZE),
+                        seed = 1)
 
-eco = build_ecosystem(species, env, seed = 1)
+# 20,000 individuals, placed by supply.
+eco = build_ecosystem(BySupply(total = 20_000), species, env, seed = 1)
 
 # --- run, recording monthly -------------------------------------------------------
 const INTERVAL = 1month_mean_duration

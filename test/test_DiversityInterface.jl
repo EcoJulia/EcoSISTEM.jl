@@ -47,15 +47,15 @@ include("TestCases.jl")
     # tree of any other height would make such a `pd` return something
     # that was not Faith's PD at all.
     @test mean(heightstoroot(tree)) ≈ 1.0
-    # There is no `q` to pass. Faith's PD is q = 0 by definition, and the old signature's `qs` was
-    # accepted and silently ignored - so `pd(eco, 1.0)` looked like a q = 1 measure and was not.
+    # There is no `q` to pass: Faith's PD is q = 0 by definition, and a `q` accepted and ignored
+    # would make `faith_pd(eco, 1.0)` look like a q = 1 measure.
     @test_throws MethodError faith_pd(eco, 1.0)
 end
 
 @testset "makeunique keeps the species names" begin
     # **The names must be non-numeric or this proves nothing.** The bug was `UniqueTypes(count)`,
     # which generates `"1"`, `"2"`, ... - indistinguishable from the real names on any list that already
-    # has numeric ones, which is every list `build_species` produces *and* `Test1Ecosystem`'s.
+    # has numeric ones, which is every list built from `SpeciesPool(n)` *and* `Test1Ecosystem`'s.
     # Only `names` is renamed: `types` is a **type parameter** of `SpeciesList`, so it cannot be
     # reassigned in place - which is exactly why `makeunique` rebuilds the whole species list.
     eco = Test1Ecosystem()

@@ -80,4 +80,24 @@ end
     @test length(repr(EqualPop(0.6 / year, 0.6 / year, 1.0, 0.2))) < 120
 end
 
+# Longevity is per species where the rates are: one number fills every species, a vector gives each
+# its own, and `EqualPop`'s one number is filled when it is expanded.
+@testset "longevity is one exponent per species" begin
+    u = typeof(unit(0.6 / year))
+    rates = fill(0.6 / year, 3)
+    @test PopGrowth{u}(rates, rates, 1.0, 0.2).longevity == [1.0, 1.0, 1.0]
+    @test PopGrowth{u}(rates, rates, [0.5, 1.0, 2.0], 0.2).longevity ==
+          [0.5, 1.0, 2.0]
+    @test NoGrowth{u}(rates, rates, [0.5, 1, 2], 0.2).longevity ==
+          [0.5, 1.0, 2.0]
+    @test equalpop(EqualPop(0.6 / year, 0.6 / year, 1.5, 0.2), 3).longevity ==
+          fill(1.5, 3)
+    @test_throws "must not be negative" PopGrowth{u}(rates, rates,
+                                                     [1.0, -1.0, 1.0], 0.2)
+    @test_throws "must not be negative" PopGrowth{u}(rates, rates, 1.0, -0.2)
+    @test_throws DimensionMismatch PopGrowth{u}(rates, rates, [1.0, 2.0], 0.2)
+    @test occursin("longevity 0.5 to 2.0",
+                   repr(PopGrowth{u}(rates, rates, [0.5, 1.0, 2.0], 0.2)))
+end
+
 end

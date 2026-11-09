@@ -97,30 +97,29 @@ const AREA = StudyArea(extent = (SIDE, SIDE), cellsize = CELLSIZE,
 
 # A flat environment: one temperature everywhere, one solar supply everywhere. That is the point
 # of a scaling benchmark - nothing about the landscape should vary the work per cell.
-const ENVIRONMENT = GridHabitat(regime = UniformSpec(274.0K,
+const ENVIRONMENT = GridHabitat(regime = UniformSpec(0.0°C,
                                                      axis = Temperature),
                                 supply = UniformSpec(1000.0kJ / km^2 /
                                                      day,
                                                      axis = SolarRadiation),
                                 area = AREA)
 
-# `BirthOnlyMovement` is a modelling choice - these are plant-like species, dispersing only as
-# seed. Every movement type runs distributed, so it is not forced by the MPI run.
-const SPECIES = build_species(NUMSPECIES,
-                              tolerance = (274.0K, 0.5K),
-                              toleranceaxis = Temperature,
-                              demand = 1.0kJ / day,
-                              demandaxis = SolarRadiation,
-                              dispersal = 1.0km,
-                              movement = BirthOnlyMovement,
-                              survival = 0.2,
-                              abundance = INDIVIDUALS,
-                              seed = 1)
+# `InsectDispersal()` is a modelling choice - these are plant-like species, dispersing only as
+# seed carried by insects. Every dispersal mode runs distributed, so it is not forced by the MPI run.
+const SPECIES = build_species(SpeciesPool(NUMSPECIES),
+                              tolerance = ToleranceSpec(Temperature,
+                                                        μ = 0.0°C, σ = 0.5K),
+                              demand = DemandSpec(SolarRadiation, 1.0kJ / day),
+                              movement = MovementSpec(InsectDispersal(),
+                                                      meandist = 1.0km),
+                              survival = 0.2, seed = 1,
+                              verbosity = ISROOT ? :normal : :silent)
 
 ISROOT && println("Startup: $((time() - start) * s)")
 
-const ECO = build_ecosystem(SPECIES, ENVIRONMENT, seed = 1,
-                            distributed = :auto)
+# `INDIVIDUALS`, split at random across the species and placed by supply.
+const ECO = build_ecosystem(BySupply(total = INDIVIDUALS), SPECIES,
+                            ENVIRONMENT, seed = 1, distributed = :auto)
 
 # --- timing -----------------------------------------------------------------------------
 

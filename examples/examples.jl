@@ -13,11 +13,10 @@ using Distributions
 
 ## DIFFERENT OPTS ##
 
-# **The gate, added 2026-08-13 - this file had none and was the second-slowest thing in
-# `extras_examples` at 36 s, a fifth of the whole run.** It is a *smoke test* of the two-resource
-# path, so under the suite it needs enough individuals to exercise the arithmetic and no more:
-# 100 million of them on 100 cells was buying nothing a million does not. Run it directly (or set
-# `ECOSISTEM_SCALE=large`) for the published figures.
+# **The gate: at full scale this file is among the slowest in `extras_examples`.** It is a *smoke
+# test* of the two-resource path, so under the suite it needs enough individuals to exercise the
+# arithmetic and no more: 100 million of them on 100 cells buys nothing a million does not. Run it
+# directly (or set `ECOSISTEM_SCALE=large`) for the published figures.
 const SMALL = get(ENV, "ECOSISTEM_SCALE", "large") == "small"
 
 numSpecies = 100;
@@ -31,8 +30,7 @@ totalK = (4.5e11kJ / km^2 / month_mean_duration, 192.0mm / month_mean_duration)
 # A `StudyArea` decides the grid, then `GridHabitat` builds on it. With no data-backed layer
 # to shape it, `extent` and `cellsize` give a **synthetic** grid with no CRS - which is exactly what a
 # synthetic `UniformSpec` needs, since it is generated at whatever shape it is handed. A square
-# `area` split `grd[1]` ways gives the same 10x10 grid of 1 km^2 cells the old `simplehabitat(val, grd,
-# maxsupply, area)` derived, so nothing about the simulation below changes.
+# `area` split `grd[1]` ways gives a 10x10 grid of 1 km^2 cells.
 #
 # `verbosity = :silent` because this example runs under `@test_nowarn`, which fails on *any* stderr
 # output - and the default `:normal` announces each guessed value. Worth knowing outside a test:
@@ -43,7 +41,7 @@ studyarea = StudyArea(extent = (side, side), cellsize = side / grd[1],
 # Both resources in one call, so the two-resource environment is **built** rather than assembled.
 # The `simplehabitat` version had to build one single-resource habitat per resource and then reach
 # inside them to staple the supplies into a `LayerCollection` by hand.
-habitat = GridHabitat(regime = UniformSpec(298.0K, axis = Temperature),
+habitat = GridHabitat(regime = UniformSpec(25.0°C, axis = Temperature),
                       supply = (UniformSpec(totalK[1],
                                             axis = SolarRadiation),
                                 UniformSpec(totalK[2],
@@ -52,10 +50,10 @@ habitat = GridHabitat(regime = UniformSpec(298.0K, axis = Temperature),
                       topology = Torus())
 
 vars = fill(2.0K, numSpecies)
-opts = 298.0K .+ vars .* range(-3, stop = 3, length = numSpecies)
+opts = 25.0°C .+ vars .* range(-3, stop = 3, length = numSpecies)
 
 av_dist = fill(2.4km, numSpecies)
-kernel = GaussianKernel.(av_dist, 10e-10)
+kernel = [GaussianKernel(meandist = d, thresh = 10e-10) for d in av_dist]
 
 death = 0.15 / year
 birth = death
@@ -72,15 +70,14 @@ param = EqualPop(birth, death, long, surv)
 
 # Create ecosystem
 
-movement = BirthOnlyMovement(kernel)
+movement = InsectDispersal().(kernel)
 
 tolerance = NicheTolerance(Temperature, Normal, opts, vars)
-native = fill(true, numSpecies)
-abun = rand(Multinomial(individuals, numSpecies))
-sppl = SpeciesList(numSpecies, tolerance, abun, resource_vec,
-                   movement, param, native)
+sppl = SpeciesList(numSpecies, tolerance, resource_vec, movement, param)
 nichefit = NicheSuitability{Temperature, typeof(first(opts))}()
-eco = Ecosystem(sppl, habitat, nichefit)
+# The individuals, split at random across the species and placed by supply.
+eco = build_ecosystem(BySupply(total = individuals), sppl, habitat,
+                      nichefit = nichefit)
 
 times = SMALL ? 2year : 10year;
 timestep = 1month_mean_duration;

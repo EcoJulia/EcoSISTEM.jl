@@ -82,8 +82,8 @@ get!(ENV, "GKSwstype", "100")
 # decides between `m s^-1` and `m s^-1` with
 # `get(ENV, "UNITFUL_FANCY_EXPONENTS", Sys.isapple() ? "true" : "false")` -- so the fancy form is the
 # default on macOS and the plain one on Linux and Windows. Three tests assert an error message or a
-# plot title containing a unit, and so passed on macOS and failed everywhere else; measured on a
-# Windows runner as `"WindSpeed (m s^-1)" == "WindSpeed (m s⁻¹)"`.
+# plot title containing a unit, so under each platform's default they would pass on macOS and fail
+# everywhere else (on Windows, `"WindSpeed (m s^-1)" == "WindSpeed (m s⁻¹)"`).
 #
 # Set rather than defaulted with `get!`, unlike the two above, and the difference is the point: those
 # are preferences a caller may legitimately override, while the assertions here are only meaningful

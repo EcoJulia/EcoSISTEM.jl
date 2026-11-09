@@ -85,7 +85,8 @@ function categorical_ecosystem(penalty)
 
     demand = Demand{SolarRadiation}(fill(450000.0kJ / m^2 / day * 1.0m^2,
                                          NSPECIES))
-    movement = BirthOnlyMovement(GaussianKernel.(fill(2.0km, NSPECIES), 10e-10))
+    movement = fill(InsectDispersal()(meandist = 2.0km, thresh = 10e-10),
+                    NSPECIES)
     # `survival` must be non-zero or this fixture is VACUOUS. Suitability enters the demographics
     # as `suitability^±survival`, and `x^0.0 == 1.0` for every `x` including `Inf` - so at
     # `survival = 0` the penalty is ignored entirely and the soft and hard runs would be identical.
@@ -94,13 +95,13 @@ function categorical_ecosystem(penalty)
 
     rng = Random.Xoshiro(SEED)
     abun = rand(rng, Multinomial(70_000, NSPECIES))
-    sppl = SpeciesList(NSPECIES, tolerance, abun, demand, movement, param,
-                       fill(true, NSPECIES))
+    sppl = SpeciesList(NSPECIES, tolerance, demand, movement, param)
     # Through `build_ecosystem` rather than `Ecosystem(..., nichefit)`, so the run also exercises
     # `_defaultsuitability` **inferring** `CategoricalSuitability` and checking the tolerance's axis
     # against the regime's - a check the categorical branch could not have at all until the merge
     # gave these tolerances an axis.
-    return build_ecosystem(sppl, habitat, seed = SEED)
+    return build_ecosystem(BySupply(each = row -> abun[row.key]), sppl, habitat,
+                           seed = SEED)
 end
 
 # The share of each species' abundance sitting in cells whose class it actually tolerates. This is

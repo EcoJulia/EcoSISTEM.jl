@@ -101,9 +101,8 @@ struct MPIGridLandscape{RA <: Base.ReshapedArray, NT <: NamedTuple, DG, DC} <:
         # `cols_vector` arrives block-stacked -- one block per contributing rank -- because that is
         # what `Alltoallv!` produces. `mortar` presents those blocks as one ordinary
         # `(all species x this rank's cells)` matrix without copying, so a caller need not know.
-        # It is for inspection only: a scalar index has to find its block first, which measured
-        # about eight times the cost of walking `reshaped_cols` directly, so the hot loop keeps
-        # doing that.
+        # It is for inspection only: a scalar index has to find its block first, about eight times
+        # the cost of walking `reshaped_cols` directly, so the hot loop walks that.
         # Every species, by name, over this rank's cells -- which carry their real descriptors,
         # the same ones the serial landscape uses. They are a contiguous run of the flat ordering
         # rather than a rectangle, so there is no Y/X view of them to give.

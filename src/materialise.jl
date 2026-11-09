@@ -324,8 +324,8 @@ end
 # `SourceSpec(EarthEnv{LandCover}, 7)` would read file 7 twice: the keys differ, so neither hits.
 # Keyed per layer, the second request finds what the first already read. Narrowing the *key*
 # instead would be wrong - it must describe what was asked for, or one request is served another's
-# data - so the fix is to decompose the read, which is only possible because a spec's code list is
-# now explicit rather than a `nothing` sentinel.
+# data - so the read is decomposed instead, which needs a spec's code list to be explicit rather
+# than a `nothing` sentinel.
 #
 # Only reached for a spec whose layers can share one array; `_read` refuses the rest, and this
 # path goes through `_read` per layer, so each keeps its own correct unit before stacking.
@@ -437,8 +437,8 @@ end
 # A spec with **no** layers is a nullary thunk (what `in_memory_raster` builds): `_combineon` has
 # nothing to put on the target, so it returns the combine's own raster at its own resolution. As a
 # *layer of another spec* that matters, because the enclosing combine broadcasts its layers together
-# - measured, a `_reg(raster)` layer at 4×4 against a synthetic one generated at the target's 2×2
-# is a `DimensionMismatch`. Where the layers were already put on the target, this is a no-op:
+# - a `_reg(raster)` layer at 4×4 against a synthetic one generated at the target's 2×2 is a
+# `DimensionMismatch`. Where the layers were already put on the target, this is a no-op:
 # `_regrid` recognises a raster on the target grid and selects its cells instead of resampling.
 # A shape's covered fraction on `target`'s cells, and the two refusals both build paths share.
 # Geometry needs a frame to be placed in, and a shape selecting no ground is a mistake rather than an
@@ -805,11 +805,12 @@ function _materialisefield(spec::ConstructedRasterSpec, area::StudyArea)
             categorical = categorical, series = _seriespolicy(spec))
 end
 
-# **This is what carries `simulate_safely` into `GridHabitat`** (user, 2026-08-13: *"it
-# should apply equally if possible"*). A layer named on the `StudyArea` already shaped the grid, so
-# every remaining cell is covered and this does nothing; a layer introduced only at build time never
-# faced that test, and blanking the cells it does not reach makes `_coverage` - which already reads
-# `NaN` - mark them inactive. No new plumbing, and `materialise` still shows exactly what is built.
+# **This is what carries `simulate_safely` into `GridHabitat`**, so that it applies to a layer
+# introduced at build time as to one named on the area. A layer named on the `StudyArea` already
+# shaped the grid, so every remaining cell is covered and this does nothing; a layer introduced only
+# at build time never faced that test, and blanking the cells it does not reach makes `_coverage` -
+# which already reads `NaN` - mark them inactive. No new plumbing, and `materialise` still shows
+# exactly what is built.
 #
 # **A categorical layer is the documented exception**: its class codes are integers and cannot
 # carry `NaN`, which `_coverage` already notes (such a layer always reports full coverage). Harmless
@@ -891,11 +892,11 @@ end
 # decided may still have gaps, and those gaps make cells inactive - but they must never move or resize
 # the grid, or the area that was inspected would not be the area that gets built. Such a layer is
 # reported rather than silently narrowing the result.
-# Strip the declared changes, build the habitat exactly as before, then apply them to the layers
+# Strip the declared changes, build the habitat as a static one is built, then apply them to the layers
 # that were built. Splitting here - before the synthetic/data fork on the next line - is what keeps
 # every path downstream free of wrappers: `materialise` can never see one, on either fork, so
 # nothing below here needs a guard.
-# **Returns assembled PARTS, not a habitat**, because `GridHabitat`'s sole constructor is now the
+# **Returns assembled PARTS, not a habitat**, because `GridHabitat`'s sole constructor is the
 # specs-and-area one and `new` has to be the last thing that happens. The declared changes are
 # applied here, to the layers, before anything is constructed from them.
 #
@@ -954,18 +955,13 @@ function _syntheticonarea(regime, supply, area::StudyArea,
     (regime isa Union{Tuple, NamedTuple} && length(specs) < 2) &&
         error("a tuple `regime` describes a multi-layer environment, so it needs at least 2 " *
               "elements; got $(length(specs)). Pass the spec on its own for a single layer.")
-    # **An already-BUILT layer is now admitted here, and this is a CORRECTION of an expired
-    # premise rather than a reversal of the guard 6d tightened.** The old `_refusebuilt` turned both
-    # roles away outright, on the ground that this builder *generates* its layers at the area's shape
-    # and a synthetic area had nothing for a layer to have been built on. That was true when a
-    # synthetic grid carried `NoLookup` dims; `[S4]` gave it real `Sampled`/`Intervals(Start)`
-    # coordinates, so a built layer now either sits on this exact grid - **provably**, by
-    # `_yxcompatible` - or it does not, and `materialise`'s `AbstractLayer` method decides precisely
-    # that, refusing a mismatch by size and copying the rest in. So there is nothing left for a
-    # separate guard to say that is not said better one layer down.
-    # **The general claim below is untouched**: arbitrary data still cannot be sampled onto a
-    # synthetic grid. What changed is only the case where the values are *already on it*, which is
-    # what lets `build_habitat` reseed a habitat from its own as-built area.
+    # **An already-built layer is admitted here.** A synthetic grid has real
+    # `Sampled`/`Intervals(Start)` coordinates, so a built layer either sits on this exact grid -
+    # **provably**, by `_yxcompatible` - or it does not, and `materialise`'s `AbstractLayer` method
+    # decides precisely that, refusing a mismatch by size and copying the rest in; a separate guard
+    # here would have nothing to add. Arbitrary data still cannot be sampled onto a synthetic grid:
+    # only values *already on it* are admitted, which is what lets `build_habitat` reseed a habitat
+    # from its own as-built area.
     #
     # The check runs over the *expanded* specs, never the `regime` as passed. `_shapesgrid` is
     # written for a single spec - its `::Any` fallback says "data-backed" - so handing it a

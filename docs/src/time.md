@@ -24,13 +24,15 @@ using EcoSISTEM, EcoSISTEM.Units
 using Unitful, Unitful.DefaultSymbols
 
 area = StudyArea(extent = (100km, 100km), cellsize = 10km, verbosity = :silent)
-env = GridHabitat(regime = UniformSpec(285.0K, axis = Temperature),
+env = GridHabitat(regime = UniformSpec(10.0°C, axis = Temperature),
                         supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                              axis = SolarRadiation),
                         area = area)
-species = build_species(5, tolerance = (285.0K, 3.0K), toleranceaxis = Temperature, demand = 1.0e9kJ / day, demandaxis = SolarRadiation,
-                        abundance = 1000, seed = 1)
-eco = build_ecosystem(species, env)
+species = build_species(SpeciesPool(5),
+                        tolerance = ToleranceSpec(Temperature, μ = 10.0°C, σ = 3.0K),
+                        demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
+                        seed = 1, verbosity = :silent)
+eco = build_ecosystem(BySupply(total = 1000), species, env, seed = 1)
 ```
 
 ```@example clock
@@ -81,6 +83,62 @@ The recorders - [`RecordAbundance`](@ref), [`RecordDiversity`](@ref) and
 [`SaveAbundance`](@ref) - are values made for this, passed to `simulate!` in place of a
 function, and are what most runs want.
 
+### Saving a run, and starting another from it
+
+[`write_state`](@ref) saves the state a run has reached - every species' abundance in every cell,
+which species and cells are in the run, every layer's values, each species' random stream and the
+clock - and `build_ecosystem(species, habitat; from = path)` starts an ecosystem from it. The species
+and habitat are built as the saved run's were, from the same pool and study area, which a run never
+changes:
+
+```@example clock
+path = write_state(joinpath(mktempdir(), "state.jld2"), eco)
+resumed = build_ecosystem(species, env, from = path)
+(resumed.abundances.matrix == eco.abundances.matrix,
+ EcoSISTEM.simulationtime(resumed) == EcoSISTEM.simulationtime(eco))
+```
+
+On the state's own seed the run goes on exactly as the saved one would have, so a long burn-in can
+be run once and continued from as often as needed. Another `seed` gives fresh streams, for
+replicates from one state, and `elapsed = 0.0s` starts the clock afresh, any series a layer follows
+starting again with it. [`SaveAbundance`](@ref) writes such a state at each occurrence.
+
+A state keeps every layer's values but not a rule a [`SetChange`](@ref) installed, which is code. A
+run continuing one is given the interventions the saved run had, and at its first step installs again
+the rules they would have installed by then; a layer whose rule still differs from the one saved is
+reported.
+
+### Long runs that save as they go
+
+A [`CachedEcosystem`](@ref) is an ecosystem kept on disk as it runs. Asked for its abundances at a
+time with [`abundances`](@ref), it simulates up to that time, writing a state - as `write_state`
+writes one - every `saveinterval`, and holding only the last few steps in memory:
+
+```@example clock
+folder = mktempdir()
+times = (0.0year):(1.0month_mean_duration):(4.0year)
+cache = CachedEcosystem(build_ecosystem(BySupply(total = 1000), species, env, seed = 1),
+                        folder, times, saveinterval = 1.0year)
+abundances(cache, 2.0year)
+readdir(folder)                       # a state at each year
+```
+
+**A run that stopped - finished early, or killed - goes on when the same script is run again.** A
+cache built over the same folder finds the last state saved there and continues from it: the
+abundances, every layer, which cells and species are in the run, and each species' random stream as
+they were, so the result is the one an unbroken run gives:
+
+```@example clock
+again = CachedEcosystem(build_ecosystem(BySupply(total = 1000), species, env, seed = 1),
+                        folder, times, saveinterval = 1.0year)
+abundances(again, 4.0year).matrix == abundances(cache, 4.0year).matrix
+```
+
+A state in the folder from another configuration - other species, another grid or other dates - is
+refused rather than continued from, and [`clearcache!`](@ref) empties the folder to start afresh. A
+cached run takes no interventions; a run with them saves states with [`SaveAbundance`](@ref) and is
+started again from the last with `from`, given the same interventions.
+
 ## Naming time
 
 A `Unitful` unit is by definition a fixed quantity. A calendar month is not: February is 28
@@ -119,7 +177,7 @@ the values current now, plus a **change** that says how those values depend on e
 Declare one when the environment is built, by wrapping the layer's spec in [`Varying`](@ref):
 
 ```@example clock
-warming = GridHabitat(regime = Varying(UniformSpec(285.0K, axis = Temperature),
+warming = GridHabitat(regime = Varying(UniformSpec(10.0°C, axis = Temperature),
                                              IncrementBy(0.02K / year)),
                             supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                                  axis = SolarRadiation),
@@ -251,31 +309,34 @@ using Dates: DateTime      # not plain `using Dates`: it would shadow Unitful's 
 using DimensionalData.Lookups: NoLookup
 
 area = StudyArea(extent = (50km, 50km), cellsize = 10km, verbosity = :silent)
-# A twelve-month temperature climatology whose slice k holds 279 + k K, so the value names
-# the month it came from.
-slices = cat((fill((279.0 + i) * K, 5, 5) for i in 1:12)...; dims = 3)
+# A twelve-month temperature climatology whose slice k holds k °C, so the value names the month
+# it came from.
+slices = cat((fill(float(i) * °C, 5, 5) for i in 1:12)...; dims = 3)
 stack = DimArray(slices, (Y(NoLookup()), X(NoLookup()), Ti((1:12) .* month_mean_duration)))
-seasonal() = Varying(UniformSpec(280.0K, axis = Temperature),
+seasonal() = Varying(UniformSpec(1.0°C, axis = Temperature),
                      ReplaceWith(SeriesChange(stack, calendar = MonthOfYearSeries(),
                                               atend = RepeatAtEnd())))
 makeenv() = GridHabitat(regime = seasonal(),
                               supply = UniformSpec(1.0e5kJ / (m^2 * day),
                                                    axis = SolarRadiation),
                               area = area)
-species = build_species(5, tolerance = (285.0K, 3.0K), toleranceaxis = Temperature, demand = 1.0e9kJ / day, demandaxis = SolarRadiation,
-                        abundance = 1000, seed = 1)
+species = build_species(SpeciesPool(5),
+                        tolerance = ToleranceSpec(Temperature, μ = 10.0°C, σ = 3.0K),
+                        demand = DemandSpec(SolarRadiation, 1.0e9kJ / day),
+                        seed = 1, verbosity = :silent)
 ```
 
 ```@example epoch
-eco = build_ecosystem(species, makeenv())
-eco.habitat.regime.matrix[1, 1]        # 280 K: the January slice
+eco = build_ecosystem(BySupply(total = 1000), species, makeenv(), seed = 1)
+round(typeof(1.0°C), eco.habitat.regime.matrix[1, 1], digits = 1)    # the January slice
 ```
 
 Give the run a July epoch and it starts in July instead:
 
 ```@example epoch
-eco = build_ecosystem(species, makeenv(), epoch = DateTime(2015, 7, 1))
-eco.habitat.regime.matrix[1, 1]        # 286 K: the July slice
+eco = build_ecosystem(BySupply(total = 1000), species, makeenv(), seed = 1,
+                      epoch = DateTime(2015, 7, 1))
+round(typeof(1.0°C), eco.habitat.regime.matrix[1, 1], digits = 1)    # the July slice
 ```
 
 Note that this is the value **at construction**, before any timestep has run:

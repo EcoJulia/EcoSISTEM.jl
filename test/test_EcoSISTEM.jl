@@ -250,7 +250,10 @@ _documented_control_() = nothing
         :july_duration, :august_duration, :september_duration,
         :october_duration, :november_duration, :december_duration,
         :month_mean_duration, :quarter_mean_duration,
-        :arcminute, :arcsecond, :day, :week, :year, :percent]
+        :arcminute, :arcsecond, :day, :week, :year, :percent,
+        # Deprecation shims written as functions, each documented by its redirect.
+        :BirthOnlyMovement, :AlwaysMovement, :NoMovement,
+        :repopulate_by_tolerance!, :AddAbundanceTable, :build_abundance_table]
     # Every name on the list is a generated constant or a deprecation shim, so the package has
     # **no undocumented public name at all**. A
     # genuine gap appearing here would have to be added deliberately, which is the point.
@@ -365,11 +368,10 @@ end
     # And it is not a bare substring search: `RasterSpec`'s own prose says "cutting a global layer",
     # which `occursin` would accept as documentation of a keyword called `cutting`.
     #
-    # What it does NOT catch, measured: a keyword mentioned only in passing - `` `force = true` ``
-    # in prose satisfies it even with the `# Arguments` bullet removed. That is deliberate. The
-    # failure this exists for is a keyword written down **nowhere**, which is how `force` stayed
-    # invisible on five functions at once; demanding a bullet would mean parsing the block, and
-    # would fail on the shared form `` `units`, `x`, `force` ``.
+    # What it does NOT catch: a keyword mentioned only in passing - `` `force = true` `` in prose
+    # satisfies it even with the `# Arguments` bullet removed. That is deliberate. The failure this
+    # exists for is a keyword written down **nowhere**; demanding a bullet would mean parsing the
+    # block, and would fail on the shared form `` `units`, `x`, `force` ``.
     @test occursin("cutting", docof(:RasterSpec))
     @test !_documents(docof(:RasterSpec), :cutting)
 end

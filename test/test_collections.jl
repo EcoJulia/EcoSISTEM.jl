@@ -32,11 +32,11 @@ function _env(regime, supply; kw...)
 end
 const SUP = UniformSpec(1.0kJ / (km^2 * day), axis = SolarRadiation)
 
-# Two Julia-version facts this file has to know, both measured on 1.11.9 and 1.12.7.
+# Two Julia-version facts this file has to know, both true of 1.11.9 and 1.12.7.
 #
 # The unrolled fold and zipmap reach zero allocations only from 1.12. On 1.11 `_fold` over ten
-# members costs 16 bytes and a three-way `_zipmap` 32; the recursion is identical, and what changed
-# is that the newer compiler elides the tuple it builds. The assertion is therefore pinned where it
+# members costs 16 bytes and a three-way `_zipmap` 32; the recursion is identical, and the newer
+# compiler elides the tuple it builds. The assertion is therefore pinned where it
 # holds and SKIPPED where it does not, rather than relaxed to a bound that would pass on both and so
 # catch nothing. `skip` rather than a bare `if`, so the summary reports it as skipped and the gap
 # stays visible.
@@ -85,8 +85,8 @@ end
 
     @testset "the fold and the zipmap stay free at every arity" begin
         # `map` stops being unrolled at around seven elements and starts allocating; the recursion
-        # must not, at any arity a caller can reach. Pinned at the arities the design was measured
-        # at rather than only at the two the hot paths happen to use today.
+        # must not, at any arity a caller can reach. Pinned across arities rather than only at the two
+        # the hot paths use.
         for n in (2, 3, 6, 10)
             a = ntuple(i -> Float64(i), n)
             function zipped()
@@ -133,12 +133,10 @@ end
         @test_throws NOSUCHFIELD lc.three
     end
 
-    # **The fallback, and it is what keeps every existing positional call site working.** Two
-    # Members on the same axis cannot be told apart by name, so the collection **errors and asks
-    # for names** rather than falling back to `:one`/`:two`. The model itself is never refused - a
-    # repeated axis is legitimate (`CombiningFit`'s own docstring pairs a summer and a winter
-    # temperature) - only the *guessing* is. This fell back silently until 2026-08-18; the
-    # fallback made sense when most members had no axis at all, and step A removed that.
+    # **Two members on the same axis cannot be told apart by name**, so the collection **errors
+    # and asks for names** rather than falling back to `:one`/`:two`. The model itself is never
+    # refused - a repeated axis is legitimate (`CombiningFit`'s own docstring pairs a summer and a
+    # winter temperature) - only the *guessing* is.
     @testset "a repeated axis errors, asking for names" begin
         msg = try
             LayerCollection((temp, temp))
@@ -168,10 +166,9 @@ end
     @testset "a bare layer answers as a one-member collection" begin
         @test values(temp) === (temp,)
         @test values(solar) === (solar,)
-        # **Named by its own AXIS**, not by a role label. It read `(:regime,)`/`(:supply,)` until
-        # 2026-08-18, and those could never match the species side's `(:tolerance,)`/`(:demand,)` -
-        # so single-member pairings had to be *skipped* by the naming check. Both sides now derive
-        # the same name from the same axis, and the skip is gone with the labels.
+        # **Named by its own AXIS**, not by a role label: a role label (`:regime`, `:supply`) could
+        # never match the species side's (`:tolerance`, `:demand`), whereas both sides derive the
+        # same name from the same axis, so the naming check covers single-member pairings too.
         @test keys(temp) == (:Temperature,)
         @test keys(solar) == (:SolarRadiation,)
     end
@@ -217,9 +214,7 @@ end
         @test temp[1] === temp
         @test temp[:Temperature] === temp
         @test NamedTuple(temp) === (Temperature = temp,)
-        # **Iterating a mixed collection must not allocate** - that claim is what the old
-        # "no container interface" rule rested on, and it was measured backwards: the fold it
-        # protected allocated where the loop does not. Guard it so it cannot regress.
+        # **Iterating a mixed collection must not allocate** - the container interface rests on it.
         count_members(c) = (n = 0; for _ in c
                                 n += 1
                             end; n)
@@ -278,9 +273,8 @@ end
                                NicheSuitability(raintol)))
         @test f isa EcoSISTEM.CombiningFit
         @test length(values(f)) == 2
-        # Named by AXIS, not by position - a nichefit carries its own axis since D3(a), so a
-        # `CombiningFit` derives the same names its paired tolerance and regime do. It read
-        # `(:one, :two)` until then, because every fit answered the root and so clashed.
+        # Named by AXIS, not by position - a nichefit carries its own axis, so a `CombiningFit`
+        # derives the same names its paired tolerance and regime do.
         @test keys(f) == (:Temperature, :Precipitation)
         @test nichefitcombine(f)((Temperature = 2.0, Precipitation = 3.0)) ==
               6.0
@@ -312,44 +306,48 @@ end
     @test keys(env.regime) == (:temperature, :rainfall)
     @test env.regime.temperature isa EcoSISTEM.ContinuousRegime
 
-    species = build_species(n,
-                            tolerance = (temperature = (298.0K, 2.0K),
-                                         rainfall = (50.0mm / day,
-                                                     5.0mm / day)),
-                            toleranceaxis = (Temperature, Precipitation),
-                            demand = 10.0kJ / day, demandaxis = SolarRadiation)
+    species = build_species(SpeciesPool(n),
+                            tolerance = (temperature = ToleranceSpec(Temperature,
+                                                                     μ = 298.0K,
+                                                                     σ = 2.0K),
+                                         rainfall = ToleranceSpec(Precipitation,
+                                                                  μ = 50.0mm /
+                                                                      day,
+                                                                  σ = 5.0mm /
+                                                                      day)),
+                            demand = DemandSpec(SolarRadiation, 10.0kJ / day),
+                            verbosity = :silent)
     @test keys(species.tolerance) == (:temperature, :rainfall)
 
-    eco = build_ecosystem(species, env)
+    eco = build_ecosystem(species, env, verbosity = :silent)
     @test eco.habitat.regime.temperature isa EcoSISTEM.ContinuousRegime
     @test keys(eco.nichefit) == (:temperature, :rainfall)
     @test EcoSISTEM.suitability(eco, 1, 1) > 0
     @test_nowarn simulate!(eco, 2month_mean_duration, 1month_mean_duration)
 
     @testset "paired structures must line up, and the error names both sides" begin
-        positional = build_species(n,
-                                   tolerance = ((298.0K, 2.0K),
-                                                (50.0mm / day, 5.0mm / day)),
-                                   toleranceaxis = (Temperature, Precipitation),
-                                   demand = 10.0kJ / day,
-                                   demandaxis = SolarRadiation)
+        temperature = ToleranceSpec(Temperature, μ = 298.0K, σ = 2.0K)
+        rainfall = ToleranceSpec(Precipitation, μ = 50.0mm / day,
+                                 σ = 5.0mm / day)
+        light = DemandSpec(SolarRadiation, 10.0kJ / day)
+        positional = build_species(SpeciesPool(n),
+                                   tolerance = (temperature, rainfall),
+                                   demand = light, verbosity = :silent)
         # named on one side, positional on the other is its own error
-        @test_throws ErrorException build_ecosystem(positional, env)
+        @test_throws ErrorException build_ecosystem(positional, env,
+                                                    verbosity = :silent)
         # so is the same arity under different names, in a different order
-        swapped = build_species(n,
-                                tolerance = (rainfall = (50.0mm / day,
-                                                         5.0mm / day),
-                                             temperature = (298.0K, 2.0K)),
-                                toleranceaxis = (Precipitation, Temperature),
-                                demand = 10.0kJ / day,
-                                demandaxis = SolarRadiation)
-        @test_throws ErrorException build_ecosystem(swapped, env)
+        swapped = build_species(SpeciesPool(n),
+                                tolerance = (rainfall = rainfall,
+                                             temperature = temperature),
+                                demand = light, verbosity = :silent)
+        @test_throws ErrorException build_ecosystem(swapped, env,
+                                                    verbosity = :silent)
         # and so is a plain arity mismatch
-        onetol = build_species(n, tolerance = (298.0K, 2.0K),
-                               toleranceaxis = Temperature,
-                               demand = 10.0kJ / day,
-                               demandaxis = SolarRadiation)
-        @test_throws ErrorException build_ecosystem(onetol, env)
+        onetol = build_species(SpeciesPool(n), tolerance = temperature,
+                               demand = light, verbosity = :silent)
+        @test_throws ErrorException build_ecosystem(onetol, env,
+                                                    verbosity = :silent)
     end
 
     @testset "a four-layer regime builds and simulates" for named in (false, true)
@@ -357,9 +355,10 @@ end
                  b = _reg(rain, axis = Precipitation),
                  c = _reg(temp, axis = Temperature),
                  d = _reg(rain, axis = Precipitation))
-        tols = ((298.0K, 2.0K), (50.0mm / day, 5.0mm / day), (298.0K, 2.0K),
-                (50.0mm / day, 5.0mm / day))
-        axes = (Temperature, Precipitation, Temperature, Precipitation)
+        temperature = ToleranceSpec(Temperature, μ = 298.0K, σ = 2.0K)
+        rainfall = ToleranceSpec(Precipitation, μ = 50.0mm / day,
+                                 σ = 5.0mm / day)
+        tols = (temperature, rainfall, temperature, rainfall)
         keys4 = (:summer, :wet, :winter, :dry)
         # **Both branches are named now, and they must be**: two of the four layers are on
         # `Temperature` and two on `Precipitation`, so derived names cannot tell them apart and the
@@ -368,12 +367,13 @@ end
         four = _env(named ? NamedTuple{keys4}(values(specs)) : specs, SUP)
         @test length(values(four.regime)) == 4
         @test keys(four.regime) == (named ? keys4 : keys(specs))
-        spp4 = build_species(n,
+        spp4 = build_species(SpeciesPool(n),
                              tolerance = named ? NamedTuple{keys4}(tols) :
                                          NamedTuple{keys(specs)}(tols),
-                             toleranceaxis = axes, demand = 10.0kJ / day,
-                             demandaxis = SolarRadiation)
-        eco4 = build_ecosystem(spp4, four)
+                             demand = DemandSpec(SolarRadiation,
+                                                 10.0kJ / day),
+                             verbosity = :silent)
+        eco4 = build_ecosystem(spp4, four, verbosity = :silent)
         named && @test eco4.habitat.regime.winter isa EcoSISTEM.ContinuousRegime
         @test EcoSISTEM.suitability(eco4, 1, 1) > 0
         @test_nowarn simulate!(eco4, 2month_mean_duration, 1month_mean_duration)
@@ -431,7 +431,7 @@ end
     @test err isa ErrorException
     @test occursin(":temperature", err.msg) && occursin(":rainfall", err.msg)
 
-    # a positional tuple still numbers, as before
+    # a positional tuple numbers its members
     positional = (_reg(coarse, axis = Temperature),
                   _reg(fine, axis = Precipitation))
     @test Set(l.name for l in _area(regime = positional).report.layers) ==
@@ -452,17 +452,19 @@ end
     specs = (a = _reg(temp, axis = Temperature),
              b = _reg(rain, axis = Precipitation),
              c = _reg(temp, axis = Temperature))
-    tols = (a = (298.0K, 2.0K), b = (50.0mm / day, 5.0mm / day),
-            c = (298.0K, 2.0K))
-    axes = (Temperature, Precipitation, Temperature)
+    tols = (a = ToleranceSpec(Temperature, μ = 298.0K, σ = 2.0K),
+            b = ToleranceSpec(Precipitation, μ = 50.0mm / day,
+                              σ = 5.0mm / day),
+            c = ToleranceSpec(Temperature, μ = 298.0K, σ = 2.0K))
 
     @testset "suitability over $nlayers layers" for nlayers in (2, 3)
         env = _env(_firstn(specs, nlayers), SUP)
-        species = build_species(5, tolerance = _firstn(tols, nlayers),
-                                toleranceaxis = axes[1:nlayers],
-                                demand = 10.0kJ / day,
-                                demandaxis = SolarRadiation)
-        eco = build_ecosystem(species, env)
+        species = build_species(SpeciesPool(5),
+                                tolerance = _firstn(tols, nlayers),
+                                demand = DemandSpec(SolarRadiation,
+                                                    10.0kJ / day),
+                                verbosity = :silent)
+        eco = build_ecosystem(species, env, verbosity = :silent)
         @test _suitalloc(eco) == 0
         @test @inferred(EcoSISTEM.suitability(eco, 1, 1)) isa Float64
     end
@@ -471,15 +473,18 @@ end
         sup = (a = UniformSpec(1.0kJ / (km^2 * day), axis = SolarRadiation),
                b = UniformSpec(1.0mm / day, axis = Precipitation),
                c = UniformSpec(2.0kJ / (km^2 * day), axis = SolarRadiation))
-        dem = (a = 10.0kJ / day, b = 1.0Unitful.L / day, c = 20.0kJ / day)
+        dem = (a = DemandSpec(SolarRadiation, 10.0kJ / day),
+               b = DemandSpec(Precipitation, 1.0Unitful.L / day),
+               c = DemandSpec(SolarRadiation, 20.0kJ / day))
         env = _env(_reg(temp, axis = Temperature),
                    _firstn(sup, nres))
-        species = build_species(5, tolerance = (298.0K, 2.0K),
-                                toleranceaxis = Temperature,
+        species = build_species(SpeciesPool(5),
+                                tolerance = ToleranceSpec(Temperature,
+                                                          μ = 298.0K,
+                                                          σ = 2.0K),
                                 demand = _firstn(dem, nres),
-                                demandaxis = (SolarRadiation, Precipitation,
-                                              SolarRadiation)[1:nres])
-        eco = build_ecosystem(species, env)
+                                verbosity = :silent)
+        eco = build_ecosystem(species, env, verbosity = :silent)
         EcoSISTEM.update_resource_usage!(eco)
         @test size(eco.cache.totaldemand, 2) == nres
         @test _adjustalloc(eco) == 0
