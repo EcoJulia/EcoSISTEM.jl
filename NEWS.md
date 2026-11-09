@@ -1,6 +1,46 @@
 # NEWS
 
 - v0.11.0
+  - Breaking changes
+    - `build_species(numspecies; ...)`: species are built from a `SpeciesPool`, as
+      `build_species(SpeciesPool(numspecies); ...)`, and where their individuals start is the
+      placement `build_ecosystem` is given (`abundance = zeros(...)` is `NoAbundance()`). The call
+      raises an error showing its own rewrite.
+    - `SpeciesList`'s `abun` and `native`, as fields and constructor arguments, `Ecosystem` and
+      `MPIEcosystem` built from a population function, and `populate!`, `populate_by_tolerance!` and
+      `emptypopulate!`. Each raises an error naming its replacement.
+    - `AddSpecies(; tolerance, demand, dispersal, birth, death, abundance, name)`, which appended a
+      species mid-run: declare the arrival in the pool, deactivated, and give
+      `AddSpecies(name, placement)`. The call raises an error showing its own rewrite.
+    - `build_ecosystem(species, habitat)` places 1000 individuals of each active species, split at
+      random and placed by supply, and announces it; it takes `verbosity`.
+    - `build_species(DefaultEcosystem(); ...)` builds its species from a `SpeciesPool`, taking
+      `tolerance` and `demand` as specs.
+    - Placing draws from a stream per species keyed on its key in the pool, never from the streams
+      its dynamics use, so a `seed` gives a different run from v0.10's, and adding, removing or
+      deactivating a species leaves every other species' placement by `each` as it was.
+    - `repopulate!(eco, placement = eco.placement; seed)` places again by the ecosystem's own
+      placement, or another, from streams of its own: it no longer re-splits the species' totals at
+      random, and leaves the dynamics' streams alone.
+    - A species list's `movement` is one `SpeciesDispersal` per species, of at most four kinds, so
+      species in one list may disperse differently. `BirthOnlyMovement`, `AlwaysMovement` and
+      `NoMovement` are functions returning that vector, so code reading their `kernels` or
+      `disperse_safely` fields, or dispatching on them, needs the new form.
+    - `GaussianKernel` and `LongTailKernel` take their distances by keyword, each named for what it
+      is: a Gaussian kernel's mean distance (`meandist`) or the standard deviation of its
+      displacement along each axis (`sd`); a long-tailed kernel's `shape` with its `scale` or
+      `meandist`. Both store a `scale` in place of `dist`, and print what they were given.
+    - `LongTailKernel` is documented as the two-dimensional Student's t (Clark et al.'s 2Dt). A
+      `shape` of 1 or less, whose density does not integrate, is refused when the kernel is built
+      rather than failing in its lookup; a `meandist` needs a `shape` above 3/2.
+    - `PopGrowth` and `NoGrowth` hold one `longevity` per species, a vector, which the step reads per
+      species; their constructors still take one number for all. `EqualPop` keeps one.
+    - `SaveAbundance` writes states a run can start from, and a `CachedEcosystem` checkpoints in the
+      same form. Files saved before v0.11.0 are not read: build the ecosystem with `NoAbundance()`,
+      copy the saved matrix into `eco.abundances.matrix` and save it with `write_state`.
+    - A bare region name shared with a subdivision of other ground needs its `level`: ten countries,
+      "Georgia", "Mali" and "Panama" among them, take `level = "ADMIN"`, the codes "EST" and "MUS"
+      `level = "ISO_A3_EH"`, and 43 physical features such as "Bali" their physical level.
   - Added
     - The phylogeny-building `SpeciesList` constructors take a `seed`, which fixes the tree and the
       tolerances evolved along it from a stream of their own. `assigntraits!`, `discrete_evolve`,
@@ -28,10 +68,9 @@
       the species' own, as `build_species` does; the species list keeps the values and what was
       filled. Under MPI a pool is made and changed on rank 0, which alone reads a name authority.
     - `build_ecosystem(placement, species, habitat)` places a run's individuals by a placement:
-      `BySupply`, `BySuitability`, `ByLayer` or several multiplied by `Weighted`, each given a
-      `total` or `each` (a count or a density), `FromTable` reading rows, `NoAbundance`, placements
-      added with `+`, or a `do` block of `(species, habitat, context)`. Rows it cannot place are
-      dropped and reported; the ecosystem keeps its placement, and its provenance names it.
+      `BySupply`, `BySuitability`, `ByLayer` or several multiplied by `Weighted`, by a `total` or
+      `each` (a count or a density); `FromTable`; `NoAbundance`; a sum by `+`; or a `do` block.
+      Rows it cannot place are dropped and reported; the ecosystem keeps its placement.
     - `IsActiveSpecies(pool, species or ecosystem)` for `filter!` and `filter`, keeping a table's rows
       that name an active species, found as a placement finds a table's species - through the pool's
       name authority, so synonyms count - and reporting what it removes by kind.
@@ -65,33 +104,6 @@
       matched to them by name (`Quercus_robur` matching `Quercus robur`), a species with no tip refused
       (`RefuseMissingSpecies()`) or removed (`RemoveMissingSpecies()`); a species list built from the
       pool is then phylogenetic. Needs Diversity 0.6.6.
-  - Changed
-    - `build_ecosystem(species, habitat)` places 1000 individuals of each active species, split at
-      random and placed by supply, and announces it; it takes `verbosity`. `repopulate!(eco, placement = eco.placement; seed)` places again by the
-      ecosystem's own placement, or another, from streams of its own: it no longer re-splits the
-      species' totals at random, and leaves the dynamics' streams alone.
-    - Placing draws from a stream per species keyed on its key in the pool, never from the streams
-      its dynamics use, so a `seed` gives a different run from v0.10's, and adding, removing or
-      deactivating a species leaves every other species' placement by `each` as it was.
-    - `PopGrowth` and `NoGrowth` hold one `longevity` per species, a vector, which the step reads per
-      species; their constructors still take one number for all. `EqualPop` keeps one.
-    - `GaussianKernel` and `LongTailKernel` take their distances by keyword, each named for what it
-      is: a Gaussian kernel's mean distance (`meandist`) or the standard deviation of its
-      displacement along each axis (`sd`); a long-tailed kernel's `shape` with its `scale` or
-      `meandist`. Both store a `scale` in place of `dist`, and print what they were given.
-    - `LongTailKernel` is documented as the two-dimensional Student's t (Clark et al.'s 2Dt). A
-      `shape` of 1 or less, whose density does not integrate, is refused when the kernel is built
-      rather than failing in its lookup; a `meandist` needs a `shape` above 3/2.
-    - A species list's `movement` is one `SpeciesDispersal` per species, of at most four kinds, so
-      species in one list may disperse differently.
-    - `build_species(DefaultEcosystem(); ...)` builds its species from a `SpeciesPool`, taking
-      `tolerance` and `demand` as specs.
-    - `SaveAbundance` writes states a run can start from, and a `CachedEcosystem` checkpoints in the
-      same form. Files saved before v0.11.0 are not read: build the ecosystem with `NoAbundance()`,
-      copy the saved matrix into `eco.abundances.matrix` and save it with `write_state`.
-    - A bare region name shared with a subdivision of other ground needs its `level`: ten countries,
-      "Georgia", "Mali" and "Panama" among them, take `level = "ADMIN"`, the codes "EST" and "MUS"
-      `level = "ISO_A3_EH"`, and 43 physical features such as "Bali" their physical level.
   - Deprecated
     - `AddAbundanceTable(table)` and `build_abundance_table(eco, table)`, for
       `AddAbundance(FromTable(table))` naming species by name and places by grid key or location. The
@@ -101,8 +113,7 @@
       distance was a Gaussian kernel's mean but neither the mean nor the scale of a long-tailed one.
       Their kernels and lookups are unchanged.
     - `BirthOnlyMovement`, `AlwaysMovement` and `NoMovement`, now functions returning each species'
-      movement. Code reading their `kernels` or `disperse_safely` fields, or dispatching on them,
-      needs the new form.
+      movement.
     - `repopulate_by_tolerance!(eco)`, for `repopulate!(eco, BySuitability())`, which places over the
       active cells only and takes its numbers from the placement.
     - `maxspecies` on `RecordAbundance` and `generate_storage`, now ignored: the storage has a row for
@@ -115,20 +126,9 @@
     - A species list built with a tree scores each species' abundances against its own tip: its
       types followed the tree's order, so a phylogenetic diversity paired species with other tips.
     - `boundingbox` given `LandmassesAbove` refuses with a sensible message
-    - The switch parameter of `assigntraits!`, `discrete_evolve` and the phylogeny-building `SpeciesList`
-      constructor is documented as what it is: the mean time between trait changes as a fraction of the
-      root-to-tip length, so a larger value means fewer changes.
-  - Removed
-    - `build_species(numspecies; ...)`: species are built from a `SpeciesPool`, as
-      `build_species(SpeciesPool(numspecies); ...)`, and where their individuals start is the
-      placement `build_ecosystem` is given (`abundance = zeros(...)` is `NoAbundance()`). The call
-      raises an error showing its own rewrite.
-    - `SpeciesList`'s `abun` and `native`, as fields and constructor arguments, `Ecosystem` and
-      `MPIEcosystem` built from a population function, and `populate!`, `populate_by_tolerance!` and
-      `emptypopulate!`. Each raises an error naming its replacement.
-    - `AddSpecies(; tolerance, demand, dispersal, birth, death, abundance, name)`, which appended a
-      species mid-run: declare the arrival in the pool, deactivated, and give
-      `AddSpecies(name, placement)`. The call raises an error showing its own rewrite.
+    - The switch parameter of `assigntraits!`, `discrete_evolve` and the phylogeny-building
+      `SpeciesList` constructor is documented as what it is: the mean time between trait changes as a
+      fraction of the root-to-tip length, so a larger value means fewer changes.
 
 - v0.10.1
   - Fixed
