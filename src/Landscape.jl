@@ -7,7 +7,6 @@ using DimensionalData
 using DimensionalData.Lookups: NoLookup, Categorical
 using DimensionalData: Ti
 using Missings
-using Random
 
 """
     GridLandscape
@@ -75,27 +74,6 @@ struct GridLandscape{Am <:
         dg = DimArray(g, (sp, yx...))
         return new{typeof(dm), typeof(dg)}(abun, g, dm, dg)
     end
-end
-
-"""
-    SavedLandscape
-
-A [`GridLandscape`](@ref) reduced to what has to survive a round trip through disk: the bare
-abundance matrix, without its dimensions, and a snapshot of the per-species random number streams.
-
-The streams are what make a resumed run reproducible - a run draws from one generator per species
-rather than from a shared one, so restoring the abundances alone would restart every stream from
-wherever the loading process happened to be. The dimensions are not saved because the ecosystem being
-restored into already has them.
-
-# Fields
-
-  - `matrix`: the abundances, species by flat grid cell.
-  - `rngs`: one generator state per species, copied at the moment of saving.
-"""
-struct SavedLandscape
-    matrix::Matrix{Int64}
-    rngs::Vector{Random.Xoshiro}
 end
 
 # `matrix` is annotated ABSTRACTLY ON PURPOSE, and must stay that way. The obvious repair -
@@ -180,41 +158,6 @@ function Base.show(io::IO, ::MIME"text/plain", cl::CachedGridLandscape)
             ", timestep ", cl.timestep)
     print(io, "  folder      ", cl.outputfolder)
     return nothing
-end
-
-"""
-    GridLandscape(sl::SavedLandscape, names::Vector{String}, grid::StudyGrid)
-
-Restore a `GridLandscape` from a [`SavedLandscape`](@ref), putting its bare abundance matrix back
-onto dimensions.
-
-# Arguments
-
-  - `sl`: the saved abundances.
-  - `names`: the species names, from the ecosystem being restored into.
-  - `yx`: that ecosystem's `Y` and `X` dimensions.
-
-The saved random number streams are restored separately, by the caller that already holds the
-ecosystem to put them in.
-"""
-function GridLandscape(sl::SavedLandscape, names::Vector{String},
-                       grid::StudyGrid)
-    return GridLandscape(sl.matrix, names, grid)
-end
-
-"""
-    SavedLandscape(gl::GridLandscape, rngs::Vector{Random.Xoshiro})
-
-Reduce a [`GridLandscape`](@ref) to its serialisable form.
-
-# Arguments
-
-  - `gl`: the landscape whose abundances are to be kept.
-  - `rngs`: the ecosystem's per-species generators, copied rather than aliased so that continuing the
-    run does not alter what was saved.
-"""
-function SavedLandscape(gl::GridLandscape, rngs::Vector{Random.Xoshiro})
-    return SavedLandscape(gl.matrix, copy.(rngs))
 end
 
 """

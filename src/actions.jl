@@ -271,6 +271,7 @@ end
         nichefit = nothing, seed = nothing, distributed = :auto, epoch = nothing,
         calendar = ExactDates(), provenance = ProvenanceRecord[], verbosity = :normal)
     build_ecosystem(species::SpeciesList, environment::GridHabitat; ...)
+    build_ecosystem(species::SpeciesList, environment::GridHabitat; from, elapsed = nothing, ...)
     build_ecosystem(species, environment; ...) do species, habitat, context
         ...
     end
@@ -330,6 +331,19 @@ real months are 28 to 31 days long and the step skips some. The calendar also de
 the run as a whole rather than to its species or its environment - the records a starting
 population was seeded from, say, or the study's own DOI. [`provenance`](@ref) of the ecosystem lists
 them beside everything else it was built from.
+
+`from` starts the ecosystem from a state [`write_state`](@ref) saved, a path or its record, in place of
+a placement. The species and habitat are built from the same pool and study area as the run that
+saved it, on its grid: every species it saved is in the list, matched by name and key in the pool,
+and the list may hold more, which start with none and as their pool says. The state gives every
+saved species its abundances and whether it is in the run, the habitat its active cells and every
+layer's values, and the run its epoch and calendar, which a run given others refuses. On the
+state's own seed, the default, each saved species continues its own random stream, so the run goes
+on as the saved one would have; another `seed` gives fresh streams, for replicates from one state.
+The clock starts at `elapsed`, the state's own unless given (`elapsed = 0.0s` starts a run afresh
+from it), and any series a layer follows takes its values at that time. A layer's change rule is not
+saved, so a run whose rule differs from the saved one's - one an intervention installed - is warned
+to give that intervention again. The state's record is among the ecosystem's inputs.
 """
 function build_ecosystem(placement, species::SpeciesList,
                          environment::GridHabitat;
@@ -338,7 +352,15 @@ function build_ecosystem(placement, species::SpeciesList,
                          epoch::Union{Nothing, Dates.TimeType} = nothing,
                          calendar::AbstractRunCalendar = ExactDates(),
                          provenance = ProvenanceRecord[],
-                         verbosity::Symbol = :normal)
+                         verbosity::Symbol = :normal, from = nothing,
+                         elapsed = nothing)
+    isnothing(from) ||
+        error("`from` starts an ecosystem from a saved state, which says where its individuals " *
+              "are, so it takes no placement: give `build_ecosystem(species, habitat; from = " *
+              "...)`.")
+    isnothing(elapsed) ||
+        error("`elapsed` sets the clock of an ecosystem started from a saved state, so it goes " *
+              "with `from`.")
     _checkverbosity(verbosity)
     _checkplacement(placement)
     records = _recordvector(provenance)
@@ -382,9 +404,12 @@ function build_ecosystem(placement, species::SpeciesList,
     return _placeinto!(eco, placement, context, verbosity, clear = false)
 end
 
-# The placement left out: the default, announced.
+# The placement left out: a saved state, or the default, announced.
 function build_ecosystem(species::SpeciesList, environment::GridHabitat;
-                         verbosity::Symbol = :normal, kw...)
+                         verbosity::Symbol = :normal, from = nothing, kw...)
+    isnothing(from) ||
+        return _startfromstate(species, environment, from;
+                               verbosity = verbosity, kw...)
     placement = _getdefaultvalue(Val(:placement), DefaultEcosystem(), verbosity,
                                  "build_ecosystem")
     return build_ecosystem(placement, species, environment;

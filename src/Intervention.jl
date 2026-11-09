@@ -121,8 +121,9 @@ end
 
 # A dated placement's rows for one ecosystem, this rank's species only, in time order: each one's row
 # in this rank's abundances, storage column, count and elapsed time; the elapsed time served through,
-# `nothing` before the first firing; and the individuals passed over at a continuing run's start and
-# due in cells deactivated since, until a run's end notes them.
+# `nothing` before the first firing; and the individuals passed over at a continuing run's start, due
+# in cells deactivated since, and added at the start to a state the run started from, until a run's
+# end notes them.
 mutable struct _ServedRows
     rows::Vector{Int}
     cells::Vector{Int}
@@ -131,6 +132,7 @@ mutable struct _ServedRows
     servedthrough::Union{Nothing, typeof(1.0s)}
     skipped::Int
     deactivated::Int
+    ontostate::Int
 end
 
 # What an `AddSpecies` has found for the one ecosystem it last acted on: the rows of the species it
@@ -938,15 +940,18 @@ _isrootrank(::AbstractEcosystem) = true
 # A dated placement's rows falling due on the step reaching `firing.elapsed` added where they fall in
 # the region's still-active cells: at the start every row at or before it, otherwise those in
 # `(elapsed - timestep, elapsed]`. At a continuing run's first firing the rows it has passed are
-# counted, as are those due in cells deactivated since the ecosystem was built.
+# counted, unless the run started from a saved state, which holds them already; so are those due in
+# cells deactivated since the ecosystem was built, and those added at the start to a saved state.
 function _servedated!(op::_PlacementAddition, eco::AbstractEcosystem, cells,
                       timestep::Unitful.Time, firing::NamedTuple)
     state = _servedrows!(op, eco, firing)
     elapsed = firing.elapsed
     from = iszero(elapsed) ? 1 :
            searchsortedlast(state.times, elapsed - timestep) + 1
-    isnothing(state.servedthrough) &&
+    fromstate = _fromstate(eco)
+    isnothing(state.servedthrough) && !fromstate &&
         (state.skipped += sum(view(state.counts, 1:(from - 1)), init = 0))
+    ontostate = fromstate && iszero(elapsed)
     to = searchsortedlast(state.times, elapsed)
     owned = _ownedabundances(eco)
     active = vec(parent(eco.habitat.active))
@@ -957,6 +962,7 @@ function _servedated!(op::_PlacementAddition, eco::AbstractEcosystem, cells,
         inregion[cell] || continue
         if active[cell]
             owned.rows[state.rows[i], cell] += state.counts[i]
+            ontostate && (state.ontostate += state.counts[i])
         else
             state.deactivated += state.counts[i]
         end
@@ -1004,7 +1010,7 @@ function _resolvedated(placement, eco::AbstractEcosystem, firing::NamedTuple)
     order = mine[sortperm(resolved.times[mine])]
     return _ServedRows(rows[order], resolved.cells[order],
                        resolved.counts[order], resolved.times[order], nothing,
-                       0, 0)
+                       0, 0, 0)
 end
 
 # At a run's end, each operation's notice of what the run did that it was not told: the root
@@ -1018,8 +1024,9 @@ end
 
 _finishoperation!(::AbstractOperation, ::AbstractEcosystem) = nothing
 
-# A dated placement's notice of what it did not add: individuals dated after the run's end, passed
-# over at a continuing run's start, or due in cells deactivated since - every rank's counted.
+# A dated placement's notice of what it did not add - individuals dated after the run's end, passed
+# over at a continuing run's start, or due in cells deactivated since - and of what it added at the
+# start to the state the run started from: every rank's counted.
 function _finishoperation!(op::_PlacementAddition, eco::AbstractEcosystem)
     op.dated || return nothing
     held = op.served[]
@@ -1028,8 +1035,10 @@ function _finishoperation!(op::_PlacementAddition, eco::AbstractEcosystem)
     late = sum(state.counts[i]
                for i in eachindex(state.times)
                if state.times[i] > simulationtime(eco); init = 0)
-    counts = _sumacrossranks!(eco, [late, state.skipped, state.deactivated])
-    state.skipped = state.deactivated = 0
+    counts = _sumacrossranks!(eco,
+                              [late, state.skipped, state.deactivated,
+                                  state.ontostate])
+    state.skipped = state.deactivated = state.ontostate = 0
     _isrootrank(eco) || return nothing
     problems = Problem[]
     for (n, what) in ((counts[1],
@@ -1040,7 +1049,10 @@ function _finishoperation!(op::_PlacementAddition, eco::AbstractEcosystem)
         "intervention to the run before it too"),
         (counts[3],
         "due in cells deactivated since the ecosystem was built " *
-        "$(_were(counts[3])) not added"))
+        "$(_were(counts[3])) not added"),
+        (counts[4],
+        "dated at or before the run's start $(_were(counts[4])) added to the saved state it " *
+        "started from"))
         iszero(n) ||
             push!(problems,
                   Problem(ProblemNotice(), :not_added,

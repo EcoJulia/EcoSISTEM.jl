@@ -11,8 +11,6 @@ using Missings
 
 using Random
 
-using JLD2
-
 using DimensionalData
 
 using DimensionalData: Ti, At
@@ -291,7 +289,14 @@ end
 
 Extract abundances for an ecosystem, `cache`, at a certain point in time, `tm`.
 If the abundances for that time are missing from the ecosystem, then the
-function checks on disk for the last saved version and simulates forward.
+function checks on disk for the last saved version and simulates forward, saving as it goes - so a
+cache built again over the same folder, by the same script run again, goes on from the last state
+saved there.
+
+# Arguments
+
+  - `cache`: the cached ecosystem.
+  - `tm`: the time to give its abundances at, one of the times it was built with.
 """
 function abundances(cache::CachedEcosystem, tm::Unitful.Time)
     return _abundances(cache, tm)[2]
@@ -767,8 +772,11 @@ function _abundances(cache::CachedEcosystem, tm::Unitful.Time)
     end
     simulate!(cache, newtm, timestep)
     if issave
-        @save joinpath(cache.abundances.outputfolder, string(idx, ".jld2")) abuns=SavedLandscape(cache.abundances.matrix[Ti(At(tm))],
-                                                                                                 cache.rngs)
+        _writestate(joinpath(cache.abundances.outputfolder,
+                             string(idx, ".jld2")),
+                    cache.abundances.matrix[Ti(At(tm))].matrix,
+                    _streamwords(cache.rngs), cache.spplist, cache.habitat,
+                    tm, cache.seed, cache.epoch, cache.calendar)
     end
     return _abundances(cache, newtm + timestep)
 end
@@ -1055,21 +1063,33 @@ end
              yx::Tuple{<:Y, <:X})
 
 Load a cached [`GridLandscape`](@ref) from the folder `file` for checkpoint index
-`idx`, reshaping the abundance matrix onto `names`/`yx` (the ecosystem's own
-species names and `(Y, X)` grid). The saved per-species RNG streams are
-restored into `cache.rngs` so the resumed run continues a reproducible random
-stream.
+`idx`, a state in [`write_state`](@ref)'s layout, putting its abundances onto `names` and `grid` (the
+ecosystem's own species names and grid). The checkpoint is checked against the cache's grid, species,
+epoch and calendar, so a folder written by another configuration is refused rather than continued
+from; and as a run started from a state does, the cache takes the saved species' activity, the
+active cells, every layer's values and each species' random stream, so the resumed run goes on
+exactly as the saved one would have.
 """
 function loadfile(cache::CachedEcosystem, file::String, idx::Int,
                   names::Vector{String}, grid::StudyGrid)
-    @load joinpath(file, string(idx, ".jld2")) abuns
-    # Restore the per-species RNG streams for a reproducible resumed run
-    cache.rngs .= copy.(abuns.rngs)
+    path = joinpath(file, string(idx, ".jld2"))
+    state = _readstate(path)
+    _checkstategrid(state, cache.habitat, path)
+    columns = _statecolumns(state, cache.spplist, path)
+    _stateepoch(state, cache.epoch, path)
+    _statecalendar(state, cache.calendar, path)
+    _checkstreamfields(state, path)
+    _restoreground!(cache.spplist, cache.habitat, state, columns, path)
+    _setstreams!(cache.rngs, state.streams, columns)
+    saved = zeros(Int64, length(names), size(state.abundances, 2))
+    for (row, column) in enumerate(columns)
+        iszero(column) || (saved[row, :] .= view(state.abundances, column, :))
+    end
     # The saved state the run resumes from is among what it was built from.
-    state = ProvenanceRecord(role = :state, source = "saved state",
-                             path = string(idx, ".jld2"))
-    state in cache.inputs || push!(cache.inputs, state)
-    return GridLandscape(abuns, names, grid)
+    record = ProvenanceRecord(role = :state, source = "saved state",
+                              path = string(idx, ".jld2"))
+    record in cache.inputs || push!(cache.inputs, record)
+    return GridLandscape(saved, names, grid)
 end
 
 # **There is no ordinariness to invalidate any more.** It is recomputed on demand into

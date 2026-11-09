@@ -1150,6 +1150,14 @@ callback: `RecordAbundance` and `RecordDiversity` write into storage sized befor
 `SaveAbundance` writes files. Each holds the run's `Provenance` as it stood at its last write. Under
 MPI every rank calls it, so each takes part in the gather it needs.
 
+**A saved state is plain data.** `write_state` writes, and `SaveAbundance` and a `CachedEcosystem`'s
+checkpoints write the same way, the abundances, which species and cells are in the run, every layer's
+values, each species' random stream as its words, the clock and the run's dates, as arrays, numbers
+and strings - never a type of the package's - so a file is read whatever the types that wrote it
+have become. `build_ecosystem(species, habitat; from)` starts an ecosystem from one on species and a
+habitat built again from the pool and the study area, which a run never changes; a layer's change
+rule is code, so it is described rather than saved.
+
 ## Distribution parameters (`src/Dist.jl`)
 
 Building a tolerance from a named distribution means knowing which of its parameters is a location, a

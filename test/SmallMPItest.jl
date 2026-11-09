@@ -792,6 +792,45 @@ rank == 0 && @test all(==(placesserial.spplist.traits.active), everyspecies)
 rank == 0 && @test all(placesserial.spplist.traits.active)
 rank == 0 && @test placespool.species.active[(end - 1):end] == [false, false]
 
+# A state saved under MPI - every rank sending its own species' rows and streams, the root writing -
+# and ecosystems started from it, distributed and serial, going on as one uninterrupted serial run
+# does. Every rank but the root is given a path with nothing there, so only the root reads it.
+statedir = MPI.bcast(rank == 0 ? mktempdir() : "", 0, comm)
+statepath = joinpath(statedir, "state.jld2")
+statefrom = rank == 0 ? statepath : joinpath(statedir, "absent.jld2")
+function stateeco(distributed)
+    eco = build_ecosystem(NoAbundance(), first(mpifixture_species()),
+                          varying_environment(), nichefit = nichefit, seed = 0,
+                          distributed = distributed, verbosity = :silent)
+    if distributed
+        eco.abundances.rows_matrix .= MPIFIXTURE_FILL
+    else
+        eco.abundances.matrix .= MPIFIXTURE_FILL
+    end
+    return eco
+end
+halfway = stateeco(true)
+simulate!(halfway, 6 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP)
+write_state(statepath, halfway)
+MPI.Barrier(comm)
+function fromstate(distributed)
+    return build_ecosystem(first(mpifixture_species()), varying_environment(),
+                           from = statefrom, nichefit = nichefit,
+                           distributed = distributed, verbosity = :silent)
+end
+resumed = fromstate(true)
+simulate!(resumed, 6 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP)
+resumedserial = fromstate(false)
+simulate!(resumedserial, 6 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP)
+straight = stateeco(false)
+simulate!(straight, 12 * MPIFIXTURE_TIMESTEP, MPIFIXTURE_TIMESTEP)
+resumedabun = gatherabundance(resumed)
+if rank == 0
+    @test sum(resumedabun) > 0
+    @test resumedabun == straight.abundances.matrix
+    @test resumedserial.abundances.matrix == straight.abundances.matrix
+end
+
 # **An intervention is the only thing that can leave the two landscape layouts out of step**, and so
 # the only thing that exercises where `synchronise_from_rows!` sits in the timestep. It writes
 # `rows_matrix` after the dynamics; the next timestep opens with `update_resource_usage!`, which

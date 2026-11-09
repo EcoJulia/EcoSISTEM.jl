@@ -23,13 +23,3 @@ function (recorder::EcoSISTEM.RecordDiversity)(eco::MPIEcosystem,
     recorder.record[] = EcoSISTEM.provenance(eco)
     return recorder
 end
-
-# The abundances gathered from every rank, saved by the root.
-function (recorder::EcoSISTEM.SaveAbundance)(eco::MPIEcosystem,
-                                             occurrence::NamedTuple)
-    abuns = EcoSISTEM.gatherabundance(eco)
-    recorder.record[] = EcoSISTEM.provenance(eco)
-    MPI.Comm_rank(MPI.COMM_WORLD) == 0 || return recorder
-    EcoSISTEM._saveabundance(recorder, abuns, occurrence.count)
-    return recorder
-end

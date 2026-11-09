@@ -68,8 +68,10 @@ end
     @test isfile(joinpath(dir, "run00.jld2")) &&
           isfile(joinpath(dir, "run01.jld2"))
     @test !isfile(joinpath(dir, "run02.jld2"))
-    @test JLD2.load(joinpath(dir, "run01.jld2"), "abun") ==
+    # Each a state: its abundances, as a later run starting from it takes them.
+    @test JLD2.load(joinpath(dir, "run01.jld2"), "abundances") ==
           eco.abundances.matrix
+    @test JLD2.load(joinpath(dir, "run01.jld2"), "format") == "EcoSISTEM state"
     written = TOML.parsefile(joinpath(dir, "run01.provenance.toml"))
     @test written["software"]["package"] == "EcoSISTEM"
     # Named apart from an input's own record, so it is never read back as one.

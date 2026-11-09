@@ -83,6 +83,57 @@ The recorders - [`RecordAbundance`](@ref), [`RecordDiversity`](@ref) and
 [`SaveAbundance`](@ref) - are values made for this, passed to `simulate!` in place of a
 function, and are what most runs want.
 
+### Saving a run, and starting another from it
+
+[`write_state`](@ref) saves the state a run has reached - every species' abundance in every cell,
+which species and cells are in the run, every layer's values, each species' random stream and the
+clock - and `build_ecosystem(species, habitat; from = path)` starts an ecosystem from it. The species
+and habitat are built as the saved run's were, from the same pool and study area, which a run never
+changes:
+
+```@example clock
+path = write_state(joinpath(mktempdir(), "state.jld2"), eco)
+resumed = build_ecosystem(species, env, from = path)
+(resumed.abundances.matrix == eco.abundances.matrix,
+ EcoSISTEM.simulationtime(resumed) == EcoSISTEM.simulationtime(eco))
+```
+
+On the state's own seed the run goes on exactly as the saved one would have, so a long burn-in can
+be run once and continued from as often as needed. Another `seed` gives fresh streams, for
+replicates from one state, and `elapsed = 0.0s` starts the clock afresh, any series a layer follows
+starting again with it. [`SaveAbundance`](@ref) writes such a state at each occurrence.
+
+### Long runs that save as they go
+
+A [`CachedEcosystem`](@ref) is an ecosystem kept on disk as it runs. Asked for its abundances at a
+time with [`abundances`](@ref), it simulates up to that time, writing a state - as `write_state`
+writes one - every `saveinterval`, and holding only the last few steps in memory:
+
+```@example clock
+folder = mktempdir()
+times = (0.0year):(1.0month_mean_duration):(4.0year)
+cache = CachedEcosystem(build_ecosystem(BySupply(total = 1000), species, env, seed = 1),
+                        folder, times, saveinterval = 1.0year)
+abundances(cache, 2.0year)
+readdir(folder)                       # a state at each year
+```
+
+**A run that stopped - finished early, or killed - goes on when the same script is run again.** A
+cache built over the same folder finds the last state saved there and continues from it: the
+abundances, every layer, which cells and species are in the run, and each species' random stream as
+they were, so the result is the one an unbroken run gives:
+
+```@example clock
+again = CachedEcosystem(build_ecosystem(BySupply(total = 1000), species, env, seed = 1),
+                        folder, times, saveinterval = 1.0year)
+abundances(again, 4.0year).matrix == abundances(cache, 4.0year).matrix
+```
+
+A state in the folder from another configuration - other species, another grid or other dates - is
+refused rather than continued from, and [`clearcache!`](@ref) empties the folder to start afresh. A
+cached run takes no interventions; a run with them saves states with [`SaveAbundance`](@ref) and is
+started again from the last with `from`.
+
 ## Naming time
 
 A `Unitful` unit is by definition a fixed quantity. A calendar month is not: February is 28

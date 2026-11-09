@@ -54,6 +54,9 @@
     - `AddSpecies(species, placement)` brings species declared in the pool, and deactivated there,
       into a run, placing their arrivals over the region; `RandomSpecies(count)` draws them from those
       not in the run. It works under MPI, and names are checked before the run's first step.
+    - `write_state(path, eco)` saves the state a run has reached, and `build_ecosystem(species,
+      habitat; from = path)` starts an ecosystem from it, going on exactly as the saved run would on
+      its own seed, or with fresh streams on another, or its clock at zero (`elapsed = 0.0s`).
   - Changed
     - `build_ecosystem(species, habitat)` places 1000 individuals of each active species, split at
       random and placed by supply, and announces it; it takes `verbosity`. `repopulate!(eco, placement = eco.placement; seed)` places again by the
@@ -75,6 +78,9 @@
       species in one list may disperse differently.
     - `build_species(DefaultEcosystem(); ...)` builds its species from a `SpeciesPool`, taking
       `tolerance` and `demand` as specs.
+    - `SaveAbundance` writes states a run can start from, and a `CachedEcosystem` checkpoints in the
+      same form. Files saved before v0.11.0 are not read: build the ecosystem with `NoAbundance()`,
+      copy the saved matrix into `eco.abundances.matrix` and save it with `write_state`.
   - Deprecated
     - `AddAbundanceTable(table)` and `build_abundance_table(eco, table)`, for
       `AddAbundance(FromTable(table))` naming species by name and places by grid key or location. The

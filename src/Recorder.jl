@@ -4,7 +4,6 @@
 # callback.
 
 using Unitful
-using JLD2: @save
 
 """
     AbstractRecorder
@@ -116,10 +115,12 @@ end
 """
     SaveAbundance(folder::AbstractString, name::AbstractString)
 
-Save every species' abundance in every cell to a JLD2 file at each occurrence, in `folder`, named
-`name` followed by the occurrence's number counted from `00` - so `<name>00.jld2` holds the first -
-with the run's provenance beside each as `<name>00.provenance.toml`. Under MPI the ranks' abundances
-are gathered and the root writes the files.
+Save the run's state at each occurrence, as [`write_state`](@ref) does, to a JLD2 file in `folder`
+named `name` followed by the occurrence's number counted from `00` - so `<name>00.jld2` holds the
+first - with the run's provenance beside each as `<name>00.provenance.toml`. Each holds every
+species' abundance in every cell, and is a state a later run can start from with
+`build_ecosystem(species, habitat; from = path)`. Under MPI the ranks' states are gathered and the
+root writes the files.
 
 # Arguments
 
@@ -137,10 +138,14 @@ struct SaveAbundance <: AbstractRecorder
     end
 end
 
-# Save the abundances at this occurrence, and the run's provenance as it now stands beside them.
-function (recorder::SaveAbundance)(eco::Ecosystem, occurrence::NamedTuple)
+# Save the state at this occurrence, and the run's provenance as it now stands beside it; under MPI a
+# collective call, every rank taking part.
+function (recorder::SaveAbundance)(eco::AbstractEcosystem,
+                                   occurrence::NamedTuple)
     recorder.record[] = provenance(eco)
-    _saveabundance(recorder, eco.abundances.matrix, occurrence.count)
+    write_state(joinpath(recorder.folder,
+                         recorder.name * lpad(occurrence.count - 1, 2, '0') *
+                         ".jld2"), eco)
     return recorder
 end
 
@@ -190,15 +195,5 @@ function _writediversity!(recorder::RecordDiversity, frame, count::Integer)
     orders = length(recorder.qs)
     recorder.storage[:, :, count] = reshape(diversity,
                                             length(diversity) ÷ orders, orders)
-    return recorder
-end
-
-# Save one occurrence's abundances and the provenance held for it, numbered from `00`.
-function _saveabundance(recorder::SaveAbundance, abun::AbstractMatrix,
-                        count::Integer)
-    mkpath(recorder.folder)
-    stem = joinpath(recorder.folder, recorder.name * lpad(count - 1, 2, '0'))
-    @save stem * ".jld2" abun
-    write_provenance(stem * ".provenance.toml", recorder.record[])
     return recorder
 end

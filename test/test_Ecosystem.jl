@@ -262,9 +262,10 @@ end
 # Build a small, fully deterministic ecosystem. With a fixed `seed` the initial
 # abundances (a fixed number per species, placed by supply from the per-species
 # RNG streams) and those streams are identical every time, so runs are
-# byte-for-byte reproducible.
-function cache_test_eco(seed)
-    numSpecies = 8
+# byte-for-byte reproducible. `warming` makes its temperature rise steadily, a value that depends on
+# how far the run has gone.
+function cache_test_eco(seed; warming = false, numspecies = 8)
+    numSpecies = numspecies
     grid = (4, 4)
     area = 100.0km^2
     individuals = 1_000
@@ -283,8 +284,10 @@ function cache_test_eco(seed)
     # `sqrt(area / prod(dimension))` the deprecated builder computed internally.
     studyarea = StudyArea(extent = (sqrt(area), sqrt(area)),
                           cellsize = sqrt(area) / grid[1], verbosity = :silent)
-    habitat = GridHabitat(regime = UniformSpec(274.0K,
-                                               axis = Temperature),
+    temperature = UniformSpec(274.0K, axis = Temperature)
+    regime = warming ? Varying(temperature, IncrementBy(0.5K / year)) :
+             temperature
+    habitat = GridHabitat(regime = regime,
                           supply = UniformSpec(totalK,
                                                axis = SolarRadiation),
                           area = studyarea)
@@ -328,6 +331,28 @@ end
     # clearcache! removes the saved files - the `!` is owed, it deletes them
     @test_nowarn EcoSISTEM.clearcache!(cache2)
     @test isempty(filter(f -> endswith(f, ".jld2"), readdir(dir)))
+end
+
+@testset "a CachedEcosystem picks a run up where its last checkpoint left it" begin
+    seed = 20250708
+    times = (0.0year):(1.0year):(5.0year)
+    ref = cache_test_eco(seed, warming = true)
+    for _ in 1:5
+        update!(ref, 1.0year)
+    end
+    # A run stopped at year 3, then the same script run again over its folder: the warming it had
+    # reached comes back with its abundances and streams, and the run ends as one never stopped.
+    dir = mktempdir()
+    stopped = CachedEcosystem(cache_test_eco(seed, warming = true), dir, times)
+    abundances(stopped, 3.0year)
+    again = CachedEcosystem(cache_test_eco(seed, warming = true), dir, times)
+    @test abundances(again, 5.0year).matrix == ref.abundances.matrix
+    warmed = parent(again.habitat.regime.matrix)
+    @test warmed ≈ parent(ref.habitat.regime.matrix)
+    # A folder written by another configuration is refused rather than continued from.
+    other = CachedEcosystem(cache_test_eco(seed, warming = true,
+                                           numspecies = 7), dir, times)
+    @test_throws "holds species this run does not" abundances(other, 5.0year)
 end
 
 @testset "CachedEcosystem matches Ecosystem" begin

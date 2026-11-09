@@ -563,6 +563,11 @@ include("Recorder.jl")
 
 export RecordAbundance, RecordDiversity, SaveAbundance
 
+# A run's state saved, and an ecosystem started from it.
+include("savedstate.jl")
+
+export write_state
+
 public AbstractRecorder
 
 # What an assembled model was built from: `provenance` asked of anything holding a study area,
