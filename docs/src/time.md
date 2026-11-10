@@ -106,7 +106,11 @@ starting again with it. [`SaveAbundance`](@ref) writes such a state at each occu
 A state keeps every layer's values but not a rule a [`SetChange`](@ref) installed, which is code. A
 run continuing one is given the interventions the saved run had, and at its first step installs again
 the rules they would have installed by then; a layer whose rule still differs from the one saved is
-reported.
+reported. A run meant to change a rule - a spin-up held at a steady climate, then continued under a
+changing one - names those layers in `changing`: `build_ecosystem(species, habitat; from = path,
+changing = (:Temperature,))`. The run then warns only of a layer whose rule changed without being
+named, or of one that was named but did not change. Every rule that changed is recorded in the run's
+[`provenance`](@ref), with the rule saved, the rule now, and whether it was named.
 
 ### Long runs that save as they go
 

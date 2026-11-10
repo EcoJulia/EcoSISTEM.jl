@@ -20,6 +20,7 @@ using Distributions
 using JLD2: jldsave
 using Random: Random
 using Test
+using TOML
 using Unitful, Unitful.DefaultSymbols
 
 include("TestCases.jl")
@@ -237,7 +238,7 @@ end
     path = write_state(joinpath(mktempdir(), "state.jld2"),
                        _run(2, intervention = ONERULE))
     warning = (:warn,
-               r"changed by a steady 5\.0 K yr.*, and this run starts with it changing by a steady 0\.5 K yr.*installed at its first step\.$")
+               r"changed by a steady 5\.0 K yr.*, and this run starts with it changing by a steady 0\.5 K yr.*installed at its first step\. Where this is meant, name the layer in `build_ecosystem`'s `changing`\.$")
     bare = build_ecosystem(_species(), _habitat(), from = path,
                            verbosity = :silent)
     @test_logs warning match_mode=:any simulate!(bare, STEP, STEP)
@@ -249,6 +250,93 @@ end
     @test_logs warning match_mode=:any simulate!(afresh, STEP, STEP,
                                                  intervention = ONERULE)
     @test afresh.habitat.regime.change.value ≈ 5.0K / year
+end
+
+@testset "a run told which layers change rule is quiet of them, and records every change" begin
+    path = write_state(joinpath(mktempdir(), "state.jld2"),
+                       _run(2, intervention = ONERULE))
+    # Named, the changed rule is not warned of, and the run's provenance says what it was and is.
+    told = build_ecosystem(_species(), _habitat(), from = path,
+                           changing = (:Temperature,), verbosity = :silent)
+    @test_logs simulate!(told, STEP, STEP)
+    change = only(provenance(told).context.run.changes)
+    @test change.role == "regime" && change.layer == "Temperature" &&
+          change.declared
+    @test occursin("5.0 K yr", change.saved) && occursin("0.5 K yr", change.now)
+    @test isnothing(told.savedchanges) && told.rulechanges == [change]
+    shown = sprint(show, MIME("text/plain"), provenance(told))
+    @test occursin(r"changed +regime `Temperature` from a steady 5\.0 K yr.* to a steady 0\.5 K yr.*, as declared",
+                   shown)
+    written = TOML.parsefile(write_provenance(joinpath(mktempdir(),
+                                                       "run.toml"), told))
+    @test only(written["run"]["changes"])["layer"] == "Temperature" &&
+          only(written["run"]["changes"])["declared"] === true
+    # Not named, it is warned of and recorded all the same.
+    untold = build_ecosystem(_species(), _habitat(), from = path,
+                             verbosity = :silent)
+    @test_logs (:warn, r"`changing`\.$") simulate!(untold, STEP, STEP)
+    @test !only(provenance(untold).context.run.changes).declared
+    # Named and given the saved rule again, it is warned of as unchanged, and nothing is recorded.
+    same = build_ecosystem(_species(), _habitat(), from = path,
+                           changing = :Temperature, verbosity = :silent)
+    @test_logs (:warn,
+                r"^`changing` names `Temperature`, but this run starts with its regime layer changing by a steady 5\.0 K yr.*drop `Temperature` from `changing`\.$") simulate!(same,
+                                                                                                                                                                               STEP,
+                                                                                                                                                                               STEP,
+                                                                                                                                                                               intervention = ONERULE)
+    @test isempty(provenance(same).context.run.changes)
+    # A run from no state, or one whose rules are its saved ones, records no change, nor writes one.
+    @test isempty(provenance(_run(1)).context.run.changes)
+    plain = TOML.parsefile(write_provenance(joinpath(mktempdir(), "run.toml"),
+                                            _run(1)))
+    @test !haskey(plain["run"], "changes")
+    # Refused: a name that is no layer of the habitat, a name that is not a symbol, and `changing`
+    # without `from`.
+    @test_throws "`Rainfall`, which is no layer of the habitat; its layers are `Temperature` (regime), `SolarRadiation` (supply)" build_ecosystem(_species(),
+                                                                                                                                                  _habitat(),
+                                                                                                                                                  from = path,
+                                                                                                                                                  changing = (:Rainfall,),
+                                                                                                                                                  verbosity = :silent)
+    @test_throws "as symbols such as `:Temperature`" build_ecosystem(_species(),
+                                                                     _habitat(),
+                                                                     from = path,
+                                                                     changing = ("Temperature",),
+                                                                     verbosity = :silent)
+    @test_throws "so it goes with `from`" build_ecosystem(BySupply(total = 10),
+                                                          _species(),
+                                                          _habitat(),
+                                                          changing = (:Temperature,),
+                                                          verbosity = :silent)
+end
+
+# A name covers every layer of that name, regime and supply alike: each is quiet where it changed,
+# and warned of where it did not.
+@testset "a name in `changing` covers a regime and a supply of that name" begin
+    # A regime and a supply both named `Precipitation`, neither changing now; the supply saved
+    # changing by a rule since replaced, or by none.
+    none = EcoSISTEM.NoLayerChange()
+    function saved(supplyrule)
+        return EcoSISTEM._SavedChanges("state.jld2",
+                                       Dict("Precipitation" =>
+                                                (change = "a replaced rule",
+                                                 phrase = "a SeriesLayerChange")),
+                                       Dict("Precipitation" =>
+                                                (change = supplyrule,
+                                                 phrase = "a SeriesLayerChange")),
+                                       [:Precipitation])
+    end
+    layers = (Precipitation = (change = none,),)
+    both = saved("a replaced rule")
+    compared = EcoSISTEM._comparechanges(both, layers, layers)
+    @test [c.role for c in compared] == ["regime", "supply"] &&
+          all(c -> c.changed && c.declared, compared)
+    @test_logs EcoSISTEM._warnchanges(both, compared)
+    one = saved(EcoSISTEM._changeidentity(none))
+    mixed = EcoSISTEM._comparechanges(one, layers, layers)
+    @test [c.changed for c in mixed] == [true, false]
+    @test_logs (:warn,
+                r"^`changing` names `Precipitation`, but this run starts with its supply layer") EcoSISTEM._warnchanges(one,
+                                                                                                                        mixed)
 end
 
 @testset "a series a layer follows takes its values at the run's start" begin

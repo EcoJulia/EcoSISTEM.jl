@@ -68,12 +68,20 @@ end
 
 # What a saved state recorded of each layer's change rule, by role and then layer name, kept by an
 # ecosystem started from it until its first step has installed the rules the run's interventions give,
-# then compared with them: a state holds a layer's values but not its rule, which is code.
+# then compared with them: a state holds a layer's values but not its rule, which is code. `changing`
+# names the layers the run was told would change rule, a name covering a regime and a supply alike.
 struct _SavedChanges
     path::String
     regime::Dict{String, @NamedTuple{change::String, phrase::String}}
     supply::Dict{String, @NamedTuple{change::String, phrase::String}}
+    changing::Vector{Symbol}
 end
+
+# A layer whose change rule a run continuing a saved state changed, as its provenance records it: the
+# layer's role and name, the rule it was saved with and the one it changes by now, and whether the
+# run was told to expect it.
+const _RuleChange = @NamedTuple{role::String, layer::String, saved::String,
+                                now::String, declared::Bool}
 
 """
     Ecosystem{Part <: AbstractHabitat} <:
@@ -94,7 +102,8 @@ holds the [`ProvenanceRecord`](@ref)s of published data belonging to the run as 
 which [`provenance`](@ref) lists. `placement` is the placement its individuals were placed by, as it
 was given (see [`AbstractPlacement`](@ref)), which [`repopulate!`](@ref) places by again.
 `savedchanges` is what the saved state it was started from recorded of each layer's change rule, held
-until its first step, and otherwise `nothing`.
+until its first step, and otherwise `nothing`; `rulechanges` is each layer whose rule that first step
+found changed from the saved one, which [`provenance`](@ref) reports, and is empty otherwise.
 """
 mutable struct Ecosystem{Part <: AbstractHabitat,
                          SL <: SpeciesList,
@@ -120,6 +129,7 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
     # Abstract on purpose: a placement may be any function, and nothing in the step reads it.
     placement::Any
     savedchanges::Union{Nothing, _SavedChanges}
+    rulechanges::Vector{_RuleChange}
 
     function Ecosystem{Part, SL, NF}(abundances::GridLandscape,
                                      spplist::SL,
@@ -166,7 +176,8 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
                                  ExactDates(),
                                  ProvenanceRecord[],
                                  nothing,
-                                 nothing)
+                                 nothing,
+                                 _RuleChange[])
     end
 end
 
@@ -653,6 +664,7 @@ function makeunique(eco::Ecosystem)
     stripped.inputs = eco.inputs
     stripped.placement = eco.placement
     stripped.savedchanges = eco.savedchanges
+    stripped.rulechanges = eco.rulechanges
     return stripped
 end
 

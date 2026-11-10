@@ -87,12 +87,19 @@ function _gridrecord(report::StudyAreaReport)
             cells = length(report.active), active = count(report.active))
 end
 
-# What a run adds: the seed its streams are drawn from, the date its elapsed time counts from, and
-# how far it has run.
+# What a run adds: the seed its streams are drawn from, the date its elapsed time counts from, how
+# far it has run, how it was placed, and each layer whose change rule it changed from a saved state's.
 function _runrecord(eco::AbstractEcosystem)
     return (seed = eco.seed, epoch = eco.epoch, calendar = eco.calendar,
-            elapsed = eco.elapsed, placement = _placementrecord(eco.placement))
+            elapsed = eco.elapsed, placement = _placementrecord(eco.placement),
+            changes = _rulechanges(eco))
 end
+
+# The layers whose change rule a run continuing a saved state changed; none for a cached run, which
+# starts from no state.
+_rulechanges(eco) = eco.rulechanges
+
+_rulechanges(::CachedEcosystem) = _RuleChange[]
 
 # How a run was placed, as its provenance says it: the placement as written, a function by its
 # name, or `nothing` where the ecosystem records none.

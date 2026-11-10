@@ -17,9 +17,12 @@ habitat or an ecosystem.
   - `grid`: a named tuple of the grid's `crs` (`nothing` for a synthetic grid), its `cellsize`, the
     `extent` its cells cover, and how many `cells` it has and how many of them are `active`.
   - `run`: for an ecosystem, a named tuple of its `seed`, its `epoch` (`nothing` without one), the
-    run `calendar` its dates were placed by, the time `elapsed`, and the `placement` its individuals
-    were placed by, as written (`nothing` where it records none); `nothing` for a
-    study area or a habitat.
+    run `calendar` its dates were placed by, the time `elapsed`, the `placement` its individuals
+    were placed by, as written (`nothing` where it records none), and its `changes`: for a run
+    continuing a saved state, each layer whose change rule differs from the one it was saved with,
+    its `role`, `layer` name, the rule it was `saved` with, the one it changes by `now`, and whether
+    `build_ecosystem`'s `changing` `declared` it, and none otherwise; `nothing` for a study area or
+    a habitat.
 """
 struct GridContext <: AbstractProvenanceContext
     grid::NamedTuple
@@ -49,6 +52,14 @@ function Provenancer.contextlines(c::GridContext)
               _calendarnote(c.run.calendar))
     isnothing(c.run) || isnothing(c.run.placement) ||
         push!(lines, rpad("placement", 10) * c.run.placement)
+    if !isnothing(c.run)
+        for change in c.run.changes
+            push!(lines,
+                  rpad("changed", 10) *
+                  "$(change.role) `$(change.layer)` from $(change.saved) to " *
+                  "$(change.now)$(change.declared ? ", as declared" : ", not declared")")
+        end
+    end
     return lines
 end
 

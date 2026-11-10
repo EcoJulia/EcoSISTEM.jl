@@ -12,6 +12,10 @@
       the layer's own resolution: `WeightPerRecord(layer)` gives each record its cell's value,
       `WeightPerCell(layer)` shares each cell's value among the records made there; `scale` makes
       each unit of weight that many individuals, and a `do` block sees each record's `weight`.
+    - `build_ecosystem(species, habitat; from, changing)` takes the names of the layers whose change
+      rule a run continuing a saved state is meant to change. The run warns of an unnamed layer whose
+      rule changed and of a named layer whose rule did not; its provenance records every rule that
+      changed.
   - Fixed
     - A build refusing `FromOccurrences` records dated after its start names the keyword that dated
       them, `date` or `time`.
