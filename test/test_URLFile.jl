@@ -147,4 +147,63 @@ end
           "My region"
 end
 
+@testset "a record of the download alone takes the facts a later fetch gives" begin
+    dir = mktempdir()
+    served = joinpath(dir, "served.geojson")
+    write(served, "{}")
+    url = "file://" * served
+    path = joinpath(dir, "cache", "region.geojson")
+    facts = SourceFacts(source = "My region", title = "A region",
+                        licence = "OGL-UK-3.0", identifies = :data,
+                        releasedate = "2012-12-31",
+                        citation = "Someone (2012). A region.",
+                        notices = [(strength = :required,
+                                    text = "(c) Someone.")],
+                        requestpage = "https://example.org/terms")
+    # Fetched first with no facts, then with them: the facts are written into the record, and what
+    # the download recorded is kept.
+    before = P.fetchfile(URLFile(url, path), role = :region)
+    @test before.source == "file" && isnothing(before.licence)
+    after = P.fetchfile(URLFile(url, path, facts = facts), role = :region)
+    @test after.source == "My region" && after.licence == "OGL-UK-3.0" &&
+          after.citation == "Someone (2012). A region." &&
+          after.releasedate == "2012-12-31" &&
+          only(after.notices).text == "(c) Someone." &&
+          after.requestpage == "https://example.org/terms" &&
+          after.primary === true
+    @test after.fetched == before.fetched && after.url == before.url &&
+          after.sha256 == before.sha256 && after.bytes == before.bytes
+    @test provenance(path) == after
+    # Named now, the record is left alone by a fetch of the same source.
+    sidecar = P.sidecarpath(path)
+    mtime = stat(sidecar).mtime
+    @test P.fetchfile(URLFile(url, path, facts = facts), role = :region) ==
+          after
+    @test stat(sidecar).mtime == mtime
+    # Another source, or another role, is refused, the record kept.
+    @test_throws "rather than `Another region`" P.fetchfile(URLFile(url, path,
+                                                                    facts = SourceFacts(source = "Another region")),
+                                                            role = :region)
+    @test_throws "under the role `region` rather than `habitat`" P.fetchfile(URLFile(url,
+                                                                                     path,
+                                                                                     facts = facts),
+                                                                             role = :habitat)
+    @test provenance(path) == after
+    # An earlier version's record of the download alone takes the facts too; under another role it
+    # is refused.
+    old = joinpath(dir, "cache", "old.geojson")
+    write(old, "{}")
+    oldrecord = Dict{String, Any}("writer" => "EcoSISTEM 0.8.0",
+                                  "role" => "region", "file" => "old.geojson",
+                                  "url" => url, "bytes" => 2,
+                                  "sha256" => P._filesha256(old))
+    P.writesidecar(old, oldrecord)
+    @test_throws "rather than `habitat`" P.fetchfile(URLFile(url, old,
+                                                             facts = facts),
+                                                     role = :habitat)
+    updated = P.fetchfile(URLFile(url, old, facts = facts), role = :region)
+    @test updated.source == "My region" && updated.licence == "OGL-UK-3.0" &&
+          updated.sha256 == oldrecord["sha256"] && isnothing(updated.fetched)
+end
+
 end

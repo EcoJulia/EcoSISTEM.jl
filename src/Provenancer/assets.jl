@@ -290,7 +290,10 @@ Provenancer.fetchinto) fetches, and recorded under `role` with what its download
 ([`downloadrecord`](@ref Provenancer.downloadrecord)) and what its facts say of the source
 ([`sourceentries`](@ref Provenancer.sourceentries)). A spec of the file takes the record in place
 of a path. A file beside a same-named sidecar that is not a record of ours is refused, since that
-sidecar is neither read nor overwritten.
+sidecar is neither read nor overwritten. A record of ours already there that names no source - one
+of the download alone - is brought up to date with the file's facts, keeping what the download
+recorded; one naming another source or role, or a file the package fetched from its catalogue, is
+refused, as [`record_provenance`](@ref) refuses it.
 
 With a `track`, the download goes through a data pipeline run as a file
 [`record_provenance`](@ref) records does: a run whose working config writes the file and its
@@ -321,7 +324,36 @@ function fetchfile(file::URLFile; role::Symbol, verify::Bool = false,
         error("`$(file.path)` has no provenance record of ours: " *
               "`$(sidecarpath(file.path))` is not one - another program's, or one that does not " *
               "read - and is neither read nor overwritten.")
+    return _recordwithfacts(file.facts, file, record, role)
+end
+
+# A fetched file's record of ours reconciled with the file's facts: as it is where it says what the
+# facts would, or where there are none; brought up to date with them where it names no source, as a
+# record of the download alone does, under the same role; otherwise refused.
+function _recordwithfacts(::Nothing, ::URLFile, record::ProvenanceRecord,
+                          ::Symbol)
     return record
+end
+
+function _recordwithfacts(facts::SourceFacts, file::URLFile,
+                          record::ProvenanceRecord, role::Symbol)
+    otherwise = _otherclaim(record, facts, role)
+    isnothing(otherwise) && return record
+    (record.role === role && !iscatalogued(record) &&
+     _namesnosource(record.sidecar)) ||
+        error("`$(basename(file.path))` is recorded already $otherwise, so it is not recorded " *
+              "again with the facts given: delete `$(record.sidecar)` to record it afresh.")
+    return _refreshrecord!(file.path,
+                           merge(sourceentries(facts, route(file)),
+                                 _factsentries(facts)),
+                           sidecar = record.sidecar)
+end
+
+# Whether the record of ours at `sidecar` names no source - no name, DOI or citation key - as a record
+# of a download alone does.
+function _namesnosource(sidecar::AbstractString)
+    t = TOML.parsefile(sidecar)
+    return !any(haskey(t, k) for k in ("source", "dataset", "doi", "key"))
 end
 
 """

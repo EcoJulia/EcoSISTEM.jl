@@ -15,6 +15,8 @@
   - Fixed
     - A build refusing `FromOccurrences` records dated after its start names the keyword that dated
       them, `date` or `time`.
+    - `Provenancer.fetchfile` writes its file's facts into a record of the download alone already
+      beside the file; a record naming another source or role is refused, same as `record_provenance`.
 
 - v0.11.0
   - Breaking changes
