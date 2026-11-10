@@ -478,4 +478,59 @@ end
                                                   axis = LandCoverTypology)
 end
 
+@testset "a file on a projected grid is read through a window in its own coordinates" begin
+    dir = mktempdir()
+    # Files of 11 x 9 cells of 2.5 km on British National Grid over central Scotland, each value
+    # telling its cell apart.
+    function bngfile(name, base)
+        path = joinpath(dir, name)
+        ArchGDAL.create(path, driver = ArchGDAL.getdriver("GTiff"), width = 11,
+                        height = 9, nbands = 1, dtype = Float32) do ds
+            ArchGDAL.write!(ds,
+                            Float32[base + 100i + j for i in 1:11, j in 1:9],
+                            1)
+            _setgeotransform!(ds,
+                              [245000.0, 2500.0, 0.0, 662500.0, 0.0, -2500.0])
+            return ArchGDAL.setproj!(ds,
+                                     ArchGDAL.toWKT(ArchGDAL.importEPSG(27700)))
+        end
+        return path
+    end
+    regime = RasterFileSpec(bngfile("temps.tif", 280), axis = Temperature,
+                            unit = K)
+    supply = RasterFileSpec(bngfile("solar.tif", 100_000),
+                            axis = SolarRadiation, unit = kJ / km^2 / day)
+    # Read whole, both files named in the area that decides the grid.
+    named = StudyArea(regime = regime, supply = supply, verbosity = :silent)
+    whole = GridHabitat(regime = regime, supply = supply, area = named)
+    # A file the area did not read is read through the area's window, given to the habitat or
+    # materialised on the area alike, and gives what the whole read gives.
+    area = StudyArea(regime = regime, verbosity = :silent)
+    habitat = GridHabitat(regime = regime, supply = supply, area = area)
+    @test Array(habitat.supply.matrix) == Array(whole.supply.matrix)
+    @test Array(materialise(supply, area).matrix) ==
+          Array(materialise(supply, named).matrix)
+    # A window read directly is narrower than the file.
+    box = Extent(Y = (55.7°, 55.85°), X = (-4.4°, -4.1°))
+    windowed = size(read(supply, cut = box).array)
+    @test all(windowed .< size(read(supply).array)) && all(windowed .> 1)
+    # An area with a box `within` reads its file through the box, and its cells hold the values the
+    # whole read holds at the same places.
+    boxed = StudyArea(regime = regime, within = box, verbosity = :silent)
+    @test 1 < count(boxed.report.active) < length(whole.active)
+    inbox = GridHabitat(regime = regime, supply = supply, area = boxed)
+    ys = DimensionalData.lookup(inbox.supply.matrix, Y)
+    xs = DimensionalData.lookup(inbox.supply.matrix, X)
+    @test Array(whole.supply.matrix[Y(DimensionalData.At(collect(ys))),
+                                    X(DimensionalData.At(collect(xs)))]) ==
+          Array(inbox.supply.matrix)
+    # A window is taken into a projected CRS by its edges, not its corners alone: over Africa in
+    # EPSG:10592 a box's corners miss a strip of hundreds of kilometres to the west and east.
+    africa = Extent(Y = (-35.0°, 37.5°), X = (-18.0°, 52.0°))
+    edges = EcoSISTEM._edgesin(Rasters.EPSG(10592), africa)
+    corners = EcoSISTEM._bboxin(Rasters.EPSG(4326), Rasters.EPSG(10592), africa)
+    @test edges.X[1] < corners.X[1] - 100km && edges.X[2] > corners.X[2] + 100km
+    @test edges.Y[1] <= corners.Y[1] && edges.Y[2] >= corners.Y[2]
+end
+
 end

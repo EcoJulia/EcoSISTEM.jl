@@ -17,6 +17,9 @@
       them, `date` or `time`.
     - `Provenancer.fetchfile` writes its file's facts into a record of the download alone already
       beside the file; a record naming another source or role is refused, same as `record_provenance`.
+    - A `RasterFileSpec` of a file on a projected grid reads through a study area's window - given
+      to `GridHabitat` or `materialise` unread, or named in an area with a `within` - where it
+      failed with a `DimensionError` comparing metres with degrees.
 
 - v0.11.0
   - Breaking changes
