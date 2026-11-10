@@ -96,6 +96,28 @@ include("rasterfixtures.jl")
         @test isnothing(ext._refusemisnamed(CHELSA{BioClim}, (1, 12)))
     end
 
+    # CHELSA's twelve monthly `rsds` files likewise. When the name fails here, RasterDataSources names
+    # them as the server does: delete that method, this testset and the row's note in `Climate.csv`.
+    @testset "CHELSA's monthly rsds files are refused while their names are wrong" begin
+        RDS = RasterDataSources
+        T = CHELSA{Climate}
+        @test RDS.rastername(T, :rsds, month = 1) ==
+              "CHELSA_rsds_01_1981-2010_V.2.1.tif"
+        ext = Base.get_extension(EcoSISTEM, :EcoSISTEMRasterDataSourcesExt)
+        if !any(m -> isfile(RDS.rasterpath(T, :rsds, month = m)), 1:3)
+            @test_throws "CHELSA_rsds_1981-2010_01_V.2.1.tif" EcoSISTEM._fetchfiles(T,
+                                                                                    :rsds,
+                                                                                    month = 1)
+            @test_throws "likewise for months 2, 3" ext._refusemisnamed(T,
+                                                                        (:tas,
+                                                                         :rsds),
+                                                                        month = 1:3)
+        end
+        # Another variable, or no month, is left for `getraster`.
+        @test isnothing(ext._refusemisnamed(T, (:tas, :pr), month = 1:12))
+        @test isnothing(ext._refusemisnamed(T, :rsds))
+    end
+
     @testset "moving the asset cache moves only a download path the extension chose" begin
         ext = Base.get_extension(EcoSISTEM, :EcoSISTEMRasterDataSourcesExt)
         saved = (ext._SETPATH[], get(ENV, "RASTERDATASOURCES_PATH", nothing))

@@ -636,13 +636,16 @@ end
         # case above
         @test size(urlenv.active) == (3, 3)
         @test count(urlenv.active) == 8
-        # Tidy up the shared cache: this test's fixture has no business persisting there. Windows
-        # may refuse, and that is not a test failure -- GDAL keeps the dataset's file handle open
-        # past the read, so `unlink` raises EBUSY where the POSIX platforms allow the unlink and
-        # defer the delete. Leaving one small fixture behind in a runner's cache costs nothing, and
-        # throwing here would fail a testset that has already made every assertion it exists for.
+        # Tidy up the shared cache: this test's fixture and its provenance record have no business
+        # persisting there. The record goes first, since Windows may refuse the fixture, and that is
+        # not a test failure -- GDAL keeps the dataset's file handle open past the read, so
+        # `unlink` raises EBUSY where the POSIX platforms allow the unlink and defer the delete.
+        # Leaving one small fixture behind in a runner's cache costs nothing, and throwing here
+        # would fail a testset that has already made every assertion it exists for.
+        cached = EcoSISTEM.assetpath(urlspec.path)
+        rm(EcoSISTEM.Provenancer.sidecarpath(cached), force = true)
         try
-            rm(EcoSISTEM.assetpath(urlspec.path))
+            rm(cached)
         catch e
             e isa Base.IOError || rethrow()
             @info "Left the cached shapefile fixture in place: $(e.msg)"

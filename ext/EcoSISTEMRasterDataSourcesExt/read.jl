@@ -60,8 +60,10 @@ end
 
 # A fetch that cannot succeed, refused before it is tried: CHELSA-BIOCLIM+'s four `rsds` files, for
 # which RasterDataSources asks CHELSA's server for `CHELSA_rsds_<stat>_1981-2010_V.2.1.tif` where it
-# has `CHELSA_rsds_1981-2010_<stat>_V.2.1.tif`, so the download is a 404. A file already in place
-# reads as usual. Delete this method once RasterDataSources names them as the server does, which
+# has `CHELSA_rsds_1981-2010_<stat>_V.2.1.tif`, and CHELSA's twelve monthly `rsds` files, asked for as
+# `CHELSA_rsds_<MM>_1981-2010_V.2.1.tif` where it has `CHELSA_rsds_1981-2010_<MM>_V.2.1.tif`, so the
+# download is a 404. A file already in place reads as usual. Delete each method once
+# RasterDataSources names its files as the server does, which
 # `test/ext_EcoSISTEMRasterDataSourcesExt.jl` reports by failing.
 _refusemisnamed(T, layers; kw...) = nothing
 
@@ -82,6 +84,26 @@ function _refusemisnamed(T::Type{RDS.CHELSA{RDS.BioClimPlus}}, layers; kw...)
               "Download $url to `$path` to read it.")
     end
     return nothing
+end
+
+function _refusemisnamed(T::Type{RDS.CHELSA{RDS.Climate}}, layers;
+                         month = nothing, kw...)
+    isnothing(month) && return nothing
+    any(l -> Symbol(string(l)) === :rsds,
+        layers isa Union{Tuple, AbstractVector} ? layers : (layers,)) ||
+        return nothing
+    absent = [m for m in month if !isfile(RDS.rasterpath(T, :rsds, month = m))]
+    isempty(absent) && return nothing
+    m = first(absent)
+    path = RDS.rasterpath(T, :rsds, month = m)
+    served = "CHELSA_rsds_1981-2010_$(lpad(m, 2, '0'))_V.2.1.tif"
+    url = dirname(string(RDS.rasterurl(T, :rsds, month = m))) * "/" * served
+    others = length(absent) == 1 ? "" :
+             ", and likewise for month$(length(absent) > 2 ? "s" : "") " *
+             join(absent[2:end], ", ")
+    return error("CHELSA's monthly `rsds` cannot be fetched: RasterDataSources asks CHELSA's " *
+                 "server for `$(basename(path))`, which it does not have; its file is " *
+                 "`$served`. Download $url to `$path` to read it$others.")
 end
 
 # Each path `getraster` returned with the layer it holds, or `nothing` for a file holding several

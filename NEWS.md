@@ -20,6 +20,8 @@
     - A `RasterFileSpec` of a file on a projected grid reads through a study area's window - given
       to `GridHabitat` or `materialise` unread, or named in an area with a `within` - where it
       failed with a `DimensionError` comparing metres with degrees.
+    - Fetching CHELSA's monthly `rsds` fails naming the file CHELSA's server has, which
+      RasterDataSources gets wrong.
 
 - v0.11.0
   - Breaking changes
