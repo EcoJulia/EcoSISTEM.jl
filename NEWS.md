@@ -1,5 +1,14 @@
 # NEWS
 
+- v0.11.1
+  - Added
+    - `RecordDiversity(eco, ntimes; qs, subcommunity, metacommunity)` records Diversity's measure
+      types in every cell and for the whole grid, every measure of a recording taken from one
+      snapshot of the abundances; under MPI too, the whole grid's values assembled from every
+      rank's cells.
+    - `RecordTotals(eco, ntimes)` records each species' total over the grid and each cell's total
+      over the species at every occurrence, summed across ranks under MPI.
+
 - v0.11.0
   - Breaking changes
     - `build_species(numspecies; ...)`: species are built from a `SpeciesPool`, as

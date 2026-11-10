@@ -562,7 +562,7 @@ export DefaultEcosystem
 # What a run keeps as it goes, handed to `simulate!` in place of a callback.
 include("Recorder.jl")
 
-export RecordAbundance, RecordDiversity, SaveAbundance
+export RecordAbundance, RecordTotals, RecordDiversity, SaveAbundance
 
 # A run's state saved, and an ecosystem started from it.
 include("savedstate.jl")

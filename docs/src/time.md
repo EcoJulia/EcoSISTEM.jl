@@ -79,8 +79,8 @@ a yearly call would come a fraction of a day late in three years out of four. It
 exactly by `month_mean_duration`, which is a twelfth of that same year, so monthly steps are
 used above.
 
-The recorders - [`RecordAbundance`](@ref), [`RecordDiversity`](@ref) and
-[`SaveAbundance`](@ref) - are values made for this, passed to `simulate!` in place of a
+The recorders - [`RecordAbundance`](@ref), [`RecordTotals`](@ref), [`RecordDiversity`](@ref)
+and [`SaveAbundance`](@ref) - are values made for this, passed to `simulate!` in place of a
 function, and are what most runs want.
 
 ### Saving a run, and starting another from it

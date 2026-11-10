@@ -103,8 +103,10 @@ size(recording.storage)             # species × cells × recordings × replicat
 The first recording is the starting state and each later one the state at exactly that multiple of
 the interval. A run of `times` in steps of `timestep` takes `times / timestep` steps and ends at
 `times`, so it needs a slot for each multiple of the interval from zero to `times`.
-[`RecordDiversity`](@ref) records a diversity measure the same way, and [`SaveAbundance`](@ref)
-writes each recording to a file; each keeps the run's [`provenance`](@ref) as of its last write.
+[`RecordTotals`](@ref) keeps only each species' and each cell's total, small enough to keep at
+every recording where the abundances are not; [`RecordDiversity`](@ref) records Diversity's measures
+in every cell and for the whole grid the same way; and [`SaveAbundance`](@ref) writes each recording
+to a file. Each keeps the run's [`provenance`](@ref) as of its last write.
 
 ## Where the individuals start
 
