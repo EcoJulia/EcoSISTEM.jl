@@ -172,18 +172,22 @@ function _startrun!(eco::Ecosystem, intervention, timestep::Unitful.Time)
     return eco
 end
 
-# The first step of a run started from a saved state, after anything due at the start: a state keeps
-# a layer's values but not its change rule, so a run continuing one installs again the rules its
-# interventions would have installed by then, and is warned of any layer whose rule still differs from
-# the one it was saved with. A run restarted at zero has its rules installed as it reaches them. Under
-# MPI every rank installs the same rules, as every rank holds the layers.
+# The first step of a run started from a saved state, after anything due at the start. A state keeps
+# a layer's values but not its change rule. So a run continuing one first installs again the rules
+# its interventions would have installed by then. It then records each layer whose rule still
+# differs from the one it was saved with. It warns of a changed layer that `changing` did not name,
+# and of a named layer that did not change. A run restarted at zero has its rules installed as it
+# reaches them. Under MPI every rank installs the same rules and records the same changes, because
+# every rank holds the layers.
 function _resumerun!(eco::AbstractEcosystem, intervention,
                      timestep::Unitful.Time)
     saved = eco.savedchanges
     isnothing(saved) && return eco
     iszero(simulationtime(eco)) ||
         _replaychanges!(eco, intervention, timestep)
-    _isrootrank(eco) && _warnchanges(saved, eco.habitat)
+    compared = _comparechanges(saved, eco.habitat.regime, eco.habitat.supply)
+    eco.rulechanges = [_rulechange(c) for c in compared if c.changed]
+    _isrootrank(eco) && _warnchanges(saved, compared)
     eco.savedchanges = nothing
     return eco
 end

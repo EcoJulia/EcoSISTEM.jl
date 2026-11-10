@@ -895,6 +895,40 @@ function _bboxin(src, dst, e::Extents.Extent)
                      minimum(xs) * u, maximum(xs) * u)
 end
 
+# A WGS84 box in `dst`'s coordinates, as the envelope of points sampled along its edges. A box's
+# edges curve when projected, so its corners alone are not enough. Over a continent they miss a
+# strip nearly as wide as a read window's padding.
+function _edgesin(dst, e::Extents.Extent; samples::Integer = 64)
+    u = _crsunit(dst)
+    ylo, yhi = ustrip.(°, e.Y)
+    xlo, xhi = ustrip.(°, e.X)
+    ys, xs = Float64[], Float64[]
+    ArchGDAL.createcoordtrans(_gdalcrs(Rasters.EPSG(4326)), _gdalcrs(dst)) do ct
+        for t in range(0, 1, length = samples)
+            y, x = ylo + t * (yhi - ylo), xlo + t * (xhi - xlo)
+            for (py, px) in ((ylo, x), (yhi, x), (y, xlo), (y, xhi))
+                point = ArchGDAL.createpoint(px, py)
+                ArchGDAL.transform!(point, ct)
+                push!(ys, ArchGDAL.gety(point, 0))
+                push!(xs, ArchGDAL.getx(point, 0))
+            end
+        end
+    end
+    return _extentof(minimum(ys) * u, maximum(ys) * u, minimum(xs) * u,
+                     maximum(xs) * u)
+end
+
+# A read window `cut`, a WGS84 box, in the coordinates of the raster it cuts. Where the raster's
+# axes are in degrees, whatever their datum, the box is used as given. Otherwise it becomes the box
+# that encloses it in the raster's own CRS.
+_cutin(::Any, ::Nothing) = nothing
+
+function _cutin(world, cut::Extents.Extent)
+    crs = Rasters.crs(dims(world, Y))
+    (isnothing(crs) || _crsunit(crs) === °) && return cut
+    return _edgesin(crs, cut)
+end
+
 # The bounds of an already-gridded array's own `Y`/`X`, expressed in `tcrs`. `nothing` when the array
 # carries no CRS (a synthetic/`NoLookup` grid has no real-world position to offer).
 # The ground a dimension actually covers: the outer *edges* of its first and last cells.
@@ -2260,7 +2294,7 @@ function _readspec(spec::RasterSpec{A}, files::AbstractVector; cut, scale,
     if !isnothing(rec) && _needswrap(rec.longituderange, world)
         world = _wraplong180(world)
     end
-    world = _applycut(world, cut)
+    world = _applycut(world, _cutin(world, cut))
     data = isnothing(spec.code) ? world :
            _applyfold(_applyperiod(world, spec, spec.readkw), spec)
     return _attachunit(ClimateRaster(spec.source, data, spec.code), spec.unit)

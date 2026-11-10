@@ -17,6 +17,7 @@
 
 using EcoSISTEM
 using EcoSISTEM.Units
+using EcoSISTEM.Provenancer: SourceFacts, URLFile, fetchfile
 using RasterDataSources
 using Rasters: EPSG
 using Unitful, Unitful.DefaultSymbols
@@ -33,10 +34,32 @@ using Plots
 cultivated = SourceSpec(EarthEnv{LandCover{:DISCover}}, :cultivated_and_managed)
 
 # NatureScot's "Landscape Map of Scotland" (79 landscape character features, British National
-# Grid). `ShapeSpec` downloads and caches URLs lazily (via `EcoSISTEM.CachedAsset`, under its
-# own `EcoSISTEM.assetdir(owner = ShapeSpec)` subdirectory) the first time it is
-# materialised, so re-runs skip the download.
-active_shape = ShapeSpec("https://gis-downloads.nature.scot/LSCMAP_SCOTLAND_SHP_27700.zip")
+# Grid), published under the Open Government Licence v3. It has no DOI to look its source up by.
+# So what is known of it is written out as `SourceFacts`, taken from the Scottish spatial data
+# catalogue's record of it and from NatureScot's own metadata. The metadata is the request page: it
+# quotes the attribution statement that the licence makes a condition of using the data.
+# `fetchfile` downloads the zip into the asset cache the first time, and writes its provenance
+# record beside it. The record holds the download's address, size and checksum, and these facts.
+# `ShapeSpec` takes the record in place of a path. The facts then travel with the mask into the
+# provenance of everything built on it.
+landscapes = SourceFacts(source = "Landscape Map of Scotland",
+                         title = "Landscape Map of Scotland",
+                         releasedate = "2012-12-31", licence = "OGL-UK-3.0",
+                         identifies = :data,
+                         citation = "NatureScot (2012). Landscape Map of Scotland. " *
+                                    "https://opendata.nature.scot/datasets/" *
+                                    "snh::landscape-map-of-scotland/about",
+                         notices = [(strength = :required,
+                                     text = "© NatureScot. Contains Ordnance Survey data © " *
+                                            "Crown copyright and database right 2023.")],
+                         requestpage = "https://www.arcgis.com/sharing/rest/content/items/" *
+                                       "9502929059a54f8c993da5578669cd45/info/metadata/" *
+                                       "metadata.xml?format=default&output=html")
+shapefile = URLFile("https://gis-downloads.nature.scot/LSCMAP_SCOTLAND_SHP_27700.zip",
+                    joinpath(EcoSISTEM.assetdir(owner = ShapeSpec),
+                             "LSCMAP_SCOTLAND_SHP_27700.zip"),
+                    facts = landscapes)
+active_shape = ShapeSpec(fetchfile(shapefile, role = :region))
 
 # The synthetic resource: a solar supply that increases heading south (real solar intensity
 # increases toward the equator) - `orientation = 180°` (south) puts the higher value at the
@@ -139,10 +162,11 @@ species = build_species(pool,
 # abundances, reproducible via `seed` - and placed by supply.
 eco = build_ecosystem(BySupply(total = 20_000), species, habitat, seed = seed)
 
-# What this ecosystem was built from: the EarthEnv land-cover file and the NatureScot outline it
-# read, with each dataset's DOI, licence and citation where the catalogue knows them, the grid and
-# the run's seed. `write_provenance` writes the TOML file a paper's repository commits beside its
-# figures; it goes to a temporary directory here, so the example leaves nothing behind.
+# What this ecosystem was built from. The EarthEnv land-cover file comes with the DOI, licence and
+# citation the catalogue knows. The NatureScot outline comes with the facts written out above, its
+# licence and the attribution it requires. Then come the grid and the run's seed.
+# `write_provenance` writes the TOML file a paper's repository commits beside its figures. It goes
+# to a temporary directory here, so the example leaves nothing behind.
 display(provenance(eco))
 write_provenance(joinpath(mktempdir(), "provenance.toml"), eco)
 

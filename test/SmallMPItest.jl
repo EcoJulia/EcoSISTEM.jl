@@ -945,12 +945,31 @@ nrec = length((0year):(3 * MPIFIXTURE_TIMESTEP):MPIFIXTURE_BURNIN)
 ncells = VARYING_NY * VARYING_NX
 recab = RecordAbundance(zeros(Int, numSpecies, ncells, nrec))
 recdiv = RecordDiversity(zeros(ncells, 2, nrec), norm_sub_alpha, [0.0, 1.0])
+# The totals, and Diversity's measures at both levels: every metacommunity measure, and per cell a
+# measure listed at both levels, one at the subcommunity level alone and one built on the
+# metacommunity ordinariness, which the ranks sum in another order than a serial run.
+reclevelqs = [0.0, 1.0, 2.0, Inf]
+recsubmeasures = [NormalisedAlpha, RawRho, Diversity.Gamma]
+recmetameasures = [RawAlpha, NormalisedAlpha, RawBeta, NormalisedBeta,
+    NormalisedRho, Diversity.Gamma]
+rectot = RecordTotals(receco, nrec)
+reclevels = RecordDiversity(receco, nrec, qs = reclevelqs,
+                            subcommunity = recsubmeasures,
+                            metacommunity = recmetameasures)
 MPI.Barrier(comm)
 simulate!(receco, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
           every = recevery) do occurrence
     recab(receco, occurrence)
+    rectot(receco, occurrence)
+    reclevels(receco, occurrence)
     return recdiv(receco, occurrence)
 end
+# Every rank holds the whole answer, the same on each.
+@test MPI.bcast(rectot.species, 0, comm) == rectot.species
+@test MPI.bcast(rectot.cells, 0, comm) == rectot.cells
+@test MPI.bcast(reclevels.subcommunity, 0, comm) == reclevels.subcommunity
+@test MPI.bcast(reclevels.metacommunity, 0, comm) == reclevels.metacommunity
+@test provenance(rectot).context.run == provenance(reclevels).context.run
 # Each holds the run as it stood at its last write: the last multiple of the interval, a step before
 # the run ends.
 @test provenance(recdiv).context.run == provenance(recab).context.run
@@ -960,14 +979,53 @@ if rank == 0
     serialab = RecordAbundance(zeros(Int, numSpecies, ncells, nrec))
     serialdiv = RecordDiversity(zeros(ncells, 2, nrec), norm_sub_alpha,
                                 [0.0, 1.0])
+    serialtot = RecordTotals(recserial, nrec)
+    seriallevels = RecordDiversity(recserial, nrec, qs = reclevelqs,
+                                   subcommunity = recsubmeasures,
+                                   metacommunity = recmetameasures)
     simulate!(recserial, MPIFIXTURE_BURNIN, MPIFIXTURE_TIMESTEP,
               every = recevery) do occurrence
         serialab(recserial, occurrence)
+        serialtot(recserial, occurrence)
+        seriallevels(recserial, occurrence)
         return serialdiv(recserial, occurrence)
     end
     @test recab.storage == serialab.storage
     @test recdiv.storage ≈ serialdiv.storage
+    @test rectot.species == serialtot.species
+    @test rectot.cells == serialtot.cells
+    # The run moves the abundances off the uniform fill, so the later recordings vary by species
+    # and by cell, which a metacommunity value from one rank's cells alone would not match.
+    @test length(unique(seriallevels.subcommunity[1, :, 2, end])) > 1
+    @test reclevels.subcommunity ≈ seriallevels.subcommunity
+    @test reclevels.metacommunity ≈ seriallevels.metacommunity
+    @test !any(isnan, reclevels.metacommunity)
 end
+
+# Under MPI the level form measures only species with no similarity between them: a species list
+# with a phylogeny is refused, on every rank alike and before any collective.
+phylonames = string.(1:numSpecies)
+phylopool = SpeciesPool(phylonames, verbosity = :silent)
+add_phylogeny!(phylopool,
+               rand(Phylo.Ultrametric{Phylo.BinaryTree{Phylo.OneRoot,
+                                                       DataFrame, DataFrame}}(phylonames)),
+               verbosity = :silent)
+phylospecies = build_species(phylopool,
+                             tolerance = ToleranceSpec(Temperature, μ = 295.0K,
+                                                       σ = 2.0K),
+                             demand = (DemandSpec(SolarRadiation, 1.0kJ / day),
+                                       DemandSpec(Precipitation,
+                                                  2.0Unitful.L / day)),
+                             verbosity = :silent)
+phyloeco = build_ecosystem(NoAbundance(), phylospecies, varying_environment(),
+                           nichefit = nichefit, seed = 0, distributed = true,
+                           verbosity = :silent)
+@test_throws "no similarity between them" RecordDiversity(phyloeco, 1,
+                                                          qs = [1.0],
+                                                          metacommunity = [Diversity.Gamma])(phyloeco,
+                                                                                             (count = 1,
+                                                                                              elapsed = 0.0u"s",
+                                                                                              date = nothing))
 # A metacommunity measure has no value per cell to assemble. Every rank refuses it alike before the
 # gather, so none is left waiting in the collective and the run carries on past it.
 #

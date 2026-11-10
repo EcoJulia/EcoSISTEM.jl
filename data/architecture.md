@@ -972,11 +972,14 @@ classDiagram
     class ByLayer~L, N~
     class Weighted~W, N~
     class FromTable~D~
-    class FromOccurrences~R, D, T, S, N, L~
+    class FromOccurrences~R, D, T, S, W, N, L~
     class ToCapacity~P~
     class SumOfPlacements~P~
     class PlacementContext~C, S, R, NF~
     class PlacedAbundances~T~
+    class AbstractRecordWeight
+    class WeightPerRecord~L, V~
+    class WeightPerCell~L, V~
     AbstractPlacement <|-- BySupply
     AbstractPlacement <|-- BySuitability
     AbstractPlacement <|-- ByLayer
@@ -989,6 +992,9 @@ classDiagram
     Weighted "1" *-- "*" AbstractPlacement : weights
     SumOfPlacements "1" *-- "*" AbstractPlacement : placements
     ToCapacity "1" *-- "1" AbstractPlacement : placement
+    AbstractRecordWeight <|-- WeightPerRecord
+    AbstractRecordWeight <|-- WeightPerCell
+    FromOccurrences "1" *-- "0..1" AbstractRecordWeight : weight
     PlacedAbundances "1" *-- "*" ProvenanceRecord : records
 ```
 
@@ -1008,6 +1014,14 @@ cell must score on every weight to be worth placing in. `+` adds placements' row
 species, or `each` species' own - and never to a weight inside one. `ToCapacity` takes another
 placement's numbers as shares and fills each cell until what its species demand of the scarcest
 resource is what the cell supplies.
+
+**A record weight weighs records, not cells.** `FromOccurrences` may take an `AbstractRecordWeight`.
+It is read at each record's position from a layer on a grid of its own. `WeightPerRecord` gives each
+record its cell's value. `WeightPerCell` shares each cell's value among the records made there. The
+two serve different sampling designs. The first suits records that are equal samples, and the second
+records whose numbers follow how hard each place was searched. Neither is a corrected form of the
+other. A `scale` turns the weights into individuals. Without one they are shares, which `ToCapacity`
+takes.
 
 ```mermaid
 classDiagram
@@ -1143,16 +1157,17 @@ the niche.
 classDiagram
     class AbstractRecorder
     class RecordAbundance~S~
-    class RecordDiversity~S, F, Q~
+    class RecordDiversity~S, F, Q, B, M~
     AbstractRecorder <|-- RecordAbundance
+    AbstractRecorder <|-- RecordTotals
     AbstractRecorder <|-- RecordDiversity
     AbstractRecorder <|-- SaveAbundance
 ```
 
 A recorder is a value `simulate!` calls with the ecosystem each time its schedule fires, in place of a
-callback: `RecordAbundance` and `RecordDiversity` write into storage sized before the run, and
-`SaveAbundance` writes files. Each holds the run's `Provenance` as it stood at its last write. Under
-MPI every rank calls it, so each takes part in the gather it needs.
+callback: `RecordAbundance`, `RecordTotals` and `RecordDiversity` write into storage sized before
+the run, and `SaveAbundance` writes files. Each holds the run's `Provenance` as it stood at its last
+write. Under MPI every rank calls it, so each takes part in the gather it needs.
 
 **A saved state is plain data.** `write_state` writes, and `SaveAbundance` and a `CachedEcosystem`'s
 checkpoints write the same way, the abundances, which species and cells are in the run, every layer's

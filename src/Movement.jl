@@ -5,8 +5,6 @@
 
 using Unitful
 
-using DataFrames: DataFrame, nrow
-
 using SpecialFunctions: loggamma
 
 """
@@ -420,6 +418,11 @@ than allocating them per call is what keeps the movement step allocation-free.
   - `p`: the kernel's probability for each, fixed for the run.
   - `pnew`: those probabilities renormalised over the destinations actually available from this cell.
   - `moves`: how many individuals go to each destination this step.
+
+`Lookup(maxsize, thresh) do dx, dy ... end` builds one from a function giving the probability of
+landing `dx` cells along x and `dy` along y. The kernel is radially symmetric, so the function is
+asked only for `0 <= dy <= dx`. `Lookup()` is the empty neighbourhood of a species that does not
+disperse.
 """
 struct Lookup
     y::Vector{Int64}
@@ -427,16 +430,45 @@ struct Lookup
     p::Vector{Float64}
     pnew::Vector{Float64}
     moves::Vector{Int64}
-end
 
-# The only place `Lookup`'s fields are filled positionally, so the only place their `(y, x)` order
-# has to be got right by hand.
-function Lookup(df::DataFrame)
-    return Lookup(df[!, :Y],
-                  df[!, :X],
-                  df[!, :Prob],
-                  zeros(Float64, nrow(df)),
-                  zeros(Int64, nrow(df)))
+    Lookup() = new(Int64[], Int64[], Float64[], Float64[], Int64[])
+
+    # Every offset `share` reaches with a probability above `thresh`, normalised to sum to one. The
+    # kernel is radially symmetric, so `share` is asked only for `0 <= dy <= dx`. The search along
+    # `dx` stops at the first `(dx, 0)` below `thresh`, and along `dy` at the first `(dx, dy)` not
+    # above it. Each offset found is then mirrored into the other seven directions. The order of the
+    # offsets matters: the movement step draws over them in order, so another order would change
+    # every run.
+    function Lookup(share::Function, maxsize::Integer, thresh::Real)
+        x, y, p = Int64[], Int64[], Float64[]
+        function add!(dx, dy, q)
+            push!(x, dx)
+            push!(y, dy)
+            return push!(p, q)
+        end
+        for dx in 0:maxsize
+            onaxis = share(dx, 0)
+            onaxis < thresh && break
+            add!(dx, 0, onaxis)
+            for dy in 1:dx
+                offaxis = share(dx, dy)
+                offaxis > thresh || break
+                add!(dx, dy, offaxis)
+            end
+        end
+        isempty(p) && error("probability threshold too high")
+        for i in eachindex(p)
+            x[i] == y[i] || add!(y[i], x[i], p[i])
+        end
+        for i in eachindex(p)
+            x[i] > 0 && add!(-x[i], y[i], p[i])
+            y[i] > 0 && add!(x[i], -y[i], p[i])
+            x[i] > 0 && y[i] > 0 && add!(-x[i], -y[i], p[i])
+        end
+        normalised = p / sum(p)
+        return new(y, x, normalised, zeros(Float64, length(normalised)),
+                   zeros(Int64, length(normalised)))
+    end
 end
 
 # One line, because the default prints all five vectors, far too much even for a single species'

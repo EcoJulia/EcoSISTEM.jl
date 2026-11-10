@@ -119,10 +119,10 @@ written as text, and fetch times as TOML dates.
 
 A raster handed around on its own - one read with `read(spec)` and passed to a function - carries
 no record; ask the spec or the study area it came from. A recorder - [`RecordAbundance`](@ref),
-[`RecordDiversity`](@ref), [`SaveAbundance`](@ref) - keeps the run's provenance as it stood at its
-last write, so `write_provenance(path, recorder)` writes it; `SaveAbundance` writes it beside every
-file it saves. An array you fill yourself from a callback carries none, so write the ecosystem's
-provenance beside it.
+[`RecordTotals`](@ref), [`RecordDiversity`](@ref), [`SaveAbundance`](@ref) - keeps the run's
+provenance as it stood at its last write, so `write_provenance(path, recorder)` writes it;
+`SaveAbundance` writes it beside every file it saves. An array you fill yourself from a callback
+carries none, so write the ecosystem's provenance beside it.
 
 ## The machinery, for another package
 

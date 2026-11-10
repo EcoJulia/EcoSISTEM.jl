@@ -19,7 +19,7 @@ using HCubature
 
 using Distributions: ContinuousUnivariateDistribution, InverseGaussian, pdf
 
-using DataFrames
+using SpecialFunctions: erfc
 
 using EcoSISTEM.Units
 
@@ -66,14 +66,23 @@ function Base.show(io::IO, c::Cache)
     return print(io, "Cache($(nsp) species × $(ncells) cells)")
 end
 
-# What a saved state recorded of each layer's change rule, by role and then layer name, kept by an
-# ecosystem started from it until its first step has installed the rules the run's interventions give,
-# then compared with them: a state holds a layer's values but not its rule, which is code.
+# What a saved state recorded of each layer's change rule, by role and then layer name. A state
+# holds a layer's values but not its rule, which is code. An ecosystem started from the state keeps
+# this until its first step has installed the rules its interventions give, and then compares the
+# two. `changing` names the layers the run was told would change rule. A name covers a regime and a
+# supply layer of that name alike.
 struct _SavedChanges
     path::String
     regime::Dict{String, @NamedTuple{change::String, phrase::String}}
     supply::Dict{String, @NamedTuple{change::String, phrase::String}}
+    changing::Vector{Symbol}
 end
+
+# A layer whose change rule changed when a run continued a saved state, as the run's provenance
+# records it: the layer's role and name, the rule it was saved with, the rule it changes by now, and
+# whether `changing` named it.
+const _RuleChange = @NamedTuple{role::String, layer::String, saved::String,
+                                now::String, declared::Bool}
 
 """
     Ecosystem{Part <: AbstractHabitat} <:
@@ -94,7 +103,9 @@ holds the [`ProvenanceRecord`](@ref)s of published data belonging to the run as 
 which [`provenance`](@ref) lists. `placement` is the placement its individuals were placed by, as it
 was given (see [`AbstractPlacement`](@ref)), which [`repopulate!`](@ref) places by again.
 `savedchanges` is what the saved state it was started from recorded of each layer's change rule, held
-until its first step, and otherwise `nothing`.
+until its first step, and otherwise `nothing`. `rulechanges` lists each layer whose change rule
+that first step found changed from the saved one, which [`provenance`](@ref) reports. It is empty
+otherwise.
 """
 mutable struct Ecosystem{Part <: AbstractHabitat,
                          SL <: SpeciesList,
@@ -120,6 +131,7 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
     # Abstract on purpose: a placement may be any function, and nothing in the step reads it.
     placement::Any
     savedchanges::Union{Nothing, _SavedChanges}
+    rulechanges::Vector{_RuleChange}
 
     function Ecosystem{Part, SL, NF}(abundances::GridLandscape,
                                      spplist::SL,
@@ -166,7 +178,8 @@ mutable struct Ecosystem{Part <: AbstractHabitat,
                                  ExactDates(),
                                  ProvenanceRecord[],
                                  nothing,
-                                 nothing)
+                                 nothing,
+                                 _RuleChange[])
     end
 end
 
@@ -653,6 +666,7 @@ function makeunique(eco::Ecosystem)
     stripped.inputs = eco.inputs
     stripped.placement = eco.placement
     stripped.savedchanges = eco.savedchanges
+    stripped.rulechanges = eco.rulechanges
     return stripped
 end
 
@@ -823,48 +837,79 @@ function getrng(eco::AbstractEcosystem, sp::Int64)
     return eco.rngs[sp]
 end
 
-# Complete a dispersal lookup so every offset has its mirror. The generator emits one of each pair,
-# since the kernel is radially symmetric, and the hot loop needs both directions present.
-function _symmetricgrid(grid::DataFrame)
-    for x in 1:nrow(grid)
-        if grid[x, 1] != grid[x, 2]
-            push!(grid, hcat(grid[x, 2], grid[x, 1], grid[x, 3]))
-        end
-    end
-    for x in 1:nrow(grid)
-        if (grid[x, 1] > 0)
-            push!(grid, hcat(-grid[x, 1], grid[x, 2], grid[x, 3]))
-        end
-        if (grid[x, 2] > 0)
-            push!(grid, hcat(grid[x, 1], -grid[x, 2], grid[x, 3]))
-        end
-        if (grid[x, 1] > 0 && grid[x, 2] > 0)
-            push!(grid, hcat(-grid[x, 1], -grid[x, 2], grid[x, 3]))
-        end
-    end
-    return grid
+# The landing density per unit area of the long-tailed kernel, a 2-D Student-t, at a displacement
+# `(u, v)` in units of its scale. Its tail falls off as a power of distance rather than exponentially,
+# so a rare long jump stays possible. `b` is its shape.
+function _2Dtdensity(u, v, b)
+    return ((b - 1) / π) * (1 + u^2 + v^2)^-b
 end
 
-# Define gaussian kernel function
-function _gaussiandisperse(r)
-    return exp(-((r[3] - r[1])^2 + (r[4] - r[2])^2)) / π
-end
-
-# The long-tailed dispersal kernel: a 2-D Student-t, whose tail falls off as a power of distance
-# rather than exponentially, so a rare long jump stays possible. `b` is the shape parameter that
-# `_gaussiandisperse` has no equivalent of, which is why the two take different argument lists and
-# `_lookup` has a method for each.
-function _2Dtdisperse(r, b)
-    return ((b - 1) / (π)) * (1 + ((r[3] - r[1])^2 + (r[4] - r[2])^2))^-b
-end
-
-# The density of landing at a point, per unit area, for a kernel stated as the distribution of the
-# distance travelled: the distance density spread round the circle at that distance, `pdf(dist, d)
-# / (2pi d)`. The point `d = 0` has measure zero and is given zero rather than the limit, since the
-# cubature samples it at the centre of the source cell.
-function _distancedisperse(r, dist::ContinuousUnivariateDistribution)
-    d = sqrt((r[3] - r[1])^2 + (r[4] - r[2])^2)
+# The landing density per unit area, at a displacement `(u, v)`, of a kernel stated as the
+# distribution of the distance travelled: the distance density spread round the circle at that
+# distance, `pdf(dist, d) / (2pi d)`. The point `d = 0` has measure zero and is given zero.
+function _distancedensity(u, v, dist::ContinuousUnivariateDistribution)
+    d = sqrt(u^2 + v^2)
     return d > 0 ? pdf(dist, d) / (2π * d) : 0.0
+end
+
+# The landing density per unit area of the Gaussian kernel at a displacement `(u, v)` in units of its
+# scale. Its lookup uses the closed form `_gaussianshare`; this is what that form integrates.
+_gaussiandensity(u, v) = exp(-(u^2 + v^2)) / π
+
+# The share of a Gaussian kernel's seeds that move `offset` cells along one axis from a cell `R`
+# scales wide, the source position uniform in the cell. The kernel's two axes are independent, so a
+# cell `(dx, dy)` away gets `_gaussianshare(dx, R) * _gaussianshare(dy, R)`. The exact form is a
+# second difference of `|u| + _gaussiantail(u)`, the antiderivative of `erf`. The `|u|` terms cancel
+# exactly, so they are left out, and nothing large cancels for a far cell.
+function _gaussianshare(offset::Integer, R::Float64)
+    offset == 0 && return 1 + (_gaussiantail(R) - _gaussiantail(0.0)) / R
+    offset = abs(offset)
+    return (_gaussiantail((offset + 1) * R) - 2 * _gaussiantail(offset * R) +
+            _gaussiantail((offset - 1) * R)) / (2R)
+end
+
+# The part of `u erf(u) + exp(-u^2) / sqrt(pi)` that is not `|u|`, written with `erfc` so that it stays
+# accurate where it is small.
+_gaussiantail(u::Float64) = exp(-u^2) / sqrt(π) - abs(u) * erfc(abs(u))
+
+# The share of a kernel's seeds that land in the cell `(dx, dy)` cells away, for a cell `R` scales
+# wide and a landing density `density(u, v)` per unit area in the same units. The source position is
+# uniform in its cell. A displacement `u` along one axis then lands `offset` cells over with the
+# weight of a triangle, rising from zero at `(offset - 1)R` to one at `offset * R` and back to zero
+# at `(offset + 1)R`. So the share is a 2-D integral of the density times one triangle per axis.
+# Most of the density lies within a few scales of the origin, which for a wide cell is a thin strip
+# of the triangles' range. So each axis is split where its triangle kinks and at powers of two
+# either side of the origin, and each piece is integrated on its own.
+function _cellshare(density, R::Float64, dx::Integer, dy::Integer)
+    us, vs = _splitpoints(dx, R), _splitpoints(dy, R)
+    weighted(r) = _triangle(r[1], dx, R) * _triangle(r[2], dy, R) *
+                  density(r[1], r[2])
+    total = 0.0
+    for (u0, u1) in zip(us[1:(end - 1)], us[2:end]),
+        (v0, v1) in zip(vs[1:(end - 1)], vs[2:end])
+        total += hcubature(weighted, [u0, v0], [u1, v1], rtol = 1.0e-8,
+                           atol = 1.0e-15)[1]
+    end
+    return total
+end
+
+# The weight with which a displacement `u` lands `offset` cells over, from a cell `R` wide.
+_triangle(u, offset, R) = max(0.0, 1 - abs(u / R - offset))
+
+# Where one axis's range is split for `_cellshare`: the ends and peak of its triangle, the origin, and
+# the powers of two from one eighth of a scale outwards on each side of the origin, wherever they fall
+# inside the range.
+function _splitpoints(offset::Integer, R::Float64)
+    lo, hi = (offset - 1) * R, (offset + 1) * R
+    points = [lo, offset * R, hi]
+    lo < 0.0 < hi && push!(points, 0.0)
+    step = 0.125
+    while step < max(abs(lo), abs(hi))
+        lo < step < hi && push!(points, step)
+        lo < -step < hi && push!(points, -step)
+        step *= 2
+    end
+    return sort!(unique!(points))
 end
 
 """
@@ -874,135 +919,34 @@ Generate lookup tables, which hold information on the probability of moving to
 neighbouring squares.
 """
 function genlookups(regime::AbstractRegime, kernel::GaussianKernel)
-    relsize = uconvert(NoUnits, _uniformcellside(regime) / kernel.scale)
-    m = maximum(getgridshape(regime))
-    p = kernel.thresh
-    return Lookup(_lookup(relsize, m, p, _gaussiandisperse))
+    R = uconvert(NoUnits, _uniformcellside(regime) / kernel.scale)
+    return Lookup(maximum(getgridshape(regime)), kernel.thresh) do dx, dy
+        return _gaussianshare(dx, R) * _gaussianshare(dy, R)
+    end
 end
 
 function genlookups(regime::AbstractRegime, kernel::LongTailKernel)
-    relsize = uconvert(NoUnits, _uniformcellside(regime) / kernel.scale)
-    m = maximum(getgridshape(regime))
-    p = kernel.thresh
-    b = kernel.shape
-    return EcoSISTEM.Lookup(EcoSISTEM._lookup(relsize, m, p, b,
-                                              EcoSISTEM._2Dtdisperse))
+    R = uconvert(NoUnits, _uniformcellside(regime) / kernel.scale)
+    density(u, v) = _2Dtdensity(u, v, kernel.shape)
+    return Lookup(maximum(getgridshape(regime)), kernel.thresh) do dx, dy
+        return _cellshare(density, R, dx, dy)
+    end
 end
 
 # Distances in units of the mean, so the inverse Gaussian is `InverseGaussian(1, scale / meandist)`.
 function genlookups(regime::AbstractRegime, kernel::WaldKernel)
-    relsize = uconvert(NoUnits, _uniformcellside(regime) / kernel.meandist)
-    m = maximum(getgridshape(regime))
+    R = uconvert(NoUnits, _uniformcellside(regime) / kernel.meandist)
     distance = InverseGaussian(1.0,
                                uconvert(NoUnits,
                                         kernel.scale / kernel.meandist))
-    return Lookup(_lookup(relsize, m, kernel.thresh,
-                          r -> _distancedisperse(r, distance)))
+    density(u, v) = _distancedensity(u, v, distance)
+    return Lookup(maximum(getgridshape(regime)), kernel.thresh) do dx, dy
+        return _cellshare(density, R, dx, dy)
+    end
 end
 
 # A species that does not disperse has no neighbourhood, and its movement never reads one.
-function genlookups(::AbstractRegime, ::Nothing)
-    return Lookup(Int64[], Int64[], Float64[], Float64[], Int64[])
-end
-
-# Build one species' dispersal neighbourhood: every offset the kernel reaches with probability above
-# `pThresh`, as a `(X, Y, Prob)` table normalised to sum to one. Bounded by the threshold rather than
-# by a radius, which is what keeps a long-tailed kernel finite.
-function _lookup(relSquareSize::Float64,
-                 maxGridSize::Int64,
-                 pThresh::Float64,
-                 dispersalfn::F) where {F <: Function}
-    # Create empty array
-    lookup_tab = DataFrame(X = Int64[], Y = Int64[], Prob = Float64[])
-
-    # Loop through directions until probability is below threshold
-    k = 0
-    m = 0
-    count = 0
-    while (k <= maxGridSize && m <= maxGridSize)
-        count = count + 1
-        calc_prob = hcubature(r -> dispersalfn(r),
-                              [0, 0, k * relSquareSize, m * relSquareSize],
-                              [
-                                  relSquareSize,
-                                  relSquareSize,
-                                  (k + 1) * relSquareSize,
-                                  (m + 1) * relSquareSize
-                              ],
-                              maxevals = 10000)[1] / relSquareSize^2
-        if m == 0 && calc_prob < pThresh
-            break
-        end
-        if count == 1
-            push!(lookup_tab, [k m calc_prob])
-            k = k + 1
-        elseif (calc_prob > pThresh && m <= k)
-            push!(lookup_tab, [k m calc_prob])
-            m = m + 1
-        else
-            m = 0
-            k = k + 1
-        end
-    end
-    # If no probabilities can be calculated, threshold is too high
-    nrow(lookup_tab) != 0 || error("probability threshold too high")
-    # Find all other directions
-    lookup_tab = _symmetricgrid(lookup_tab)
-    #info(sum(lookup_tab[:, 3]))
-    # Normalise
-    lookup_tab[!, :Prob] = lookup_tab[!, :Prob] / sum(lookup_tab[!, :Prob])
-    return lookup_tab
-end
-
-# The same, for a kernel that takes a shape parameter `b` as well as a distance - the long-tailed
-# family. Kept as a separate method rather than a default `b`, so a kernel that has no shape
-# parameter cannot be handed one.
-function _lookup(relSquareSize::Float64,
-                 maxGridSize::Int64,
-                 pThresh::Float64,
-                 b::Float64,
-                 dispersalfn::F) where {F <: Function}
-    # Create empty array
-    lookup_tab = DataFrame(X = Int64[], Y = Int64[], Prob = Float64[])
-
-    # Loop through directions until probability is below threshold
-    k = 0
-    m = 0
-    count = 0
-    while (k <= maxGridSize && m <= maxGridSize)
-        count = count + 1
-        calc_prob = hcubature(r -> dispersalfn(r, b),
-                              [0, 0, k * relSquareSize, m * relSquareSize],
-                              [
-                                  relSquareSize,
-                                  relSquareSize,
-                                  (k + 1) * relSquareSize,
-                                  (m + 1) * relSquareSize
-                              ],
-                              maxevals = 10000)[1] / relSquareSize^2
-        if m == 0 && calc_prob < pThresh
-            break
-        end
-        if count == 1
-            push!(lookup_tab, [k m calc_prob])
-            k = k + 1
-        elseif (calc_prob > pThresh && m <= k)
-            push!(lookup_tab, [k m calc_prob])
-            m = m + 1
-        else
-            m = 0
-            k = k + 1
-        end
-    end
-    # If no probabilities can be calculated, threshold is too high
-    nrow(lookup_tab) != 0 || error("probability threshold too high")
-    # Find all other directions
-    lookup_tab = _symmetricgrid(lookup_tab)
-    #info(sum(lookup_tab[:, 3]))
-    # Normalise
-    lookup_tab[!, :Prob] = lookup_tab[!, :Prob] / sum(lookup_tab[!, :Prob])
-    return lookup_tab
-end
+genlookups(::AbstractRegime, ::Nothing) = Lookup()
 
 # Advance a date by an elapsed `Unitful.Time`. Milliseconds because that is the finest unit a
 # `Dates.TimeType` generally shares, and rounded because elapsed time is a float while a date is not.

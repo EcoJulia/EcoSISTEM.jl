@@ -342,6 +342,61 @@ end
     @test spreadof(tight) < spreadof(loose)
 end
 
+# A lookup holds each offset its share reaches, mirrored into all eight directions, its probabilities
+# summing to one. The search along an axis stops at the first share below the threshold, and at the
+# grid's size. The empty lookup reaches nothing, and a share reaching nothing is refused.
+@testset "a lookup is built from the share of each cell it reaches" begin
+    halving(dx, dy) = 0.5^(dx + dy)
+    every = EcoSISTEM.Lookup(halving, 3, 0.01)
+    @test length(every.p) == 49 && sum(every.p) ≈ 1
+    @test Set(zip(every.y, every.x)) == Set((y, x) for y in -3:3 for x in -3:3)
+    at(l, y, x) = only(p
+                       for (b, a, p) in zip(l.y, l.x, l.p) if (b, a) == (y, x))
+    @test at(every, 0, 0) / at(every, 2, -1) ≈ 8
+    @test length(EcoSISTEM.Lookup(halving, 3, 0.1).p) == 25
+    @test length(EcoSISTEM.Lookup(halving, 1, 1e-9).p) == 9
+    @test isempty(EcoSISTEM.Lookup().p)
+    nowhere(dx, dy) = 0.0
+    @test_throws "threshold too high" EcoSISTEM.Lookup(nowhere, 5, 1e-9)
+end
+
+# A lookup's probabilities are the kernel's, however wide a cell is against it. The Gaussian's are
+# exact: along each axis they sum to one, and a wide cell's neighbour takes `1 / (2 R sqrt(pi))`. The
+# integration the other kernels use agrees with the Gaussian's closed form. For every kernel the
+# cells' shares sum to one, because each seed lands somewhere; a long tail loses only what lies
+# beyond the cells summed.
+@testset "a lookup is the kernel's, however wide a cell is" begin
+    E = EcoSISTEM
+    for R in (0.1, 0.44, 1.0, 10.0, 44.0, 200.0)
+        K = ceil(Int, 12 / R) + 2
+        @test sum(E._gaussianshare(offset, R) for offset in (-K):K) ≈ 1 atol = 1e-14
+        R >= 10 && @test E._gaussianshare(1, R) ≈ 1 / (2R * sqrt(π)) rtol = 1e-6
+        for (dx, dy) in ((0, 0), (1, 0), (1, 1), (2, 1))
+            @test E._cellshare(E._gaussiandensity, R, dx, dy) ≈
+                  E._gaussianshare(dx, R) * E._gaussianshare(dy, R) atol = 1e-11
+        end
+    end
+    wald = InverseGaussian(1.0, 2.0)
+    for R in (0.5, 5.0, 40.0, 150.0)
+        K = max(2, ceil(Int, 30 / R))
+        cells = [(dx, dy) for dx in (-K):K for dy in (-K):K]
+        @test sum(E._cellshare((u, v) -> E._2Dtdensity(u, v, 3.0), R, c...)
+                  for c in cells) ≈ 1 atol = 2e-6
+        @test sum(E._cellshare((u, v) -> E._distancedensity(u, v, wald), R,
+                               c...) for c in cells) ≈ 1 atol = 1e-9
+    end
+    # Cells of 50 km and 100 km against a 2 km mean distance: each neighbour takes its share.
+    for (cell, exact) in ((50.0km, 0.01241), (100.0km, 0.006285))
+        area = StudyArea(extent = (5cell, 7cell), cellsize = cell,
+                         verbosity = :silent)
+        regime = build_habitat(area = area, verbosity = :silent).regime
+        l = E.genlookups(regime, GaussianKernel(meandist = 2.0km))
+        @test length(l.p) == 9
+        @test only(p for (y, x, p) in zip(l.y, l.x, l.p) if (y, x) == (0, 1)) ≈
+              exact rtol = 1e-3
+    end
+end
+
 # Each kernel family's declared keywords are its constructor's: it builds given them, fails without
 # each one it must have, and refuses neither or both of a choice. Every family declares them, so a
 # `MovementSpec` can refuse what its family lacks where the spec is written.

@@ -299,6 +299,54 @@ function _refusemetacommunity()
                  "serially with `build_ecosystem(...; distributed = false)`.")
 end
 
+# == One rank's cells as a metacommunity, for a recording ==========================================
+# What Diversity's own measure constructors read for this rank's cells: the abundances, the weights,
+# the ordinariness and the whole metacommunity's ordinariness. They are computed once per recording.
+# Diversity then builds every measure from them lazily, with no communication. A `Metacommunity`
+# cannot stand in, because it would renormalise a block that sums to this rank's share. The
+# abundances share the scratch's memory, so a snapshot lasts only for the recording that made it.
+struct _RankSnapshot{SL, A <: AbstractMatrix{Float64},
+                     O <: AbstractMatrix{Float64}, S <: Real} <:
+       Diversity.API.AbstractMetacommunity{Float64, A, A, SL,
+                                           Diversity.Subcommunities}
+    abundances::A
+    weights::Vector{Float64}
+    ordinariness::O
+    metaordinariness::Vector{Float64}
+    scale::S
+    types::SL
+    partition::Diversity.Subcommunities
+end
+
+Diversity.API._getabundance(s::_RankSnapshot, ::Bool) = s.abundances
+Diversity.API._getweight(s::_RankSnapshot) = s.weights
+Diversity.API._getordinariness!(s::_RankSnapshot) = s.ordinariness
+Diversity.API._getmetaordinariness!(s::_RankSnapshot) = s.metaordinariness
+Diversity.API._getscale(s::_RankSnapshot) = s.scale
+Diversity.API._gettypes(s::_RankSnapshot) = s.types
+Diversity.API._getpartition(s::_RankSnapshot) = s.partition
+
+using Diversity.API: _calcordinariness
+# This rank's snapshot and the whole grid's weights. Every rank makes three collectives, in this
+# order: the metacommunity total, the gathered per-cell weights, and the summed metacommunity
+# ordinariness. The ordinariness is computed as the serial snapshot computes it, so each cell's
+# values match the serial ones. The metacommunity ordinariness is summed in a different order, so
+# values built on it match only to rounding.
+function _ranksnapshot(eco::MPIEcosystem)
+    comm = MPI.COMM_WORLD
+    processed, scale = _calcabundance(_gettypes(eco),
+                                      EcoSISTEM._relativeabundance!(eco))
+    mine = vec(sum(processed, dims = 1))
+    weights = similar(mine, Int64(sum(eco.sccounts)))
+    MPI.Allgatherv!(mine, MPI.VBuffer(weights, eco.sccounts), comm)
+    ordinariness = _calcordinariness(eco.spplist, processed, scale)
+    metaordinariness = MPI.Allreduce(vec(sum(ordinariness, dims = 2)), +, comm)
+    snapshot = _RankSnapshot(processed, mine, ordinariness, metaordinariness,
+                             scale, eco.spplist,
+                             Diversity.Subcommunities(length(mine)))
+    return (snapshot = snapshot, weights = weights)
+end
+
 # == Bringing a distributed answer back ============================================================
 # `gatherabundance` and `gatherdiversity` are **ours**, not hooks on a Diversity generic, so strictly
 # they are not conformance. They live here anyway because that is what they are *for*: both exist to

@@ -107,6 +107,22 @@ numbers become the shares of the species in each cell, and the cell is filled un
 of its scarcest resource is what it supplies - `ToCapacity(recent)`, say, or
 `ToCapacity(FromOccurrences(occurrences))`.
 
+A `weight` weighs each record by a layer at its position. The layer is read at its own resolution,
+not the habitat's. [`WeightPerRecord`](@ref) gives each record the layer's value in its cell. That
+suits records that are equal samples, such as those of a systematic survey.
+[`WeightPerCell`](@ref) counts each cell's value once, and the records made there share it. That
+suits records whose numbers follow how hard each place was searched. `scale` makes each unit of
+weight that many individuals. Without a `scale` the weights are shares, for `ToCapacity`. A `do`
+block sees each record's `weight`, to make any other number from it:
+
+```julia
+# A vegetation index times each 0.05-degree cell's land area, from a file of your own.
+region = StudyArea(within = NaturalEarthSpec("Kenya"), cellsize = 0.05°)
+amount = EcoSISTEM.materialise(RasterFileSpec("evi_land_area.tif", axis = SurfaceArea,
+                                              unit = km^2), region)
+seeded = FromOccurrences(occurrences, weight = WeightPerCell(amount), scale = 2.0 / km^2)
+```
+
 ## Species from a pool
 
 Each trait is a spec: [`ToleranceSpec`](@ref) names a response family's parameters as the family

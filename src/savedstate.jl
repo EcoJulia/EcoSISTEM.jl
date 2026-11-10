@@ -195,9 +195,11 @@ function _startfromstate(species::SpeciesList, habitat::GridHabitat, from;
                          epoch::Union{Nothing, Dates.TimeType} = nothing,
                          calendar::Union{Nothing, AbstractRunCalendar} = nothing,
                          elapsed::Union{Nothing, Unitful.Time} = nothing,
+                         changing = (),
                          provenance = ProvenanceRecord[],
                          verbosity::Symbol = :normal)
     file = _statefile(from)
+    changed = _changingnames(changing, habitat)
     saved = Ref{Any}(nothing)
     state = _madeonroot() do
         read = _readstate(file.path)
@@ -225,7 +227,7 @@ function _startfromstate(species::SpeciesList, habitat::GridHabitat, from;
     exact && _setstreams!(eco.rngs, state.streams, columns)
     _placesaved!(eco, saved[], columns)
     eco.placement = nothing
-    eco.savedchanges = _savedchanges(state, file.path)
+    eco.savedchanges = _savedchanges(state, file.path, changed)
     invalidatecaches!(eco)
     return eco
 end
@@ -346,30 +348,87 @@ end
 
 _withunit(values, ::Type) = values
 
-# What a state recorded of each layer's change rule, for `_resumerun!` to compare with the rules the
-# run has once its first step has installed those its interventions give.
-function _savedchanges(state, path::AbstractString)
+# The saved state's record of each layer's change rule, kept for `_resumerun!` to compare with the
+# rules in force after the run's first step, together with the layer names given in `changing`.
+function _savedchanges(state, path::AbstractString,
+                       changing::Vector{Symbol})
     recorded(saved) = Dict(name => _recordedchange(was)
                            for (name, was) in saved)
-    return _SavedChanges(path, recorded(state.regime), recorded(state.supply))
+    return _SavedChanges(path, recorded(state.regime), recorded(state.supply),
+                         changing)
+end
+
+# The `changing` keyword as a list of layer names without repeats, each of which must name a regime
+# or a supply layer of the habitat.
+function _changingnames(name::Symbol, habitat::GridHabitat)
+    return _changingnames((name,), habitat)
+end
+
+function _changingnames(names::Union{Tuple, AbstractVector},
+                        habitat::GridHabitat)
+    layers = vcat([(n, "regime") for n in keys(habitat.regime)],
+                  [(n, "supply") for n in keys(habitat.supply)])
+    given = Symbol[]
+    for name in names
+        name isa Symbol ||
+            error("`changing` names layers, as symbols such as `:Temperature`; got $(repr(name)).")
+        any(l -> first(l) === name, layers) ||
+            error("`changing` names `$name`, which is no layer of the habitat; its layers are " *
+                  join(("`$n` ($role)" for (n, role) in layers), ", ") * ".")
+        name in given || push!(given, name)
+    end
+    return given
+end
+
+function _changingnames(names, ::GridHabitat)
+    return error("`changing` names the layers whose change rule the run means to change, as a " *
+                 "symbol or a tuple of them, `(:Temperature,)`; got $(repr(names)).")
 end
 
 # One layer's change rule as a state recorded it, without its values.
 _recordedchange(was) = (change = was.change, phrase = was.changephrase)
 
-# Warn of each layer whose change rule differs from the one it had when saved, once the run has
-# installed the rules its habitat and interventions give it.
-function _warnchanges(saved::_SavedChanges, habitat::GridHabitat)
-    for (role, layers, recorded) in (("regime", habitat.regime, saved.regime),
-                                     ("supply", habitat.supply, saved.supply))
+# For each layer, its change rule after the run's first step beside the rule it was saved with: its
+# role and name, both rules as phrases, whether they differ, and whether `changing` named it.
+function _comparechanges(saved::_SavedChanges, regime, supply)
+    compared = @NamedTuple{role::String, layer::Symbol, saved::String,
+                           now::String, changed::Bool, declared::Bool}[]
+    for (role, layers, recorded) in (("regime", regime, saved.regime),
+                                     ("supply", supply, saved.supply))
         for (name, layer) in zip(keys(layers), values(layers))
             was = recorded[string(name)]
-            _changeidentity(layer.change) == was.change && continue
-            @warn "`$(saved.path)` was saved while its $role layer `$name` changed by " *
-                  "$(was.phrase), and this run starts with it changing by " *
-                  "$(_changephrase(layer.change)). A state keeps a layer's values but not its " *
-                  "change rule, which a run takes from its habitat and from the interventions " *
-                  "it is given, those due by its start installed at its first step."
+            push!(compared,
+                  (role = role, layer = name, saved = was.phrase,
+                   now = _changephrase(layer.change),
+                   changed = _changeidentity(layer.change) != was.change,
+                   declared = name in saved.changing))
+        end
+    end
+    return compared
+end
+
+# A changed layer as the run's provenance records it.
+function _rulechange(c::NamedTuple)
+    return (role = c.role, layer = string(c.layer), saved = c.saved,
+            now = c.now, declared = c.declared)
+end
+
+# Warn of each layer whose change rule changed although `changing` did not name it, and of each
+# layer `changing` named whose rule did not change.
+function _warnchanges(saved::_SavedChanges, compared::AbstractVector)
+    for c in compared
+        if c.changed && !c.declared
+            @warn "`$(saved.path)` was saved while its $(c.role) layer `$(c.layer)` changed by " *
+                  "$(c.saved), and this run starts with it changing by $(c.now). A state keeps " *
+                  "a layer's values but not its change rule, which a run takes from its habitat " *
+                  "and from the interventions it is given, those due by its start installed at " *
+                  "its first step. Where this is meant, name the layer in `build_ecosystem`'s " *
+                  "`changing`."
+        elseif c.declared && !c.changed
+            @warn "`changing` names `$(c.layer)`, but this run starts with its $(c.role) layer " *
+                  "changing by $(c.now), as it did when `$(saved.path)` was saved: give the " *
+                  "habitat the rule it is meant to change by, or drop `$(c.layer)` from " *
+                  "`changing`."
         end
     end
     return nothing

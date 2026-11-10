@@ -40,6 +40,14 @@ struct _PerRecord
     value::Int
 end
 
+# How `FromOccurrences` turns weighted records into individuals. With a scale, each unit of weight
+# places `scale` individuals. Without one, the weights are shares of the whole.
+struct _WeightScale{S}
+    value::S
+end
+
+struct _WeightShares end
+
 """
     BySupply(axes...; total = nothing, each = nothing)
 
@@ -243,10 +251,82 @@ struct FromTable{D} <: AbstractPlacement
 end
 
 """
+    AbstractRecordWeight
+
+How much each occurrence record weighs when [`FromOccurrences`](@ref) turns records into
+individuals. The weight is read from a layer at each record's position. With
+[`WeightPerRecord`](@ref) each record in a cell gets the cell's value. With [`WeightPerCell`](@ref)
+the cell's value counts once, and the records in the cell share it.
+"""
+abstract type AbstractRecordWeight end
+
+"""
+    WeightPerRecord(layer; novalue = nothing)
+
+Weigh each occurrence record by `layer`'s value in the cell that holds it, a cell of the layer's
+own grid. Each record counts that value in full, so a cell with two records counts it twice. This
+suits records that are equal samples, such as those of a systematic survey of equal effort.
+
+# Arguments
+
+  - `layer`: a continuous layer on a grid of its own, built with [`materialise`](@ref) on a
+    [`StudyArea`](@ref) of the resolution wanted. It is read at that resolution, not the habitat's.
+    Its values must be finite and non-negative where there are records.
+  - `novalue`: the weight, in the layer's units, of a record where the layer has no value. That is a
+    record off the layer's grid, or in a cell holding `NaN` or `missing`. Without `novalue` such a
+    record is refused.
+
+# Fields
+
+  - `layer`, `novalue`: as given, `novalue` converted to the layer's units.
+"""
+struct WeightPerRecord{L <: ContinuousLayer, V} <: AbstractRecordWeight
+    layer::L
+    novalue::V
+
+    function WeightPerRecord(layer::AbstractLayer; novalue = nothing)
+        checked = _weightlayer(layer, novalue, "WeightPerRecord")
+        return new{typeof(layer), typeof(checked)}(layer, checked)
+    end
+end
+
+"""
+    WeightPerCell(layer; novalue = nothing)
+
+Weigh each occurrence record by `layer`'s value in the cell that holds it, divided equally among all
+the records in that cell. The cell is a cell of the layer's own grid. Every record of the data in
+the cell counts, whatever its species or date, and whether or not it is placed. So each cell counts
+its value once, and the records made there share it. This suits records whose numbers follow how
+hard each place was searched. A much-visited cell then counts for no more than a rarely visited cell
+of the same value, and its records decide only how that value is split between species. The layer
+is then an amount in each cell, such as a vegetation index times the cell's land area.
+
+# Arguments
+
+  - `layer`: a continuous layer on a grid of its own, as for [`WeightPerRecord`](@ref). Records
+    share a value with the other records in their cell of this grid, not of the habitat's grid.
+  - `novalue`: the weight, in the layer's units, of a record where the layer has no value, as for
+    [`WeightPerRecord`](@ref).
+
+# Fields
+
+  - `layer`, `novalue`: as given, `novalue` converted to the layer's units.
+"""
+struct WeightPerCell{L <: ContinuousLayer, V} <: AbstractRecordWeight
+    layer::L
+    novalue::V
+
+    function WeightPerCell(layer::AbstractLayer; novalue = nothing)
+        checked = _weightlayer(layer, novalue, "WeightPerCell")
+        return new{typeof(layer), typeof(checked)}(layer, checked)
+    end
+end
+
+"""
     FromOccurrences(data; species = :species, latitude = :decimalLatitude,
                     longitude = :decimalLongitude, date = nothing, time = nothing, snap = 0.0km,
-                    total = nothing, per_record = nothing, level = ProblemWarning(),
-                    provenance = ProvenanceRecord[])
+                    total = nothing, per_record = nothing, weight = nothing, scale = nothing,
+                    level = ProblemWarning(), provenance = ProvenanceRecord[])
     FromOccurrences(rule, data; ...)
 
 A placement reading the individuals from a table of occurrence records, a row for each record of a
@@ -259,6 +339,13 @@ places that many individuals for each record instead; `total` spreads a number o
 the records in proportion to them, drawn from the run's community stream, so a species with no records
 gets none. `rule`, a function usually written as a `do` block, makes any other table from the records.
 
+A `weight`, [`WeightPerRecord`](@ref) or [`WeightPerCell`](@ref), weighs each record by a layer at
+its position. Each record then places `scale` individuals for each unit of its weight. These are
+summed for each species and cell, and each time where the records are dated, then rounded to the
+nearest whole individual. Without a `scale` the summed weights are shares of the whole, which only
+[`ToCapacity`](@ref) takes. A `rule` sees each record's weight, so it can make any other number from
+them.
+
 Records are undated unless `date` or `time` names a column. At build every dated record must be at or
 before the run's start; a record whose date cannot be read is dropped, counted in a notice.
 
@@ -267,9 +354,9 @@ before the run's start; a record whose date cannot be read is dropped, counted i
   - `rule`: a function of `(rows, habitat, context)` returning what a placement returns - a table of
     species, place, count and, where dated, time, as [`FromTable`](@ref) reads one, or a
     [`PlacedAbundances`](@ref). `rows` is a `DataFrame` of the records placed: every column of the
-    data, with each record's `species` as the species list names it, its `cell` (after `snap`) and,
-    where dated, its `time` as elapsed time, in place of any columns of those names. Not with `total`
-    or `per_record`.
+    data, with each record's `species` as the species list names it, its `cell` (after `snap`),
+    where dated its `time` as elapsed time, and given a `weight` its `weight`, in place of any
+    columns of those names. Not with `total`, `per_record` or `scale`.
   - `data`: a path to a CSV file, a [`ProvenanceRecord`](@ref) of one, or a Tables.jl table, as for
     [`FromTable`](@ref).
   - `species`, `latitude`, `longitude`: the columns naming each record's species and giving its
@@ -282,18 +369,25 @@ before the run's start; a record whose date cannot be read is dropped, counted i
   - `total`: a whole number of individuals for the community, spread over the records; not a
     density, since records have no area for one to multiply.
   - `per_record`: a whole number of individuals for each record. Not with `total`.
+  - `weight`: an [`AbstractRecordWeight`](@ref) weighing each record. Not with `total` or
+    `per_record`.
+  - `scale`: the individuals a record places for each unit of its `weight`. It is a non-negative
+    number whose units cancel the weight's: a density such as `2.0/km^2` for a weight that is an
+    area.
   - `level`: how the records that cannot be placed are reported, a [`ProblemWarning`](@ref) by
     default, as for [`IsActiveSpecies`](@ref).
-  - `provenance`: [`ProvenanceRecord`](@ref)s of the data the table was made from.
+  - `provenance`: [`ProvenanceRecord`](@ref)s of the data the table was made from, and of the files
+    a `weight`'s layer was built from.
 
 # Fields
 
   - `rule`: the function given, or `nothing`.
-  - `data`, `species`, `latitude`, `longitude`, `date`, `time`, `snap`, `level`: as given.
-  - `numbers`: the `total` or `per_record` given, or neither.
+  - `data`, `species`, `latitude`, `longitude`, `date`, `time`, `snap`, `weight`, `level`: as given.
+  - `numbers`: the `total`, `per_record` or `scale` given, or none.
   - `records`: the records given as `provenance`.
 """
-struct FromOccurrences{R, D, T, S <: Unitful.Length, N,
+struct FromOccurrences{R, D, T, S <: Unitful.Length,
+                       W <: Union{Nothing, AbstractRecordWeight}, N,
                        L <: AbstractProblemSeverity} <: AbstractPlacement
     rule::R
     data::D
@@ -303,6 +397,7 @@ struct FromOccurrences{R, D, T, S <: Unitful.Length, N,
     date::T
     time::Union{Nothing, Symbol}
     snap::S
+    weight::W
     numbers::N
     level::L
     records::Vector{ProvenanceRecord}
@@ -316,21 +411,24 @@ struct FromOccurrences{R, D, T, S <: Unitful.Length, N,
                              time::Union{Nothing, Symbol} = nothing,
                              snap::Unitful.Length = 0.0km,
                              total = nothing, per_record = nothing,
+                             weight::Union{Nothing, AbstractRecordWeight} = nothing,
+                             scale = nothing,
                              level::AbstractProblemSeverity = ProblemWarning(),
                              provenance = ProvenanceRecord[])
         _checktabledata(data, "FromOccurrences")
         _checkdatecolumns(date, time)
         _checksnap(snap)
-        isnothing(rule) || (isnothing(total) && isnothing(per_record)) ||
-            error("`FromOccurrences` takes a rule making the table, or `total` or `per_record` " *
-                  "giving its numbers, not both.")
+        isnothing(rule) ||
+            (isnothing(total) && isnothing(per_record) && isnothing(scale)) ||
+            error("`FromOccurrences` takes a rule making the table, or `total`, `per_record` or " *
+                  "`scale` giving its numbers, not both.")
         _refusedensity(total, "total")
-        numbers = _occurrencenumbers(total, per_record)
+        numbers = _occurrencenumbers(total, per_record, weight, scale)
         return new{typeof(rule), typeof(data), typeof(date), typeof(snap),
-                   typeof(numbers), typeof(level)}(rule, data, species,
-                                                   latitude, longitude, date,
-                                                   time, snap, numbers, level,
-                                                   _recordvector(provenance))
+                   typeof(weight), typeof(numbers),
+                   typeof(level)}(rule, data, species, latitude, longitude,
+                                  date, time, snap, weight, numbers, level,
+                                  _recordvector(provenance))
     end
 end
 
@@ -345,9 +443,10 @@ of the species there: a cell holds individuals until, in its scarcest resource, 
 species keeping its share, rounded to the nearest whole individual. A cell `placement` puts nothing
 in stays empty. In an intervention ([`AddAbundance`](@ref)) a cell is topped up: what is already there
 counts against its supply, so a cell already full gets none. A species' name in place of a placement
-fills each cell with that species alone - `AddAbundance(ToCapacity("wheat"))` sows a crop. The shares may be whole counts or any non-negative weights, such as recency-weighted
-records from a [`FromOccurrences`](@ref) rule; their places and species are found as any placement's
-are, and a `time` column is ignored.
+fills each cell with that species alone - `AddAbundance(ToCapacity("wheat"))` sows a crop. The
+shares may be whole counts or any non-negative weights, such as those of a [`FromOccurrences`](@ref)
+given a `weight` and no `scale`; their places and species are found as any placement's are, and a
+`time` column is ignored.
 
 A filled cell is at its equilibrium only where suitability does not enter - `survival` zero, or a
 suitability of one - and births and deaths have equal base rates: births then balance deaths exactly
@@ -546,11 +645,18 @@ function Base.show(io::IO, p::FromOccurrences)
     isnothing(p.date) || print(io, ", date = ", repr(p.date))
     isnothing(p.time) || print(io, ", time = ", repr(p.time))
     iszero(p.snap) || print(io, ", snap = ", p.snap)
+    isnothing(p.weight) || print(io, ", weight = ", p.weight)
     for (k, v) in pairs(_numberkeywords(p.numbers))
         print(io, ", ", k, " = ", v)
     end
     p.level isa ProblemWarning ||
         print(io, ", level = ", nameof(typeof(p.level)), "()")
+    return print(io, ")")
+end
+
+function Base.show(io::IO, w::Union{WeightPerRecord, WeightPerCell})
+    print(io, nameof(typeof(w)), "(", w.layer)
+    isnothing(w.novalue) || print(io, ", novalue = ", w.novalue)
     return print(io, ")")
 end
 
@@ -621,6 +727,10 @@ _numberkeywords(n::_Total) = (total = n.value,)
 _numberkeywords(n::_Each) = (each = n.value,)
 
 _numberkeywords(n::_PerRecord) = (per_record = n.value,)
+
+_numberkeywords(n::_WeightScale) = (scale = n.value,)
+
+_numberkeywords(::_WeightShares) = NamedTuple()
 
 # The three placements that are also weights, which `Weighted` multiplies.
 const _Weight = Union{BySupply, BySuitability, ByLayer}
@@ -830,7 +940,8 @@ function (p::FromOccurrences)(species::SpeciesList, habitat::GridHabitat,
                                                 placed.problems))
     end
     dated = !(isnothing(p.date) && isnothing(p.time))
-    dated && _checkstarted(resolved.rows, context)
+    dated && _checkstarted(resolved.rows, context,
+                  isnothing(p.date) ? :time : :date)
     table = _occurrencecounts(p.numbers, resolved.rows, species, context,
                               resolved.problems, dated)
     return PlacedAbundances(table, records = records,
@@ -1226,7 +1337,26 @@ function _refusedensity(x::Unitful.AbstractQuantity, what::AbstractString)
                  "$x.")
 end
 
-# `FromOccurrences`' numbers as given: a community `total`, a number `per_record`, or the default, one.
+# `FromOccurrences`' numbers as given. With a weight they are its `scale`, or shares when there is
+# no scale; `total` and `per_record` are refused beside a weight, and `scale` is refused without
+# one. Without a weight they are a community `total`, a number `per_record`, or the default of one.
+function _occurrencenumbers(total, per_record, weight::AbstractRecordWeight,
+                            scale)
+    (isnothing(total) && isnothing(per_record)) ||
+        error("`FromOccurrences` takes a `weight`'s individuals from its `scale`, not from `total` " *
+              "or `per_record`: a weight without a `scale` gives shares, for `ToCapacity`, and a " *
+              "`do` block given a weight can make any other number from them.")
+    return isnothing(scale) ? _WeightShares() :
+           _WeightScale(_checkscale(scale, weight))
+end
+
+function _occurrencenumbers(total, per_record, ::Nothing, scale)
+    isnothing(scale) ||
+        error("`scale` gives the individuals a record places for each unit of its `weight`; give a " *
+              "`weight` too, `WeightPerRecord` or `WeightPerCell`.")
+    return _occurrencenumbers(total, per_record)
+end
+
 _occurrencenumbers(::Nothing, ::Nothing) = _DefaultCount()
 
 _occurrencenumbers(total, ::Nothing) = _Total(_checkcount(total, "total"))
@@ -1240,6 +1370,104 @@ end
 function _occurrencenumbers(total, n)
     return error("give `FromOccurrences` a `total` or a number `per_record`, not both: `total` is the " *
                  "community's, spread over the records, and `per_record` each record's.")
+end
+
+# A `scale`, refused unless its units cancel the weight's and it is finite and non-negative. A
+# record's weight times the scale is then a number of individuals.
+function _checkscale(scale::Union{Real, Unitful.AbstractQuantity},
+                     weight::AbstractRecordWeight)
+    unitweight = oneunit(eltype(weight.layer.matrix))
+    dimension(scale * unitweight) == NoDims ||
+        error("`scale` times a record's weight must be a number of individuals, but this weight is " *
+              "in $(unit(unitweight)) and `scale` is $scale: give `scale` in " *
+              "$(unit(inv(unitweight))), the individuals for each unit of weight.")
+    count = uconvert(NoUnits, scale * unitweight)
+    (isfinite(count) && count >= 0) ||
+        error("`scale` must be finite and non-negative; got $scale.")
+    return scale
+end
+
+function _checkscale(scale, ::AbstractRecordWeight)
+    return error("`scale` is a number, the individuals for each unit of weight; got $(repr(scale)).")
+end
+
+# A record weight's `novalue`, converted to its layer's units. A collection or a categorical layer
+# is refused.
+function _weightlayer(layer::ContinuousLayer, novalue, what::AbstractString)
+    isnothing(novalue) && return nothing
+    T = float(eltype(layer.matrix))
+    value = try
+        convert(T, novalue)
+    catch
+        error("`$what`'s `novalue` is the weight of a record where the layer has no value, in the " *
+              "layer's units, $(unit(oneunit(T))); got $(repr(novalue)).")
+    end
+    (isfinite(value) && value >= zero(value)) ||
+        error("`$what`'s `novalue` must be finite and non-negative; got $(repr(novalue)).")
+    return value
+end
+
+function _weightlayer(layer::AbstractLayer, ::Any, what::AbstractString)
+    layer isa LayerCollection &&
+        error("`$what` reads one layer, and was given a collection of $(length(layer)).")
+    return error("`$what` reads the values of a continuous layer, and was given " *
+                 "$(nameof(typeof(layer))), whose values are classes.")
+end
+
+# The weight of each placed record, the rows `keep` of `data`. The weight's layer is read in the
+# cell of its own grid that holds the record. Under `WeightPerCell` the value is shared with every
+# record of the data in that cell. A record where the layer has no value takes the weight's
+# `novalue`, and is refused if there is none. A negative value is refused.
+function _recordweights(w::AbstractRecordWeight, data::DataFrame,
+                        keep::AbstractVector{<:Integer}, latitude::Symbol,
+                        longitude::Symbol)
+    cells = _layercells(w.layer, data[!, latitude], data[!, longitude])
+    sharing = _sharingcounts(w, cells)
+    T = float(eltype(w.layer.matrix))
+    weights = Vector{T}(undef, length(keep))
+    novalue = negative = 0
+    for (i, r) in enumerate(keep)
+        cell = cells[r]
+        value = isnothing(cell) ? missing : w.layer.matrix[cell]
+        if ismissing(value) || isnan(value)
+            novalue += 1
+            weights[i] = something(w.novalue, zero(T))
+        elseif value < zero(value)
+            negative += 1
+        else
+            weights[i] = value / sharing(cell)
+        end
+    end
+    iszero(negative) ||
+        error("$(_countword(negative, "record")) placed $(_were(negative)) where the weight's " *
+              "layer is negative; a weight is finite and non-negative, so clamp the layer first.")
+    (iszero(novalue) || !isnothing(w.novalue)) ||
+        error("$(_countword(novalue, "record")) placed $(_were(novalue)) where the weight's " *
+              "layer has no value - off its grid, or `NaN` or `missing` there; give the weight a " *
+              "`novalue` to weigh them by.")
+    return weights
+end
+
+# The cell of `layer`'s own grid that holds each record. It is `nothing` for a record with no
+# position or one off that grid.
+function _layercells(layer::AbstractLayer, latitudes, longitudes)
+    placed = _recordplaces(latitudes, longitudes)
+    cells = Vector{Union{Nothing, CartesianIndex{2}}}(nothing,
+                                                      length(latitudes))
+    cells[placed.rows] = getcellat(layer, placed.places)
+    return cells
+end
+
+# What a record's value in its cell is divided by: one for `WeightPerRecord`, and the number of
+# records of the data in that cell for `WeightPerCell`.
+_sharingcounts(::WeightPerRecord, ::AbstractVector) = _ -> 1
+
+function _sharingcounts(::WeightPerCell, cells::AbstractVector)
+    counts = Dict{CartesianIndex{2}, Int}()
+    for cell in cells
+        isnothing(cell) || (counts[cell] = get(counts, cell, 0) + 1)
+    end
+    return cell -> counts[cell]
 end
 
 # The records of `data` that can be placed, as a `DataFrame` of every column of the data with each
@@ -1267,6 +1495,9 @@ function _occurrencerows(p::FromOccurrences, data::DataFrame,
     rows = data[keep, :]
     rows.species = species.names[Vector{Int}(matched.rows[keep])]
     rows.cell = Vector{CartesianIndex{2}}(placed.cells[located])
+    isnothing(p.weight) ||
+        (rows.weight = _recordweights(p.weight, data, keep, p.latitude,
+                                      p.longitude))
     times = _recordtimes(p.date, p.time, rows, context)
     isnothing(times) && return (rows = rows, problems = problems)
     dated = .!isnothing.(times)
@@ -1371,12 +1602,14 @@ _datepart(x::AbstractString) = tryparse(Int, strip(x))
 
 _datepart(::Any) = nothing
 
-# Refuse records dated after a build's start, saying how to place them.
-function _checkstarted(rows::DataFrame, context::PlacementContext)
+# Refuse records dated after a build's start, saying how to place them. The advice names the
+# keyword, `date` or `time`, that dated them.
+function _checkstarted(rows::DataFrame, context::PlacementContext,
+                       keyword::Symbol)
     late = count(>(context.time), rows.time)
     iszero(late) && return nothing
     return error("$(_countword(late, "record")) $(late == 1 ? "is" : "are") dated after the run's " *
-                 "start, and a placement at build places the starting state: give `date = " *
+                 "start, and a placement at build places the starting state: give `$keyword = " *
                  "nothing` to place every record at the start, or a `do` block that drops or " *
                  "redates them.")
 end
@@ -1401,7 +1634,7 @@ function _recordgroups(rows::DataFrame, dated::Bool)
 end
 
 # The groups' individuals as a placement's table, the empty ones left out.
-function _grouptable(groups::NamedTuple, counts::AbstractVector{<:Integer},
+function _grouptable(groups::NamedTuple, counts::AbstractVector{<:Real},
                      dated::Bool)
     kept = findall(>(0), counts)
     ks = groups.keys[kept]
@@ -1443,6 +1676,50 @@ function _occurrencecounts(numbers::_Total, rows::DataFrame, ::SpeciesList,
     counts = groups.counts
     drawn = rand(context.community, Multinomial(n, counts ./ sum(counts)))
     return _grouptable(groups, drawn, dated)
+end
+
+# The records' weights summed for each species and cell, and each time where the records are dated.
+# With a scale, each unit of weight places `scale` individuals, and the sums are rounded to the
+# nearest whole individual, ties to even. Without one, each group's share of all the weights is its
+# count, which only `ToCapacity` takes.
+function _occurrencecounts(numbers::_WeightScale, rows::DataFrame,
+                           ::SpeciesList, ::PlacementContext,
+                           ::Vector{Problem}, dated::Bool)
+    individuals = [uconvert(NoUnits, numbers.value * w) for w in rows.weight]
+    groups = _summedgroups(rows, dated, individuals)
+    return _grouptable(groups, round.(Int, groups.sums), dated)
+end
+
+function _occurrencecounts(::_WeightShares, rows::DataFrame, ::SpeciesList,
+                           ::PlacementContext, problems::Vector{Problem},
+                           dated::Bool)
+    groups = _summedgroups(rows, dated, rows.weight)
+    whole = sum_kbn(groups.sums)
+    if iszero(whole)
+        isempty(groups.keys) ||
+            push!(problems,
+                  Problem(ProblemWarning(), :nowhere_to_place,
+                          "no record placed has any weight, so the records were given no " *
+                          "shares."))
+        return _grouptable(groups, Float64[], dated)
+    end
+    return _grouptable(groups,
+                       [uconvert(NoUnits, w / whole)
+                        for w in groups.sums], dated)
+end
+
+# The records' values summed for each species and cell, and each time where the records are dated.
+# Each group's total is correctly rounded, whatever the order of the records. Returns the groups'
+# keys, sorted, and their sums.
+function _summedgroups(rows::DataFrame, dated::Bool, values::AbstractVector)
+    keys_ = dated ? collect(zip(rows.species, rows.cell, rows.time)) :
+            collect(zip(rows.species, rows.cell))
+    bykey = Dict{eltype(keys_), Vector{eltype(values)}}()
+    for (k, v) in zip(keys_, values)
+        push!(get!(Vector{eltype(values)}, bykey, k), v)
+    end
+    sorted = sort!(collect(keys(bykey)))
+    return (keys = sorted, sums = [sum_kbn(bykey[k]) for k in sorted])
 end
 
 # --- Filling to capacity -----------------------------------------------------------
@@ -1786,7 +2063,8 @@ end
 function _placedcount(n::Real, row::Int)
     (isinteger(n) && n >= 0) ||
         error("row $row of a placement's table places $n individuals: a count is a whole, " *
-              "non-negative number.")
+              "non-negative number. A `FromOccurrences` weighted without a `scale` gives shares, " *
+              "which only `ToCapacity` takes.")
     return Int(n)
 end
 
