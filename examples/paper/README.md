@@ -74,35 +74,42 @@ projected finish early.
 
 Everything large goes under `ECOSISTEM_HPC_ROOT`, by default `/mnt/data/project0000/$USER`: the
 Julia depot, and with it EcoSISTEM's asset cache and DataPipeline's copy of `fair`, then the local
-registry and its data store. `env.sh` also picks the juliaup channel (`JULIAUP_CHANNEL`, `1.13.3`)
-and the registry's port (`ECOSISTEM_HPC_PORT`, 8030; a node is shared, so not 8000). Set any of the
+registry and its data store. `env.sh` also picks the juliaup channel (`JULIAUP_CHANNEL`, `release`,
+the newest stable Julia) and the registry's port (`ECOSISTEM_HPC_PORT`, 8030; a node is shared, so not 8000). Set any of the
 three in `~/.bashrc` rather than editing `env.sh`: `fair run` refuses a clone with changes.
 
-Once, on the login node - the clone, at the release to run, and who the registry records the runs
+Once, on the login node - the clone, at the newest release, and who the registry records the runs
 as:
 
 ```sh
-module load apps/juliaup/1.18.9
-juliaup add 1.13.3
+module load apps/juliaup
+juliaup add release
 export ECOSISTEM_HPC_ROOT=/mnt/data/project0000/$USER
 git clone https://github.com/EcoJulia/EcoSISTEM.jl.git $ECOSISTEM_HPC_ROOT/EcoSISTEM.jl
 cd $ECOSISTEM_HPC_ROOT/EcoSISTEM.jl
-git checkout v0.9.1
+git checkout "$(git describe --tags --abbrev=0 origin/main)"    # the newest release
 mkdir -p $ECOSISTEM_HPC_ROOT/fair
 cp examples/paper/hpc/fair-user.yaml $ECOSISTEM_HPC_ROOT/fair/user.yaml
 ```
 
 Fill in `user.yaml` - your name, email, and your ORCID or GitHub page - then, from the root of the
-clone, set the rest up as a job. It instantiates and precompiles this directory's environment on an
-`smp` node, installs DataPipeline's copy of `fair` (`DataPipeline.install_cli()`) and the registry,
-writes a CLI configuration from `user.yaml` and the paths above, and runs `fair init --using` with
-it:
+clone, set the rest up as a job. It brings Julia and this directory's environment to their newest
+versions and precompiles them on an `smp` node. It installs the newest releases of DataPipeline's
+copy of `fair` (`DataPipeline.install_cli()`) and of the registry. It writes a CLI configuration
+from `user.yaml` and the paths above, and runs `fair init --using` with it:
 
 ```sh
 sbatch examples/paper/hpc/setup.bash
 ```
 
 If it fails part way, with a download cut short say, submit it again: it keeps what it finished.
+
+To bring a set-up clone to the newest releases, run `git fetch origin` in it, then the `git checkout`
+line above, and submit `setup.bash` again. It updates Julia, the environment and `fair`. It keeps the
+registry already installed, with the records of the runs it holds, and prints its version. To
+replace the registry with its newest release as well, delete `$ECOSISTEM_HPC_ROOT/fair/registry`
+before submitting `setup.bash`. The records of earlier runs go with it; the files in the data store
+stay.
 
 Then the small-scale run, which tests every piece in minutes, and the full one:
 
@@ -121,6 +128,55 @@ A run job that is killed, by its time limit or for running out of memory, cannot
 which stays recorded as running on that job's node. The next run job, if it lands on another node,
 refuses with "The local registry installed in '...' is recorded as running on the host '...'":
 the killed job has gone, so delete the file the message names, then submit again.
+
+## Pushing a run to the remote registry
+
+The paper takes its figures and tables from the remote registry, `data.fairdatapipeline.org`, so a
+run's outputs are pushed there. Push the code run rather than its data products. A code run takes
+with it every data product it wrote, with its file, the parameters it read, its commit and its
+author. A data product pushed alone takes no run with it. The remote keeps what is pushed, so push
+only the run the paper is to use: the full-scale run, not the small one.
+
+Once, get a token at <https://data.fairdatapipeline.org/get-token>, signed in with the GitHub
+account that `user.yaml`'s `remote_user` names. Save it as `$ECOSISTEM_HPC_ROOT/fair/remote-token`,
+the file named by the configuration `setup.bash` wrote. The remote refuses a token issued before
+its last deployment, so a refused push may need a new token.
+
+Then work on the login node, from the root of the clone, with no paper job running: the local
+registry runs on one host at a time. `fair` here is the copy `setup.bash` installed. Find the run:
+
+```sh
+source examples/paper/hpc/env.sh
+fair() { julia --project=examples/paper -e 'using DataPipeline; fair"$ARGS"' -- "$@"; }
+fair log                # the jobs, newest first, each by its ID and date
+fair view <job ID>      # that job's output, then the code run it made
+```
+
+`fair view` shows the run's output from its first line, so the full run says "Writing the paper's
+figures to ... at large scale". The code run's UUID is listed last, under "Related Code Runs".
+Push it, with the local registry running only while it is needed:
+
+```sh
+julia --project=examples/paper -e '
+    using DataPipeline
+    fair"registry start"
+    try
+        fair"add $(ARGS[1])"
+        fair"push"
+    finally
+        fair"registry stop"
+    end' <code run UUID>
+```
+
+To see what reached the remote, trace the newest `Examples/Config` there back to its run:
+
+```sh
+julia --project=examples/paper -e 'using DataPipeline
+    display(DataPipeline.provenance("EcoSISTEM:Examples/Config", remote = "origin"))'
+```
+
+The tree shows the run, its commit and the parameters it read. Every figure and table is traced the
+same way by its own name, such as `EcoSISTEM:Examples/Figures/Invasion`.
 
 ## Under the test suite
 

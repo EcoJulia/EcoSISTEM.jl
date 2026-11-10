@@ -29,8 +29,15 @@ using Sockets
 
 const D = DataPipeline
 
-# The registry release installed, the one `.github/workflows/docs.yaml` installs.
-const REGISTRY_VERSION = "v1.4.0"
+# The registry's newest release, by version, from the tags its repository lists. The test installs
+# it, and replaces a registry kept from an earlier run when a newer release is out.
+function newestregistry()
+    url = "https://github.com/FAIRDataPipeline/data-registry.git"
+    refs = readlines(`git ls-remote --tags --refs $url`)
+    tags = [last(split(ref, '/')) for ref in refs]
+    releases = filter(tag -> occursin(r"^v\d+\.\d+\.\d+$", tag), tags)
+    return argmax(VersionNumber, releases)
+end
 
 const REQUIRED = get(ENV, "ECOSISTEM_TEST_PIPELINE", "") == "true"
 const ASKED_FOR = any(a -> occursin("extras_pipeline", a), ARGS)
@@ -148,12 +155,18 @@ else
             "GIT_COMMITTER_EMAIL" => "test@noreply.com"]
         withenv(environment...) do
             fair"--version"
-            if !isfile(joinpath(registry, "manage.py")) || !isfile(pristine)
-                @info "Installing the test's own registry at $registry, once: a few minutes"
+            release = newestregistry()
+            kept = isfile(joinpath(registry, "manage.py")) ?
+                   readchomp(`git -C $registry describe --tags`) : nothing
+            if kept != release || !isfile(pristine)
+                @info "Installing registry $release for the test at $registry: a few minutes"
+                # A kept registry that an interrupted run left running is stopped before it goes.
+                isnothing(kept) ||
+                    run(`$(joinpath(registry, "scripts", "stop_fair_registry"))`)
                 rm(registry, recursive = true, force = true)
                 mkpath(home)
                 cd(space) do
-                    return fair"registry install --version $REGISTRY_VERSION"
+                    return fair"registry install --version $release"
                 end
                 cp(joinpath(registry, "db.sqlite3"), pristine, force = true)
             end

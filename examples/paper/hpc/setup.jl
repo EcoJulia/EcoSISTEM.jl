@@ -3,13 +3,10 @@
 # The data pipeline for the paper's HPC runs, set up once by `setup.bash`: DataPipeline's own copy
 # of `fair`, a local registry, and this clone initialised with a CLI configuration written here, all
 # under `ECOSISTEM_HPC_ROOT`. Run from the root of the clone, in `examples/paper`'s environment,
-# after `env.sh`. Run again, it brings the copy of `fair` up to date and leaves the rest as it is.
+# after `env.sh`. `fair` and a new registry are each the newest release. Run again, it brings the
+# copy of `fair` up to date and keeps the registry already installed, with its records.
 
 using DataPipeline
-
-# The releases installed: those the documentation's workflow and the pipeline tests install.
-const CLI_VERSION = "0.11.0"
-const REGISTRY_VERSION = "v1.4.0"
 
 const ROOT = ENV["ECOSISTEM_HPC_ROOT"]
 const PORT = ENV["ECOSISTEM_HPC_PORT"]
@@ -23,11 +20,12 @@ isfile(USERFILE) ||
 any(line -> occursin(r"^[^#]*<", line), eachline(USERFILE)) &&
     error("$USERFILE still has a `<...>` to replace")
 
-DataPipeline.install_cli(version = CLI_VERSION)
+DataPipeline.install_cli()
 
+# Without `--version`, `fair` installs the registry's newest release.
 if !isfile(joinpath(REGISTRY, "manage.py"))
     mkpath(dirname(REGISTRY))
-    fair"registry install --directory $REGISTRY --version $REGISTRY_VERSION"
+    fair"registry install --directory $REGISTRY"
 end
 
 # The CLI configuration: the local registry on its port and its store beside it, the public registry
@@ -61,5 +59,6 @@ write(config, """
 
 # Asks nothing, given the configuration; for a clone already initialised, registers its user again.
 fair"init --using $config --local"
-println("The pipeline is set up: registry at ", REGISTRY, ", data store at ",
-        joinpath(ROOT, "fair", "data_store"))
+println("The pipeline is set up: registry ",
+        readchomp(`git -C $REGISTRY describe --tags`), " at ", REGISTRY,
+        ", data store at ", joinpath(ROOT, "fair", "data_store"))

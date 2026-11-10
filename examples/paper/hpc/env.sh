@@ -10,15 +10,17 @@
 # copy of `fair` in its scratch spaces, and the local registry and its data store. On MARS, project
 # storage: home's quota would not hold the data AfricaPlants reads.
 export ECOSISTEM_HPC_ROOT="${ECOSISTEM_HPC_ROOT:-/mnt/data/project0000/$USER}"
-# The juliaup channel to run, as `juliaup add` named it: `juliaup add 1.13.3` makes `1.13.3`.
-export JULIAUP_CHANNEL="${JULIAUP_CHANNEL:-1.13.3}"
+# The juliaup channel to run, as `juliaup add` named it. `release` is the newest stable Julia, and
+# `setup.bash` brings it up to date. A channel added as `juliaup add 1.13.3` stays at that version.
+export JULIAUP_CHANNEL="${JULIAUP_CHANNEL:-release}"
 # The port the local registry listens on. Not 8000: a node is shared, and another user's server
 # there would stop the registry starting.
 export ECOSISTEM_HPC_PORT="${ECOSISTEM_HPC_PORT:-8030}"
 
-# MARS provides juliaup as a module; elsewhere it is expected on the path already.
+# MARS provides juliaup as a module, loaded at its default version; elsewhere it is expected on the
+# path already.
 if type module > /dev/null 2>&1; then
-    module load apps/juliaup/1.18.9
+    module load apps/juliaup
 fi
 
 # The trailing colon keeps Julia's own depots after this one, or every standard library recompiles.

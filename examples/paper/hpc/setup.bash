@@ -1,9 +1,10 @@
 #!/bin/bash -l
 #
-# Set up the paper's HPC runs, once: instantiate and precompile `examples/paper`'s environment on
-# the kind of node that runs it, then `setup.jl` - DataPipeline's copy of `fair`, the local registry
-# and the clone's `fair init`. Submit from the root of the clone, after filling in
-# `$ECOSISTEM_HPC_ROOT/fair/user.yaml` (see `fair-user.yaml`):
+# Set up the paper's HPC runs, or bring a set-up clone to the newest releases. It updates the
+# juliaup channel, resolves `examples/paper`'s environment at the newest versions and precompiles
+# it on the kind of node that runs it. Then `setup.jl` installs DataPipeline's copy of `fair` and
+# the local registry, and runs the clone's `fair init`. Submit from the root of the clone, after
+# filling in `$ECOSISTEM_HPC_ROOT/fair/user.yaml` (see `fair-user.yaml`):
 #
 #     sbatch examples/paper/hpc/setup.bash
 #
@@ -32,5 +33,7 @@ set -euo pipefail
 mkdir -p "$ECOSISTEM_HPC_ROOT/fair"
 
 ############# SET-UP #############
-julia --project=examples/paper -e 'using Pkg; Pkg.instantiate()'
+# The channel's newest Julia, then the newest versions of the environment's packages.
+juliaup update "$JULIAUP_CHANNEL"
+julia --project=examples/paper -e 'using Pkg; Pkg.update()'
 julia --project=examples/paper examples/paper/hpc/setup.jl

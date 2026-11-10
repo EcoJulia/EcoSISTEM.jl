@@ -27,6 +27,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=128       # Julia threads
 #SBATCH --threads-per-core=1
+#SBATCH --dependency=singleton    # one job of a name at a time: the registry runs on one node at a time
 
 ############# ENVIRONMENT #############
 if [ ! -f examples/paper/hpc/env.sh ]; then
@@ -37,8 +38,9 @@ source examples/paper/hpc/env.sh
 set -euo pipefail
 
 ############# THE RUN #############
-# Brings the environment up to date with the clone, should it have moved since `setup.bash`, and
-# keeps the versions it resolved beside this job's logs: the manifest is not part of the repository.
+# Installs the versions `setup.bash` resolved, should any be missing, and keeps them beside this
+# job's logs: the manifest is not part of the repository. After moving the clone to another release,
+# submit `setup.bash` again first.
 julia --project=examples/paper -e 'using Pkg; Pkg.instantiate()'
 cp examples/paper/Manifest.toml "${SLURM_JOB_NAME:-paper}-${SLURM_JOB_ID:-local}.Manifest.toml"
 

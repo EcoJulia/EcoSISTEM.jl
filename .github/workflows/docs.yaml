@@ -28,15 +28,15 @@ jobs:
           Pkg.instantiate()
       - uses: julia-actions/julia-buildpkg@v1
       # The data pipeline page runs `examples/pipeline/` against a local registry that starts empty,
-      # and draws the figure's provenance with GraphViz. The CLI and the registry are pinned to a
-      # pair known to work together.
+      # and draws the figure's provenance with GraphViz. The CLI and the registry are each the newest
+      # release.
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Install and start the FAIR Data Pipeline's local registry
         run: |
-          python -m pip install fair-cli==0.11.0
-          fair registry install --version v1.4.0
+          python -m pip install fair-cli
+          fair registry install
           fair init --ci
           fair registry start
       - name: Install GraphViz
