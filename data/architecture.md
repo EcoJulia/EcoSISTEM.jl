@@ -972,11 +972,14 @@ classDiagram
     class ByLayer~L, N~
     class Weighted~W, N~
     class FromTable~D~
-    class FromOccurrences~R, D, T, S, N, L~
+    class FromOccurrences~R, D, T, S, W, N, L~
     class ToCapacity~P~
     class SumOfPlacements~P~
     class PlacementContext~C, S, R, NF~
     class PlacedAbundances~T~
+    class AbstractRecordWeight
+    class WeightPerRecord~L, V~
+    class WeightPerCell~L, V~
     AbstractPlacement <|-- BySupply
     AbstractPlacement <|-- BySuitability
     AbstractPlacement <|-- ByLayer
@@ -989,6 +992,9 @@ classDiagram
     Weighted "1" *-- "*" AbstractPlacement : weights
     SumOfPlacements "1" *-- "*" AbstractPlacement : placements
     ToCapacity "1" *-- "1" AbstractPlacement : placement
+    AbstractRecordWeight <|-- WeightPerRecord
+    AbstractRecordWeight <|-- WeightPerCell
+    FromOccurrences "1" *-- "0..1" AbstractRecordWeight : weight
     PlacedAbundances "1" *-- "*" ProvenanceRecord : records
 ```
 
@@ -1008,6 +1014,13 @@ cell must score on every weight to be worth placing in. `+` adds placements' row
 species, or `each` species' own - and never to a weight inside one. `ToCapacity` takes another
 placement's numbers as shares and fills each cell until what its species demand of the scarcest
 resource is what the cell supplies.
+
+**A record weight weighs records, not cells.** `FromOccurrences` may take an `AbstractRecordWeight`,
+read at each record's position from a layer on a grid of its own: `WeightPerRecord` gives each
+record its cell's value, and `WeightPerCell` shares each cell's value among the records made there.
+They serve different sampling designs - records that are equal samples, and records whose numbers
+follow how hard each place was searched - so neither is the other corrected. A `scale` makes the
+weights individuals; without one they are shares, which `ToCapacity` takes.
 
 ```mermaid
 classDiagram

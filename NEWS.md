@@ -8,6 +8,13 @@
       rank's cells.
     - `RecordTotals(eco, ntimes)` records each species' total over the grid and each cell's total
       over the species at every occurrence, summed across ranks under MPI.
+    - `FromOccurrences(...; weight, scale)` weighs each record by a layer at its position, read at
+      the layer's own resolution: `WeightPerRecord(layer)` gives each record its cell's value,
+      `WeightPerCell(layer)` shares each cell's value among the records made there; `scale` makes
+      each unit of weight that many individuals, and a `do` block sees each record's `weight`.
+  - Fixed
+    - A build refusing `FromOccurrences` records dated after its start names the keyword that dated
+      them, `date` or `time`.
 
 - v0.11.0
   - Breaking changes

@@ -376,13 +376,9 @@ end
 # grid, with no active cell that near, or with no position; and how many records each of those took.
 # A cell's nearest active cell is found once, however many records it holds.
 function _snapcells(x, latitudes, longitudes, snap::Unitful.Length)
-    rows = [r
-            for (r, (lat, long)) in enumerate(zip(latitudes, longitudes))
-            if !(ismissing(lat) || ismissing(long))]
-    places = [LatLong(_rowdegrees(latitudes[r], r, "latitude") * °,
-                      _rowdegrees(longitudes[r], r, "longitude") * °)
-              for r in rows]
-    found = getcellat(x, places)
+    placed = _recordplaces(latitudes, longitudes)
+    rows = placed.rows
+    found = getcellat(x, placed.places)
     yx = _gridyx(x)
     active = _activemask(x)
     cells = Vector{Union{Nothing, CartesianIndex{2}}}(nothing,
@@ -408,6 +404,17 @@ function _snapcells(x, latitudes, longitudes, snap::Unitful.Length)
     end
     return (cells = cells, offgrid = offgrid, inactive = inactive,
             snapped = snapped, unplaced = length(latitudes) - length(rows))
+end
+
+# The rows with a position, and each one's place.
+function _recordplaces(latitudes, longitudes)
+    rows = [r
+            for (r, (lat, long)) in enumerate(zip(latitudes, longitudes))
+            if !(ismissing(lat) || ismissing(long))]
+    places = [LatLong(_rowdegrees(latitudes[r], r, "latitude") * °,
+                      _rowdegrees(longitudes[r], r, "longitude") * °)
+              for r in rows]
+    return (rows = rows, places = places)
 end
 
 # A row's latitude or longitude in degrees, refused where it is not a number.

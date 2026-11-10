@@ -508,6 +508,132 @@ end
                                                           species, habitat)
 end
 
+@testset "a weight reads a layer at each record, for each record or shared in its cell" begin
+    habitat = _bnghabitat()
+    species = _species()
+    records = _records(habitat)[1:6, :]
+    linear = LinearIndices(EcoSISTEM.getgridshape(habitat))
+    # An amount on the habitat's own grid, 30 in `A` and 60 in `B`, where species 1 has three
+    # records in `A` and one in `B`, and species 2 two in `B`.
+    function amounts()
+        layer = materialise(UniformSpec(1.0km^2, axis = SurfaceArea),
+                            habitat.area)
+        layer.matrix[A] = 30.0km^2
+        layer.matrix[B] = 60.0km^2
+        return layer
+    end
+    amount = amounts()
+    placed(weight; kw...) = _placed(FromOccurrences(records, weight = weight,
+                                                    scale = 1.0 / km^2; kw...),
+                                    species, habitat)
+    # Every record its cell's value; or each cell's value once, shared among its records.
+    perrecord = placed(WeightPerRecord(amount)).abundances.matrix
+    @test perrecord[1, linear[A]] == 90
+    @test perrecord[1, linear[B]] == 60
+    @test perrecord[2, linear[B]] == 120
+    percell = placed(WeightPerCell(amount)).abundances.matrix
+    @test percell[1, linear[A]] == 30
+    @test percell[1, linear[B]] == 20
+    @test percell[2, linear[B]] == 40
+    @test sum(percell) == 90
+    # A record of the data shares its cell whether or not it is placed: a fourth in `A`, of a name
+    # the list does not hold, leaves species 1 three quarters of 30, rounded to even.
+    unknown = vcat(records, _records(habitat)[9:9, :])
+    shared = @test_logs((:warn, r"`zz`"),
+                        _placed(FromOccurrences(unknown,
+                                                weight = WeightPerCell(amount),
+                                                scale = 1.0 / km^2), species,
+                                habitat)).abundances.matrix
+    @test shared[1, linear[A]] == 22
+    @test shared[1, linear[B]] == 20
+
+    # Shared among the records in each cell of the layer's own grid, not the habitat's: two places
+    # in `A` that lie in different cells of a grid twice as fine.
+    finespec = _reg(_bngraster(WorldClim{BioClim}, fill(1.0, 18, 18),
+                               east = (245000.0:1250.0:266250.0) .* m,
+                               north = (640000.0:1250.0:661250.0) .* m))
+    fine = materialise(finespec, _area(regime = finespec))
+    lattice = [LatLong(lat * 1.0°, long * 1.0°)
+               for lat in 55.6:0.002:56.0 for long in -4.7:0.002:-3.8]
+    coarsecells = getcellat(habitat, lattice)
+    finecells = getcellat(fine, lattice)
+    ina = [i
+           for i in eachindex(lattice)
+           if coarsecells[i] == A && !isnothing(finecells[i])]
+    here = first(ina)
+    there = first(i for i in ina if finecells[i] != finecells[here])
+    split = DataFrame(species = ["1", "1", "1", "2"],
+                      decimalLatitude = [ustrip(lattice[i].y)
+                                         for i in (here, here, here, there)],
+                      decimalLongitude = [ustrip(lattice[i].x)
+                                          for i in (here, here, here, there)])
+    onfine = _placed(FromOccurrences(split, weight = WeightPerCell(fine),
+                                     scale = 12), species,
+                     habitat).abundances.matrix
+    @test onfine[1, linear[A]] == 12
+    @test onfine[2, linear[A]] == 12
+    coarse = materialise(UniformSpec(1.0, axis = EcoSISTEM.NicheAxis),
+                         habitat.area)
+    oncoarse = _placed(FromOccurrences(split, weight = WeightPerCell(coarse),
+                                       scale = 12), species,
+                       habitat).abundances.matrix
+    @test oncoarse[1, linear[A]] == 9
+    @test oncoarse[2, linear[A]] == 3
+
+    # Without a scale the weights are shares, which `ToCapacity` fills each cell by and nothing else
+    # takes.
+    filled = _placed(ToCapacity(FromOccurrences(records,
+                                                weight = WeightPerCell(amount))),
+                     species, habitat).abundances.matrix
+    @test filled[2, linear[B]] / filled[1, linear[B]] ≈ 2 rtol = 0.01
+    @test filled[2, linear[A]] == 0
+    @test_throws "only `ToCapacity` takes" _placed(FromOccurrences(records,
+                                                                   weight = WeightPerCell(amount)),
+                                                   species, habitat)
+    # A rule sees each record's weight, to make any other number from it.
+    seen = Ref{Any}()
+    ruled = FromOccurrences(records, weight = WeightPerRecord(amount)
+                            ) do rows, _, _
+        seen[] = rows.weight
+        return (species = rows.species, cell = rows.cell,
+                count = round.(Int, max.(ustrip.(km^2, rows.weight) ./ 30, 1)))
+    end
+    @test sum(_placed(ruled, species, habitat).abundances.matrix) == 9
+    @test seen[] == [30.0, 30.0, 30.0, 60.0, 60.0, 60.0] .* km^2
+    @test occursin("weight = WeightPerCell(",
+                   sprint(show,
+                          FromOccurrences(records,
+                                          weight = WeightPerCell(amount),
+                                          scale = 1.0 / km^2)))
+
+    # Where the layer has no value a record takes the weight's `novalue`, and is refused without
+    # one; a negative value is refused.
+    gap = amounts()
+    gap.matrix[B] = NaN * km^2
+    @test_throws "has no value" placed(WeightPerCell(gap))
+    nob = placed(WeightPerCell(gap, novalue = 0.0km^2)).abundances.matrix
+    @test nob[1, linear[A]] == 30
+    @test iszero(nob[:, linear[B]])
+    below = amounts()
+    below.matrix[A] = -1.0km^2
+    @test_throws "negative" placed(WeightPerRecord(below))
+    # Refused: a scale whose units do not cancel the weight's, a scale with no weight, numbers of
+    # records beside a weight, a scale beside a rule, and a `novalue` in other units.
+    @test_throws "give `scale` in km⁻²" FromOccurrences(records,
+                                                        weight = WeightPerCell(amount),
+                                                        scale = 2.0)
+    @test_throws "give a `weight` too" FromOccurrences(records, scale = 2.0)
+    @test_throws "not from `total` or `per_record`" FromOccurrences(records,
+                                                                    weight = WeightPerCell(amount),
+                                                                    total = 10)
+    @test_throws "not both" FromOccurrences(records,
+                                            weight = WeightPerCell(amount),
+                                            scale = 1.0 / km^2) do rows, _, _
+        return rows
+    end
+    @test_throws "in the layer's units, km²" WeightPerCell(amount, novalue = 3)
+end
+
 @testset "occurrence records are dated through the run's epoch and calendar" begin
     habitat = _bnghabitat()
     species = _species()
@@ -556,12 +682,16 @@ end
     timed = records(:elapsed, [-1.0year, -2.0year])
     eco = _placed(FromOccurrences(timed, time = :elapsed), species, habitat)
     @test sum(eco.abundances.matrix) == 2
-    @test_throws "dated after the run's start" build_ecosystem(FromOccurrences(records(:eventDate,
-                                                                                       ["2021-01-01"]),
-                                                                               date = :eventDate),
-                                                               species, habitat,
-                                                               epoch = epoch,
-                                                               verbosity = :silent)
+    @test_throws "give `date = nothing`" build_ecosystem(FromOccurrences(records(:eventDate,
+                                                                                 ["2021-01-01"]),
+                                                                         date = :eventDate),
+                                                         species, habitat,
+                                                         epoch = epoch,
+                                                         verbosity = :silent)
+    @test_throws "give `time = nothing`" _placed(FromOccurrences(records(:elapsed,
+                                                                         [1.0year]),
+                                                                 time = :elapsed),
+                                                 species, habitat)
     @test_throws "by `date` or by `time`, not both" FromOccurrences(timed,
                                                                     date = :eventDate,
                                                                     time = :elapsed)
