@@ -290,10 +290,11 @@ Provenancer.fetchinto) fetches, and recorded under `role` with what its download
 ([`downloadrecord`](@ref Provenancer.downloadrecord)) and what its facts say of the source
 ([`sourceentries`](@ref Provenancer.sourceentries)). A spec of the file takes the record in place
 of a path. A file beside a same-named sidecar that is not a record of ours is refused, since that
-sidecar is neither read nor overwritten. A record of ours already there that names no source - one
-of the download alone - is brought up to date with the file's facts, keeping what the download
-recorded; one naming another source or role, or a file the package fetched from its catalogue, is
-refused, as [`record_provenance`](@ref) refuses it.
+sidecar is neither read nor overwritten. A record of ours may already be there that names no
+source, such as a record of the download alone. It is then brought up to date with the file's
+facts, and keeps what the download recorded. A record that names another source or role is
+refused, as [`record_provenance`](@ref) refuses it, and so is a record of a file the package fetched
+from its catalogue.
 
 With a `track`, the download goes through a data pipeline run as a file
 [`record_provenance`](@ref) records does: a run whose working config writes the file and its
@@ -327,9 +328,10 @@ function fetchfile(file::URLFile; role::Symbol, verify::Bool = false,
     return _recordwithfacts(file.facts, file, record, role)
 end
 
-# A fetched file's record of ours reconciled with the file's facts: as it is where it says what the
-# facts would, or where there are none; brought up to date with them where it names no source, as a
-# record of the download alone does, under the same role; otherwise refused.
+# A fetched file's record of ours, reconciled with the file's facts. The record is returned as it is
+# when there are no facts, or when it already says what the facts say. A record that names no
+# source, such as a record of the download alone, takes the facts if its role is the same. Any other
+# record is refused.
 function _recordwithfacts(::Nothing, ::URLFile, record::ProvenanceRecord,
                           ::Symbol)
     return record
@@ -349,8 +351,8 @@ function _recordwithfacts(facts::SourceFacts, file::URLFile,
                            sidecar = record.sidecar)
 end
 
-# Whether the record of ours at `sidecar` names no source - no name, DOI or citation key - as a record
-# of a download alone does.
+# Whether the record of ours at `sidecar` names no source: no name, DOI or citation key. A record of
+# a download alone names none.
 function _namesnosource(sidecar::AbstractString)
     t = TOML.parsefile(sidecar)
     return !any(haskey(t, k) for k in ("source", "dataset", "doi", "key"))

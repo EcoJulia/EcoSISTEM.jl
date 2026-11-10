@@ -58,13 +58,13 @@ function EcoSISTEM._fetchfiles(T::Type{<:RDS.RasterDataSource}, code; kw...)
     return raw
 end
 
-# A fetch that cannot succeed, refused before it is tried: CHELSA-BIOCLIM+'s four `rsds` files, for
-# which RasterDataSources asks CHELSA's server for `CHELSA_rsds_<stat>_1981-2010_V.2.1.tif` where it
-# has `CHELSA_rsds_1981-2010_<stat>_V.2.1.tif`, and CHELSA's twelve monthly `rsds` files, asked for as
-# `CHELSA_rsds_<MM>_1981-2010_V.2.1.tif` where it has `CHELSA_rsds_1981-2010_<MM>_V.2.1.tif`, so the
-# download is a 404. A file already in place reads as usual. Delete each method once
-# RasterDataSources names its files as the server does, which
-# `test/ext_EcoSISTEMRasterDataSourcesExt.jl` reports by failing.
+# A fetch that cannot succeed, refused before it is tried. RasterDataSources asks CHELSA's server
+# for files it does not have, so the download is a 404. For CHELSA-BIOCLIM+'s four `rsds` files it
+# asks for `CHELSA_rsds_<stat>_1981-2010_V.2.1.tif`, and the server has
+# `CHELSA_rsds_1981-2010_<stat>_V.2.1.tif`. For CHELSA's twelve monthly `rsds` files it asks for
+# `CHELSA_rsds_<MM>_1981-2010_V.2.1.tif`, and the server has `CHELSA_rsds_1981-2010_<MM>_V.2.1.tif`.
+# A file already in place reads as usual. Delete each method once RasterDataSources names its files
+# as the server does. `test/ext_EcoSISTEMRasterDataSourcesExt.jl` reports that by failing.
 _refusemisnamed(T, layers; kw...) = nothing
 
 function _refusemisnamed(T::Type{RDS.CHELSA{RDS.BioClimPlus}}, layers; kw...)

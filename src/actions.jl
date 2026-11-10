@@ -343,14 +343,14 @@ state's own seed, the default, each saved species continues its own random strea
 on as the saved one would have; another `seed` gives fresh streams, for replicates from one state.
 The clock starts at `elapsed`, the state's own unless given (`elapsed = 0.0s` starts a run afresh
 from it), and any series a layer follows takes its values at that time. A layer's change rule is not
-saved: at its first step a run continuing a state installs again the rules its interventions would
-have installed by then, so given the saved run's interventions it goes on with the saved run's rules.
-`changing` names the layers whose change rule the run is meant to change from the saved one; a name
-covers a regime layer and a supply layer of that name alike. At its first step the run warns of any
-layer whose rule changed but is not named, and of any named layer whose rule did not change. Every
-layer whose rule changed, named or not, is listed in the run's [`provenance`](@ref) with the rule it
-was saved with, the rule it changes by now, and whether it was named. The state's record is among
-the ecosystem's inputs.
+saved. At its first step a run continuing a state installs again the rules its interventions would
+have installed by then. So given the saved run's interventions, it goes on with the saved run's
+rules. `changing` names the layers whose change rule the run is meant to change from the saved one;
+a name covers a regime layer and a supply layer of that name alike. At its first step the run warns
+of any layer whose rule changed but is not named, and of any named layer whose rule did not change.
+Every layer whose rule changed, named or not, is listed in the run's [`provenance`](@ref) with the
+rule it was saved with, the rule it changes by now, and whether it was named. The state's record is
+among the ecosystem's inputs.
 """
 function build_ecosystem(placement, species::SpeciesList,
                          environment::GridHabitat;

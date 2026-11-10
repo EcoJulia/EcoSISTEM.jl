@@ -40,8 +40,8 @@ struct _PerRecord
     value::Int
 end
 
-# How `FromOccurrences` turns weighted records into individuals: `scale` for each unit of weight,
-# or, with no scale, the weights as shares of the whole.
+# How `FromOccurrences` turns weighted records into individuals. With a scale, each unit of weight
+# places `scale` individuals. Without one, the weights are shares of the whole.
 struct _WeightScale{S}
     value::S
 end
@@ -253,32 +253,32 @@ end
 """
     AbstractRecordWeight
 
-How much each occurrence record weighs as [`FromOccurrences`](@ref) turns records into individuals,
-read from a layer at each record's position: [`WeightPerRecord`](@ref), where one value of the layer
-weighs each record in its cell, or [`WeightPerCell`](@ref), where it weighs the cell once and the
-records in it share it.
+How much each occurrence record weighs when [`FromOccurrences`](@ref) turns records into
+individuals. The weight is read from a layer at each record's position. With
+[`WeightPerRecord`](@ref) each record in a cell gets the cell's value. With [`WeightPerCell`](@ref)
+the cell's value counts once, and the records in the cell share it.
 """
 abstract type AbstractRecordWeight end
 
 """
     WeightPerRecord(layer; novalue = nothing)
 
-A weight for each occurrence record of `layer`'s value in the cell of the layer's own grid holding
-the record, so that each record counts that value in full and a cell with two records counts it
-twice. It suits records that are equal samples, such as those of a systematic survey of equal
-effort, weighted by what the layer says of where each was made.
+Weigh each occurrence record by `layer`'s value in the cell that holds it, a cell of the layer's
+own grid. Each record counts that value in full, so a cell with two records counts it twice. This
+suits records that are equal samples, such as those of a systematic survey of equal effort.
 
 # Arguments
 
-  - `layer`: a continuous layer, on a grid of its own - built with [`materialise`](@ref) on a
-    [`StudyArea`](@ref) of its own resolution - so that it is read at that resolution rather than the
-    habitat's. Its values must be finite and non-negative where records are.
-  - `novalue`: the weight, in the layer's units, of a record where the layer has no value: off its
-    grid, or `NaN` or `missing` there. Without it such a record is refused.
+  - `layer`: a continuous layer on a grid of its own, built with [`materialise`](@ref) on a
+    [`StudyArea`](@ref) of the resolution wanted. It is read at that resolution, not the habitat's.
+    Its values must be finite and non-negative where there are records.
+  - `novalue`: the weight, in the layer's units, of a record where the layer has no value. That is a
+    record off the layer's grid, or in a cell holding `NaN` or `missing`. Without `novalue` such a
+    record is refused.
 
 # Fields
 
-  - `layer`, `novalue`: as given, `novalue` in the layer's units.
+  - `layer`, `novalue`: as given, `novalue` converted to the layer's units.
 """
 struct WeightPerRecord{L <: ContinuousLayer, V} <: AbstractRecordWeight
     layer::L
@@ -293,24 +293,24 @@ end
 """
     WeightPerCell(layer; novalue = nothing)
 
-A weight for each occurrence record of `layer`'s value in the cell of the layer's own grid holding
-the record, divided equally among every record of the data in that cell - of every species and
-date, placed or not - so that each cell counts its value once and the records made there share it.
-It suits records whose numbers follow how hard each place was searched, so that a much-visited cell
-counts its value no more than a rarely visited one, and its records decide only how that value is
-split between species. The layer is then an amount in each cell, such as a vegetation index times
-the cell's land area.
+Weigh each occurrence record by `layer`'s value in the cell that holds it, divided equally among all
+the records in that cell. The cell is a cell of the layer's own grid. Every record of the data in
+the cell counts, whatever its species or date, and whether or not it is placed. So each cell counts
+its value once, and the records made there share it. This suits records whose numbers follow how
+hard each place was searched. A much-visited cell then counts for no more than a rarely visited cell
+of the same value, and its records decide only how that value is split between species. The layer
+is then an amount in each cell, such as a vegetation index times the cell's land area.
 
 # Arguments
 
-  - `layer`: a continuous layer, on a grid of its own, as for [`WeightPerRecord`](@ref); a record
-    shares with the others in its cell of this grid, not of the habitat's.
+  - `layer`: a continuous layer on a grid of its own, as for [`WeightPerRecord`](@ref). Records
+    share a value with the other records in their cell of this grid, not of the habitat's grid.
   - `novalue`: the weight, in the layer's units, of a record where the layer has no value, as for
     [`WeightPerRecord`](@ref).
 
 # Fields
 
-  - `layer`, `novalue`: as given, `novalue` in the layer's units.
+  - `layer`, `novalue`: as given, `novalue` converted to the layer's units.
 """
 struct WeightPerCell{L <: ContinuousLayer, V} <: AbstractRecordWeight
     layer::L
@@ -339,11 +339,12 @@ places that many individuals for each record instead; `total` spreads a number o
 the records in proportion to them, drawn from the run's community stream, so a species with no records
 gets none. `rule`, a function usually written as a `do` block, makes any other table from the records.
 
-A `weight` - [`WeightPerRecord`](@ref) or [`WeightPerCell`](@ref) - weighs each record by a layer at
-its position. Each record then places `scale` individuals for each unit of its weight, summed for
-each species and cell (and time, where dated) and rounded to the nearest whole individual. Without a
-`scale` the summed weights are shares of the whole, which only [`ToCapacity`](@ref) takes. A `rule`
-sees each record's weight, so it can make any other number from them.
+A `weight`, [`WeightPerRecord`](@ref) or [`WeightPerCell`](@ref), weighs each record by a layer at
+its position. Each record then places `scale` individuals for each unit of its weight. These are
+summed for each species and cell, and each time where the records are dated, then rounded to the
+nearest whole individual. Without a `scale` the summed weights are shares of the whole, which only
+[`ToCapacity`](@ref) takes. A `rule` sees each record's weight, so it can make any other number from
+them.
 
 Records are undated unless `date` or `time` names a column. At build every dated record must be at or
 before the run's start; a record whose date cannot be read is dropped, counted in a notice.
@@ -370,8 +371,9 @@ before the run's start; a record whose date cannot be read is dropped, counted i
   - `per_record`: a whole number of individuals for each record. Not with `total`.
   - `weight`: an [`AbstractRecordWeight`](@ref) weighing each record. Not with `total` or
     `per_record`.
-  - `scale`: the individuals a record places for each unit of its `weight`, a non-negative number
-    whose units cancel the weight's - a density, `2.0/km^2`, for a weight that is an area.
+  - `scale`: the individuals a record places for each unit of its `weight`. It is a non-negative
+    number whose units cancel the weight's: a density such as `2.0/km^2` for a weight that is an
+    area.
   - `level`: how the records that cannot be placed are reported, a [`ProblemWarning`](@ref) by
     default, as for [`IsActiveSpecies`](@ref).
   - `provenance`: [`ProvenanceRecord`](@ref)s of the data the table was made from, and of the files
@@ -1335,9 +1337,9 @@ function _refusedensity(x::Unitful.AbstractQuantity, what::AbstractString)
                  "$x.")
 end
 
-# `FromOccurrences`' numbers as given: a weight's `scale` or shares, refusing the record numbers
-# beside a weight and a scale without one; otherwise a community `total`, a number `per_record`, or
-# the default, one.
+# `FromOccurrences`' numbers as given. With a weight they are its `scale`, or shares when there is
+# no scale; `total` and `per_record` are refused beside a weight, and `scale` is refused without
+# one. Without a weight they are a community `total`, a number `per_record`, or the default of one.
 function _occurrencenumbers(total, per_record, weight::AbstractRecordWeight,
                             scale)
     (isnothing(total) && isnothing(per_record)) ||
@@ -1370,8 +1372,8 @@ function _occurrencenumbers(total, n)
                  "community's, spread over the records, and `per_record` each record's.")
 end
 
-# A `scale` whose units cancel the weight's, so that a record's weight times it is a number of
-# individuals, and which is finite and non-negative.
+# A `scale`, refused unless its units cancel the weight's and it is finite and non-negative. A
+# record's weight times the scale is then a number of individuals.
 function _checkscale(scale::Union{Real, Unitful.AbstractQuantity},
                      weight::AbstractRecordWeight)
     unitweight = oneunit(eltype(weight.layer.matrix))
@@ -1389,8 +1391,8 @@ function _checkscale(scale, ::AbstractRecordWeight)
     return error("`scale` is a number, the individuals for each unit of weight; got $(repr(scale)).")
 end
 
-# The layer a record weight reads, refusing a collection or a categorical layer, and its `novalue`
-# in the layer's own units.
+# A record weight's `novalue`, converted to its layer's units. A collection or a categorical layer
+# is refused.
 function _weightlayer(layer::ContinuousLayer, novalue, what::AbstractString)
     isnothing(novalue) && return nothing
     T = float(eltype(layer.matrix))
@@ -1412,10 +1414,10 @@ function _weightlayer(layer::AbstractLayer, ::Any, what::AbstractString)
                  "$(nameof(typeof(layer))), whose values are classes.")
 end
 
-# Each record's weight in `rows`, the rows `keep` of `data` placed: the weight's layer read in the
-# cell of its own grid holding the record, shared under `WeightPerCell` with every record of the
-# data in that cell. A record where the layer has no value takes the weight's `novalue`, and is
-# refused without one; a negative value is refused.
+# The weight of each placed record, the rows `keep` of `data`. The weight's layer is read in the
+# cell of its own grid that holds the record. Under `WeightPerCell` the value is shared with every
+# record of the data in that cell. A record where the layer has no value takes the weight's
+# `novalue`, and is refused if there is none. A negative value is refused.
 function _recordweights(w::AbstractRecordWeight, data::DataFrame,
                         keep::AbstractVector{<:Integer}, latitude::Symbol,
                         longitude::Symbol)
@@ -1446,8 +1448,8 @@ function _recordweights(w::AbstractRecordWeight, data::DataFrame,
     return weights
 end
 
-# The cell of `layer`'s own grid holding each record, `nothing` where a record has no position or
-# lies off that grid.
+# The cell of `layer`'s own grid that holds each record. It is `nothing` for a record with no
+# position or one off that grid.
 function _layercells(layer::AbstractLayer, latitudes, longitudes)
     placed = _recordplaces(latitudes, longitudes)
     cells = Vector{Union{Nothing, CartesianIndex{2}}}(nothing,
@@ -1456,8 +1458,8 @@ function _layercells(layer::AbstractLayer, latitudes, longitudes)
     return cells
 end
 
-# What a record's value in its cell is divided by: one for `WeightPerRecord`, and for
-# `WeightPerCell` the records of the data in that cell.
+# What a record's value in its cell is divided by: one for `WeightPerRecord`, and the number of
+# records of the data in that cell for `WeightPerCell`.
 _sharingcounts(::WeightPerRecord, ::AbstractVector) = _ -> 1
 
 function _sharingcounts(::WeightPerCell, cells::AbstractVector)
@@ -1600,8 +1602,8 @@ _datepart(x::AbstractString) = tryparse(Int, strip(x))
 
 _datepart(::Any) = nothing
 
-# Refuse records dated after a build's start, saying how to place them by the keyword that dated
-# them.
+# Refuse records dated after a build's start, saying how to place them. The advice names the
+# keyword, `date` or `time`, that dated them.
 function _checkstarted(rows::DataFrame, context::PlacementContext,
                        keyword::Symbol)
     late = count(>(context.time), rows.time)
@@ -1676,9 +1678,10 @@ function _occurrencecounts(numbers::_Total, rows::DataFrame, ::SpeciesList,
     return _grouptable(groups, drawn, dated)
 end
 
-# The records' weights for each species, cell and, where dated, time: `scale` individuals for each
-# unit of weight, the sums rounded to the nearest whole individual, ties to even; or, without a
-# scale, each group's share of every weight, which only `ToCapacity` takes.
+# The records' weights summed for each species and cell, and each time where the records are dated.
+# With a scale, each unit of weight places `scale` individuals, and the sums are rounded to the
+# nearest whole individual, ties to even. Without one, each group's share of all the weights is its
+# count, which only `ToCapacity` takes.
 function _occurrencecounts(numbers::_WeightScale, rows::DataFrame,
                            ::SpeciesList, ::PlacementContext,
                            ::Vector{Problem}, dated::Bool)
@@ -1705,8 +1708,9 @@ function _occurrencecounts(::_WeightShares, rows::DataFrame, ::SpeciesList,
                         for w in groups.sums], dated)
 end
 
-# Each species', cell's and, where dated, time's records' values summed, each group's correctly
-# rounded total, whatever the records' order: the groups' keys, sorted, and their sums.
+# The records' values summed for each species and cell, and each time where the records are dated.
+# Each group's total is correctly rounded, whatever the order of the records. Returns the groups'
+# keys, sorted, and their sums.
 function _summedgroups(rows::DataFrame, dated::Bool, values::AbstractVector)
     keys_ = dated ? collect(zip(rows.species, rows.cell, rows.time)) :
             collect(zip(rows.species, rows.cell))

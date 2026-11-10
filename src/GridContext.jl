@@ -18,11 +18,11 @@ habitat or an ecosystem.
     `extent` its cells cover, and how many `cells` it has and how many of them are `active`.
   - `run`: for an ecosystem, a named tuple of its `seed`, its `epoch` (`nothing` without one), the
     run `calendar` its dates were placed by, the time `elapsed`, the `placement` its individuals
-    were placed by, as written (`nothing` where it records none), and its `changes`: for a run
-    continuing a saved state, each layer whose change rule differs from the one it was saved with,
-    its `role`, `layer` name, the rule it was `saved` with, the one it changes by `now`, and whether
-    `build_ecosystem`'s `changing` `declared` it, and none otherwise; `nothing` for a study area or
-    a habitat.
+    were placed by, as written (`nothing` where it records none), and its `changes`. For a run
+    continuing a saved state, `changes` lists each layer whose change rule differs from the one it
+    was saved with. Each entry gives the layer's `role` and `layer` name, the rule it was `saved`
+    with, the rule it changes by `now`, and whether `build_ecosystem`'s `changing` `declared` it.
+    `changes` is empty for any other run. `run` is `nothing` for a study area or a habitat.
 """
 struct GridContext <: AbstractProvenanceContext
     grid::NamedTuple

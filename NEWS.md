@@ -3,27 +3,27 @@
 - v0.11.1
   - Added
     - `RecordDiversity(eco, ntimes; qs, subcommunity, metacommunity)` records Diversity's measure
-      types in every cell and for the whole grid, every measure of a recording taken from one
-      snapshot of the abundances; under MPI too, the whole grid's values assembled from every
-      rank's cells.
+      types in every cell and for the whole grid. All the measures of a recording come from one
+      snapshot of the abundances. Under MPI it assembles the whole grid's values from every rank.
     - `RecordTotals(eco, ntimes)` records each species' total over the grid and each cell's total
-      over the species at every occurrence, summed across ranks under MPI.
-    - `FromOccurrences(...; weight, scale)` weighs each record by a layer at its position, read at
-      the layer's own resolution: `WeightPerRecord(layer)` gives each record its cell's value,
-      `WeightPerCell(layer)` shares each cell's value among the records made there; `scale` makes
+      over the species, at every occurrence. Under MPI the totals are summed across the ranks.
+    - `FromOccurrences(...; weight, scale)` weighs each record by a layer at its position, at the
+      layer's own resolution. `WeightPerRecord(layer)` gives each record its cell's value, and
+      `WeightPerCell(layer)` shares each cell's value among the records made there. `scale` makes
       each unit of weight that many individuals, and a `do` block sees each record's `weight`.
     - `build_ecosystem(species, habitat; from, changing)` takes the names of the layers whose change
-      rule a run continuing a saved state is meant to change. The run warns of an unnamed layer whose
-      rule changed and of a named layer whose rule did not; its provenance records every rule that
-      changed.
+      rule a run continuing a saved state is meant to change. The run warns of an unnamed layer
+      whose rule changed, and of a named layer whose rule did not. Its provenance records every rule
+      that changed.
   - Fixed
     - A build refusing `FromOccurrences` records dated after its start names the keyword that dated
       them, `date` or `time`.
     - `Provenancer.fetchfile` writes its file's facts into a record of the download alone already
-      beside the file; a record naming another source or role is refused, same as `record_provenance`.
-    - A `RasterFileSpec` of a file on a projected grid reads through a study area's window - given
-      to `GridHabitat` or `materialise` unread, or named in an area with a `within` - where it
-      failed with a `DimensionError` comparing metres with degrees.
+      beside the file. A record naming another source or role is refused, as `record_provenance`
+      refuses it.
+    - A `RasterFileSpec` of a file on a projected grid can be read through a study area's window. It
+      failed with a `DimensionError`, comparing metres with degrees, when given to `GridHabitat` or
+      `materialise` before being read, or when named in an area with a `within`.
     - Fetching CHELSA's monthly `rsds` fails naming the file CHELSA's server has, which
       RasterDataSources gets wrong.
 

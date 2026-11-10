@@ -300,11 +300,11 @@ function _refusemetacommunity()
 end
 
 # == One rank's cells as a metacommunity, for a recording ==========================================
-# What Diversity's own measure constructors read - abundances, weights, ordinariness and the whole
-# metacommunity's ordinariness - for this rank's cells, computed once for a recording, so that every
-# measure is built from them by Diversity itself, lazily, with no communication. A `Metacommunity`
-# cannot stand in: it would renormalise a block summing to this rank's share. The abundances alias
-# the scratch, so a snapshot lives only for the recording that made it.
+# What Diversity's own measure constructors read for this rank's cells: the abundances, the weights,
+# the ordinariness and the whole metacommunity's ordinariness. They are computed once per recording.
+# Diversity then builds every measure from them lazily, with no communication. A `Metacommunity`
+# cannot stand in, because it would renormalise a block that sums to this rank's share. The
+# abundances share the scratch's memory, so a snapshot lasts only for the recording that made it.
 struct _RankSnapshot{SL, A <: AbstractMatrix{Float64},
                      O <: AbstractMatrix{Float64}, S <: Real} <:
        Diversity.API.AbstractMetacommunity{Float64, A, A, SL,
@@ -327,11 +327,11 @@ Diversity.API._gettypes(s::_RankSnapshot) = s.types
 Diversity.API._getpartition(s::_RankSnapshot) = s.partition
 
 using Diversity.API: _calcordinariness
-# This rank's snapshot and the whole grid's weights, from three collectives in this order on every
-# rank: the metacommunity total, the gathered per-cell weights and the summed metacommunity
-# ordinariness. The ordinariness is computed as the serial snapshot computes it, so a cell's values
-# match the serial ones; the metacommunity ordinariness is summed in another order, so values built
-# on it match to rounding.
+# This rank's snapshot and the whole grid's weights. Every rank makes three collectives, in this
+# order: the metacommunity total, the gathered per-cell weights, and the summed metacommunity
+# ordinariness. The ordinariness is computed as the serial snapshot computes it, so each cell's
+# values match the serial ones. The metacommunity ordinariness is summed in a different order, so
+# values built on it match only to rounding.
 function _ranksnapshot(eco::MPIEcosystem)
     comm = MPI.COMM_WORLD
     processed, scale = _calcabundance(_gettypes(eco),

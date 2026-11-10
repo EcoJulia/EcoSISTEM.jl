@@ -1015,12 +1015,13 @@ species, or `each` species' own - and never to a weight inside one. `ToCapacity`
 placement's numbers as shares and fills each cell until what its species demand of the scarcest
 resource is what the cell supplies.
 
-**A record weight weighs records, not cells.** `FromOccurrences` may take an `AbstractRecordWeight`,
-read at each record's position from a layer on a grid of its own: `WeightPerRecord` gives each
-record its cell's value, and `WeightPerCell` shares each cell's value among the records made there.
-They serve different sampling designs - records that are equal samples, and records whose numbers
-follow how hard each place was searched - so neither is the other corrected. A `scale` makes the
-weights individuals; without one they are shares, which `ToCapacity` takes.
+**A record weight weighs records, not cells.** `FromOccurrences` may take an `AbstractRecordWeight`.
+It is read at each record's position from a layer on a grid of its own. `WeightPerRecord` gives each
+record its cell's value. `WeightPerCell` shares each cell's value among the records made there. The
+two serve different sampling designs. The first suits records that are equal samples, and the second
+records whose numbers follow how hard each place was searched. Neither is a corrected form of the
+other. A `scale` turns the weights into individuals. Without one they are shares, which `ToCapacity`
+takes.
 
 ```mermaid
 classDiagram

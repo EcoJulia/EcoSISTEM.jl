@@ -14,8 +14,8 @@ function (recorder::EcoSISTEM.RecordAbundance)(eco::MPIEcosystem,
     return recorder
 end
 
-# Each rank's own species summed over the grid, gathered into their places, and each rank's share of
-# every cell summed across the ranks, so every rank holds both totals whole.
+# Each rank sums its own species over the grid, and the sums are gathered into place. Each rank's
+# share of every cell is summed across the ranks. Every rank then holds both totals whole.
 function (recorder::EcoSISTEM.RecordTotals)(eco::MPIEcosystem,
                                             occurrence::NamedTuple)
     EcoSISTEM._checkslot(recorder.species, occurrence.count, 2)
@@ -40,7 +40,7 @@ function (recorder::EcoSISTEM.RecordDiversity)(eco::MPIEcosystem,
     return recorder
 end
 
-# The storage form: the measure function's values for each rank's cells, by `gatherdiversity`.
+# The storage form: `gatherdiversity` gathers the measure function's values from each rank's cells.
 function _recorddiversity!(recorder::EcoSISTEM.RecordDiversity, measure,
                            eco::MPIEcosystem, count::Integer)
     EcoSISTEM._checkslot(recorder.storage, count)
@@ -49,10 +49,11 @@ function _recorddiversity!(recorder::EcoSISTEM.RecordDiversity, measure,
 end
 
 using Tables: Tables
-# The level form: every measure built by Diversity from this rank's snapshot, its subcommunity
-# values at every order gathered in one `Allgatherv`, and each metacommunity value their power mean
-# over the whole grid's weights, as Diversity's own metacommunity level is defined - so every rank
-# holds the whole answer. Every refusal comes before the first collective, alike on every rank.
+# The level form. Diversity builds every measure from this rank's snapshot. One `Allgatherv` gathers
+# the subcommunity values at every order. Each metacommunity value is then the power mean of those
+# values over the whole grid's weights, which is how Diversity defines the metacommunity level. So
+# every rank holds the whole answer. Every refusal comes before the first collective, and is the
+# same on every rank.
 function _recorddiversity!(recorder::EcoSISTEM.RecordDiversity, ::Nothing,
                            eco::MPIEcosystem, count::Integer)
     EcoSISTEM._checkslots(recorder, count)

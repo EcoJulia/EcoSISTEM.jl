@@ -66,10 +66,11 @@ function Base.show(io::IO, c::Cache)
     return print(io, "Cache($(nsp) species × $(ncells) cells)")
 end
 
-# What a saved state recorded of each layer's change rule, by role and then layer name, kept by an
-# ecosystem started from it until its first step has installed the rules the run's interventions give,
-# then compared with them: a state holds a layer's values but not its rule, which is code. `changing`
-# names the layers the run was told would change rule, a name covering a regime and a supply alike.
+# What a saved state recorded of each layer's change rule, by role and then layer name. A state
+# holds a layer's values but not its rule, which is code. An ecosystem started from the state keeps
+# this until its first step has installed the rules its interventions give, and then compares the
+# two. `changing` names the layers the run was told would change rule. A name covers a regime and a
+# supply layer of that name alike.
 struct _SavedChanges
     path::String
     regime::Dict{String, @NamedTuple{change::String, phrase::String}}
@@ -77,9 +78,9 @@ struct _SavedChanges
     changing::Vector{Symbol}
 end
 
-# A layer whose change rule a run continuing a saved state changed, as its provenance records it: the
-# layer's role and name, the rule it was saved with and the one it changes by now, and whether the
-# run was told to expect it.
+# A layer whose change rule changed when a run continued a saved state, as the run's provenance
+# records it: the layer's role and name, the rule it was saved with, the rule it changes by now, and
+# whether `changing` named it.
 const _RuleChange = @NamedTuple{role::String, layer::String, saved::String,
                                 now::String, declared::Bool}
 
@@ -102,8 +103,9 @@ holds the [`ProvenanceRecord`](@ref)s of published data belonging to the run as 
 which [`provenance`](@ref) lists. `placement` is the placement its individuals were placed by, as it
 was given (see [`AbstractPlacement`](@ref)), which [`repopulate!`](@ref) places by again.
 `savedchanges` is what the saved state it was started from recorded of each layer's change rule, held
-until its first step, and otherwise `nothing`; `rulechanges` is each layer whose rule that first step
-found changed from the saved one, which [`provenance`](@ref) reports, and is empty otherwise.
+until its first step, and otherwise `nothing`. `rulechanges` lists each layer whose change rule
+that first step found changed from the saved one, which [`provenance`](@ref) reports. It is empty
+otherwise.
 """
 mutable struct Ecosystem{Part <: AbstractHabitat,
                          SL <: SpeciesList,

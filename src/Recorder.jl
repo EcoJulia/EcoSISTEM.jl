@@ -72,14 +72,14 @@ end
 """
     RecordTotals(eco::AbstractEcosystem, ntimes::Integer)
 
-Record every species' individuals summed over the grid, and every cell's summed over the species,
-one column per occurrence: `recorder.species[:, k]` holds each species' total at occurrence `k`, in
-the species list's order, and `recorder.cells[:, k]` each cell's, in the grid's order. Every species
-of the pool has its row, an arrival's included; an occurrence not yet reached holds zeros. Under MPI
-the ranks' totals are summed, every rank taking part, and every rank holds them.
+Record each species' total over the grid and each cell's total over the species, at every
+occurrence. `recorder.species[:, k]` holds the species' totals at occurrence `k`, in the species
+list's order. `recorder.cells[:, k]` holds the cells' totals, in the grid's order. Every species in
+the pool has a row, including any that arrive during the run. An occurrence not yet reached holds
+zeros. Under MPI every rank takes part, and every rank holds the totals.
 
-They are small enough to keep at every occurrence where the abundances are not, and say which
-species a run loses and when, and where its individuals are.
+The totals are small enough to keep at every occurrence, unlike the abundances themselves. They
+show which species a run loses and when, and where its individuals are.
 
 # Arguments
 
@@ -129,19 +129,21 @@ end
 
 Record diversity at each of the orders `qs`, one slice per occurrence.
 
-The first form records Diversity's measure types - `NormalisedAlpha`, `RawBeta`, `Gamma` and the
-rest - at the subcommunity level, a value per cell, and at the metacommunity level, one value for
-the whole grid, each measure at the levels it is listed under: `recorder.subcommunity[i, :, j, k]`
-holds the `i`th subcommunity measure in every cell at order `qs[j]` and occurrence `k`, and
-`recorder.metacommunity[i, j, k]` the `i`th metacommunity measure. An occurrence not yet reached
-holds `NaN`. Every measure of one occurrence is taken from one snapshot of the abundances, and a
-measure listed at both levels is computed once for both. Under MPI each rank measures its own cells
-and the values are gathered, the metacommunity value taken from them as Diversity takes it, so every
-rank holds the whole answer; a species list with similarity between its species, such as a
-phylogeny, is refused there.
+The first form records Diversity's measure types, such as `NormalisedAlpha`, `RawBeta` and
+`Gamma`. A measure listed under `subcommunity` is recorded in every cell. A measure listed under
+`metacommunity` is recorded once for the whole grid. `recorder.subcommunity[i, :, j, k]` holds the
+`i`th subcommunity measure in every cell, at order `qs[j]` and occurrence `k`.
+`recorder.metacommunity[i, j, k]` holds the `i`th metacommunity measure. An occurrence not yet
+reached holds `NaN`. All the measures of one occurrence come from one snapshot of the abundances,
+and a measure listed at both levels is computed only once.
 
-The second form records a subcommunity diversity function - such as Diversity's `norm_sub_alpha` -
-into `storage`: `storage[:, :, k]` holds cells by orders at occurrence `k`. Under MPI each rank's
+Under MPI each rank measures its own cells, and the values are gathered so that every rank holds the
+whole answer. The metacommunity values are computed from the gathered values, as Diversity computes
+them. A species list with similarity between its species, such as a phylogeny, is refused under
+MPI.
+
+The second form records a subcommunity diversity function, such as Diversity's `norm_sub_alpha`,
+into `storage`. `storage[:, :, k]` holds cells by orders at occurrence `k`. Under MPI each rank's
 cells are gathered with [`gatherdiversity`](@ref), so every rank holds and writes the whole answer.
 
 # Arguments
@@ -150,8 +152,8 @@ cells are gathered with [`gatherdiversity`](@ref), so every rank holds and write
   - `ntimes`: how many occurrences to leave room for.
   - `qs`: the orders to measure at.
   - `subcommunity`: the measure types to record in every cell.
-  - `metacommunity`: the measure types to record for the whole grid. At least one measure is needed
-    between the two.
+  - `metacommunity`: the measure types to record for the whole grid. At least one of the two must
+    list a measure.
   - `storage`: a float array of at least cells × orders × occurrences, as from
     `generate_storage(eco, length(qs), ntimes, reps)`.
   - `measure`: the subcommunity diversity function, returning a `DataFrame` with a `:diversity`
@@ -159,12 +161,12 @@ cells are gathered with [`gatherdiversity`](@ref), so every rank holds and write
 
 # Fields
 
-  - `subcommunity`: measures × cells × orders × occurrences, or `nothing` where the first form
-    lists no subcommunity measure, and in the second form.
-  - `metacommunity`: measures × orders × occurrences, or `nothing` likewise.
-  - `measures`: the measure types at each level, a named tuple of `subcommunity` and
-    `metacommunity`.
-  - `storage`, `measure`: the second form's, as given; `nothing` in the first.
+  - `subcommunity`: measures × cells × orders × occurrences. It is `nothing` in the second form, and
+    in the first when no subcommunity measure is listed.
+  - `metacommunity`: measures × orders × occurrences, or `nothing` in the same cases.
+  - `measures`: a named tuple of the measure types listed for `subcommunity` and `metacommunity`.
+  - `storage`, `measure`: the second form's arguments, as given. Both are `nothing` in the first
+    form.
   - `qs`: the orders, as given.
 """
 struct RecordDiversity{S, F, Q <: AbstractVector, B, M} <: AbstractRecorder
@@ -289,8 +291,8 @@ the recorder has written.
 """
 provenance(recorder::AbstractRecorder) = recorder.record[]
 
-# Refuse an occurrence the storage has no slice for, rather than let the write fail on an index;
-# `dim` is the storage's dimension of occurrences.
+# Refuse an occurrence the storage has no slice for, rather than let the write fail on an index.
+# `dim` is the storage's occurrence dimension.
 function _checkslot(storage::AbstractArray, count::Integer, dim::Integer = 3)
     count <= size(storage, dim) && return nothing
     return error("this run has reached occurrence $count, but the recording has room for " *
@@ -299,7 +301,8 @@ function _checkslot(storage::AbstractArray, count::Integer, dim::Integer = 3)
                  "to `duration`; a run continuing an earlier one has one fewer.")
 end
 
-# The same for each level a diversity recorder keeps, before any measure is taken.
+# The same check for each level array a diversity recorder keeps. A level with no measures has no
+# array to check.
 _checkslot(::Nothing, ::Integer, ::Integer) = nothing
 
 function _checkslots(recorder::RecordDiversity, count::Integer)
@@ -307,8 +310,9 @@ function _checkslots(recorder::RecordDiversity, count::Integer)
     return _checkslot(recorder.metacommunity, count, 3)
 end
 
-# The measure types listed for one level, refusing anything that is not a concrete Diversity measure
-# type - a measure function among them, which the storage form takes - and any listed twice.
+# The measure types listed for one level. Anything that is not a concrete Diversity measure type is
+# refused. That includes a measure function, which only the storage form takes. A type listed twice
+# is refused too.
 function _measuretypes(given, level::Symbol)
     measures = Type[]
     for m in given
@@ -331,7 +335,7 @@ function _measurenames(measures::Vector{Type})
     return "[" * join(nameof.(measures), ", ") * "]"
 end
 
-# Each measure recorded, once whatever its levels, in the order first listed.
+# Each measure recorded, in the order first listed. A measure recorded at both levels appears once.
 function _recordedmeasures(recorder::RecordDiversity)
     return unique(vcat(recorder.measures.subcommunity,
                        recorder.measures.metacommunity))
@@ -354,12 +358,11 @@ function _recorddiversity!(recorder::RecordDiversity, measure, eco::Ecosystem,
     return _writediversity!(recorder, measure(eco, recorder.qs), count)
 end
 
-# The level form: every measure from one snapshot - the scratch filled once with the abundances'
-# shares and wrapped as a `Metacommunity`, which caches the ordinariness every measure is built
-# from - and one `diversity` call per measure, which computes its subcommunity values once for both
-# levels.
-# The snapshot aliases the scratch, so nothing between here and the last write may run the
-# ecosystem's own Diversity hooks, which refill it.
+# The level form. The scratch is filled once with the abundances' shares and wrapped as a
+# `Metacommunity`, which caches the ordinariness that every measure is built from. Each measure then
+# takes one `diversity` call, which computes its subcommunity values once for both levels.
+# The snapshot shares the scratch's memory. So nothing before the last write may call the
+# ecosystem's own Diversity hooks, because they refill the scratch.
 function _recorddiversity!(recorder::RecordDiversity, ::Nothing, eco::Ecosystem,
                            count::Integer)
     _checkslots(recorder, count)
@@ -373,9 +376,9 @@ function _recorddiversity!(recorder::RecordDiversity, ::Nothing, eco::Ecosystem,
     return recorder
 end
 
-# Write one measure's rows into each level's slice, walking the order `diversity` gives them in - by
-# level, then order, then cell - and checking each block's level and order as it starts, so that a
-# change in that order fails rather than writing values into the wrong slots.
+# Write one measure's rows into each level's slice. `diversity` gives the rows by level, then order,
+# then cell. Each block's level and order are checked as it starts, so a change in that order fails
+# rather than writing values into the wrong slots.
 function _writelevels!(recorder::RecordDiversity, measure::Type, levels,
                        columns::NamedTuple, count::Integer)
     row = 0

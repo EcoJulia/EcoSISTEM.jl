@@ -413,8 +413,8 @@ function _rulechange(c::NamedTuple)
             now = c.now, declared = c.declared)
 end
 
-# Warn of each layer whose change rule changed although `changing` did not name it, and of each layer
-# `changing` named whose rule did not change.
+# Warn of each layer whose change rule changed although `changing` did not name it, and of each
+# layer `changing` named whose rule did not change.
 function _warnchanges(saved::_SavedChanges, compared::AbstractVector)
     for c in compared
         if c.changed && !c.declared

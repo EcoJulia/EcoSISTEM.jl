@@ -895,9 +895,9 @@ function _bboxin(src, dst, e::Extents.Extent)
                      minimum(xs) * u, maximum(xs) * u)
 end
 
-# A WGS84 box in `dst`'s coordinates, as the envelope of points sampled along its edges rather than of
-# its corners alone: a box's edges curve when projected, and over a continent its corners miss a strip
-# nearly as wide as a read window's padding.
+# A WGS84 box in `dst`'s coordinates, as the envelope of points sampled along its edges. A box's
+# edges curve when projected, so its corners alone are not enough. Over a continent they miss a
+# strip nearly as wide as a read window's padding.
 function _edgesin(dst, e::Extents.Extent; samples::Integer = 64)
     u = _crsunit(dst)
     ylo, yhi = ustrip.(°, e.Y)
@@ -918,9 +918,9 @@ function _edgesin(dst, e::Extents.Extent; samples::Integer = 64)
                      maximum(xs) * u)
 end
 
-# A read window `cut`, a WGS84 box, in the coordinates of the raster it cuts: as given where the
-# raster's axes are in degrees, whatever their datum, and otherwise the box enclosing it in the
-# raster's own CRS.
+# A read window `cut`, a WGS84 box, in the coordinates of the raster it cuts. Where the raster's
+# axes are in degrees, whatever their datum, the box is used as given. Otherwise it becomes the box
+# that encloses it in the raster's own CRS.
 _cutin(::Any, ::Nothing) = nothing
 
 function _cutin(world, cut::Extents.Extent)

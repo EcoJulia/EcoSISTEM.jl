@@ -34,13 +34,14 @@ using Plots
 cultivated = SourceSpec(EarthEnv{LandCover{:DISCover}}, :cultivated_and_managed)
 
 # NatureScot's "Landscape Map of Scotland" (79 landscape character features, British National
-# Grid), published under the Open Government Licence v3. It has no DOI to look its source up by,
-# so what is known of it is written out as `SourceFacts`, from the Scottish spatial data
-# catalogue's record of it and NatureScot's own metadata - the request page, which quotes the
-# attribution statement the licence makes a condition of using the data. `fetchfile` downloads
-# the zip into the asset cache the first time and writes its provenance record beside it: the
-# address, size and checksum of the download, and these facts. `ShapeSpec` takes the record in
-# place of a path, so the facts travel with the mask into the provenance of all built on it.
+# Grid), published under the Open Government Licence v3. It has no DOI to look its source up by.
+# So what is known of it is written out as `SourceFacts`, taken from the Scottish spatial data
+# catalogue's record of it and from NatureScot's own metadata. The metadata is the request page: it
+# quotes the attribution statement that the licence makes a condition of using the data.
+# `fetchfile` downloads the zip into the asset cache the first time, and writes its provenance
+# record beside it. The record holds the download's address, size and checksum, and these facts.
+# `ShapeSpec` takes the record in place of a path. The facts then travel with the mask into the
+# provenance of everything built on it.
 landscapes = SourceFacts(source = "Landscape Map of Scotland",
                          title = "Landscape Map of Scotland",
                          releasedate = "2012-12-31", licence = "OGL-UK-3.0",
@@ -161,10 +162,11 @@ species = build_species(pool,
 # abundances, reproducible via `seed` - and placed by supply.
 eco = build_ecosystem(BySupply(total = 20_000), species, habitat, seed = seed)
 
-# What this ecosystem was built from: the EarthEnv land-cover file, with the DOI, licence and
-# citation the catalogue knows, and the NatureScot outline, with the facts written out above, its
-# licence and the attribution it requires; then the grid and the run's seed. `write_provenance` writes the TOML file a paper's repository commits beside its
-# figures; it goes to a temporary directory here, so the example leaves nothing behind.
+# What this ecosystem was built from. The EarthEnv land-cover file comes with the DOI, licence and
+# citation the catalogue knows. The NatureScot outline comes with the facts written out above, its
+# licence and the attribution it requires. Then come the grid and the run's seed.
+# `write_provenance` writes the TOML file a paper's repository commits beside its figures. It goes
+# to a temporary directory here, so the example leaves nothing behind.
 display(provenance(eco))
 write_provenance(joinpath(mktempdir(), "provenance.toml"), eco)
 
