@@ -16,6 +16,9 @@
       whose rule changed, and of a named layer whose rule did not. Its provenance records every rule
       that changed.
   - Fixed
+    - A dispersal lookup gives each neighbouring cell the probability its kernel gives it, however
+      wide the cells are. With cells more than about ten kernel scales wide it gave too little, and
+      above about forty none, so the seeds stayed home. A Gaussian kernel's lookup is now exact.
     - A build refusing `FromOccurrences` records dated after its start names the keyword that dated
       them, `date` or `time`.
     - `Provenancer.fetchfile` writes its file's facts into a record of the download alone already
