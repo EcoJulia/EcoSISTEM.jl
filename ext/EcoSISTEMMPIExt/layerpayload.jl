@@ -39,8 +39,9 @@ function EcoSISTEM._sharedwhole(build)
     end
 end
 
-# A placement's result, made on the root and sent whole. Its streams are its own, which no rank draws
-# from again, so nothing of them need be sent.
+# A placement's result, made on the root and sent whole. The context's streams go only where the
+# result holds them: a weighted placement's counts carry the streams its draws go on from, and no
+# rank draws from another placement's streams again.
 function EcoSISTEM._sharedresult(build, ::MPIEcosystem,
                                  ::EcoSISTEM.PlacementContext)
     return EcoSISTEM._sharedwhole(build)

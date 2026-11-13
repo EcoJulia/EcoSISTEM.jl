@@ -86,6 +86,47 @@ function _placeinto!(eco::AbstractEcosystem, placement,
     return eco
 end
 
+# A weighted placement, drawn straight into the abundances.
+function _placeinto!(eco::AbstractEcosystem,
+                     placement::Union{BySupply, BySuitability, ByLayer,
+                                      Weighted},
+                     context::PlacementContext, verbosity::Symbol; clear::Bool,
+                     keep::Bool = true, undated::Bool = false)
+    return _placedirectly!(eco, placement, context, verbosity, clear = clear,
+                           keep = keep)
+end
+
+# A weighted placement's individuals drawn straight into each rank's own species' rows, with no table:
+# the draws its table would hold, from the same streams in the same order, so the abundances are the
+# same, whatever the rank count. Under MPI the root alone counts each species' individuals, which may
+# call code of the user's, as the root alone calls any other placement. It sends the counts, with the
+# species' streams as counting left them. Every rank weighs the species alike, from the layers and
+# species they share, and draws only its own species.
+function _placedirectly!(eco::AbstractEcosystem, placement,
+                         context::PlacementContext, verbosity::Symbol;
+                         clear::Bool, keep::Bool)
+    prepared = _prepared(placement, eco.habitat)
+    counted = _sharedresult(eco, context) do
+        counts = _drawingcounts(prepared, eco.spplist, eco.habitat, context)
+        return merge(counts, (streams = context.streams,))
+    end
+    weights = _drawingweights(prepared, eco.spplist, eco.habitat, context)
+    owned = _ownedabundances(eco)
+    held = axes(owned.rows, 1)
+    clear && (owned.rows .= 0)
+    _eachdraw(weights.weight, counted.counts, eco.spplist, eco.habitat,
+              counted.streams, counted.problems,
+              wanted = sp -> (sp - owned.firstspecies + 1) in held) do sp, drawn
+        row = view(owned.rows, sp - owned.firstspecies + 1, :)
+        return row .+= drawn
+    end
+    _reportproblems(counted.problems, verbosity)
+    _rowswritten!(eco)
+    keep && (eco.placement = placement)
+    eco.inputs = _uniqueinputs(vcat(eco.inputs, weights.records))
+    return eco
+end
+
 # What `placement` places in `eco`, called and checked but not yet written: its result, its table in
 # one form with its species matched to the species list, and its rows resolved against the grid.
 # Under MPI the root alone calls it and matches its names - so only the root reads a name authority -

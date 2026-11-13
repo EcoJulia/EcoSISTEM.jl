@@ -6,6 +6,10 @@
       DataPipeline extension needs DataPipeline 0.59.3, which reads the version of `fair`.
     - The data pipeline example registers WorldClim's files as not public, so a push sends no WorldClim
       data. WorldClim's terms do not allow redistribution.
+    - A weighted placement (`BySupply`, `BySuitability`, `ByLayer`, `Weighted` and the default) adds
+      its draws straight into the abundances. It made a table of a row per species per cell first,
+      which at a large scale needed far more memory than the abundances. The draws are the same, and
+      under MPI each rank places its own species.
 
 - v0.11.2
   - Added

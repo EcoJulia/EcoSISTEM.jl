@@ -674,6 +674,40 @@ if rank == 0
     @test sown == cappedserial.abundances.matrix
 end
 
+# **A weighted placement alone, drawn straight into each rank's own species' rows**: no table made on
+# the root or sent, and the serial twin's abundances at every rank count, at build and when an
+# intervention adds one. A count drawn from each species' stream is drawn on the root, and every rank
+# goes on from the root's streams.
+bareplacements = (Weighted(BySupply(SolarRadiation), BySuitability(),
+                           ByLayer(UniformSpec(1.0,
+                                               axis = EcoSISTEM.NicheAxis)),
+                           total = 5_000),
+                  BySuitability(each = 300),
+                  BySupply(each = DrawFrom(Poisson(60))))
+for bare in bareplacements
+    bareeco = build_ecosystem(bare, placesppl, varying_environment(),
+                              nichefit = nichefit, seed = 0, distributed = true,
+                              verbosity = :silent)
+    bareserial = build_ecosystem(bare, placesppl, varying_environment(),
+                                 nichefit = nichefit, seed = 0,
+                                 distributed = false, verbosity = :silent)
+    bare_start = gatherabundance(bareeco)
+    serial_start = copy(bareserial.abundances.matrix)
+    added = Intervention(AtTime(MPIFIXTURE_TIMESTEP), AllCells(),
+                         AddAbundance(BySupply(total = 700)))
+    EcoSISTEM.applyinterventions!(bareeco, added, MPIFIXTURE_TIMESTEP,
+                                  MPIFIXTURE_TIMESTEP, 1)
+    EcoSISTEM.applyinterventions!(bareserial, added, MPIFIXTURE_TIMESTEP,
+                                  MPIFIXTURE_TIMESTEP, 1)
+    bare_added = gatherabundance(bareeco)
+    if rank == 0
+        @test sum(bare_start) > 0
+        @test bare_start == serial_start
+        @test sum(bare_added) == sum(bare_start) + 700
+        @test bare_added == bareserial.abundances.matrix
+    end
+end
+
 # A dated table served as the clock reaches its rows: resolved once on the root, each rank keeping its
 # own species' rows, and the run as serially.
 arrivals = Intervention(EveryStep(), AllCells(),
