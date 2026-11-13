@@ -1,5 +1,22 @@
 # NEWS
 
+- v0.11.3
+  - Fixed
+    - The paper's HPC set-up installs `fair` only where there is none or it is older than 0.12.0. The
+      DataPipeline extension needs DataPipeline 0.59.3, which reads the version of `fair`.
+    - The data pipeline example registers WorldClim's files as not public, so a push sends no WorldClim
+      data. WorldClim's terms do not allow redistribution.
+
+- v0.11.2
+  - Added
+    - `examples/paper/README.md` says how to push a run's figures and tables to the remote registry,
+      with their provenance.
+  - Fixed
+    - The paper's HPC set-up (`examples/paper/hpc/`) installs the newest Julia, packages, `fair` and
+      data registry. It pinned a registry release that no longer installed correctly.
+    - `examples/paper/hpc/run.bash` runs one paper job at a time, as the local registry runs on one
+      host at a time.
+
 - v0.11.1
   - Added
     - `RecordDiversity(eco, ntimes; qs, subcommunity, metacommunity)` records Diversity's measure

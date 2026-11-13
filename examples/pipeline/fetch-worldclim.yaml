@@ -12,10 +12,13 @@ register:
   full_name: WorldClim
   website: https://www.worldclim.org/
 
+# WorldClim's terms allow no redistribution without permission, so its files are registered as not
+# public: a push sends what is known of each file, not the file. The records hold no WorldClim data.
 write:
 - data_product: worldclim/data/*
   description: A WorldClim file
   file_type: tif
+  public: false
 - data_product: worldclim/provenance/*
   description: EcoSISTEM's provenance record of a file under worldclim
   file_type: toml

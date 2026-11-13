@@ -3,8 +3,9 @@
 # The data pipeline for the paper's HPC runs, set up once by `setup.bash`: DataPipeline's own copy
 # of `fair`, a local registry, and this clone initialised with a CLI configuration written here, all
 # under `ECOSISTEM_HPC_ROOT`. Run from the root of the clone, in `examples/paper`'s environment,
-# after `env.sh`. `fair` and a new registry are each the newest release. Run again, it brings the
-# copy of `fair` up to date and keeps the registry already installed, with its records.
+# after `env.sh`. `fair` is installed where there is none or it is older than 0.12.0, and a new registry
+# is its newest release. Run again, it keeps a `fair` from 0.12.0 on, and the registry already
+# installed, with its records.
 
 using DataPipeline
 
@@ -20,7 +21,11 @@ isfile(USERFILE) ||
 any(line -> occursin(r"^[^#]*<", line), eachline(USERFILE)) &&
     error("$USERFILE still has a `<...>` to replace")
 
-DataPipeline.install_cli()
+# Install the newest release of `fair`, where there is no `fair` or one older than 0.12.0.
+current = DataPipeline.cli_version()
+if isnothing(current) || current < v"0.12.0"
+    DataPipeline.install_cli!()
+end
 
 # Without `--version`, `fair` installs the registry's newest release.
 if !isfile(joinpath(REGISTRY, "manage.py"))
