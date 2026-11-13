@@ -94,9 +94,10 @@ cp examples/paper/hpc/fair-user.yaml $ECOSISTEM_HPC_ROOT/fair/user.yaml
 
 Fill in `user.yaml` - your name, email, and your ORCID or GitHub page - then, from the root of the
 clone, set the rest up as a job. It brings Julia and this directory's environment to their newest
-versions and precompiles them on an `smp` node. It installs the newest releases of DataPipeline's
-copy of `fair` (`DataPipeline.install_cli()`) and of the registry. It writes a CLI configuration
-from `user.yaml` and the paths above, and runs `fair init --using` with it:
+versions and precompiles them on an `smp` node. It installs the newest release of DataPipeline's
+copy of `fair` where there is none, or where the one there is older than 0.12.0. It installs the
+newest release of the registry. It writes a CLI configuration from `user.yaml` and the paths above,
+and runs `fair init --using` with it:
 
 ```sh
 sbatch examples/paper/hpc/setup.bash
@@ -105,11 +106,18 @@ sbatch examples/paper/hpc/setup.bash
 If it fails part way, with a download cut short say, submit it again: it keeps what it finished.
 
 To bring a set-up clone to the newest releases, run `git fetch origin` in it, then the `git checkout`
-line above, and submit `setup.bash` again. It updates Julia, the environment and `fair`. It keeps the
-registry already installed, with the records of the runs it holds, and prints its version. To
-replace the registry with its newest release as well, delete `$ECOSISTEM_HPC_ROOT/fair/registry`
-before submitting `setup.bash`. The records of earlier runs go with it; the files in the data store
-stay.
+line above, and submit `setup.bash` again. It updates Julia and the environment, and `fair` where it
+is older than 0.12.0. It keeps the registry already installed, with the records of the runs it
+holds, and prints its version. To take a newer release of `fair`, or of the registry, run these on
+the login node in the clone, with no paper job running. The registry keeps its records where the
+new release's tables are the same; where they are not, `upgrade` leaves it as it was and says what
+to do:
+
+```sh
+source examples/paper/hpc/env.sh
+julia --project=examples/paper -e 'using DataPipeline; DataPipeline.install_cli!()'   # fair
+julia --project=examples/paper -e 'using DataPipeline; fair"registry upgrade"'        # the registry
+```
 
 Then the small-scale run, which tests every piece in minutes, and the full one:
 

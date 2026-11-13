@@ -918,6 +918,81 @@ end
     @test_throws "records no placement" repopulate!(eco)
 end
 
+# The bytes placing `p` into `eco` allocates, inside a function so that nothing global is counted.
+function _placingbytes(eco, p, seed)
+    context = EcoSISTEM._placementcontext(eco, seed)
+    return @allocated EcoSISTEM._placeinto!(eco, p, context, :silent,
+                                            clear = true)
+end
+
+# A weighted placement draws straight into the abundances, with no table. Its draws are the ones its
+# table holds, which a sum with `NoAbundance()` places, at build, by `repopulate!`, at an
+# `AddAbundance` firing over part of the grid, and for an `AddSpecies` arrival. So a build holds
+# little more than its abundances, where a table holds a row for each species in each cell it
+# reaches.
+@testset "a weighted placement draws straight into the abundances, as its table would place them" begin
+    habitat = _habitat()
+    # Four species, the second not active; built again for each run an arrival changes.
+    function fresh()
+        species = _species()
+        species.traits.active[2] = false
+        return species
+    end
+    species = fresh()
+    layer = UniformSpec(2.0, axis = EcoSISTEM.NicheAxis)
+    for p in (BySupply(total = 10^6), BySupply(each = 200),
+        BySupply(each = DrawFrom(Poisson(50))), BySuitability(each = 50),
+        ByLayer(layer, total = 3000),
+        Weighted(BySupply(), BySuitability(), total = 2000))
+        direct = _placed(p, species, habitat, seed = 4)
+        table = _placed(p + NoAbundance(), species, habitat, seed = 4)
+        @test direct.abundances.matrix == table.abundances.matrix
+        @test _perspecies(direct)[2] == 0 && sum(direct.abundances.matrix) > 0
+        repopulate!(direct, seed = 9, verbosity = :silent)
+        repopulate!(table, seed = 9, verbosity = :silent)
+        @test direct.abundances.matrix == table.abundances.matrix
+    end
+    @test _placed(DefaultEcosystem(), species, habitat, seed = 7).abundances.matrix ==
+          _placed(BySupply(total = 3000) + NoAbundance(), species, habitat,
+                  seed = 7).abundances.matrix
+    # A species with no weight on any cell is said to be placed nowhere, as the table path says it.
+    nowhere = ByLayer(UniformSpec(0.0, axis = EcoSISTEM.NicheAxis), total = 100)
+    @test_logs (:warn, r"100 individuals were not placed") _placed(nowhere,
+                                                                   species,
+                                                                   habitat)
+    @test_logs (:warn, r"100 individuals were not placed") _placed(nowhere +
+                                                                   NoAbundance(),
+                                                                   species,
+                                                                   habitat)
+    # At a firing over the grid's western cells, and for the inactive species arriving there.
+    west = CellMask([x <= 2 for y in 1:7, x in 1:5])
+    for (op, viatable) in ((AddAbundance(BySupply(total = 500)),
+                            AddAbundance(BySupply(total = 500) + NoAbundance())),
+                           (AddSpecies("2", BySupply(each = 40)),
+                            AddSpecies("2",
+                                       BySupply(each = 40) + NoAbundance())))
+        runs = map((op, viatable)) do operation
+            eco = _placed(BySupply(total = 2000), fresh(), habitat, seed = 4)
+            simulate!(eco, 2month_mean_duration, 1month_mean_duration,
+                      intervention = Intervention(AtTime(1month_mean_duration),
+                                                  west, operation))
+            return eco.abundances.matrix
+        end
+        @test runs[1] == runs[2]
+    end
+    # Many species, each reaching every cell: the table path allocates a row for each of them, and
+    # the direct path little more than one draw at a time.
+    many = _species(200)
+    eco = _placed(NoAbundance(), many, habitat)
+    p = BySupply(each = 10^6)
+    _placingbytes(eco, p, 4)
+    _placingbytes(eco, p + NoAbundance(), 4)
+    direct = _placingbytes(eco, p, 4)
+    table = _placingbytes(eco, p + NoAbundance(), 4)
+    @test direct < table / 10
+    @test direct < 2 * sizeof(eco.abundances.matrix)
+end
+
 @testset "a placement shows as it is written" begin
     @test sprint(show, BySupply()) == "BySupply()"
     @test sprint(show, BySupply(SolarRadiation, :summer, total = 5)) ==

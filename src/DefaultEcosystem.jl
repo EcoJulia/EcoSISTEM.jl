@@ -18,19 +18,37 @@ struct DefaultEcosystem end
 
 # As a placement, the one a builder uses when given none: `BySupply()`'s default numbers, which the
 # builder's announcement has already stated, so without `BySupply()`'s own notice of them.
-function (::DefaultEcosystem)(species::SpeciesList, habitat::GridHabitat,
-                              context::PlacementContext)
-    allowed = _allowedmask(habitat, context.cells)
-    weight = _weightof(BySupply(), species, habitat, context, allowed)
-    k = count(_activespecies(species, context))
-    counts = _splittotal(_default(Val(:individuals)).value * k, species,
-                         context)
-    problems = Problem[]
-    table = _drawweighted(weight, counts, species, habitat, context, problems)
-    return PlacedAbundances(table, problems = problems)
+function (p::DefaultEcosystem)(species::SpeciesList, habitat::GridHabitat,
+                               context::PlacementContext)
+    counted = _drawingcounts(p, species, habitat, context)
+    return _placeweighted(counted,
+                          _drawingweights(p, species, habitat, context),
+                          species, habitat, context)
 end
 
 # == Functions ==================================================================================
+
+# The default placement's counts: the default number of individuals for each active species, split
+# across them.
+function _drawingcounts(::DefaultEcosystem, species, habitat, context)
+    k = count(_activespecies(species, context))
+    counts = _splittotal(_default(Val(:individuals)).value * k, species,
+                         context)
+    return (counts = counts, problems = Problem[])
+end
+
+# The default placement's weights: `BySupply()`'s.
+function _drawingweights(::DefaultEcosystem, species, habitat, context)
+    return _drawingweights(BySupply(), species, habitat, context)
+end
+
+# The default placement, drawn straight into the abundances as `BySupply()` is.
+function _placeinto!(eco::AbstractEcosystem, placement::DefaultEcosystem,
+                     context::PlacementContext, verbosity::Symbol; clear::Bool,
+                     keep::Bool = true, undated::Bool = false)
+    return _placedirectly!(eco, placement, context, verbosity, clear = clear,
+                           keep = keep)
+end
 
 _placementphrase(::DefaultEcosystem) = "DefaultEcosystem()"
 

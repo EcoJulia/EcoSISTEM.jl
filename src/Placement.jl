@@ -891,31 +891,13 @@ end
 
 # --- The shipped placements ---------------------------------------------------
 
-function (p::BySupply)(species::SpeciesList, habitat::GridHabitat,
-                       context::PlacementContext)
-    return _placeweighted(p, (p,), species, habitat, context)
-end
-
-function (p::BySuitability)(species::SpeciesList, habitat::GridHabitat,
-                            context::PlacementContext)
-    return _placeweighted(p, (p,), species, habitat, context)
-end
-
-function (p::ByLayer)(species::SpeciesList, habitat::GridHabitat,
-                      context::PlacementContext)
-    built = _prepared(p, habitat)
-    return _placeweighted(p, (built,), species, habitat, context,
-                          built.records)
-end
-
-function (p::Weighted)(species::SpeciesList, habitat::GridHabitat,
-                       context::PlacementContext)
-    built = _prepared(p, habitat)
-    records = reduce(vcat,
-                     (w.records for w in built.weights if w isa ByLayer),
-                     init = ProvenanceRecord[])
-    return _placeweighted(p, built.weights, species, habitat, context,
-                          records)
+function (p::Union{BySupply, BySuitability, ByLayer, Weighted})(species::SpeciesList,
+                                                                habitat::GridHabitat,
+                                                                context::PlacementContext)
+    counted = _drawingcounts(p, species, habitat, context)
+    return _placeweighted(counted,
+                          _drawingweights(p, species, habitat, context),
+                          species, habitat, context)
 end
 
 function (::NoAbundance)(::SpeciesList, ::GridHabitat, ::PlacementContext)
@@ -983,18 +965,56 @@ end
 
 # --- Weights ----------------------------------------------------------------
 
-# A weighted placement's table: each species' individuals - from `numbers` - among the cells it may
-# be placed in, each cell's chance the product of `weights`.
-function _placeweighted(p, weights::Tuple, species, habitat, context,
-                        records = ProvenanceRecord[])
+# How many individuals of each species a weighted placement places, from its `numbers`, and what was
+# found on the way. A count given as a draw takes it from the species' own stream, which the draws
+# among the cells then go on from.
+function _drawingcounts(p, species, habitat, context)
     problems = Problem[]
     allowed = _allowedmask(habitat, context.cells)
     counts = _placecounts(p.numbers, _placementphrase(p), species, habitat,
                           context, allowed, problems)
+    return (counts = counts, problems = problems)
+end
+
+# Each species' weight over the cells a weighted placement may place in, the product of its weights,
+# and the records of the layers it weighs by: the same for every species list and habitat that are
+# the same, so the same on every MPI rank.
+function _drawingweights(p::Union{BySupply, BySuitability}, species, habitat,
+                         context)
+    return _weightedby(p, (p,), species, habitat, context)
+end
+
+function _drawingweights(p::ByLayer, species, habitat, context)
+    built = _prepared(p, habitat)
+    return _weightedby(p, (built,), species, habitat, context, built.records)
+end
+
+function _drawingweights(p::Weighted, species, habitat, context)
+    built = _prepared(p, habitat)
+    records = reduce(vcat,
+                     (w.records for w in built.weights if w isa ByLayer),
+                     init = ProvenanceRecord[])
+    return _weightedby(p, built.weights, species, habitat, context, records)
+end
+
+# The weight of each species, as a function of its row, and the records, from a weighted placement's
+# `weights`.
+function _weightedby(p, weights::Tuple, species, habitat, context,
+                     records = ProvenanceRecord[])
+    allowed = _allowedmask(habitat, context.cells)
     weight = _combinedweight(map(w -> _weightof(w, species, habitat, context,
                                                 allowed), weights))
-    table = _drawweighted(weight, counts, species, habitat, context, problems)
-    return PlacedAbundances(table, records = records, problems = problems)
+    return (weight = weight, records = records)
+end
+
+# A weighted placement's table: each species' individuals among the cells it may be placed in, drawn
+# from its counts and its weights.
+function _placeweighted(counted::NamedTuple, weights::NamedTuple, species,
+                        habitat, context)
+    table = _drawweighted(weights.weight, counted.counts, species, habitat,
+                          context.streams, counted.problems)
+    return PlacedAbundances(table, records = weights.records,
+                            problems = counted.problems)
 end
 
 # The cells a placement may place in, as a mask over the grid's cells in storage order.
@@ -1268,13 +1288,32 @@ end
 _eachfill(::TraitColumn, fill::Function, row, rng, name) = fill(row)
 
 # Each species' individuals drawn among the cells, in proportion to `weight(sp)`, from its own
-# stream, as rows of species, cell and count. A species with individuals to place and no weight on
-# any allowed cell places none, and is named in a warning.
+# stream, as rows of species, cell and count.
 function _drawweighted(weight, counts::AbstractVector{<:Integer}, species,
-                       habitat, context, problems::Vector{Problem})
+                       habitat, streams::AbstractDict,
+                       problems::Vector{Problem})
     cellkeys = CartesianIndices(getgridshape(habitat))
     placed = _emptyplaced()
-    drawn = zeros(Int, length(cellkeys))
+    _eachdraw(weight, counts, species, habitat, streams, problems) do sp, drawn
+        for pos in eachindex(drawn)
+            iszero(drawn[pos]) && continue
+            push!(placed.species, species.names[sp])
+            push!(placed.cell, cellkeys[pos])
+            push!(placed.count, drawn[pos])
+        end
+    end
+    return placed
+end
+
+# Each species' individuals drawn among the cells, in proportion to `weight(sp)`, from its own
+# stream in `streams`, and handed to `sink(sp, drawn)` as a count for each cell in storage order. A species that
+# `wanted` refuses is not drawn. A species with individuals to place and no weight on any allowed
+# cell places none, and is named in a warning; every species is checked, wanted or not, so that
+# each MPI rank, drawing only its own species, gives the same warning.
+function _eachdraw(sink, weight, counts::AbstractVector{<:Integer}, species,
+                   habitat, streams::AbstractDict, problems::Vector{Problem};
+                   wanted = _ -> true)
+    drawn = zeros(Int, prod(getgridshape(habitat)))
     lost = Pair{String, Int}[]
     for (sp, name) in enumerate(species.names)
         n = counts[sp]
@@ -1284,20 +1323,16 @@ function _drawweighted(weight, counts::AbstractVector{<:Integer}, species,
             push!(lost, name => n)
             continue
         end
-        rand!(context.streams[name], Multinomial(n, probabilities), drawn)
-        for pos in eachindex(drawn)
-            iszero(drawn[pos]) && continue
-            push!(placed.species, name)
-            push!(placed.cell, cellkeys[pos])
-            push!(placed.count, drawn[pos])
-        end
+        wanted(sp) || continue
+        rand!(streams[name], Multinomial(n, probabilities), drawn)
+        sink(sp, drawn)
     end
     isempty(lost) ||
         push!(problems,
               Problem(ProblemWarning(), :nowhere_to_place,
                       "$(_individualsword(sum(last, lost))) were not placed, their species having no " *
                       "weight on any cell they may be placed in: $(_listphrase(lost))."))
-    return placed
+    return nothing
 end
 
 # Species with their individuals, as a phrase, the first ten listed.
