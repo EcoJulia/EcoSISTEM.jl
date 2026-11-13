@@ -47,10 +47,13 @@ register:
   full_name: WorldClim
   website: https://www.worldclim.org/
 
+# WorldClim&#39;s terms allow no redistribution without permission, so its files are registered as not
+# public: a push sends what is known of each file, not the file. The records hold no WorldClim data.
 write:
 - data_product: worldclim/data/*
   description: A WorldClim file
   file_type: tif
+  public: false
 - data_product: worldclim/provenance/*
   description: EcoSISTEM&#39;s provenance record of a file under worldclim
   file_type: toml</code></pre><p>Its run fetches WorldClim&#39;s two layers where they are not held, and registers each file and its record as derived from WorldClim&#39;s deposit. The first fetch run in a registry also registers the catalogue&#39;s authors, so that each citation&#39;s authors are found by their identifiers; the rehearsal the run starts with says which it would.</p><pre><code class="language-julia hljs">using DataPipeline
@@ -60,7 +63,7 @@ run_example || println(&quot;Not run: ECOSISTEM_DOCS_RUN_PIPELINE is not set.&qu
 run_example &amp;&amp; cd(pkgdir(EcoSISTEM)) do
     fair&quot;run examples/pipeline/fetch-worldclim.yaml&quot;
 end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Preparing the job and running its script, please wait
-checking the run prepared in /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-11-10_20_39_35_031240 by a rehearsal, which registers nothing
+checking the run prepared in /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-11-13_14_04_03_446204 by a rehearsal, which registers nothing
 would register the author Chantal Hari (https://orcid.org/0000-0003-2507-8747)
 would register the author Dirk Nikolaus Karger (https://orcid.org/0000-0001-7770-6229)
 would register the author Ed Hawkins (https://orcid.org/0000-0001-9477-3677)
@@ -84,24 +87,35 @@ would register the author Rajmund Przybylak (https://orcid.org/0000-0003-4101-61
 would register the author Roberto Buizza (https://orcid.org/0000-0002-3754-2271)
 would register the author Stephen E. Fick (https://orcid.org/0000-0002-3548-6966)
 would register the author Timothy J. Osborn (https://orcid.org/0000-0001-8425-6799)
-processing config file: /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-11-10_20_39_35_031240/config.yaml
+processing config file: /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-11-13_14_04_03_446204/config.yaml
 pipeline initialised.
+[ Info: Starting download for https://geodata.ucdavis.edu/climate/worldclim/2_1/base/wc2.1_10m_bio.zip
+┌ Info: Downloading
+│   source = &quot;https://geodata.ucdavis.edu/climate/worldclim/2_1/base/wc2.1_10m_bio.zip&quot;
+│   dest = &quot;/home/runner/.julia/scratchspaces/ed2dc23b-ada4-5fdb-a26f-56368a14ad8f/assets/RasterDataSources/WorldClim/BioClim/zips/wc2.1_10m_bio.zip&quot;
+│   progress = 1.0
+│   time_taken = &quot;0.77 s&quot;
+│   time_remaining = &quot;0.0 s&quot;
+│   average_speed = &quot;61.846 MiB/s&quot;
+│   downloaded = &quot;47.559 MiB&quot;
+│   remaining = &quot;0 bytes&quot;
+└   total = &quot;47.559 MiB&quot;
 finished - code run locally registered as: http://127.0.0.1:8000/api/code_run/1/</code></pre><p>Natural Earth&#39;s config is the same in its own namespace, and its run registers the zip of outlines that Scotland&#39;s is read from:</p><pre><code class="language-julia hljs">run_example &amp;&amp; cd(pkgdir(EcoSISTEM)) do
     fair&quot;run examples/pipeline/fetch-naturalearth.yaml&quot;
 end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Preparing the job and running its script, please wait
-checking the run prepared in /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-11-10_20_40_36_209075 by a rehearsal, which registers nothing
-processing config file: /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-11-10_20_40_36_209075/config.yaml
+checking the run prepared in /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-11-13_14_05_13_129622 by a rehearsal, which registers nothing
+processing config file: /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-11-13_14_05_13_129622/config.yaml
 pipeline initialised.
 finished - code run locally registered as: http://127.0.0.1:8000/api/code_run/2/</code></pre><p>The box around Scotland is a file of your own, cut from Natural Earth&#39;s table of regions. Its run writes the file where it is not there, records it with Natural Earth&#39;s facts through <code>record_provenance</code>, and registers it as derived from Natural Earth&#39;s deposit, under a root of its own:</p><pre><code class="language-julia hljs">run_example &amp;&amp; cd(pkgdir(EcoSISTEM)) do
     fair&quot;run examples/pipeline/fetch-box.yaml&quot;
 end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Preparing the job and running its script, please wait
-checking the run prepared in /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-11-10_20_41_28_228230 by a rehearsal, which registers nothing
-processing config file: /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-11-10_20_41_28_228230/config.yaml
+checking the run prepared in /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-11-13_14_06_11_934265 by a rehearsal, which registers nothing
+processing config file: /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-11-13_14_06_11_934265/config.yaml
 pipeline initialised.
 finished - code run locally registered as: http://127.0.0.1:8000/api/code_run/3/</code></pre><p>Run again, WorldClim&#39;s fetch run finds every file registered as it would register it now, and stops in its rehearsal, before a code run exists, registering nothing:</p><pre><code class="language-julia hljs">run_example &amp;&amp; cd(pkgdir(EcoSISTEM)) do
     fair&quot;run examples/pipeline/fetch-worldclim.yaml&quot;
 end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Preparing the job and running its script, please wait
-checking the run prepared in /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-11-10_20_42_19_690223 by a rehearsal, which registers nothing</code></pre><h3 id="The-model-run"><a class="docs-heading-anchor" href="#The-model-run">The model run</a><a id="The-model-run-1"></a><a class="docs-heading-anchor-permalink" href="#The-model-run" title="Permalink"></a></h3><p>The model config reads each source&#39;s files and their records in its namespace, and writes the figure in EcoSISTEM&#39;s:</p><pre><code class="language-julia hljs">print(read(joinpath(example, &quot;model.yaml&quot;), String))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">run_metadata:
+checking the run prepared in /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-11-13_14_07_09_908715 by a rehearsal, which registers nothing</code></pre><h3 id="The-model-run"><a class="docs-heading-anchor" href="#The-model-run">The model run</a><a id="The-model-run-1"></a><a class="docs-heading-anchor-permalink" href="#The-model-run" title="Permalink"></a></h3><p>The model config reads each source&#39;s files and their records in its namespace, and writes the figure in EcoSISTEM&#39;s:</p><pre><code class="language-julia hljs">print(read(joinpath(example, &quot;model.yaml&quot;), String))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">run_metadata:
   description: One species over Scotland, built from the registered inputs
   default_input_namespace: EcoSISTEM
   default_output_namespace: EcoSISTEM
@@ -138,7 +152,7 @@ write:
 end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Pulling, please wait
 There are no items in the [read] block to pull from registry: &#39;origin&#39;.
 Preparing the job and running its script, please wait
-processing config file: /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-11-10_20_43_06_605225/config.yaml
+processing config file: /home/runner/work/EcoSISTEM.jl/EcoSISTEM.jl/.fair/data_store/jobs/2026-11-13_14_08_02_550699/config.yaml
 pipeline initialised.
 data product found: box/data/scotland_box
 data product found: box/provenance/scotland_box
@@ -156,32 +170,32 @@ data product found: worldclim/provenance/wc2.1_10m_bio_12
 [ Info: build_species(pool): `death` defaulted to 0.6 yr^-1.
 [ Info: build_species(pool): `longevity` defaulted to 1.0.
 [ Info: build_species(pool): `survival` defaulted to 0.2.
-Scotland on a 43 x 27 grid of 10 km cells (696 active): total abundance 10000 -&gt; 61405.
-finished - code run locally registered as: http://127.0.0.1:8000/api/code_run/4/</code></pre><h3 id="Where-the-figure-came-from"><a class="docs-heading-anchor" href="#Where-the-figure-came-from">Where the figure came from</a><a id="Where-the-figure-came-from-1"></a><a class="docs-heading-anchor-permalink" href="#Where-the-figure-came-from" title="Permalink"></a></h3><p>DataPipeline&#39;s <code>provenance</code> traces a data product back through the runs that made it to what each of them read, and each one&#39;s source:</p><pre><code class="language-julia hljs">trace = run_example ? DataPipeline.provenance(&quot;EcoSISTEM:Scotland-plot&quot;) : nothing</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Provenance of EcoSISTEM:Scotland-plot@v0.0.1  sha1 53c3a801
-&lt;- run a08c6627 on 2026-11-10 20:43 UTC, github.com/EcoJulia/EcoSISTEM.jl at a0a63ca6
+Scotland on a 43 x 27 grid of 10 km cells (696 active): total abundance 10000 -&gt; 60609.
+finished - code run locally registered as: http://127.0.0.1:8000/api/code_run/4/</code></pre><h3 id="Where-the-figure-came-from"><a class="docs-heading-anchor" href="#Where-the-figure-came-from">Where the figure came from</a><a id="Where-the-figure-came-from-1"></a><a class="docs-heading-anchor-permalink" href="#Where-the-figure-came-from" title="Permalink"></a></h3><p>DataPipeline&#39;s <code>provenance</code> traces a data product back through the runs that made it to what each of them read, and each one&#39;s source:</p><pre><code class="language-julia hljs">trace = run_example ? DataPipeline.provenance(&quot;EcoSISTEM:Scotland-plot&quot;) : nothing</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Provenance of EcoSISTEM:Scotland-plot@v0.0.1  sha1 0b417b94
+&lt;- run 8f6fea0b on 2026-11-13 14:08 UTC, github.com/EcoJulia/EcoSISTEM.jl at 0febd48e
    used NaturalEarth:box/data/scotland_box@v0.0.1  sha1 4f738953  from https://www.naturalearthdata.com/ (supplement)
-   &lt;- run feeb2737 on 2026-11-10 20:42 UTC, github.com/EcoJulia/EcoSISTEM.jl at a0a63ca6
+   &lt;- run ebb77256 on 2026-11-13 14:06 UTC, github.com/EcoJulia/EcoSISTEM.jl at 0febd48e
       used NaturalEarth:box/deposit@v0.0.1  no file  from https://www.naturalearthdata.com/ (primary)
-   used NaturalEarth:box/provenance/scotland_box@v0.0.1  sha1 adbd1855
-   &lt;- run feeb2737 on 2026-11-10 20:42 UTC, github.com/EcoJulia/EcoSISTEM.jl at a0a63ca6
+   used NaturalEarth:box/provenance/scotland_box@v0.0.1  sha1 0ba866c2
+   &lt;- run ebb77256 on 2026-11-13 14:06 UTC, github.com/EcoJulia/EcoSISTEM.jl at 0febd48e
       used NaturalEarth:box/deposit@v0.0.1  (above)
    used WorldClim:worldclim/data/wc2.1_10m_bio_1@v0.0.1  sha1 f6426c76  from https://doi.org/10.1002/joc.5086 (supplement)
-   &lt;- run 46dedd3b on 2026-11-10 20:40 UTC, github.com/EcoJulia/EcoSISTEM.jl at a0a63ca6
+   &lt;- run 80b15a7a on 2026-11-13 14:04 UTC, github.com/EcoJulia/EcoSISTEM.jl at 0febd48e
       used WorldClim:worldclim/deposit@v0.0.1  no file  from https://doi.org/10.1002/joc.5086 (supplement)
    used WorldClim:worldclim/data/wc2.1_10m_bio_12@v0.0.1  sha1 fd39b387  from https://doi.org/10.1002/joc.5086 (supplement)
-   &lt;- run 46dedd3b on 2026-11-10 20:40 UTC, github.com/EcoJulia/EcoSISTEM.jl at a0a63ca6
+   &lt;- run 80b15a7a on 2026-11-13 14:04 UTC, github.com/EcoJulia/EcoSISTEM.jl at 0febd48e
       used WorldClim:worldclim/deposit@v0.0.1  (above)
-   used WorldClim:worldclim/provenance/wc2.1_10m_bio_1@v0.0.1  sha1 8ea9f2bd
-   &lt;- run 46dedd3b on 2026-11-10 20:40 UTC, github.com/EcoJulia/EcoSISTEM.jl at a0a63ca6
+   used WorldClim:worldclim/provenance/wc2.1_10m_bio_1@v0.0.1  sha1 eec2f3d6
+   &lt;- run 80b15a7a on 2026-11-13 14:04 UTC, github.com/EcoJulia/EcoSISTEM.jl at 0febd48e
       used WorldClim:worldclim/deposit@v0.0.1  (above)
-   used WorldClim:worldclim/provenance/wc2.1_10m_bio_12@v0.0.1  sha1 9524ac47
-   &lt;- run 46dedd3b on 2026-11-10 20:40 UTC, github.com/EcoJulia/EcoSISTEM.jl at a0a63ca6
+   used WorldClim:worldclim/provenance/wc2.1_10m_bio_12@v0.0.1  sha1 3dfbdc96
+   &lt;- run 80b15a7a on 2026-11-13 14:04 UTC, github.com/EcoJulia/EcoSISTEM.jl at 0febd48e
       used WorldClim:worldclim/deposit@v0.0.1  (above)
    used NaturalEarth:naturalearth/data/ne_10m_admin_0_map_units@v0.0.1  sha1 286d07d8  from https://www.naturalearthdata.com/ (primary)
-   &lt;- run 16dc0313 on 2026-11-10 20:41 UTC, github.com/EcoJulia/EcoSISTEM.jl at a0a63ca6
+   &lt;- run a39fb2a0 on 2026-11-13 14:06 UTC, github.com/EcoJulia/EcoSISTEM.jl at 0febd48e
       used NaturalEarth:naturalearth/deposit@v0.0.1  no file  from https://www.naturalearthdata.com/ (primary)
-   used NaturalEarth:naturalearth/provenance/ne_10m_admin_0_map_units@v0.0.1  sha1 5f9643ae
-   &lt;- run 16dc0313 on 2026-11-10 20:41 UTC, github.com/EcoJulia/EcoSISTEM.jl at a0a63ca6
+   used NaturalEarth:naturalearth/provenance/ne_10m_admin_0_map_units@v0.0.1  sha1 2641a230
+   &lt;- run a39fb2a0 on 2026-11-13 14:06 UTC, github.com/EcoJulia/EcoSISTEM.jl at 0febd48e
       used NaturalEarth:naturalearth/deposit@v0.0.1  (above)
 </code></pre><p>The figure, read back from the store where the registry says it is: the abundance at the start and after five years, beside the annual temperature and rainfall the habitat was built from.</p><pre><code class="language-julia hljs">run_example &amp;&amp; include(joinpath(pkgdir(EcoSISTEM), &quot;docs&quot;, &quot;pipeline.jl&quot;))
-run_example ? registeredimage(trace.products[only(trace.roots)]) : nothing</code></pre><img src="53c3a801.png" alt="Example block output" width="800" height="600"/><p>The same provenance as a graph, drawn by <code>docs/pipeline.jl</code> from the registry&#39;s own record two code runs back, which reaches the providers: grey for each item a provider&#39;s data is cited by, with its authors; yellow for each data product; blue for each code run, with the code it ran and that code&#39;s authors. A dashed arrow joins a cited item to a file that is the item itself, as Natural Earth&#39;s zip is; WorldClim&#39;s files are cited by the paper describing their data.</p><pre><code class="language-julia hljs">run_example ? provenancegraph(trace, depth = 2) : nothing</code></pre><img src="13041f34.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../africa/">« Africa</a><a class="docs-footer-nextpage" href="../api/">API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.20.0 on <span class="colophon-date" title="Tuesday 10 November 2026 20:45">Tuesday 10 November 2026</span>. Using Julia version 1.13.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+run_example ? registeredimage(trace.products[only(trace.roots)]) : nothing</code></pre><img src="0b417b94.png" alt="Example block output" width="800" height="600"/><p>The same provenance as a graph, drawn by <code>docs/pipeline.jl</code> from the registry&#39;s own record two code runs back, which reaches the providers: grey for each item a provider&#39;s data is cited by, with its authors; yellow for each data product; blue for each code run, with the code it ran and that code&#39;s authors. A dashed arrow joins a cited item to a file that is the item itself, as Natural Earth&#39;s zip is; WorldClim&#39;s files are cited by the paper describing their data.</p><pre><code class="language-julia hljs">run_example ? provenancegraph(trace, depth = 2) : nothing</code></pre><img src="f96cbfe7.svg" alt="Example block output"/></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../africa/">« Africa</a><a class="docs-footer-nextpage" href="../api/">API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.20.0 on <span class="colophon-date" title="Friday 13 November 2026 14:10">Friday 13 November 2026</span>. Using Julia version 1.13.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
